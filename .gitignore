@@ -1,0 +1,11 @@
+.DS_Store
+.vscode/
+__MACOSX/
+out/
+out_release/
+build/
+build_release/
+.cache/
+glslang.exe
+glslang
+*.bat

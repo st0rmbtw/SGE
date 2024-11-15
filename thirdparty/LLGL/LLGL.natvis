@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+    <Type Name="LLGL::ArrayView&lt;*&gt;" Inheritable="false">
+        <DisplayString>{{size = {size_}}}</DisplayString>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">size_</Item>
+            <ArrayItems>
+                <Size>size_</Size>
+                <ValuePointer>data_</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="LLGL::DynamicArray&lt;*&gt;" Inheritable="false">
+        <DisplayString>{{size = {size_}}}</DisplayString>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">size_</Item>
+            <ArrayItems>
+                <Size>size_</Size>
+                <ValuePointer>data_</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="LLGL::SmallVector&lt;*&gt;" Inheritable="false">
+        <DisplayString Condition="size_ &gt; $T2">{{size = {size_} | dynamic}}</DisplayString>
+        <DisplayString>{{size = {size_} | static}}</DisplayString>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">size_</Item>
+            <Item Name="[capacity]" ExcludeView="simple" Condition="size_ &lt;= $T2">$T2</Item>
+            <Item Name="[capacity]" ExcludeView="simple" Condition="size_ &gt; $T2">cap_</Item>
+            <ArrayItems>
+                <Size>size_</Size>
+                <ValuePointer>data_</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="LLGL::BasicStringView&lt;*&gt;" Inheritable="false">
+        <DisplayString>{{length = {size_}}}</DisplayString>
+        <Expand>
+            <Item Name="[length]" ExcludeView="simple">size_</Item>
+            <ArrayItems>
+                <Size>size_</Size>
+                <ValuePointer>data_</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="LLGL::UTF8String" Inheritable="false">
+        <DisplayString>{data_.data_,s}</DisplayString>
+        <Expand>
+            <Item Name="[length]" ExcludeView="simple">data_.size_ - 1</Item>
+            <Item Name="[capacity]" ExcludeView="simple" Condition="data_.size_ &lt;= 16">16</Item>
+            <Item Name="[capacity]" ExcludeView="simple" Condition="data_.size_ &gt; 16">data_.cap_ - 1</Item>
+            <Item Name="[c_str]" ExcludeView="simple">data_.data_</Item>
+            <ArrayItems>
+                <Size>data_.size_ - 1</Size>
+                <ValuePointer>data_.data_</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+</AutoVisualizer>
