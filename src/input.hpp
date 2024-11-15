@@ -86,7 +86,7 @@ namespace Input {
 
     const std::vector<float>& ScrollEvents();
     const glm::vec2& MouseScreenPosition();
-    const glm::vec2& Input::MouseDelta();
+    const glm::vec2& MouseDelta();
     bool IsMouseOverUi();
 
     void Clear();
