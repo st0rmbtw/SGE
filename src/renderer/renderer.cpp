@@ -264,13 +264,13 @@ void Renderer::DrawAtlasSpriteUI(const TextureAtlasSprite& sprite, int depth) {
     add_atlas_sprite_to_batch(sprite, RenderLayer::Main, true, depth);
 }
 
-void Renderer::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, Anchor anchor, bool is_ui, int depth) {
+void Renderer::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, Anchor anchor, bool is_ui, int depth) {
     const math::Rect aabb = math::Rect::from_top_left(position - anchor.to_vec2() * size, size);
 
     if (!is_ui && !state.camera_frustum.intersects(aabb)) return;
     if (is_ui && !state.ui_frustum.intersects(aabb)) return;
 
-    state.shape_batch.draw_shape(shape, position, size, color, anchor, is_ui, depth);
+    state.shape_batch.draw_shape(shape, position, size, color, border_color, border_thickness, anchor, is_ui, depth);
 }
 
 void Renderer::DrawText(const char* text, uint32_t length, float size, const glm::vec2& position, const glm::vec3& color, FontAsset key, bool is_ui, int depth) {
@@ -357,7 +357,7 @@ void RenderBatchShape::init() {
         BaseVertex(1.0f, 1.0f),
     };
 
-    m_vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, Assets::GetVertexFormat(VertexFormatAsset::ShapeVertex), "SpriteBatch VertexBuffer");
+    m_vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, Assets::GetVertexFormat(VertexFormatAsset::ShapeVertex), "ShapeBatch VertexBuffer");
     m_instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(ShapeInstance), Assets::GetVertexFormat(VertexFormatAsset::ShapeInstance), "ShapeBatch InstanceBuffer");
 
     LLGL::Buffer* buffers[] = { m_vertex_buffer, m_instance_buffer };
@@ -413,7 +413,7 @@ void RenderBatchShape::init() {
     }
 }
 
-void RenderBatchShape::draw_shape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, Anchor anchor, bool is_ui, int depth) {
+void RenderBatchShape::draw_shape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, Anchor anchor, bool is_ui, int depth) {
     if (m_count >= MAX_QUADS) {
         render();
         begin();
@@ -444,6 +444,8 @@ void RenderBatchShape::draw_shape(Shape::Type shape, glm::vec2 position, glm::ve
     m_buffer_ptr->size = size;
     m_buffer_ptr->offset = anchor.to_vec2();
     m_buffer_ptr->color = color;
+    m_buffer_ptr->border_color = border_color;
+    m_buffer_ptr->border_thickness = border_thickness;
     m_buffer_ptr->flags = flags;
     m_buffer_ptr->shape = shape;
     m_buffer_ptr++;
@@ -487,6 +489,7 @@ void RenderBatchShape::terminate() {
 
 void RenderBatchSprite::init() {
     const auto& context = Renderer::Context();
+    const RenderBackend backend = Renderer::Backend();
 
     m_buffer = new SpriteInstance[MAX_QUADS];
 
@@ -512,6 +515,8 @@ void RenderBatchSprite::init() {
             LLGL::StageFlags::VertexStage,
             LLGL::BindingSlot(2)
         ),
+        LLGL::BindingDescriptor("u_texture", LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(3)),
+        LLGL::BindingDescriptor("u_sampler", LLGL::ResourceType::Sampler, 0, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(backend.IsOpenGL() ? 3 : 4))
     };
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);

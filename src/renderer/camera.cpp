@@ -5,12 +5,12 @@
 
 void Camera::update_projection_area() {
     // Origin at the top left corner
-    m_area = math::Rect::from_corners(glm::vec2(0.0f), glm::vec2(m_viewport));
+    m_area = math::Rect::from_corners(glm::vec2(0.0f), glm::vec2(m_viewport) * m_zoom);
 
     // Origin at the center of the screen
     // m_area = math::Rect::from_corners(
-    //     -glm::vec2(m_viewport) / 2.0f,
-    //     glm::vec2(m_viewport) / 2.0f
+    //     -glm::vec2(m_viewport) / 2.0f * m_zoom,
+    //     glm::vec2(m_viewport) / 2.0f * m_zoom
     // );
 }
 

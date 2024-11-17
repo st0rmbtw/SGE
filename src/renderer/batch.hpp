@@ -48,6 +48,8 @@ struct ShapeData {
     glm::vec2 size;
     glm::vec2 offset;
     glm::vec4 color;
+    glm::vec4 border_color;
+    float border_thickness;
     uint32_t order;
     bool is_ui;
 };
@@ -87,7 +89,7 @@ protected:
 
 class RenderBatchShape : public RenderBatch {
 public:
-    void draw_shape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, Anchor anchor, bool is_ui, int depth);
+    void draw_shape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, Anchor anchor, bool is_ui, int depth);
     void init() override;
     void render() override;
     void begin() override;

@@ -344,8 +344,10 @@ void Assets::InitVertexFormats() {
             {"i_size",               LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
             {"i_offset",             LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
             {"i_color",              LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
-            {"i_flags",              LLGL::Format::R32SInt,     5,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1 },
-            {"i_shape",              LLGL::Format::R32SInt,     6,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
+            {"i_border_color",       LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
+            {"i_border_thickness",   LLGL::Format::R32Float,    6,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
+            {"i_flags",              LLGL::Format::R32UInt,     7,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1 },
+            {"i_shape",              LLGL::Format::R32UInt,     8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
         };
     } else if (backend.IsHLSL()) {
         shape_instance_format.attributes = {
@@ -353,8 +355,10 @@ void Assets::InitVertexFormats() {
             {"I_Size",             LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
             {"I_Offset",           LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
             {"I_Color",            LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
-            {"I_Flags",            LLGL::Format::R32SInt,     5,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1 },
-            {"I_Shape",            LLGL::Format::R32SInt,     6,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
+            {"I_BorderColor",      LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
+            {"I_BorderThickness",  LLGL::Format::R32Float,    6,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
+            {"I_Flags",            LLGL::Format::R32UInt,     7,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1 },
+            {"I_Shape",            LLGL::Format::R32UInt,     8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
         };
     } else {
         shape_instance_format.attributes = {
@@ -362,8 +366,10 @@ void Assets::InitVertexFormats() {
             {"i_size",               LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
             {"i_offset",             LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
             {"i_color",              LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
-            {"i_flags",              LLGL::Format::R32SInt,     5,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1 },
-            {"i_shape",              LLGL::Format::R32SInt,     6,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
+            {"i_border_color",       LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
+            {"i_border_thickness",   LLGL::Format::R32Float,    6,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
+            {"i_flags",              LLGL::Format::R32UInt,     7,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1 },
+            {"i_shape",              LLGL::Format::R32UInt,     8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
         };
     }
 

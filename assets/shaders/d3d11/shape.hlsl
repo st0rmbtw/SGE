@@ -16,6 +16,8 @@ struct VSInput
     float2 i_size : I_Size;
     float2 i_offset : I_Offset;
     float4 i_color : I_Color;
+    float4 i_border_color : I_BorderColor;
+    float i_border_thickness : I_BorderThickness;
     uint i_flags : I_Flags;
     uint i_shape : I_Shape;
 };
@@ -25,6 +27,8 @@ struct VSOutput
     float4 position : SV_Position;
     float2 uv : UV;
     nointerpolation float4 color : Color;
+    nointerpolation float4 border_color : BorderColor;
+    nointerpolation float border_thickness : BorderThickness;
     nointerpolation uint shape : Shape;
 };
 
@@ -92,24 +96,35 @@ VSOutput VS(VSInput inp)
     outp.position.z = order;
     outp.uv = position;
     outp.color = inp.i_color;
+    outp.border_color = inp.i_border_color;
+    outp.border_thickness = inp.i_border_thickness;
     outp.shape = inp.i_shape;
 
 	return outp;
 }
 
-float circle(in float2 st, float radius){
+static const float CIRCLE_AA = 0.005;
+
+float4 circle(in float2 st, in float4 color, in float4 border_color, float border_thickness) {
     float2 dist = st - float2(0.5, 0.5);
-	return 1.0 - smoothstep(
-        radius - (radius * 0.01),
-        radius + (radius * 0.01),
-        dot(dist, dist) * 4.0
-    );
+    float d = dot(dist, dist);
+    
+    float border_cr = 0.5 - border_thickness * 0.5;
+    float2 border_weight = float2(border_cr*border_cr+border_cr*CIRCLE_AA,border_cr*border_cr-border_cr*CIRCLE_AA);
+
+    float cr = 0.5;
+    float2 weight = float2(cr*cr+cr*CIRCLE_AA,cr*cr-cr*CIRCLE_AA);
+
+    float t1 = 1.0 - clamp((d-border_weight.y)/(border_weight.x-border_weight.y),0.0,1.0);
+    float t2 = 1.0 - clamp((d-weight.y)/(weight.x-weight.y),0.0,1.0);
+
+    return float4(lerp(border_color.rgb, color.rgb, t1), t2);
 }
 
 float4 PS(VSOutput inp) : SV_Target
 {
     if (inp.shape == SHAPE_CIRCLE) {
-        return circle(inp.uv, 1.0) * inp.color;
+        return circle(inp.uv, inp.color, inp.border_color, inp.border_thickness);
     }
 
     return inp.color;

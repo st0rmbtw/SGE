@@ -44,7 +44,11 @@ namespace Renderer {
     void DrawSpriteUI(const Sprite& sprite, int depth = -1);
     void DrawAtlasSpriteUI(const TextureAtlasSprite& sprite, int depth = -1);
 
-    void DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, Anchor anchor = Anchor::Center, bool is_ui = false, int depth = -1);
+    void DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, Anchor anchor = Anchor::Center, bool is_ui = false, int depth = -1);
+
+    inline void DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, Anchor anchor = Anchor::Center, bool is_ui = false, int depth = -1) {
+        DrawShape(shape, position, size, color, color, 0.0f, anchor, is_ui, depth);
+    }
 
     void DrawText(const char* text, uint32_t length, float size, const glm::vec2& position, const glm::vec3& color, FontAsset font, bool is_ui = false, int depth = -1);
 
