@@ -11,6 +11,7 @@
 #include "types/texture.hpp"
 #include "types/shader_pipeline.hpp"
 #include "types/font.hpp"
+#include "types/shader_def.hpp"
 
 enum class TextureAsset : uint8_t {
     Stub = 0,
@@ -39,15 +40,6 @@ enum class VertexFormatAsset : uint8_t {
     ShapeInstance
 };
 
-struct ShaderDef {
-    std::string name;
-    std::string value;
-    
-    ShaderDef(std::string name, std::string value) :
-        name(std::move(name)),
-        value(std::move(value)) {}
-};
-
 constexpr uint32_t PARTICLES_ATLAS_COLUMNS = 100;
 
 namespace Assets {
@@ -65,7 +57,6 @@ namespace Assets {
     const Texture& GetTexture(TextureAsset key);
     const TextureAtlas& GetTextureAtlas(TextureAsset key);
     const Font& GetFont(FontAsset key);
-    const Texture& GetItemTexture(size_t index);
     const ShaderPipeline& GetShader(ShaderAsset key);
     LLGL::Shader* GetComputeShader(ComputeShaderAsset key);
     LLGL::Sampler& GetSampler(size_t index);

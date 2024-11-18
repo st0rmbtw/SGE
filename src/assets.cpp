@@ -106,7 +106,6 @@ const std::pair<ComputeShaderAsset, AssetComputeShader> COMPUTE_SHADER_ASSETS[] 
 };
 
 static struct AssetsState {
-    std::unordered_map<uint16_t, Texture> items;
     std::unordered_map<TextureAsset, Texture> textures;
     std::unordered_map<TextureAsset, TextureAtlas> textures_atlases;
     std::unordered_map<ShaderAsset, ShaderPipeline> shaders;
@@ -451,12 +450,6 @@ const TextureAtlas& Assets::GetTextureAtlas(TextureAsset key) {
 const Font& Assets::GetFont(FontAsset key) {
     const auto entry = std::as_const(state.fonts).find(key);
     ASSERT(entry != state.fonts.cend(), "Font not found: %u", static_cast<uint32_t>(key));
-    return entry->second;
-}
-
-const Texture& Assets::GetItemTexture(size_t index) {
-    const auto entry = std::as_const(state.items).find(index);
-    ASSERT(entry != state.items.cend(), "Item not found: %zu", index);
     return entry->second;
 }
 
