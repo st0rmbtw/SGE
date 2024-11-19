@@ -15,12 +15,12 @@ namespace Time {
     float fixed_delta_seconds();
     float fixed_elapsed_seconds();
 
-    void set_fixed_delta(const float seconds);
+    void set_fixed_timestep_seconds(const float seconds);
 
     template <class Rep, class Period>
-    void set_fixed_delta(const std::chrono::duration<Rep, Period>& delta) {
+    void set_fixed_timestep(const std::chrono::duration<Rep, Period>& delta) {
         const delta_time_t d = std::chrono::duration_cast<delta_time_t>(delta);
-        set_fixed_delta(d.count());
+        set_fixed_timestep_seconds(d.count());
     }
 
     void advance_by(const delta_time_t& delta);

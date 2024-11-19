@@ -92,13 +92,16 @@ bool Game::Init(RenderBackend backend, GameConfig config) {
     Engine::SetWindowResizeCallback(window_resized);
 
     glm::uvec2 window_size = glm::uvec2(1280, 720);
-    if (!Engine::Init(backend, config, window_size.x, window_size.y)) return false;
-    Time::set_fixed_delta(std::chrono::duration<float>(Constants::FIXED_UPDATE_INTERVAL));
+    if (!Engine::Init(backend, config.vsync, config.fullscreen, window_size.x, window_size.y, true)) return false;
+
+    Time::set_fixed_timestep_seconds(Constants::FIXED_UPDATE_INTERVAL);
     
     g.camera.set_viewport({window_size.x, window_size.y});
     g.camera.set_zoom(1.0f);
 
     UI::Init();
+
+    Engine::ShowWindow();
 
     return true;
 }

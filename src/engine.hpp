@@ -4,7 +4,6 @@
 #pragma once
 
 #include "types/backend.hpp"
-#include "types/config.hpp"
 
 namespace Engine {
     using PreUpdateCallback = void (*)(void);
@@ -16,7 +15,7 @@ namespace Engine {
     using LoadAssetsCallback = bool (*)(void);
     using WindowResizeCallback = void (*)(uint32_t width, uint32_t height);
 
-    bool Init(RenderBackend backend, GameConfig config, uint32_t window_width, uint32_t window_height);
+    bool Init(RenderBackend backend, bool vsync, bool fullscreen, uint32_t window_width, uint32_t window_height, bool window_hidden = false);
     void SetPreUpdateCallback(PreUpdateCallback);
     void SetUpdateCallback(UpdateCallback);
     void SetPostUpdateCallback(PostUpdateCallback);
@@ -27,6 +26,8 @@ namespace Engine {
     void SetLoadAssetsCallback(LoadAssetsCallback);
 
     void SetWindowMinSize(uint32_t min_width, uint32_t min_height);
+    void ShowWindow();
+    void HideWindow();
 
     void Run();
     void Destroy();

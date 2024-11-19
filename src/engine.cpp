@@ -25,9 +25,9 @@ static struct EngineState {
     Engine::WindowResizeCallback window_resize_callback = nullptr;
 } state;
 
-void default_callback() {}
-void default_window_resize_callback(uint32_t, uint32_t) {}
-bool default_load_assets_callback() { return true; }
+static void default_callback() {}
+static void default_window_resize_callback(uint32_t, uint32_t) {}
+static bool default_load_assets_callback() { return true; }
 
 static void handle_keyboard_events(GLFWwindow* window, int key, int scancode, int action, int mods);
 static void handle_mouse_button_events(GLFWwindow* window, int button, int action, int mods);
@@ -36,10 +36,10 @@ static void handle_cursor_pos_events(GLFWwindow* window, double xpos, double ypo
 static void handle_window_resize_events(GLFWwindow* window, int width, int height);
 static void handle_window_iconify_callback(GLFWwindow* window, int iconified);
 
-static GLFWwindow* create_window(LLGL::Extent2D size, bool fullscreen) {
+static GLFWwindow* create_window(LLGL::Extent2D size, bool fullscreen, bool hidden) {
     glfwWindowHint(GLFW_FOCUSED, 1);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_VISIBLE, hidden ? GLFW_FALSE : GLFW_TRUE);
 
     GLFWmonitor* primary_monitor = fullscreen ? glfwGetPrimaryMonitor() : nullptr;
 
@@ -103,7 +103,15 @@ void Engine::SetWindowMinSize(uint32_t min_width, uint32_t min_height) {
     glfwSetWindowSizeLimits(state.window, min_width, min_height, GLFW_DONT_CARE, GLFW_DONT_CARE);
 }
 
-bool Engine::Init(RenderBackend backend, GameConfig config, uint32_t window_width, uint32_t window_height) {
+void Engine::ShowWindow() {
+    glfwShowWindow(state.window);
+}
+
+void Engine::HideWindow() {
+    glfwHideWindow(state.window);
+}
+
+bool Engine::Init(RenderBackend backend, bool vsync, bool fullscreen, uint32_t window_width, uint32_t window_height, bool window_hidden) {
     if (state.pre_update_callback == nullptr) state.pre_update_callback = default_callback;
     if (state.update_callback == nullptr) state.update_callback = default_callback;
     if (state.post_update_callback == nullptr) state.post_update_callback = default_callback;
@@ -111,6 +119,7 @@ bool Engine::Init(RenderBackend backend, GameConfig config, uint32_t window_widt
     if (state.render_callback == nullptr) state.render_callback = default_callback;
     if (state.post_render_callback == nullptr) state.post_render_callback = default_callback;
     if (state.window_resize_callback == nullptr) state.window_resize_callback = default_window_resize_callback;
+    if (state.load_assets_callback == nullptr) state.load_assets_callback = default_load_assets_callback;
 
     if (!glfwInit()) {
         LOG_ERROR("Couldn't initialize GLFW: %s", glfwGetErrorString());
@@ -124,7 +133,7 @@ bool Engine::Init(RenderBackend backend, GameConfig config, uint32_t window_widt
     if (!state.load_assets_callback()) return false;
 
     LLGL::Extent2D window_size = LLGL::Extent2D(window_width, window_height);
-    if (config.fullscreen) {
+    if (fullscreen) {
         const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
         window_size = LLGL::Extent2D(mode->width, mode->height);
     }
@@ -133,18 +142,16 @@ bool Engine::Init(RenderBackend backend, GameConfig config, uint32_t window_widt
     const std::uint32_t resScale = (display != nullptr ? static_cast<std::uint32_t>(display->GetScale()) : 1u);
     const auto resolution = LLGL::Extent2D(window_size.width * resScale, window_size.height * resScale);
 
-    GLFWwindow *window = create_window(window_size, config.fullscreen);
+    GLFWwindow *window = create_window(window_size, fullscreen, window_hidden);
     if (window == nullptr) return false;
 
     state.window = window;
     state.window_width = window_width;
     state.window_height = window_height;
     
-    if (!Renderer::Init(window, resolution, config.vsync, config.fullscreen)) return false;
+    if (!Renderer::Init(window, resolution, vsync, fullscreen)) return false;
 
-    Time::set_fixed_delta(delta_time_t(1.0 / 60.0));
-
-    glfwShowWindow(window);
+    Time::set_fixed_timestep_seconds(1.0f / 60.0f);
 
     return true;
 }

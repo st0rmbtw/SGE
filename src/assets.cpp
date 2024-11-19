@@ -117,6 +117,7 @@ static struct AssetsState {
 } state;
 
 static Texture create_texture(uint32_t width, uint32_t height, uint32_t components, int sampler, const uint8_t* data, bool generate_mip_maps = false);
+static Texture create_texture_array(uint32_t width, uint32_t height, uint32_t layers, uint32_t components, int sampler, const uint8_t* data, size_t data_size, bool generate_mip_maps);
 static LLGL::Shader* load_shader(ShaderType shader_type, const std::string& name, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
 static LLGL::Shader* load_compute_shader(const std::string& name, const std::string& func_name, const std::vector<ShaderDef>& shader_defs);
 static bool load_font(FT_Library ft, const std::string& path, Font& font);
@@ -492,7 +493,7 @@ static bool load_texture(const char* path, int sampler, Texture* texture) {
     return true;
 }
 
-Texture create_texture(uint32_t width, uint32_t height, uint32_t components, int sampler, const uint8_t* data, bool generate_mip_maps) {
+static Texture create_texture(uint32_t width, uint32_t height, uint32_t components, int sampler, const uint8_t* data, bool generate_mip_maps) {
     LLGL::TextureDescriptor texture_desc;
     texture_desc.extent = LLGL::Extent3D(width, height, 1);
     texture_desc.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::ColorAttachment;
@@ -522,8 +523,34 @@ Texture create_texture(uint32_t width, uint32_t height, uint32_t components, int
     return texture;
 }
 
+static Texture create_texture_array(uint32_t width, uint32_t height, uint32_t layers, uint32_t components, int sampler, const uint8_t* data, size_t data_size, bool generate_mip_maps) {
+    LLGL::TextureDescriptor texture_desc;
+    texture_desc.type = LLGL::TextureType::Texture2DArray;
+    texture_desc.extent.width = width;
+    texture_desc.extent.height = height;
+    texture_desc.extent.depth = 1;
+    texture_desc.arrayLayers = layers;
+    texture_desc.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::ColorAttachment;
+    texture_desc.cpuAccessFlags = 0;
+    texture_desc.miscFlags = LLGL::MiscFlags::GenerateMips * generate_mip_maps;
+
+    LLGL::ImageView image_view;
+    image_view.format = (components == 4 ? LLGL::ImageFormat::RGBA : LLGL::ImageFormat::RGB);
+    image_view.dataType = LLGL::DataType::UInt8;
+    image_view.data = data;
+    image_view.dataSize = data_size;
+
+    Texture texture;
+    texture.id = state.texture_index++;
+    texture.texture = Renderer::Context()->CreateTexture(texture_desc, &image_view);
+    texture.sampler = sampler;
+    texture.size = glm::uvec2(width, height);
+
+    return texture;
+}
+
 template <size_t T>
-Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps) {
+static Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps) {
     uint32_t width = 0;
     uint32_t height = 0;
     uint32_t layers_count = 0;
@@ -567,7 +594,7 @@ Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>
     return create_texture_array(width, height, layers_count, 4, sampler, image_data, data_size, generate_mip_maps);
 }
 
-LLGL::Shader* load_shader(
+static LLGL::Shader* load_shader(
     ShaderType shader_type,
     const std::string& name,
     const std::vector<ShaderDef>& shader_defs,
@@ -644,7 +671,7 @@ LLGL::Shader* load_shader(
     return shader;
 }
 
-LLGL::Shader* load_compute_shader(const std::string& name, const std::string& func_name, const std::vector<ShaderDef>& shader_defs) {
+static LLGL::Shader* load_compute_shader(const std::string& name, const std::string& func_name, const std::vector<ShaderDef>& shader_defs) {
     const RenderBackend backend = Renderer::Backend();
     const ShaderType shader_type = ShaderType::Compute;
 
@@ -710,7 +737,7 @@ LLGL::Shader* load_compute_shader(const std::string& name, const std::string& fu
     return shader;
 }
 
-bool load_font(FT_Library ft, const std::string& path, Font& font) {
+static bool load_font(FT_Library ft, const std::string& path, Font& font) {
     FT_Face face;
     if (FT_New_Face(ft, path.c_str(), 0, &face)) {
         LOG_ERROR("Failed to load font: %s", path.c_str());

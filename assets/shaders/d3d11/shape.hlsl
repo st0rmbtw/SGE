@@ -103,7 +103,7 @@ VSOutput VS(VSInput inp)
 	return outp;
 }
 
-static const float CIRCLE_AA = 0.005;
+static const float CIRCLE_AA = 0.001;
 
 float4 circle(in float2 st, in float4 color, in float4 border_color, float border_thickness) {
     float2 dist = st - float2(0.5, 0.5);
