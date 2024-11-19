@@ -5,6 +5,8 @@
 #include "renderer/camera.h"
 #include "input.hpp"
 #include "time/time.hpp"
+#include "types/anchor.hpp"
+#include "types/window_settings.hpp"
 #include "ui.hpp"
 
 static struct GameState {
@@ -20,7 +22,7 @@ bool load_assets() {
     return true;
 }
 
-void window_resized(uint32_t width, uint32_t height) {
+void window_resized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
     g.camera.set_viewport(glm::uvec2(width, height));
 }
 
@@ -64,6 +66,7 @@ void render() {
     Sprite sprite;
     sprite.set_custom_size(glm::vec2(50.0f));
     sprite.set_color(glm::vec3(1.0f, 0.0f, 0.0f));
+    sprite.set_anchor(Anchor::TopLeft);
     Renderer::DrawSprite(sprite);
 
     Renderer::DrawShape(Shape::Circle, glm::vec2(g.camera.viewport()) / 2.0f, glm::vec2(100.0f),glm::vec4(0.5f, 0.93f, 0.5f, 1.0f), glm::vec4(1.0f), 0.1f);
@@ -92,7 +95,14 @@ bool Game::Init(RenderBackend backend, GameConfig config) {
     Engine::SetWindowResizeCallback(window_resized);
 
     glm::uvec2 window_size = glm::uvec2(1280, 720);
-    if (!Engine::Init(backend, config.vsync, config.fullscreen, window_size.x, window_size.y, true)) return false;
+
+    WindowSettings settings;
+    settings.width = window_size.x;
+    settings.height = window_size.y;
+    settings.fullscreen = config.fullscreen;
+    settings.hidden = true;
+
+    if (!Engine::Init(backend, config.vsync, settings)) return false;
 
     Time::set_fixed_timestep_seconds(Constants::FIXED_UPDATE_INTERVAL);
     

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "types/backend.hpp"
+#include "types/window_settings.hpp"
 
 namespace Engine {
     using PreUpdateCallback = void (*)(void);
@@ -12,22 +13,27 @@ namespace Engine {
     using FixedUpdateCallback = void (*)(void);
     using RenderCallback = void (*)(void);
     using PostRenderCallback = void (*)(void);
+    using DestroyCallback = void (*)(void);
     using LoadAssetsCallback = bool (*)(void);
-    using WindowResizeCallback = void (*)(uint32_t width, uint32_t height);
+    using WindowResizeCallback = void (*)(uint32_t width, uint32_t height, uint32_t scaled_width, uint32_t scaled_height);
 
-    bool Init(RenderBackend backend, bool vsync, bool fullscreen, uint32_t window_width, uint32_t window_height, bool window_hidden = false);
+    bool Init(RenderBackend backend, bool vsync, WindowSettings settings);
     void SetPreUpdateCallback(PreUpdateCallback);
     void SetUpdateCallback(UpdateCallback);
     void SetPostUpdateCallback(PostUpdateCallback);
     void SetFixedUpdateCallback(FixedUpdateCallback);
     void SetRenderCallback(RenderCallback);
     void SetPostRenderCallback(PostRenderCallback);
+    void SetDestroyCallback(DestroyCallback);
     void SetWindowResizeCallback(WindowResizeCallback);
     void SetLoadAssetsCallback(LoadAssetsCallback);
 
     void SetWindowMinSize(uint32_t min_width, uint32_t min_height);
     void ShowWindow();
     void HideWindow();
+
+    void ShowCursor();
+    void HideCursor();
 
     void Run();
     void Destroy();

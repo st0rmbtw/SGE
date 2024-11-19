@@ -4,6 +4,7 @@
 
 #include "renderer/renderer.hpp"
 #include "log.hpp"
+#include "types/window_settings.hpp"
 #include "utils.hpp"
 #include "input.hpp"
 #include "defines.hpp"
@@ -21,12 +22,13 @@ static struct EngineState {
     Engine::FixedUpdateCallback fixed_update_callback = nullptr;
     Engine::RenderCallback render_callback = nullptr;
     Engine::PostRenderCallback post_render_callback = nullptr;
+    Engine::PostRenderCallback destroy_callback = nullptr;
     Engine::LoadAssetsCallback load_assets_callback = nullptr;
     Engine::WindowResizeCallback window_resize_callback = nullptr;
 } state;
 
 static void default_callback() {}
-static void default_window_resize_callback(uint32_t, uint32_t) {}
+static void default_window_resize_callback(uint32_t, uint32_t, uint32_t, uint32_t) {}
 static bool default_load_assets_callback() { return true; }
 
 static void handle_keyboard_events(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -59,6 +61,12 @@ static GLFWwindow* create_window(LLGL::Extent2D size, bool fullscreen, bool hidd
     return window;
 }
 
+static inline LLGL::Extent2D get_scaled_resolution(uint32_t width, uint32_t height) {
+    const LLGL::Display* display = LLGL::Display::GetPrimary();
+    const std::uint32_t resScale = (display != nullptr ? static_cast<std::uint32_t>(display->GetScale()) : 1u);
+    return LLGL::Extent2D(width * resScale, height * resScale);
+}
+
 void Engine::SetPreUpdateCallback(PreUpdateCallback callback) {
     ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.pre_update_callback = callback;
@@ -89,6 +97,11 @@ void Engine::SetPostRenderCallback(PostRenderCallback callback) {
     state.post_render_callback = callback;
 }
 
+void Engine::SetDestroyCallback(PostRenderCallback callback) {
+    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    state.destroy_callback = callback;
+}
+
 void Engine::SetWindowResizeCallback(WindowResizeCallback callback) {
     ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.window_resize_callback = callback;
@@ -111,13 +124,22 @@ void Engine::HideWindow() {
     glfwHideWindow(state.window);
 }
 
-bool Engine::Init(RenderBackend backend, bool vsync, bool fullscreen, uint32_t window_width, uint32_t window_height, bool window_hidden) {
+void Engine::ShowCursor() {
+    glfwSetInputMode(state.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+
+void Engine::HideCursor() {
+    glfwSetInputMode(state.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+}
+
+bool Engine::Init(RenderBackend backend, bool vsync, WindowSettings settings) {
     if (state.pre_update_callback == nullptr) state.pre_update_callback = default_callback;
     if (state.update_callback == nullptr) state.update_callback = default_callback;
     if (state.post_update_callback == nullptr) state.post_update_callback = default_callback;
     if (state.fixed_update_callback == nullptr) state.fixed_update_callback = default_callback;
     if (state.render_callback == nullptr) state.render_callback = default_callback;
     if (state.post_render_callback == nullptr) state.post_render_callback = default_callback;
+    if (state.destroy_callback == nullptr) state.destroy_callback = default_callback;
     if (state.window_resize_callback == nullptr) state.window_resize_callback = default_window_resize_callback;
     if (state.load_assets_callback == nullptr) state.load_assets_callback = default_load_assets_callback;
 
@@ -132,24 +154,21 @@ bool Engine::Init(RenderBackend backend, bool vsync, bool fullscreen, uint32_t w
     
     if (!state.load_assets_callback()) return false;
 
-    LLGL::Extent2D window_size = LLGL::Extent2D(window_width, window_height);
-    if (fullscreen) {
+    LLGL::Extent2D window_size = LLGL::Extent2D(settings.width, settings.height);
+    if (settings.fullscreen) {
         const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
         window_size = LLGL::Extent2D(mode->width, mode->height);
     }
 
-    const LLGL::Display* display = LLGL::Display::GetPrimary();
-    const std::uint32_t resScale = (display != nullptr ? static_cast<std::uint32_t>(display->GetScale()) : 1u);
-    const auto resolution = LLGL::Extent2D(window_size.width * resScale, window_size.height * resScale);
-
-    GLFWwindow *window = create_window(window_size, fullscreen, window_hidden);
+    GLFWwindow *window = create_window(window_size, settings.fullscreen, settings.hidden);
     if (window == nullptr) return false;
 
     state.window = window;
-    state.window_width = window_width;
-    state.window_height = window_height;
+    state.window_width = settings.width;
+    state.window_height = settings.height;
     
-    if (!Renderer::Init(window, resolution, vsync, fullscreen)) return false;
+    const LLGL::Extent2D resolution = get_scaled_resolution(settings.width, settings.height);
+    if (!Renderer::Init(window, resolution, vsync, settings.fullscreen)) return false;
 
     Time::set_fixed_timestep_seconds(1.0f / 60.0f);
 
@@ -196,6 +215,8 @@ void Engine::Destroy() {
     if (Renderer::CommandQueue()) {
         Renderer::CommandQueue()->WaitIdle();
     }
+
+    state.destroy_callback();
     
     if (Renderer::Context()) {
         Renderer::Terminate();
@@ -236,24 +257,21 @@ static void handle_cursor_pos_events(GLFWwindow*, double xpos, double ypos) {
 static void handle_window_resize_events(GLFWwindow*, int width, int height) {
     if (width <= 0 || height <= 0) {
         state.minimized = true;
-        state.window_resize_callback(0, 0);
+        state.window_resize_callback(0, 0, 0, 0);
         return;
     } else {
         state.minimized = false;
     }
 
-    const LLGL::Display* display = LLGL::Display::GetPrimary();
-    const std::uint32_t resScale = (display != nullptr ? static_cast<std::uint32_t>(display->GetScale()) : 1u);
-
-    const auto new_size = LLGL::Extent2D(width * resScale, height * resScale);
+    const LLGL::Extent2D resolution = get_scaled_resolution(width, height);
 
     Renderer::CommandQueue()->WaitIdle();
-    Renderer::SwapChain()->ResizeBuffers(new_size);
+    Renderer::SwapChain()->ResizeBuffers(resolution);
 
     state.window_width = width;
     state.window_width = height;
 
-    state.window_resize_callback(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+    state.window_resize_callback(static_cast<uint32_t>(width), static_cast<uint32_t>(height), resolution.width, resolution.height);
 
     state.render_callback();
 }
