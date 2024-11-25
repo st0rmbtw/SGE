@@ -20,6 +20,7 @@ struct ShapeInstance {
     glm::vec4 color;
     glm::vec4 border_color;
     float border_thickness;
+    float border_radius;
     int flags;
     uint32_t shape;
 };

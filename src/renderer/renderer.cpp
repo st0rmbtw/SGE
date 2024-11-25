@@ -13,6 +13,8 @@
 #include "../assets.hpp"
 #include "../log.hpp"
 
+#include "LLGL/RenderPassFlags.h"
+#include "LLGL/RenderTarget.h"
 #include "types.hpp"
 #include "utils.hpp"
 #include "batch.hpp"
@@ -36,6 +38,8 @@ static struct RendererState {
 #endif
 
     LLGL::Buffer* constant_buffer = nullptr;
+
+    LLGL::RenderPass* load_render_pass = nullptr;
     
     uint32_t main_depth_index = 0;
     uint32_t ui_depth_index = 0;
@@ -120,6 +124,16 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
 
     state.constant_buffer = CreateConstantBuffer(sizeof(ProjectionsUniform));
 
+    LLGL::RenderPassDescriptor load_render_pass;
+    load_render_pass.colorAttachments[0].loadOp = LLGL::AttachmentLoadOp::Load;
+    load_render_pass.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
+    load_render_pass.depthAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
+    load_render_pass.depthAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
+    load_render_pass.stencilAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
+    load_render_pass.stencilAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
+
+    state.load_render_pass = context->CreateRenderPass(load_render_pass);
+
     state.sprite_batch.init();
     state.glyph_batch.init();
     state.shape_batch.init();
@@ -195,7 +209,7 @@ void Renderer::PrintDebugInfo() {
 }
 #endif
 
-inline void add_sprite_to_batch(const Sprite& sprite, RenderLayer layer, bool is_ui, int depth) {
+inline void add_sprite_to_batch(const Sprite& sprite, RenderLayer layer, bool is_ui, int depth, LLGL::RenderTarget* render_target) {
     glm::vec4 uv_offset_scale = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
 
     if (sprite.flip_x()) {
@@ -208,7 +222,7 @@ inline void add_sprite_to_batch(const Sprite& sprite, RenderLayer layer, bool is
         uv_offset_scale.w *= -1.0f;
     }
 
-    state.sprite_batch.draw_sprite(sprite, uv_offset_scale, sprite.texture(), layer, is_ui, depth);
+    state.sprite_batch.draw_sprite(sprite, uv_offset_scale, sprite.texture(), layer, is_ui, depth, render_target);
 }
 
 inline void add_atlas_sprite_to_batch(const TextureAtlasSprite& sprite, RenderLayer layer, bool is_ui, int depth) {
@@ -234,19 +248,19 @@ inline void add_atlas_sprite_to_batch(const TextureAtlasSprite& sprite, RenderLa
     state.sprite_batch.draw_sprite(sprite, uv_offset_scale, sprite.atlas().texture(), layer, is_ui, depth);
 }
 
-void Renderer::DrawSprite(const Sprite& sprite, RenderLayer render_layer, int depth) {
+void Renderer::DrawSprite(const Sprite& sprite, RenderLayer render_layer, int depth, LLGL::RenderTarget* render_target) {
     const math::Rect aabb = sprite.calculate_aabb();
 
     if (!state.camera_frustum.intersects(aabb)) return;
 
-    add_sprite_to_batch(sprite, render_layer, false, depth);
+    add_sprite_to_batch(sprite, render_layer, false, depth, render_target);
 }
 
 void Renderer::DrawSpriteUI(const Sprite& sprite, int depth) {
     const math::Rect aabb = sprite.calculate_aabb();
     if (!state.ui_frustum.intersects(aabb)) return;
 
-    add_sprite_to_batch(sprite, RenderLayer::Main, true, depth);
+    add_sprite_to_batch(sprite, RenderLayer::Main, true, depth, nullptr);
 }
 
 void Renderer::DrawAtlasSprite(const TextureAtlasSprite& sprite, RenderLayer render_layer, int depth) {
@@ -264,16 +278,16 @@ void Renderer::DrawAtlasSpriteUI(const TextureAtlasSprite& sprite, int depth) {
     add_atlas_sprite_to_batch(sprite, RenderLayer::Main, true, depth);
 }
 
-void Renderer::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, Anchor anchor, bool is_ui, int depth) {
+void Renderer::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, float border_radius, Anchor anchor, bool is_ui, int depth) {
     const math::Rect aabb = math::Rect::from_top_left(position - anchor.to_vec2() * size, size);
 
     if (!is_ui && !state.camera_frustum.intersects(aabb)) return;
     if (is_ui && !state.ui_frustum.intersects(aabb)) return;
 
-    state.shape_batch.draw_shape(shape, position, size, color, border_color, border_thickness, anchor, is_ui, depth);
+    state.shape_batch.draw_shape(shape, position, size, color, border_color, border_thickness, border_radius, anchor, is_ui, depth);
 }
 
-void Renderer::DrawText(const char* text, uint32_t length, float size, const glm::vec2& position, const glm::vec3& color, FontAsset key, bool is_ui, int depth) {
+void Renderer::DrawText(const char* text, uint32_t length, float size, const glm::vec2& position, const glm::vec3& color, FontAsset key, bool is_ui, int depth, LLGL::RenderTarget* render_target) {
     const Font& font = Assets::GetFont(key);
     
     float x = position.x;
@@ -317,9 +331,74 @@ void Renderer::DrawText(const char* text, uint32_t length, float size, const glm
         const glm::vec2 pos = glm::vec2(xpos, ypos);
         const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-        state.glyph_batch.draw_glyph(pos, size, color, font.texture, ch.texture_coords, ch.tex_size, is_ui, order);
+        state.glyph_batch.draw_glyph(pos, size, color, font.texture, ch.texture_coords, ch.tex_size, is_ui, order, render_target);
 
         x += (ch.advance >> 6) * scale;
+    }
+}
+
+void Renderer::Clear(LLGL::RenderTarget* render_target, long clear_flags, const LLGL::ClearValue& clear_value) {
+    auto* commands = CommandBuffer();
+    commands->BeginRenderPass(*render_target);
+        commands->Clear(clear_flags, clear_value);
+    commands->EndRenderPass();
+}
+
+RenderTarget Renderer::CreateRenderTarget(LLGL::Extent2D resolution) {
+    LLGL::TextureDescriptor texture_desc;
+    texture_desc.type = LLGL::TextureType::Texture2D;
+    texture_desc.extent.width = resolution.width;
+    texture_desc.extent.height = resolution.height;
+    texture_desc.extent.depth = 1;
+    texture_desc.format = LLGL::Format::RGBA8UNorm;
+    texture_desc.miscFlags = 0;
+
+    LLGL::Texture* texture = state.context->CreateTexture(texture_desc);
+
+    LLGL::RenderTargetDescriptor desc;
+    desc.colorAttachments[0].texture = texture;
+    desc.resolution = resolution;
+
+    RenderTarget render_target;
+    render_target.texture_descriptor = texture_desc;
+    render_target.texture = texture;
+    render_target.internal = state.context->CreateRenderTarget(desc);
+
+    return render_target;
+}
+
+void Renderer::ResizeRenderTarget(RenderTarget* render_target, LLGL::Extent2D new_size) {
+    auto& context = state.context;
+
+    if (render_target->internal != nullptr) context->Release(*render_target->internal);
+    if (render_target->texture != nullptr) context->Release(*render_target->texture);
+
+    LLGL::TextureDescriptor texture_desc = render_target->texture_descriptor;
+    texture_desc.extent.width = new_size.width;
+    texture_desc.extent.height = new_size.height;
+    texture_desc.extent.depth = 1;
+    LLGL::Texture* texture = context->CreateTexture(texture_desc);
+
+    LLGL::RenderTargetDescriptor desc;
+    desc.colorAttachments[0].texture = texture;
+    desc.resolution = new_size;
+    LLGL::RenderTarget* new_render_target = context->CreateRenderTarget(desc);
+
+    render_target->texture = texture;
+    render_target->internal = new_render_target;
+}
+
+void Renderer::Release(RenderTarget* render_target) {
+    auto& context = state.context;
+
+    if (render_target->internal != nullptr) {
+        context->Release(*render_target->internal);
+        render_target->internal = nullptr;
+    }
+
+    if (render_target->texture != nullptr) {
+        context->Release(*render_target->texture);
+        render_target->texture = nullptr;
     }
 }
 
@@ -346,7 +425,7 @@ void Renderer::Terminate() {
 //
 
 void RenderBatchShape::init() {
-    const auto& context = Renderer::Context();
+    const auto& context = state.context;
 
     m_buffer = new ShapeInstance[MAX_QUADS];
 
@@ -413,7 +492,7 @@ void RenderBatchShape::init() {
     }
 }
 
-void RenderBatchShape::draw_shape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, Anchor anchor, bool is_ui, int depth) {
+void RenderBatchShape::draw_shape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, float border_radius, Anchor anchor, bool is_ui, int depth) {
     if (m_count >= MAX_QUADS) {
         render();
         begin();
@@ -446,6 +525,7 @@ void RenderBatchShape::draw_shape(Shape::Type shape, glm::vec2 position, glm::ve
     m_buffer_ptr->color = color;
     m_buffer_ptr->border_color = border_color;
     m_buffer_ptr->border_thickness = border_thickness;
+    m_buffer_ptr->border_radius = border_radius;
     m_buffer_ptr->flags = flags;
     m_buffer_ptr->shape = shape;
     m_buffer_ptr++;
@@ -456,7 +536,7 @@ void RenderBatchShape::draw_shape(Shape::Type shape, glm::vec2 position, glm::ve
 void RenderBatchShape::render() {
     if (m_count == 0) return;
 
-    auto* const commands = Renderer::CommandBuffer();
+    auto* const commands = state.command_buffer;
 
     const ptrdiff_t size = (uint8_t*) m_buffer_ptr - (uint8_t*) m_buffer;
     if (size <= (1 << 16)) {
@@ -488,8 +568,8 @@ void RenderBatchShape::terminate() {
 
 
 void RenderBatchSprite::init() {
-    const auto& context = Renderer::Context();
-    const RenderBackend backend = Renderer::Backend();
+    const auto& context = state.context;
+    const RenderBackend backend = state.backend;
 
     m_buffer = new SpriteInstance[MAX_QUADS];
 
@@ -558,7 +638,7 @@ void RenderBatchSprite::init() {
     }
 }
 
-void RenderBatchSprite::draw_sprite(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const tl::optional<Texture>& sprite_texture, RenderLayer layer, bool is_ui, int depth) {
+void RenderBatchSprite::draw_sprite(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const tl::optional<Texture>& sprite_texture, RenderLayer layer, bool is_ui, int depth, LLGL::RenderTarget* render_target) {
     if (m_sprites.size() >= MAX_QUADS) {
         render();
         begin();
@@ -593,6 +673,7 @@ void RenderBatchSprite::draw_sprite(const BaseSprite& sprite, const glm::vec4& u
         .outline_color = sprite.outline_color(),
         .outline_thickness = sprite.outline_thickness(),
         .texture = sprite_texture.is_some() ? sprite_texture.get() : Texture(),
+        .render_to = render_target,
         .order = order,
         .is_ui = is_ui,
     });
@@ -615,6 +696,7 @@ void RenderBatchSprite::render() {
     );
     
     Texture prev_texture = sprites[0].texture;
+    LLGL::RenderTarget* prev_render_to = sprites[0].render_to;
     uint32_t sprite_count = 0;
     uint32_t total_sprite_count = 0;
     int vertex_offset = 0;
@@ -626,6 +708,20 @@ void RenderBatchSprite::render() {
         if (prev_texture_id >= 0 && prev_texture_id != curr_texture_id) {
             m_sprite_flush_queue.push_back(FlushData {
                 .texture = prev_texture,
+                .render_to = prev_render_to,
+                .offset = vertex_offset,
+                .count = sprite_count
+            });
+            sprite_count = 0;
+            vertex_offset = total_sprite_count;
+        }
+
+        const LLGL::RenderTarget* curr_render_to = sprite_data.render_to;
+
+        if (prev_render_to != curr_render_to) {
+            m_sprite_flush_queue.push_back(FlushData {
+                .texture = prev_texture,
+                .render_to = prev_render_to,
                 .offset = vertex_offset,
                 .count = sprite_count
             });
@@ -658,6 +754,7 @@ void RenderBatchSprite::render() {
 
     m_sprite_flush_queue.push_back(FlushData {
         .texture = prev_texture,
+        .render_to = prev_render_to,
         .offset = vertex_offset,
         .count = sprite_count
     });
@@ -666,7 +763,7 @@ void RenderBatchSprite::render() {
 }
 
 void RenderBatchSprite::flush() {
-    auto* const commands = Renderer::CommandBuffer();
+    auto* const commands = state.command_buffer;
 
     const ptrdiff_t size = (uint8_t*) m_buffer_ptr - (uint8_t*) m_buffer;
     if (size <= (1 << 16)) {
@@ -680,12 +777,26 @@ void RenderBatchSprite::flush() {
     commands->SetPipelineState(*m_pipeline);
     commands->SetResource(0, *state.constant_buffer);
 
+    bool begin_default_render_pass = false;
+
     for (const FlushData& flush_data : m_sprite_flush_queue) {
+        if (flush_data.render_to != nullptr) {
+            commands->EndRenderPass();
+            commands->BeginRenderPass(*flush_data.render_to);
+            begin_default_render_pass = true;
+        }
+
         const Texture& t = flush_data.texture.id >= 0 ? flush_data.texture : Assets::GetTexture(TextureAsset::Stub);
 
         commands->SetResource(1, *t.texture);
         commands->SetResource(2, Assets::GetSampler(t.sampler));
         commands->DrawInstanced(4, 0, flush_data.count, flush_data.offset);
+
+        if (flush_data.render_to != nullptr) commands->EndRenderPass();
+    }
+
+    if (begin_default_render_pass) {
+        commands->BeginRenderPass(*Renderer::SwapChain(), state.load_render_pass);
     }
 }
 
@@ -706,8 +817,8 @@ void RenderBatchSprite::terminate() {
 
 
 void RenderBatchGlyph::init() {
-    const RenderBackend backend = Renderer::Backend();
-    const auto& context = Renderer::Context();
+    const RenderBackend backend = state.backend;
+    const auto& context = state.context;
 
     m_buffer = new GlyphInstance[MAX_QUADS];
 
@@ -775,7 +886,7 @@ void RenderBatchGlyph::init() {
     }
 }
 
-void RenderBatchGlyph::draw_glyph(const glm::vec2& pos, const glm::vec2& size, const glm::vec3& color, const Texture& font_texture, const glm::vec2& tex_uv, const glm::vec2& tex_size, bool ui, uint32_t depth) {
+void RenderBatchGlyph::draw_glyph(const glm::vec2& pos, const glm::vec2& size, const glm::vec3& color, const Texture& font_texture, const glm::vec2& tex_uv, const glm::vec2& tex_size, bool ui, uint32_t depth, LLGL::RenderTarget* render_to = nullptr) {
     if (m_glyphs.size() >= MAX_QUADS) {
         render();
         begin();
@@ -783,6 +894,7 @@ void RenderBatchGlyph::draw_glyph(const glm::vec2& pos, const glm::vec2& size, c
 
     m_glyphs.push_back(GlyphData {
         .texture = font_texture,
+        .render_to = render_to,
         .color = color,
         .pos = pos,
         .size = size,
@@ -806,6 +918,7 @@ void RenderBatchGlyph::render() {
     );
     
     Texture prev_texture = sorted_glyphs[0].texture;
+    LLGL::RenderTarget* prev_render_to = sorted_glyphs[0].render_to;
     uint32_t sprite_count = 0;
     uint32_t total_sprite_count = 0;
     int vertex_offset = 0;
@@ -814,6 +927,18 @@ void RenderBatchGlyph::render() {
         if (prev_texture.id >= 0 && prev_texture.id != glyph_data.texture.id) {
             m_glyphs_flush_queue.push_back(FlushData {
                 .texture = prev_texture,
+                .render_to = prev_render_to,
+                .offset = vertex_offset,
+                .count = sprite_count
+            });
+            sprite_count = 0;
+            vertex_offset = total_sprite_count;
+        }
+
+        if (prev_render_to != glyph_data.render_to) {
+            m_glyphs_flush_queue.push_back(FlushData {
+                .texture = prev_texture,
+                .render_to = prev_render_to,
                 .offset = vertex_offset,
                 .count = sprite_count
             });
@@ -839,6 +964,7 @@ void RenderBatchGlyph::render() {
 
     m_glyphs_flush_queue.push_back(FlushData {
         .texture = prev_texture,
+        .render_to = prev_render_to,
         .offset = vertex_offset,
         .count = sprite_count
     });
@@ -847,7 +973,7 @@ void RenderBatchGlyph::render() {
 }
 
 void RenderBatchGlyph::flush() {
-    auto* const commands = Renderer::CommandBuffer();
+    auto* const commands = state.command_buffer;
 
     const ptrdiff_t size = (uint8_t*) m_buffer_ptr - (uint8_t*) m_buffer;
     if (size <= (1 << 16)) {
@@ -861,13 +987,25 @@ void RenderBatchGlyph::flush() {
     commands->SetPipelineState(*m_pipeline);
     commands->SetResource(0, *state.constant_buffer);
 
+    bool begin_default_render_pass = false;
+
     for (const FlushData& flush_data : m_glyphs_flush_queue) {
         const Texture& t = flush_data.texture;
+
+        if (flush_data.render_to != nullptr) {
+            commands->EndRenderPass();
+            commands->BeginRenderPass(*flush_data.render_to);
+            begin_default_render_pass = true;
+        }
 
         commands->SetResource(1, *t.texture);
         commands->SetResource(2, Assets::GetSampler(t.sampler));
         commands->DrawInstanced(4, 0, flush_data.count, flush_data.offset);
+
+        if (flush_data.render_to != nullptr) commands->EndRenderPass();
     }
+
+    if (begin_default_render_pass) commands->BeginRenderPass(*state.swap_chain, state.load_render_pass);
 }
 
 void RenderBatchGlyph::begin() {

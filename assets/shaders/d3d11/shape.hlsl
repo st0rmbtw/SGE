@@ -18,6 +18,7 @@ struct VSInput
     float4 i_color : I_Color;
     float4 i_border_color : I_BorderColor;
     float i_border_thickness : I_BorderThickness;
+    float i_border_radius: I_BorderRadius;
     uint i_flags : I_Flags;
     uint i_shape : I_Shape;
 };
@@ -26,9 +27,11 @@ struct VSOutput
 {
     float4 position : SV_Position;
     float2 uv : UV;
+    nointerpolation float2 size : Size;
     nointerpolation float4 color : Color;
     nointerpolation float4 border_color : BorderColor;
     nointerpolation float border_thickness : BorderThickness;
+    nointerpolation float border_radius : BorderRadius;
     nointerpolation uint shape : Shape;
 };
 
@@ -95,15 +98,18 @@ VSOutput VS(VSInput inp)
     outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = order;
     outp.uv = position;
+    outp.size = inp.i_size;
     outp.color = inp.i_color;
     outp.border_color = inp.i_border_color;
     outp.border_thickness = inp.i_border_thickness;
+    outp.border_radius = inp.i_border_radius;
     outp.shape = inp.i_shape;
 
 	return outp;
 }
 
 static const float CIRCLE_AA = 0.001;
+static const float RECT_AA = 0.1;
 
 float4 circle(in float2 st, in float4 color, in float4 border_color, float border_thickness) {
     float2 dist = st - float2(0.5, 0.5);
@@ -121,10 +127,28 @@ float4 circle(in float2 st, in float4 color, in float4 border_color, float borde
     return float4(lerp(border_color.rgb, color.rgb, t1), t2);
 }
 
+float rounded_box_sdf(float2 uv, float2 size, float radius) {
+    float2 center = size * (uv - 0.5);
+    float2 dist = abs(center) - size * 0.5 + radius;
+    return min(max(dist.x,dist.y),0.0) + length(max(dist, 0.0)) - radius + RECT_AA;
+}
+
 float4 PS(VSOutput inp) : SV_Target
 {
     if (inp.shape == SHAPE_CIRCLE) {
         return circle(inp.uv, inp.color, inp.border_color, inp.border_thickness);
+    }
+
+    if (inp.border_radius > 0.0) {
+        float d = rounded_box_sdf(inp.uv, inp.size, inp.border_radius);
+
+        float smoothed_alpha = 1.0 - smoothstep(0.0, RECT_AA, d);
+        float border_alpha = 1.0 - smoothstep(inp.border_thickness - RECT_AA, inp.border_thickness, abs(d));
+
+        float4 quad_color = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
+        float4 quad_color_with_border = lerp(quad_color, inp.border_color, min(inp.border_color.a, min(border_alpha, smoothed_alpha)));
+        
+        return float4(quad_color_with_border.rgb, lerp(0.0, quad_color_with_border.a, smoothed_alpha));
     }
 
     return inp.color;

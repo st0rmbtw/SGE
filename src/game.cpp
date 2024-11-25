@@ -7,24 +7,13 @@
 #include "time/time.hpp"
 #include "types/anchor.hpp"
 #include "types/window_settings.hpp"
+#include "types/render_target.hpp"
 #include "ui.hpp"
 
 static struct GameState {
     Camera camera;
+    RenderTarget render_target;
 } g;
-
-bool load_assets() {
-    if (!Assets::Load()) return false;
-    if (!Assets::LoadFonts()) return false;
-    if (!Assets::InitSamplers()) return false;
-    if (!Assets::LoadShaders()) return false;
-
-    return true;
-}
-
-void window_resized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
-    g.camera.set_viewport(glm::uvec2(width, height));
-}
 
 void pre_update() {
 
@@ -62,6 +51,7 @@ void post_update() {
 
 void render() {
     Renderer::Begin(g.camera);
+    // Renderer::Clear(g.render_target.internal, LLGL::ClearFlags::ColorDepth, LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
 
     Sprite sprite;
     sprite.set_custom_size(glm::vec2(50.0f));
@@ -69,7 +59,8 @@ void render() {
     sprite.set_anchor(Anchor::TopLeft);
     Renderer::DrawSprite(sprite);
 
-    Renderer::DrawShape(Shape::Circle, glm::vec2(g.camera.viewport()) / 2.0f, glm::vec2(100.0f),glm::vec4(0.5f, 0.93f, 0.5f, 1.0f), glm::vec4(1.0f), 0.1f);
+    Renderer::DrawCircle(glm::vec2(g.camera.viewport()) / 2.0f, glm::vec2(100.0f), glm::vec4(0.5f, 0.93f, 0.5f, 1.0f), glm::vec4(1.0f), 0.1f);
+    // Renderer::DrawRect(glm::vec2(0.0f), glm::vec2(100.0f, 100.0f), glm::vec4(0.5f, 0.93f, 0.5f, 1.0f), glm::vec4(1.0f), 1.0f, 10.0f, Anchor::TopLeft);
 
     Renderer::Render(g.camera);
 }
@@ -84,6 +75,24 @@ void post_render() {
 #endif
 }
 
+bool load_assets() {
+    if (!Assets::Load()) return false;
+    if (!Assets::LoadFonts()) return false;
+    if (!Assets::InitSamplers()) return false;
+    if (!Assets::LoadShaders()) return false;
+
+    return true;
+}
+
+void window_resized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
+    g.camera.set_viewport(glm::uvec2(width, height));
+    Renderer::ResizeRenderTarget(&g.render_target, LLGL::Extent2D(width, height));
+}
+
+void destroy() {
+    Renderer::Release(&g.render_target);
+}
+
 bool Game::Init(RenderBackend backend, GameConfig config) {
     Engine::SetLoadAssetsCallback(load_assets);
     Engine::SetPreUpdateCallback(pre_update);
@@ -93,6 +102,7 @@ bool Game::Init(RenderBackend backend, GameConfig config) {
     Engine::SetRenderCallback(render);
     Engine::SetPostRenderCallback(post_render);
     Engine::SetWindowResizeCallback(window_resized);
+    Engine::SetDestroyCallback(destroy);
 
     glm::uvec2 window_size = glm::uvec2(1280, 720);
 
@@ -112,6 +122,8 @@ bool Game::Init(RenderBackend backend, GameConfig config) {
     UI::Init();
 
     Engine::ShowWindow();
+
+    g.render_target = Renderer::CreateRenderTarget(LLGL::Extent2D(1280, 720));
 
     return true;
 }

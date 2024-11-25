@@ -39,6 +39,7 @@ struct SpriteData {
     glm::vec4 outline_color;
     float outline_thickness;
     Texture texture;
+    LLGL::RenderTarget *render_to;
     uint32_t order;
     bool is_ui;
 };
@@ -56,12 +57,14 @@ struct ShapeData {
 
 struct FlushData {
     Texture texture;
+    LLGL::RenderTarget* render_to = nullptr;
     int offset;
     uint32_t count;
 };
 
 struct GlyphData {
     Texture texture;
+    LLGL::RenderTarget* render_to = nullptr;
     glm::vec3 color;
     glm::vec2 pos;
     glm::vec2 size;
@@ -89,7 +92,7 @@ protected:
 
 class RenderBatchShape : public RenderBatch {
 public:
-    void draw_shape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, Anchor anchor, bool is_ui, int depth);
+    void draw_shape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, float border_radius, Anchor anchor, bool is_ui, int depth);
     void init() override;
     void render() override;
     void begin() override;
@@ -103,7 +106,7 @@ private:
 
 class RenderBatchSprite : public RenderBatch {
 public:
-    void draw_sprite(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const tl::optional<Texture>& sprite_texture, RenderLayer layer, bool is_ui, int depth);
+    void draw_sprite(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const tl::optional<Texture>& sprite_texture, RenderLayer layer, bool is_ui, int depth, LLGL::RenderTarget* render_target = nullptr);
     void init() override;
     void render() override;
     void begin() override;
@@ -120,7 +123,7 @@ private:
 
 class RenderBatchGlyph : public RenderBatch {
 public:
-    void draw_glyph(const glm::vec2& pos, const glm::vec2& size, const glm::vec3& color, const Texture& font_texture, const glm::vec2& tex_uv, const glm::vec2& tex_size, bool ui, uint32_t depth);
+    void draw_glyph(const glm::vec2& pos, const glm::vec2& size, const glm::vec3& color, const Texture& font_texture, const glm::vec2& tex_uv, const glm::vec2& tex_size, bool ui, uint32_t depth, LLGL::RenderTarget* render_to);
 
     void init() override;
     void render() override;
