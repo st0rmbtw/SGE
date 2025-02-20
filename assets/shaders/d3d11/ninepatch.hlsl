@@ -18,10 +18,11 @@ struct VSInput
     float4 i_rotation : I_Rotation;
     float2 i_size : I_Size;
     float2 i_offset : I_Offset;
+    float2 i_source_size: I_SourceSize;
+    float2 i_output_size: I_OutputSize;
+    uint4  i_margin : I_Margin;
     float4 i_uv_offset_scale : I_UvOffsetScale;
     float4 i_color : I_Color;
-    float4 i_outline_color : I_OutlineColor;
-    float i_outline_thickness : I_OutlineThickness;
     int i_flags : I_Flags;
 };
 
@@ -29,12 +30,11 @@ struct VSOutput
 {
     float4 position : SV_Position;
     nointerpolation float4 color : Color;
-    nointerpolation float4 outline_color : OutlineColor;
+    nointerpolation uint4  margin : Margin;
+    nointerpolation float2 source_size: SourceSize;
+    nointerpolation float2 output_size: OutputSize;
     float2 uv : UV;
-    nointerpolation float outline_thickness : OutlineThickness;
 };
-
-static const int IGNORE_CAMERA_ZOOM_FLAG = 1 << 1;
 
 VSOutput VS(VSInput inp)
 {
@@ -83,19 +83,17 @@ VSOutput VS(VSInput inp)
     transform[2][1] = transform[2][1] * inp.i_size[1];
     transform[3][1] = transform[3][1] * inp.i_size[1];
 
-    const int flags = inp.i_flags;
-    const bool ignore_camera_zoom = (flags & IGNORE_CAMERA_ZOOM_FLAG) == IGNORE_CAMERA_ZOOM_FLAG;
-
-    const float4x4 mvp = mul(ignore_camera_zoom ? u_nozoom_view_projection : u_view_projection, transform);
+    const float4x4 mvp = mul(u_screen_projection, transform);
     const float4 uv_offset_scale = inp.i_uv_offset_scale;
 
     VSOutput outp;
     outp.position = mul(mvp, float4(inp.position, 0.0, 1.0));
-    outp.position.z = inp.i_position.z;
+    outp.position.z = 1.0f;
     outp.uv = inp.position * uv_offset_scale.zw + uv_offset_scale.xy;
     outp.color = inp.i_color;
-    outp.outline_color = inp.i_outline_color;
-    outp.outline_thickness = inp.i_outline_thickness;
+    outp.margin = inp.i_margin;
+    outp.source_size = inp.i_source_size;
+    outp.output_size = inp.i_output_size;
 
 	return outp;
 }
@@ -103,25 +101,37 @@ VSOutput VS(VSInput inp)
 Texture2D Texture : register(t3);
 SamplerState Sampler : register(s4);
 
+float map(float value, float in_min, float in_max, float out_min, float out_max) {
+    return (value - in_min) / (in_max - in_min) * (out_max - out_min) + out_min;
+} 
+
+float process_axis(float coord, float2 source_margin, float2 out_margin) {
+    if (coord < out_margin.x) {
+        return map(coord, 0.0f, out_margin.x, 0.0f, source_margin.x);
+    }
+    if (coord < 1.0f - out_margin.y) {
+        return map(coord, out_margin.x, 1.0f - out_margin.y, source_margin.x, 1.0f - source_margin.y);
+    }
+    return map(coord, 1.0f - out_margin.y, 1.0f, 1.0f - source_margin.y, 1.0f);
+}
+
 float4 PS(VSOutput inp) : SV_Target
 {
-    float4 color = inp.color;
+    const float2 horizontal_margin = inp.margin.xy;
+    const float2 vertical_margin = inp.margin.zw;
 
-    if (inp.outline_thickness > 0.0) {
-        float outline = Texture.Sample(Sampler, inp.uv + float2(inp.outline_thickness, 0.0)).a;
-        outline += Texture.Sample(Sampler, inp.uv + float2(-inp.outline_thickness, 0.0)).a;
-        outline += Texture.Sample(Sampler, inp.uv + float2(0.0, inp.outline_thickness)).a;
-        outline += Texture.Sample(Sampler, inp.uv + float2(0.0, -inp.outline_thickness)).a;
-        outline += Texture.Sample(Sampler, inp.uv + float2(inp.outline_thickness, -inp.outline_thickness)).a;
-        outline += Texture.Sample(Sampler, inp.uv + float2(-inp.outline_thickness, inp.outline_thickness)).a;
-        outline += Texture.Sample(Sampler, inp.uv + float2(inp.outline_thickness, inp.outline_thickness)).a;
-        outline += Texture.Sample(Sampler, inp.uv + float2(-inp.outline_thickness, -inp.outline_thickness)).a;
-        outline = min(outline, 1.0);
-        float4 c = Texture.Sample(Sampler, inp.uv);
-        color = lerp(c, inp.outline_color, outline);
-    } else {
-        color = Texture.Sample(Sampler, inp.uv) * inp.color;
-    }
+    const float2 new_uv = float2(
+        process_axis(inp.uv.x,
+            horizontal_margin / inp.source_size.xx,
+            horizontal_margin / inp.output_size.xx
+        ),
+        process_axis(inp.uv.y,
+            vertical_margin / inp.source_size.yy,
+            vertical_margin / inp.output_size.yy
+        )
+    );
+
+    const float4 color = Texture.Sample(Sampler, new_uv) * inp.color;
 
     clip(color.a - 0.5);
 

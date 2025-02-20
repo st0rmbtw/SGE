@@ -82,7 +82,7 @@ VSOutput VS(VSInput inp)
     transform[2][1] = transform[2][1] * inp.i_size[1];
     transform[3][1] = transform[3][1] * inp.i_size[1];
 
-    const float4x4 mvp = mul(u_view_projection, transform);
+    const float4x4 mvp = mul(u_screen_projection, transform);
     const float2 position = inp.position;
 
     VSOutput outp;

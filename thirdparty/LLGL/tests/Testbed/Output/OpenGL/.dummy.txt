@@ -1,1 +1,0 @@
-This file merely ensures the directory for local test results is visible to the git respository.

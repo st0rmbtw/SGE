@@ -1,8 +1,17 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(LLGLTemplate CXX)
+project(LLGLTemplate LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+cmake_policy(SET CMP0069 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+
+find_package(OpenMP)
+
+if(MSVC)
+    set(CMAKE_CXX_STANDARD 20)
+else()
+    set(CMAKE_CXX_STANDARD 17)
+endif()
 
 if(APPLE)
     enable_language(OBJCXX)
@@ -28,19 +37,23 @@ if (RELEASE_BUILD)
         add_compile_options("-g0" "-O3")
         add_compile_options("-fomit-frame-pointer")
         add_compile_options("-fno-math-errno" "-ffinite-math-only" "-fno-signed-zeros" "-fno-trapping-math" "-fassociative-math")
+        add_compile_options("-fno-exceptions")
     endif()
     set(DISABLE_FORCE_DEBUG_POSTFIX ON)
     # set(LLGL_BUILD_STATIC_LIB ON CACHE BOOL "")
     set(LLGL_ENABLE_DEBUG_LAYER OFF CACHE BOOL "" FORCE)
     set(LLGL_ENABLE_CHECKED_CAST OFF CACHE BOOL "" FORCE)
+    set(LLGL_ENABLE_EXCEPTIONS OFF CACHE BOOL "" FORCE)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 else()
     message("-- Build Type: Debug")
     if(MSVC)
-        add_compile_options("/ggdb" "/O0")
+        add_compile_options("/DEBUG" "/Od")
     else()
         add_compile_options("-ggdb" "-O0")
     endif()
     set(DISABLE_FORCE_DEBUG_POSTFIX OFF)
+    set(LLGL_ENABLE_EXCEPTIONS ON CACHE BOOL "" FORCE)
 endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
@@ -57,6 +70,8 @@ endif()
 
 add_compile_definitions(GLM_FORCE_INTRINSICS)
 
+option(ENABLE_TRACY "Enable Tracy profiler" OFF)
+
 set(LLGL_BUILD_RENDERER_NULL OFF CACHE BOOL "" FORCE)
 
 if (APPLE)
@@ -64,6 +79,7 @@ if (APPLE)
 else()
     set(LLGL_BUILD_RENDERER_METAL OFF CACHE BOOL "" FORCE)
     set(LLGL_BUILD_RENDERER_VULKAN ON CACHE BOOL "" FORCE)
+    set(LLGL_VK_ENABLE_SPIRV_REFLECT ON CACHE BOOL "" FORCE)
 endif()
 
 if (WIN32)
@@ -77,12 +93,15 @@ endif()
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 
+set(LLGL_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+
 add_subdirectory(thirdparty/LLGL)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
 add_subdirectory(thirdparty/STB)
 add_subdirectory(shader_compiler)
 add_subdirectory(thirdparty/freetype-2.13.2)
+add_subdirectory(thirdparty/tracy-0.11.1)
 
 unset(EXECUTABLE_OUTPUT_PATH CACHE)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR} CACHE STRING "" FORCE)
@@ -93,10 +112,15 @@ if (APPLE)
 endif()
 
 add_executable(${PROJECT_NAME})
-
 target_sources(${PROJECT_NAME} PRIVATE ${SRC})
 
-target_compile_options(${PROJECT_NAME} PRIVATE "-Wall" "-Wextra")
+if(NOT MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE "-Wall" "-Wextra" "-Wno-gnu-zero-variadic-macro-arguments")
+endif()
+
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE "/Zc:preprocessor")
+endif()
 
 if(RELEASE_BUILD)
     target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG=0)
@@ -104,7 +128,13 @@ else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG=1)
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glm STB glfw LLGL freetype)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(${PROJECT_NAME} PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE glm STB glfw LLGL freetype TracyClient)
+
+# ========================= Copy Assets =========================
 
 file(GLOB_RECURSE ASSETS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/assets/**/*.*)
 
@@ -118,19 +148,21 @@ foreach(asset ${ASSETS})
 
     if (NOT ${out_dir} STREQUAL "shaders/vulkan")
         add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir}/${out_name}
-            COMMAND ${CMAKE_COMMAND} -E copy ${asset} ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir}
-            DEPENDS ${asset}
+            OUTPUT
+                ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir}/${out_name}
+            COMMAND
+                ${CMAKE_COMMAND} -E copy ${asset} ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir}
+            DEPENDS
+                ${asset}
         )
 
         list(APPEND ASSETS_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir}/${out_name})
     endif()
 endforeach()
 
-add_custom_target(COPY_ASSETS DEPENDS ${ASSETS_OUTPUT})
-add_dependencies(${PROJECT_NAME} COPY_ASSETS)
+add_custom_target(COPY_ASSETS ALL DEPENDS ${ASSETS_OUTPUT})
 
-# -----------------------------------------------------------------------
+# ===================== Compile Vulkan Shaders =====================
 
 file(GLOB_RECURSE VULKAN_SHADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/vulkan/*.*)
 
@@ -139,14 +171,15 @@ set(VULKAN_SHADERS_OUTPUT)
 foreach(shader ${VULKAN_SHADERS})
     get_filename_component(shader_name ${shader} NAME)
     add_custom_command(
-        OUTPUT assets/shaders/vulkan/${shader_name}.spv
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shader_compiler/ShaderCompiler${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${shader}
-        DEPENDS ${shader}
+        OUTPUT
+            assets/shaders/vulkan/${shader_name}.spv
+        COMMAND
+            ${CMAKE_CURRENT_BINARY_DIR}/shader_compiler/ShaderCompiler${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${shader}
+        DEPENDS
+            ${shader} ShaderCompiler
     )
     list(APPEND VULKAN_SHADERS_OUTPUT assets/shaders/vulkan/${shader_name}.spv)
 endforeach()
 
-add_custom_target(COMPILE_VULKAN_SHADERS DEPENDS ${VULKAN_SHADERS_OUTPUT})
+add_custom_target(COMPILE_VULKAN_SHADERS ALL DEPENDS ${VULKAN_SHADERS_OUTPUT})
 add_dependencies(COMPILE_VULKAN_SHADERS ShaderCompiler)
-
-add_dependencies(${PROJECT_NAME} COMPILE_VULKAN_SHADERS)

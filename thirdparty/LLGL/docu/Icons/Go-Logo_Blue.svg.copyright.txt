@@ -1,3 +1,0 @@
-All content within this zip file is Copyright 2018 The Go Authors. All rights reserved.
-
-https://go.dev/blog/go-brand

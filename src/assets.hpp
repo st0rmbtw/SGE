@@ -7,14 +7,31 @@
 #include <LLGL/Utils/VertexFormat.h>
 #include <glm/glm.hpp>
 
-#include "types/texture_atlas.hpp"
-#include "types/texture.hpp"
-#include "types/shader_pipeline.hpp"
-#include "types/font.hpp"
-#include "types/shader_def.hpp"
+#include "engine/renderer/renderer.hpp"
+#include "engine/types/texture_atlas.hpp"
+#include "engine/types/texture.hpp"
+#include "engine/types/font.hpp"
 
 enum class TextureAsset : uint8_t {
     Stub = 0,
+    IconFinder,
+    IconAppStore,
+    IconBin,
+    IconBooks,
+    IconCalculator,
+    IconCalendar,
+    IconContacts,
+    IconLaunchpad,
+    IconMail,
+    IconMaps,
+    IconMessage,
+    IconMusic,
+    IconNotes,
+    IconPhotos,
+    IconPreferences,
+    IconReminders,
+    IconTerminal,
+    DesktopBackground
 };
 
 enum class ShaderAsset : uint8_t {
@@ -43,24 +60,18 @@ enum class VertexFormatAsset : uint8_t {
 constexpr uint32_t PARTICLES_ATLAS_COLUMNS = 100;
 
 namespace Assets {
-    bool Load();
-    bool LoadShaders(const std::vector<ShaderDef>& shader_defs = {});
-    bool LoadFonts();
-    bool InitSamplers();
-    void InitVertexFormats();
+    bool LoadTextures(Renderer& renderer);
+    bool LoadFonts(Renderer& renderer);
 
-    void DestroyTextures();
-    void DestroyShaders();
-    void DestroySamplers();
+    void DestroyTextures(Renderer& renderer);
+    void DestroySamplers(Renderer& renderer);
     void DestroyFonts();
 
     const Texture& GetTexture(TextureAsset key);
     const TextureAtlas& GetTextureAtlas(TextureAsset key);
     const Font& GetFont(FontAsset key);
-    const ShaderPipeline& GetShader(ShaderAsset key);
     LLGL::Shader* GetComputeShader(ComputeShaderAsset key);
-    LLGL::Sampler& GetSampler(size_t index);
-    const LLGL::VertexFormat& GetVertexFormat(VertexFormatAsset key);
+    const Sampler& GetSampler(size_t index);
 };
 
 #endif
