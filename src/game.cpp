@@ -1,18 +1,20 @@
 #include "game.hpp"
+
+#include <LLGL/Types.h>
+
+#include "engine/engine.hpp"
+#include "engine/renderer/renderer.hpp"
+#include "engine/renderer/camera.hpp"
+#include "engine/input.hpp"
+#include "engine/time/time.hpp"
+#include "engine/types/window_settings.hpp"
+
+#include "assets.hpp"
 #include "constants.hpp"
-#include "engine.hpp"
-#include "renderer/renderer.hpp"
-#include "renderer/camera.h"
-#include "input.hpp"
-#include "time/time.hpp"
-#include "types/anchor.hpp"
-#include "types/window_settings.hpp"
-#include "types/render_target.hpp"
-#include "ui.hpp"
 
 static struct GameState {
     Camera camera;
-    RenderTarget render_target;
+    Batch batch;
 } g;
 
 void pre_update() {
@@ -40,9 +42,7 @@ void update() {
         g.camera.set_position(g.camera.position() - Input::MouseDelta() * g.camera.zoom());
     }
 
-    if (g.camera.needs_update()) {
-        g.camera.update();
-    }
+    g.camera.update();
 }
 
 void post_update() {
@@ -50,47 +50,48 @@ void post_update() {
 }
 
 void render() {
-    Renderer::Begin(g.camera);
-    // Renderer::Clear(g.render_target.internal, LLGL::ClearFlags::ColorDepth, LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
+    Renderer& renderer = Engine::Renderer();
 
-    Sprite sprite;
-    sprite.set_custom_size(glm::vec2(50.0f));
-    sprite.set_color(glm::vec3(1.0f, 0.0f, 0.0f));
-    sprite.set_anchor(Anchor::TopLeft);
-    Renderer::DrawSprite(sprite);
+    renderer.Begin(g.camera);
+    renderer.BeginMainPass(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
 
-    Renderer::DrawCircle(glm::vec2(g.camera.viewport()) / 2.0f, glm::vec2(100.0f), glm::vec4(0.5f, 0.93f, 0.5f, 1.0f), glm::vec4(1.0f), 0.1f);
-    // Renderer::DrawRect(glm::vec2(0.0f), glm::vec2(100.0f, 100.0f), glm::vec4(0.5f, 0.93f, 0.5f, 1.0f), glm::vec4(1.0f), 1.0f, 10.0f, Anchor::TopLeft);
+    g.batch.DrawCircle(glm::vec2(0.0f), glm::vec2(100.0f), glm::vec4(0.5f, 0.93f, 0.5f, 1.0f), glm::vec4(1.0f), 0.1f);
+    // g.batch.DrawRect(glm::vec2(0.0f), glm::vec2(100.0f, 100.0f), glm::vec4(0.5f, 0.93f, 0.5f, 1.0f), glm::vec4(1.0f), 1.0f, 10.0f, Anchor::TopLeft);
 
-    Renderer::Render(g.camera);
+    renderer.PrepareBatch(g.batch);
+    renderer.UploadBatchData();
+    renderer.RenderBatch(g.batch);
+
+    g.batch.Reset();
+
+    renderer.EndMainPass();
+    renderer.End();
 }
 
 void post_render() {
-    g.camera.set_mutated(false);
-
 #if DEBUG
+    Renderer& renderer = Engine::Renderer();
+
     if (Input::Pressed(Key::C)) {
-        Renderer::PrintDebugInfo();
+        renderer.PrintDebugInfo();
     }
 #endif
 }
 
 bool load_assets() {
-    if (!Assets::Load()) return false;
-    if (!Assets::LoadFonts()) return false;
-    if (!Assets::InitSamplers()) return false;
-    if (!Assets::LoadShaders()) return false;
+    Renderer& renderer = Engine::Renderer();
+
+    if (!Assets::LoadTextures(renderer)) return false;
+    if (!Assets::LoadFonts(renderer)) return false;
 
     return true;
 }
 
 void window_resized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
     g.camera.set_viewport(glm::uvec2(width, height));
-    Renderer::ResizeRenderTarget(&g.render_target, LLGL::Extent2D(width, height));
 }
 
 void destroy() {
-    Renderer::Release(&g.render_target);
 }
 
 bool Game::Init(RenderBackend backend, GameConfig config) {
@@ -112,18 +113,15 @@ bool Game::Init(RenderBackend backend, GameConfig config) {
     settings.fullscreen = config.fullscreen;
     settings.hidden = true;
 
-    if (!Engine::Init(backend, config.vsync, settings)) return false;
+    LLGL::Extent2D resolution;
+    if (!Engine::Init(backend, config.vsync, settings, resolution)) return false;
 
-    Time::set_fixed_timestep_seconds(Constants::FIXED_UPDATE_INTERVAL);
+    Time::SetFixedTimestepSeconds(Constants::FIXED_UPDATE_INTERVAL);
     
-    g.camera.set_viewport({window_size.x, window_size.y});
+    g.camera.set_viewport({resolution.width, resolution.height});
     g.camera.set_zoom(1.0f);
 
-    UI::Init();
-
     Engine::ShowWindow();
-
-    g.render_target = Renderer::CreateRenderTarget(LLGL::Extent2D(1280, 720));
 
     return true;
 }

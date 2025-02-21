@@ -204,8 +204,6 @@ private:
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::Buffer* m_constant_buffer = nullptr;
 
-    LLGL::RenderPass* m_pass = nullptr;
-
 #if DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;
 #endif

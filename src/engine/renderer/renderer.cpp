@@ -13,7 +13,6 @@
 #include "../log.hpp"
 #include "../utils.hpp"
 
-#include "LLGL/RenderPassFlags.h"
 #include "batch.hpp"
 #include "macros.hpp"
 #include "types.hpp"
@@ -92,6 +91,7 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
     LLGL::SwapChainDescriptor swapChainDesc;
     swapChainDesc.resolution = resolution;
     swapChainDesc.fullscreen = fullscreen;
+    // swapChainDesc.samples = 8;
 
     m_swap_chain = context->CreateSwapChain(swapChainDesc, m_surface);
     m_swap_chain->SetVsyncInterval(vsync ? 1 : 0);
@@ -102,19 +102,19 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
     m_command_buffer = context->CreateCommandBuffer(command_buffer_desc);
     m_command_queue = context->GetCommandQueue();
 
-    LLGL::RenderPassDescriptor render_pass;
-    render_pass.colorAttachments[0].format = m_swap_chain->GetColorFormat();
-    render_pass.colorAttachments[0].loadOp = LLGL::AttachmentLoadOp::Undefined;
-    render_pass.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
-    render_pass.depthAttachment.format = m_swap_chain->GetDepthStencilFormat();
-    render_pass.depthAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
-    render_pass.depthAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
-    render_pass.stencilAttachment.format = m_swap_chain->GetDepthStencilFormat();
-    render_pass.stencilAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
-    render_pass.stencilAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
-    render_pass.samples = 8;
+    // LLGL::RenderPassDescriptor render_pass;
+    // render_pass.colorAttachments[0].format = m_swap_chain->GetColorFormat();
+    // render_pass.colorAttachments[0].loadOp = LLGL::AttachmentLoadOp::Undefined;
+    // render_pass.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
+    // render_pass.depthAttachment.format = m_swap_chain->GetDepthStencilFormat();
+    // render_pass.depthAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
+    // render_pass.depthAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
+    // render_pass.stencilAttachment.format = m_swap_chain->GetDepthStencilFormat();
+    // render_pass.stencilAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
+    // render_pass.stencilAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
+    // render_pass.samples = 8;
 
-    m_pass = m_context->CreateRenderPass(render_pass);
+    // m_pass = m_context->CreateRenderPass(render_pass);
 
     m_constant_buffer = CreateConstantBuffer(sizeof(ProjectionsUniform), "ConstantBuffer");
 
@@ -162,7 +162,8 @@ void Renderer::Begin(const Camera& camera) {
 }
 
 void Renderer::BeginMainPass(const LLGL::ClearValue& clear_color, long flags) {
-    m_command_buffer->BeginRenderPass(*m_swap_chain, m_pass);
+    m_command_buffer->BeginRenderPass(*m_swap_chain);
+    // m_command_buffer->BeginRenderPass(*m_swap_chain, m_pass);
     m_command_buffer->Clear(flags, clear_color);
 }
 

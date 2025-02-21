@@ -295,7 +295,8 @@ static void handle_window_resize_events(GLFWwindow*, int width, int height) {
     const LLGL::Extent2D resolution = get_scaled_resolution(width, height);
 
     state.renderer.CommandQueue()->WaitIdle();
-    state.renderer.SwapChain()->ResizeBuffers(LLGL::Extent2D(resolution.width * 8, resolution.height * 8));
+    state.renderer.SwapChain()->ResizeBuffers(resolution);
+    // state.renderer.SwapChain()->ResizeBuffers(LLGL::Extent2D(resolution.width * 8, resolution.height * 8));
 
     state.window_width = width;
     state.window_height = height;
