@@ -3,12 +3,21 @@
 #include <fstream>
 #include <optional>
 #include <sstream>
-#include <tracy/Tracy.hpp>
 #include <utility>
+
+#include <tracy/Tracy.hpp>
+
 #include <LLGL/PipelineLayoutFlags.h>
 #include <LLGL/PipelineStateFlags.h>
 #include <LLGL/Utils/VertexFormat.h>
 #include <LLGL/VertexAttribute.h>
+#include <LLGL/CommandBufferFlags.h>
+#include <LLGL/Format.h>
+#include <LLGL/RenderTargetFlags.h>
+#include <LLGL/ResourceFlags.h>
+#include <LLGL/SamplerFlags.h>
+#include <LLGL/TextureFlags.h>
+#include <LLGL/Types.h>
 
 #include "../log.hpp"
 #include "../utils.hpp"
@@ -17,9 +26,10 @@
 #include "macros.hpp"
 #include "types.hpp"
 
-using batch_internal::DrawCommand;
-using batch_internal::FlushData;
-using batch_internal::FlushDataType;
+using namespace sge::types;
+using namespace sge::renderer;
+
+using namespace batch::internal;
 
 static constexpr size_t MAX_QUADS = 2500;
 
@@ -91,7 +101,7 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
     LLGL::SwapChainDescriptor swapChainDesc;
     swapChainDesc.resolution = resolution;
     swapChainDesc.fullscreen = fullscreen;
-    // swapChainDesc.samples = 8;
+    // swapChainDesc.samples = 4;
 
     m_swap_chain = context->CreateSwapChain(swapChainDesc, m_surface);
     m_swap_chain->SetVsyncInterval(vsync ? 1 : 0);
@@ -102,19 +112,43 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
     m_command_buffer = context->CreateCommandBuffer(command_buffer_desc);
     m_command_queue = context->GetCommandQueue();
 
-    // LLGL::RenderPassDescriptor render_pass;
-    // render_pass.colorAttachments[0].format = m_swap_chain->GetColorFormat();
-    // render_pass.colorAttachments[0].loadOp = LLGL::AttachmentLoadOp::Undefined;
-    // render_pass.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
-    // render_pass.depthAttachment.format = m_swap_chain->GetDepthStencilFormat();
-    // render_pass.depthAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
-    // render_pass.depthAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
-    // render_pass.stencilAttachment.format = m_swap_chain->GetDepthStencilFormat();
-    // render_pass.stencilAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
-    // render_pass.stencilAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
-    // render_pass.samples = 8;
+    LLGL::RenderPassDescriptor render_pass;
+    render_pass.colorAttachments[0].format = m_swap_chain->GetColorFormat();
+    render_pass.colorAttachments[0].loadOp = LLGL::AttachmentLoadOp::Undefined;
+    render_pass.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
+    render_pass.depthAttachment.format = m_swap_chain->GetDepthStencilFormat();
+    render_pass.depthAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
+    render_pass.depthAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
+    render_pass.stencilAttachment.format = m_swap_chain->GetDepthStencilFormat();
+    render_pass.stencilAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
+    render_pass.stencilAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
+    // render_pass.samples = 4;
 
-    // m_pass = m_context->CreateRenderPass(render_pass);
+    m_pass = m_context->CreateRenderPass(render_pass);
+
+    LLGL::SamplerDescriptor linearSamplerDesc;
+    linearSamplerDesc.addressModeU = LLGL::SamplerAddressMode::Clamp;
+    linearSamplerDesc.addressModeV = LLGL::SamplerAddressMode::Clamp;
+    linearSamplerDesc.addressModeW = LLGL::SamplerAddressMode::Clamp;
+    linearSamplerDesc.minFilter = LLGL::SamplerFilter::Linear;
+    linearSamplerDesc.magFilter = LLGL::SamplerFilter::Linear;
+    linearSamplerDesc.mipMapFilter = LLGL::SamplerFilter::Linear;
+    linearSamplerDesc.mipMapEnabled = false;
+    linearSamplerDesc.minLOD = 0.0f;
+    linearSamplerDesc.maxLOD = 0.0f;
+    m_sampler_linear = context->CreateSampler(linearSamplerDesc);
+
+    LLGL::SamplerDescriptor nearestSamplerDesc;
+    nearestSamplerDesc.addressModeU = LLGL::SamplerAddressMode::Clamp;
+    nearestSamplerDesc.addressModeV = LLGL::SamplerAddressMode::Clamp;
+    nearestSamplerDesc.addressModeW = LLGL::SamplerAddressMode::Clamp;
+    nearestSamplerDesc.minFilter = LLGL::SamplerFilter::Nearest;
+    nearestSamplerDesc.magFilter = LLGL::SamplerFilter::Nearest;
+    nearestSamplerDesc.mipMapFilter = LLGL::SamplerFilter::Nearest;
+    nearestSamplerDesc.mipMapEnabled = false;
+    nearestSamplerDesc.minLOD = 0.0f;
+    nearestSamplerDesc.maxLOD = 0.0f;
+    m_sampler_nearest = context->CreateSampler(nearestSamplerDesc);
 
     m_constant_buffer = CreateConstantBuffer(sizeof(ProjectionsUniform), "ConstantBuffer");
 
@@ -122,12 +156,79 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
     InitNinepatchBatchPipeline();
     InitGlyphBatchPipeline();
     InitShapeBatchPipeline();
+    InitBlurPipeline();
+    InitBlitPipeline();
+
+    ResizeBuffers(resolution);
 
     return true;
 }
 
+void Renderer::ResizeBuffers(LLGL::Extent2D size) {
+    m_command_queue->WaitIdle();
+    m_swap_chain->ResizeBuffers(size);
+
+    auto& context = m_context;
+
+    RESOURCE_RELEASE(m_blur_framebuffer_a);
+    RESOURCE_RELEASE(m_blur_texture_a);
+
+    RESOURCE_RELEASE(m_blur_framebuffer_b);
+    RESOURCE_RELEASE(m_blur_texture_b);
+
+    LLGL::TextureDescriptor blurTextureDesc;
+    blurTextureDesc.format = m_swap_chain->GetColorFormat();
+    blurTextureDesc.type = LLGL::TextureType::Texture2D;
+    blurTextureDesc.bindFlags |= LLGL::BindFlags::CopyDst;
+    blurTextureDesc.cpuAccessFlags = 0;
+    blurTextureDesc.miscFlags = 0;
+    blurTextureDesc.mipLevels = 1;
+
+    LLGL::Extent2D lowres = LLGL::Extent2D(size.width / 12, size.height / 12);
+
+    blurTextureDesc.extent = LLGL::Extent3D(lowres.width, lowres.height, 1);
+    m_blur_texture_a = m_context->CreateTexture(blurTextureDesc);
+    m_blur_texture_b = m_context->CreateTexture(blurTextureDesc);
+
+    blurTextureDesc.extent = LLGL::Extent3D(size.width, size.height, 1);
+    m_blur_texture_c = m_context->CreateTexture(blurTextureDesc);
+
+    LLGL::RenderTargetDescriptor blurFramebufferDesc;
+    blurFramebufferDesc.resolution = lowres;
+
+    blurFramebufferDesc.colorAttachments[0].texture = m_blur_texture_a;
+    blurFramebufferDesc.colorAttachments[0].format = blurTextureDesc.format;
+    m_blur_framebuffer_a = m_context->CreateRenderTarget(blurFramebufferDesc);
+
+    blurFramebufferDesc.colorAttachments[0].texture = m_blur_texture_b;
+    blurFramebufferDesc.colorAttachments[0].format = blurTextureDesc.format;
+    m_blur_framebuffer_b = m_context->CreateRenderTarget(blurFramebufferDesc);
+    
+    blurFramebufferDesc.resolution = LLGL::Extent2D(size.width, size.height);
+    blurFramebufferDesc.colorAttachments[0].texture = m_blur_texture_c;
+    blurFramebufferDesc.colorAttachments[0].format = blurTextureDesc.format;
+
+    LLGL::TextureDescriptor depthStencilTextureDesc;
+    depthStencilTextureDesc.format = m_swap_chain->GetDepthStencilFormat();
+    depthStencilTextureDesc.extent = LLGL::Extent3D(size.width, size.height, 1);
+    depthStencilTextureDesc.type = LLGL::TextureType::Texture2D;
+    depthStencilTextureDesc.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::DepthStencilAttachment;
+    depthStencilTextureDesc.cpuAccessFlags = 0;
+    depthStencilTextureDesc.miscFlags = 0;
+    depthStencilTextureDesc.mipLevels = 1;
+
+    m_blur_stencil = m_context->CreateTexture(depthStencilTextureDesc);
+
+    blurFramebufferDesc.depthStencilAttachment.texture = m_blur_stencil;
+    blurFramebufferDesc.depthStencilAttachment.format = depthStencilTextureDesc.format;
+
+    m_blur_framebuffer_c = m_context->CreateRenderTarget(blurFramebufferDesc);
+}
+
 void Renderer::Begin(const Camera& camera) {
     ZoneScopedN("Renderer::Begin");
+
+    m_viewport = camera.viewport();
 
     auto projections_uniform = ProjectionsUniform {
         .screen_projection_matrix = camera.get_screen_projection_matrix(),
@@ -141,7 +242,6 @@ void Renderer::Begin(const Camera& camera) {
     };
 
     m_command_buffer->Begin();
-    m_command_buffer->SetViewport(m_swap_chain->GetResolution());
     m_command_buffer->UpdateBuffer(*m_constant_buffer, 0, &projections_uniform, sizeof(projections_uniform));
 
     m_sprite_instance_size = 0;
@@ -162,9 +262,13 @@ void Renderer::Begin(const Camera& camera) {
 }
 
 void Renderer::BeginMainPass(const LLGL::ClearValue& clear_color, long flags) {
+    m_current_framebuffer = m_swap_chain;
+    m_current_pass = m_pass;
+
     m_command_buffer->BeginRenderPass(*m_swap_chain);
     // m_command_buffer->BeginRenderPass(*m_swap_chain, m_pass);
     m_command_buffer->Clear(flags, clear_color);
+    m_command_buffer->SetViewport(m_swap_chain->GetResolution());
 }
 
 void Renderer::EndMainPass() {
@@ -174,16 +278,87 @@ void Renderer::EndMainPass() {
 void Renderer::End() {
     ZoneScopedN("Renderer::End");
 
+    m_current_framebuffer = nullptr;
+    m_current_pass = nullptr;
+
     m_command_buffer->End();
     m_command_queue->Submit(*m_command_buffer);
 
     m_swap_chain->Present();
 }
 
-void Renderer::ApplyBatchDrawCommands(Batch& batch) {
+void Renderer::RunBlurPass(uint32_t blur_radius) {
+    // // Downscale
+    // m_command_buffer->BeginRenderPass(*m_blur_framebuffer_a);
+    // {   
+    //     m_command_buffer->SetViewport(m_blur_framebuffer_a->GetResolution());
+    //     m_command_buffer->SetPipelineState(*m_blit_pipeline);
+    //     m_command_buffer->SetVertexBuffer(*m_blit_vertex_buffer);
+
+    //     m_command_buffer->SetResource(0, *m_blur_texture_c);
+    //     m_command_buffer->SetResource(1, *m_blur_sampler);
+
+    //     m_command_buffer->Draw(3, 0);
+    // }
+    // m_command_buffer->EndRenderPass();
+
+    // Horizontal Pass
+    m_command_buffer->BeginRenderPass(*m_blur_framebuffer_a);
+    {
+        m_command_buffer->SetViewport(m_blur_framebuffer_a->GetResolution());
+        m_command_buffer->SetPipelineState(*m_blur_pipeline);
+        m_command_buffer->SetVertexBuffer(*m_blur_vertex_buffer);
+
+        m_command_buffer->SetResource(0, *m_blur_texture_c);
+        m_command_buffer->SetResource(1, *m_sampler_linear);
+
+        m_command_buffer->SetUniforms(0, &blur_radius, sizeof(blur_radius));
+        
+        uint32_t direction = 0;
+        m_command_buffer->SetUniforms(1, &direction, sizeof(direction));
+
+        m_command_buffer->Draw(3, 0);
+    }
+    m_command_buffer->EndRenderPass();
+
+    // Vertical Pass
+    m_command_buffer->BeginRenderPass(*m_blur_framebuffer_b);
+    {
+        m_command_buffer->SetViewport(m_blur_framebuffer_b->GetResolution());
+        m_command_buffer->SetPipelineState(*m_blur_pipeline);
+        m_command_buffer->SetVertexBuffer(*m_blur_vertex_buffer);
+
+        m_command_buffer->SetResource(0, *m_blur_texture_a);
+        m_command_buffer->SetResource(1, *m_sampler_linear);
+
+        m_command_buffer->SetUniforms(0, &blur_radius, sizeof(blur_radius));
+        
+        uint32_t direction = 1;
+        m_command_buffer->SetUniforms(1, &direction, sizeof(direction));
+
+        m_command_buffer->Draw(3, 0);
+    }
+    m_command_buffer->EndRenderPass();
+
+    // Upscale pass
+    m_command_buffer->BeginRenderPass(*m_blur_framebuffer_c);
+    {
+        m_command_buffer->Clear(LLGL::ClearFlags::All, LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1));
+        m_command_buffer->SetViewport(m_blur_framebuffer_c->GetResolution());
+        m_command_buffer->SetPipelineState(*m_blit_pipeline);
+        m_command_buffer->SetVertexBuffer(*m_blit_vertex_buffer);
+
+        m_command_buffer->SetResource(0, *m_blur_texture_b);
+        m_command_buffer->SetResource(1, *m_sampler_linear);
+
+        m_command_buffer->Draw(3, 0);
+    }
+}
+
+void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
     ZoneScopedN("Renderer::ApplyBatchDrawCommands");
 
-    Batch::FlushQueue& flush_queue = batch.flush_queue();
+    batch::Batch::FlushQueue& flush_queue = batch.flush_queue();
 
     auto* const commands = m_command_buffer;
 
@@ -210,8 +385,24 @@ void Renderer::ApplyBatchDrawCommands(Batch& batch) {
 
     size_t offset = 0;
 
+    bool prev_blur = false;
+
     for (FlushData& flush_data : flush_queue) {
-        if (prev_flush_data_type != static_cast<int>(flush_data.type)) {
+        if (flush_data.blur) {
+            const LLGL::Extent2D resolution = m_swap_chain->GetResolution();
+            commands->CopyTextureFromFramebuffer(*m_blur_texture_c, LLGL::TextureRegion(LLGL::Offset3D(), LLGL::Extent3D(resolution.width, resolution.height, 1)), LLGL::Offset2D());
+            commands->EndRenderPass();
+
+            RunBlurPass(30);
+        }
+
+        if (prev_blur) {
+            commands->EndRenderPass();
+            commands->BeginRenderPass(*m_current_framebuffer, m_current_pass);
+            m_command_buffer->SetViewport(m_current_framebuffer->GetResolution());
+        }
+
+        if (prev_flush_data_type != static_cast<int>(flush_data.type) || prev_blur != flush_data.blur) {
             switch (flush_data.type) {
             case FlushDataType::Sprite:
                 commands->SetVertexBufferArray(*m_sprite_batch_data.buffer_array);
@@ -233,7 +424,7 @@ void Renderer::ApplyBatchDrawCommands(Batch& batch) {
 
             case FlushDataType::Shape:
                 commands->SetVertexBufferArray(*m_shape_batch_data.buffer_array);
-                commands->SetPipelineState(shape_pipeline);
+                commands->SetPipelineState(flush_data.blur ? *m_shape_batch_data.pipeline_stencil_write : shape_pipeline);
                 offset = batch.ninepatch_offset();
             break;
             }
@@ -252,18 +443,46 @@ void Renderer::ApplyBatchDrawCommands(Batch& batch) {
         
         commands->DrawInstanced(4, 0, flush_data.count, offset + flush_data.offset);
 
+        if (flush_data.blur) {
+            m_command_buffer->EndRenderPass();
+            m_command_buffer->BeginRenderPass(*m_blur_framebuffer_c);
+            {
+                m_command_buffer->SetViewport(m_blur_framebuffer_c->GetResolution());
+                m_command_buffer->SetPipelineState(*m_blit_stencil_pipeline);
+                m_command_buffer->SetVertexBuffer(*m_blit_vertex_buffer);
+
+                m_command_buffer->SetResource(0, *m_blur_texture_c);
+                m_command_buffer->SetResource(1, *m_sampler_linear);
+
+                m_command_buffer->Draw(3, 0);
+            }
+            m_command_buffer->EndRenderPass();
+
+            m_command_buffer->BeginRenderPass(*m_current_framebuffer);
+            {
+                m_command_buffer->SetViewport(m_current_framebuffer->GetResolution());
+                m_command_buffer->SetPipelineState(*m_blit_blend_pipeline);
+                m_command_buffer->SetVertexBuffer(*m_blit_vertex_buffer);
+
+                m_command_buffer->SetResource(0, *m_blur_texture_c);
+                m_command_buffer->SetResource(1, *m_sampler_linear);
+
+                m_command_buffer->Draw(3, 0);
+            }
+        }
+
         prev_flush_data_type = static_cast<int>(flush_data.type);
+
+        prev_blur = flush_data.blur;
     }
 
     flush_queue.clear();
 }
 
-void Renderer::SortBatchDrawCommands(Batch& batch) {
-    using namespace batch_internal;
-
+void Renderer::SortBatchDrawCommands(batch::Batch& batch) {
     ZoneScopedN("Renderer::SortBatchDrawCommands");
 
-    Batch::DrawCommands& draw_commands = batch.draw_commands();
+    batch::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
     std::sort(
         draw_commands.begin(),
@@ -282,24 +501,22 @@ void Renderer::SortBatchDrawCommands(Batch& batch) {
                 return a_texture->id() < b.texture()->id();
             }
 
-            return true;
+            return false;
         }
     );
 }
 
 void Renderer::UpdateBatchBuffers(
-    Batch& batch,
+    batch::Batch& batch,
     size_t begin
 ) {
-    using namespace batch_internal;
-
     ZoneScopedN("Renderer::UpdateBatchBuffers");
 
-    const Batch::DrawCommands& draw_commands = batch.draw_commands();
+    const batch::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
     if (draw_commands.empty()) return;
 
-    Batch::FlushQueue& flush_queue = batch.flush_queue();
+    batch::Batch::FlushQueue& flush_queue = batch.flush_queue();
 
     Texture sprite_prev_texture;
     uint32_t sprite_count = 0;
@@ -337,7 +554,7 @@ void Renderer::UpdateBatchBuffers(
             next_order = draw_commands[i + 1].order();
         }
 
-        const batch_internal::DrawCommand& draw_command = draw_commands[i];
+        const DrawCommand& draw_command = draw_commands[i];
 
         switch (draw_command.type()) {
         case DrawCommand::DrawSprite: {
@@ -493,7 +710,7 @@ void Renderer::UpdateBatchBuffers(
                     .offset = ninepatch_vertex_offset,
                     .count = ninepatch_count,
                     .order = ninepatch_data.order,
-                    .type = FlushDataType::NinePatch
+                    .type = FlushDataType::NinePatch,
                 });
                 ninepatch_count = 0;
                 ninepatch_vertex_offset = ninepatch_total_count;
@@ -511,8 +728,8 @@ void Renderer::UpdateBatchBuffers(
             m_shape_batch_data.buffer_ptr->position = glm::vec3(shape_data.position, 0.0f);
             m_shape_batch_data.buffer_ptr->size = shape_data.size;
             m_shape_batch_data.buffer_ptr->offset = shape_data.offset;
-            m_shape_batch_data.buffer_ptr->color = shape_data.color;
-            m_shape_batch_data.buffer_ptr->border_color = shape_data.border_color;
+            m_shape_batch_data.buffer_ptr->color = shape_data.color.to_vec4();
+            m_shape_batch_data.buffer_ptr->border_color = shape_data.border_color.to_vec4();
             m_shape_batch_data.buffer_ptr->border_thickness = shape_data.border_thickness;
             m_shape_batch_data.buffer_ptr->border_radius = shape_data.border_radius;
             m_shape_batch_data.buffer_ptr->shape = shape_data.shape;
@@ -528,7 +745,8 @@ void Renderer::UpdateBatchBuffers(
                     .offset = shape_vertex_offset,
                     .count = shape_count,
                     .order = shape_data.order,
-                    .type = FlushDataType::Shape
+                    .type = FlushDataType::Shape,
+                    .blur = shape_data.blur
                 });
                 shape_count = 0;
                 shape_vertex_offset = shape_total_count;
@@ -605,7 +823,7 @@ void Renderer::UpdateBatchBuffers(
 }
 
 
-void Renderer::PrepareBatch(Batch& batch) {
+void Renderer::PrepareBatch(batch::Batch& batch) {
     if (batch.draw_commands().empty()) return;
 
     batch.set_sprite_offset(m_sprite_instance_count);
@@ -635,10 +853,10 @@ void Renderer::UploadBatchData() {
     }
 }
 
-void Renderer::RenderBatch(Batch& batch) {
+void Renderer::RenderBatch(batch::Batch& batch) {
     ZoneScopedN("Renderer::RenderBatch");
 
-    const Batch::DrawCommands& draw_commands = batch.draw_commands();
+    const batch::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
     if (draw_commands.empty()) return;
 
@@ -1302,14 +1520,201 @@ void Renderer::InitShapeBatchPipeline() {
     };
 
     m_shape_batch_data.pipeline = context->CreatePipelineState(pipelineDesc);
+    if (const LLGL::Report* report = m_shape_batch_data.pipeline->GetReport()) {
+        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
+    }
+
+    {
+        LLGL::GraphicsPipelineDescriptor stencilPipelineDesc = pipelineDesc;
+        stencilPipelineDesc.debugName = "ShapeBatch Pipeline Stencil";
+        stencilPipelineDesc.stencil = LLGL::StencilDescriptor {
+            .testEnabled = true,
+            .front = {
+                .depthPassOp = LLGL::StencilOp::Replace,
+                .compareOp = LLGL::CompareOp::AlwaysPass,
+                .readMask = 0u,
+                .writeMask = ~0u,
+                .reference = 0
+            },
+            .back = {}
+        };
+
+        m_shape_batch_data.pipeline_stencil_write = context->CreatePipelineState(stencilPipelineDesc);
+        if (const LLGL::Report* report = m_shape_batch_data.pipeline_stencil_write->GetReport()) {
+            if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
+        }
+    }
 
     pipelineDesc.debugName = "ShapeBatch Pipeline UI";
     pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "shape_ui"), {}, vertex_attributes);
     pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "shape_ui"));
 
     m_shape_batch_data.pipeline_ui = context->CreatePipelineState(pipelineDesc);
+    if (const LLGL::Report* report = m_shape_batch_data.pipeline_ui->GetReport()) {
+        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
+    }
+}
 
-    if (const LLGL::Report* report = m_shape_batch_data.pipeline->GetReport()) {
+void Renderer::InitBlurPipeline() {
+    const RenderBackend backend = m_backend;
+    const auto& context = m_context;
+
+    const glm::vec2 vertices[] = {
+        glm::vec2(-1.0f, 1.0f),  glm::vec2(0.0f, 0.0f),
+        glm::vec2(3.0f,  1.0f),  glm::vec2(2.0f, 0.0f),
+        glm::vec2(-1.0f, -3.0f), glm::vec2(0.0f, 2.0f),
+    };
+
+    LLGL::VertexFormat vertex_format;
+
+    if (backend.IsGLSL()) {
+        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
+        vertex_format.AppendAttribute({ "a_uv",       LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
+    } else if (backend.IsHLSL()) {
+        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
+        vertex_format.AppendAttribute({ "UV",         LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
+    } else {
+        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
+        vertex_format.AppendAttribute({ "uv",         LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
+    }
+
+    m_blur_vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "Blur VertexBuffer");
+
+    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+    pipelineLayoutDesc.bindings = {
+        LLGL::BindingDescriptor(
+            "Texture",
+            LLGL::ResourceType::Texture,
+            LLGL::BindFlags::Sampled,
+            LLGL::StageFlags::FragmentStage,
+            LLGL::BindingSlot(3)
+        ),
+        LLGL::BindingDescriptor(
+            "Sampler",
+            LLGL::ResourceType::Sampler,
+            0,
+            LLGL::StageFlags::FragmentStage,
+            LLGL::BindingSlot(4)
+        ),
+    };
+    pipelineLayoutDesc.uniforms = {
+        LLGL::UniformDescriptor("uniform_blur_size", LLGL::UniformType::UInt1),
+        LLGL::UniformDescriptor("uniform_direction", LLGL::UniformType::UInt1),
+    };
+
+    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.debugName = "Blur Pipeline";
+    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "blur"), {}, vertex_format.attributes);
+    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "blur"));
+    pipelineDesc.pipelineLayout = pipelineLayout;
+    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
+    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleList;
+    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
+    pipelineDesc.rasterizer.frontCCW = true;
+
+    m_blur_pipeline = context->CreatePipelineState(pipelineDesc);
+
+    if (const LLGL::Report* report = m_blur_pipeline->GetReport()) {
+        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
+    }
+}
+
+void Renderer::InitBlitPipeline() {
+    const RenderBackend backend = m_backend;
+    const auto& context = m_context;
+
+    const glm::vec2 vertices[] = {
+        glm::vec2(-1.0f, 1.0f),  glm::vec2(0.0f, 0.0f),
+        glm::vec2(3.0f,  1.0f),  glm::vec2(2.0f, 0.0f),
+        glm::vec2(-1.0f, -3.0f), glm::vec2(0.0f, 2.0f),
+    };
+
+    LLGL::VertexFormat vertex_format;
+
+    if (backend.IsGLSL()) {
+        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
+        vertex_format.AppendAttribute({ "a_uv",       LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
+    } else if (backend.IsHLSL()) {
+        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
+        vertex_format.AppendAttribute({ "UV",         LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
+    } else {
+        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
+        vertex_format.AppendAttribute({ "uv",         LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
+    }
+
+    m_blit_vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "Blit VertexBuffer");
+
+    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+    pipelineLayoutDesc.bindings = {
+        LLGL::BindingDescriptor(
+            "Texture",
+            LLGL::ResourceType::Texture,
+            LLGL::BindFlags::Sampled,
+            LLGL::StageFlags::FragmentStage,
+            LLGL::BindingSlot(2)
+        ),
+        LLGL::BindingDescriptor(
+            "Sampler",
+            LLGL::ResourceType::Sampler,
+            0,
+            LLGL::StageFlags::FragmentStage,
+            LLGL::BindingSlot(3)
+        ),
+    };
+
+    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.debugName = "Blit Pipeline";
+    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "blit"), {}, vertex_format.attributes);
+    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "blit"));
+    pipelineDesc.pipelineLayout = pipelineLayout;
+    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
+    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleList;
+    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
+    pipelineDesc.rasterizer.frontCCW = true;
+
+    m_blit_pipeline = context->CreatePipelineState(pipelineDesc);
+    if (const LLGL::Report* report = m_blit_pipeline->GetReport()) {
+        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
+    }
+
+    {
+        LLGL::GraphicsPipelineDescriptor blendPipelineDesc = pipelineDesc;
+        blendPipelineDesc.blend = {
+            .targets = {
+                LLGL::BlendTargetDescriptor {
+                    .blendEnabled = true,
+                    .srcColor = LLGL::BlendOp::One,
+                    .dstColor = LLGL::BlendOp::InvSrcAlpha,
+                    .srcAlpha = LLGL::BlendOp::SrcAlpha,
+                    .dstAlpha = LLGL::BlendOp::DstAlpha,
+                    .alphaArithmetic = LLGL::BlendArithmetic::Add
+                }
+            }
+        };
+
+        m_blit_blend_pipeline = context->CreatePipelineState(blendPipelineDesc);
+        if (const LLGL::Report* report = m_blit_blend_pipeline->GetReport()) {
+            if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
+        }
+    }
+
+    pipelineDesc.stencil = LLGL::StencilDescriptor {
+        .testEnabled = true,
+        .front = {
+            .compareOp = LLGL::CompareOp::Greater,
+            .readMask = ~0u,
+            .writeMask = 0u,
+            .reference = 0
+        },
+        .back = {}
+    };
+
+    m_blit_stencil_pipeline = context->CreatePipelineState(pipelineDesc);
+    if (const LLGL::Report* report = m_blit_stencil_pipeline->GetReport()) {
         if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
     }
 }

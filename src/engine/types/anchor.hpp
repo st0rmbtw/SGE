@@ -1,10 +1,15 @@
-#ifndef _ENGINE_TYPES_ANCHOR_HPP_
-#define _ENGINE_TYPES_ANCHOR_HPP_
+#ifndef _SGE_TYPES_ANCHOR_HPP_
+#define _SGE_TYPES_ANCHOR_HPP_
 
 #pragma once
 
 #include <stdint.h>
 #include <glm/vec2.hpp>
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 class Anchor {
 public:
@@ -43,5 +48,9 @@ public:
 private:
     Value m_value = Value::Center;
 };
+
+}
+
+_SGE_END
 
 #endif

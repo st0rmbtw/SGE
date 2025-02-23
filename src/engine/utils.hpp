@@ -1,16 +1,16 @@
-#ifndef _ENGINE_UTILS_HPP_
-#define _ENGINE_UTILS_HPP_
+#ifndef _SGE_UTILS_HPP_
+#define _SGE_UTILS_HPP_
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 
-#include <string>
-
 #include "types/font.hpp"
 
 #include "defines.hpp"
 #include "log.hpp"
+
+_SGE_BEGIN
 
 template <typename T> 
 T* checked_alloc(size_t count) {
@@ -41,6 +41,8 @@ static bool FileExists(const char *path) {
 
 uint32_t next_utf8_codepoint(const char* text, size_t& index);
 
-glm::vec2 calculate_text_bounds(const Font& font, const std::string &text, float size);
+glm::vec2 calculate_text_bounds(const types::Font& font, size_t length, const char* text, float size);
+
+_SGE_END
 
 #endif

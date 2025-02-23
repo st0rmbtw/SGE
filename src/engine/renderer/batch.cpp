@@ -4,6 +4,9 @@
 
 #include "../utils.hpp"
 
+using namespace sge::types;
+using namespace sge::renderer::batch;
+
 uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, Order custom_order) {
     const math::Rect& rect = sprite.atlas().get_rect(sprite.index());
 
@@ -45,6 +48,8 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
         const size_t length = section.text.size();
         const float scale = section.size / font.font_size;
 
+        const glm::vec3 color = section.color.to_vec3();
+
         for (size_t i = 0; i < length;) {
             const uint32_t c = next_utf8_codepoint(str, i);
 
@@ -66,9 +71,9 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            AddGlyphDrawCommand(batch_internal::DrawCommandGlyph {
+            AddGlyphDrawCommand(internal::DrawCommandGlyph {
                 .texture = font.texture,
-                .color = section.color,
+                .color = color,
                 .pos = pos,
                 .size = size,
                 .tex_size = ch.tex_size,
@@ -94,12 +99,12 @@ uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& 
         m_order = std::max(m_order, order + 1);
     }
 
-    const batch_internal::DrawCommandSprite draw_command = batch_internal::DrawCommandSprite {
+    const internal::DrawCommandSprite draw_command = internal::DrawCommandSprite {
         .texture = texture,
         .rotation = sprite.rotation(),
         .uv_offset_scale = uv_offset_scale,
-        .color = sprite.color(),
-        .outline_color = sprite.outline_color(),
+        .color = sprite.color().to_vec4(),
+        .outline_color = sprite.outline_color().to_vec4(),
         .position = glm::vec3(sprite.position(), sprite.z()),
         .size = sprite.size(),
         .offset = sprite.anchor().to_vec2(),
@@ -127,11 +132,11 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
         m_order = std::max(m_order, order + 1);
     }
 
-    const batch_internal::DrawCommandNinePatch draw_command = batch_internal::DrawCommandNinePatch {
+    const internal::DrawCommandNinePatch draw_command = internal::DrawCommandNinePatch {
         .texture = ninepatch.texture(),
         .rotation = ninepatch.rotation(),
         .uv_offset_scale = uv_offset_scale,
-        .color = ninepatch.color(),
+        .color = ninepatch.color().to_vec4(),
         .margin = ninepatch.margin(),
         .position = ninepatch.position(),
         .size = ninepatch.size(),
@@ -148,13 +153,13 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
     return order;
 }
 
-void Batch::AddGlyphDrawCommand(const batch_internal::DrawCommandGlyph& command) {
+void Batch::AddGlyphDrawCommand(const internal::DrawCommandGlyph& command) {
     m_draw_commands.emplace_back(command, m_glyph_count);
     
     ++m_glyph_count;
 }
 
-uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, float border_radius, Anchor anchor, Order custom_order) {
+uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const color::LinearRgba& color, const color::LinearRgba& border_color, float border_thickness, float border_radius, bool blur, Anchor anchor, Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);
@@ -165,7 +170,7 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
         m_order = std::max(m_order, order + 1);
     }
 
-    batch_internal::DrawCommandShape command = {
+    internal::DrawCommandShape command = {
         .position = position,
         .size = size,
         .offset = anchor.to_vec2(),
@@ -175,6 +180,7 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
         .border_radius = border_radius,
         .shape = shape,
         .order = order,
+        .blur = blur
     };
 
     m_draw_commands.emplace_back(command, m_shape_count);

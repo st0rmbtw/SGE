@@ -7,7 +7,6 @@
 #include <GLFW/glfw3.h>
 #include <LLGL/LLGL.h>
 #include <glm/glm.hpp>
-#include <list>
 
 inline int rand_range(int from, int to) {
     return rand() % (to + 1 - from) + from;
@@ -16,15 +15,6 @@ inline int rand_range(int from, int to) {
 inline float rand_range(float from, float to) {
     const float scale = rand() / (float) RAND_MAX;
     return from + scale * (to - from); 
-}
-
-template <class T>
-static const T& list_at(const std::list<T>& list, int index) {
-    auto it = list.begin();
-    for (int i = 0; i < index; i++){
-        ++it;
-    }
-    return *it;
 }
 
 #endif

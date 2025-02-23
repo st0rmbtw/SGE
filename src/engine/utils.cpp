@@ -1,4 +1,9 @@
 #include "utils.hpp"
+#include "defines.hpp"
+
+#include <tracy/Tracy.hpp>
+
+_SGE_BEGIN
 
 uint32_t next_utf8_codepoint(const char* text, size_t& index) {
     uint32_t c = (uint8_t) text[index];
@@ -51,24 +56,29 @@ uint32_t next_utf8_codepoint(const char* text, size_t& index) {
     return c;
 }
 
-glm::vec2 calculate_text_bounds(const Font& font, const std::string &text, float size) {
+glm::vec2 calculate_text_bounds(const types::Font& font, size_t length, const char* text, float size) {
+    ZoneScopedN("Utils::calculate_text_bounds");
+
     auto bounds = glm::vec2(0.0f);
     float prev_x = 0.0f;
 
-    float scale = size / font.font_size;
+    const float scale = size / font.font_size;
 
-    const char* c = text.c_str();
-    for (; *c != '\0'; c++) {
-        if (*c == '\n') {
+    for (size_t i = 0; i < length;) {
+        const uint32_t ch = next_utf8_codepoint(text, i);
+
+        if (ch == '\n') {
             bounds.y += size;
             prev_x = 0.0f;
             continue;
         }
 
-        const Glyph& glyph = font.glyphs.find(*c)->second;
-        prev_x += glyph.size.x * scale;
+        const types::Glyph& glyph = font.glyphs.find(ch)->second;
+        prev_x += (glyph.advance >> 6) * scale;
         bounds.x = std::max(prev_x, bounds.x);
     }
 
     return bounds;
 }
+
+_SGE_END

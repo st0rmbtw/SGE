@@ -1,7 +1,13 @@
-#ifndef _ENGINE_TYPES_WINDOW_SETTINGS_HPP_
-#define _ENGINE_TYPES_WINDOW_SETTINGS_HPP_
+#ifndef _SGE_TYPES_WINDOW_SETTINGS_HPP_
+#define _SGE_TYPES_WINDOW_SETTINGS_HPP_
 
 #include <stdint.h>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 struct WindowSettings {
     uint32_t width = 1280;
@@ -9,5 +15,9 @@ struct WindowSettings {
     bool fullscreen = false;
     bool hidden = false;
 };
+
+}
+
+_SGE_END
 
 #endif

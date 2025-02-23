@@ -1,8 +1,14 @@
-#ifndef _ENGINE_TYPES_SAMPLER_HPP_
-#define _ENGINE_TYPES_SAMPLER_HPP_
+#ifndef _SGE_TYPES_SAMPLER_HPP_
+#define _SGE_TYPES_SAMPLER_HPP_
 
 #include <LLGL/Sampler.h>
 #include <LLGL/SamplerFlags.h>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 class Sampler {
 public:
@@ -21,5 +27,9 @@ private:
     LLGL::Sampler* m_internal = nullptr;
     LLGL::SamplerDescriptor m_descriptor;
 };
+
+}
+
+_SGE_END
 
 #endif

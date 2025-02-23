@@ -1,5 +1,7 @@
 #include "time.hpp"
 
+using namespace sge::time;
+
 static struct TimeState {
     delta_time_t delta;
     delta_time_t fixed_delta;

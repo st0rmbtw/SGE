@@ -1,9 +1,16 @@
-#ifndef _ENGINE_RENDERER_CUSTOM_SURFACE_HPP_
-#define _ENGINE_RENDERER_CUSTOM_SURFACE_HPP_
+#ifndef _SGE_RENDERER_CUSTOM_SURFACE_HPP_
+#define _SGE_RENDERER_CUSTOM_SURFACE_HPP_
 
 #pragma once
 
+#include <GLFW/glfw3.h>
+#include <LLGL/Surface.h>
+
 #include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace renderer {
 
 #if defined(PLATFORM_WINDOWS)
     #define GLFW_EXPOSE_NATIVE_WIN32
@@ -16,9 +23,6 @@
         #define GLFW_EXPOSE_NATIVE_X11
   #endif
 #endif
-
-#include <GLFW/glfw3.h>
-#include <LLGL/Surface.h>
 
 class CustomSurface : public LLGL::Surface {
 public:
@@ -37,5 +41,9 @@ private:
     LLGL::Extent2D m_size;
     GLFWwindow* m_wnd = nullptr;
 };
+
+}
+
+_SGE_END
 
 #endif

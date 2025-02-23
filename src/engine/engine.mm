@@ -10,6 +10,11 @@
 #include "input.hpp"
 #include "log.hpp"
 
+using namespace sge;
+using namespace sge::renderer;
+using namespace sge::input;
+using namespace sge::time;
+
 static struct EngineState {
     Renderer renderer;
     GLFWwindow *window = nullptr;
@@ -144,7 +149,7 @@ void Engine::HideCursor() {
     glfwSetInputMode(state.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 }
 
-bool Engine::Init(RenderBackend backend, bool vsync, WindowSettings settings, LLGL::Extent2D& output_viewport) {
+bool Engine::Init(types::RenderBackend backend, bool vsync, types::WindowSettings settings, LLGL::Extent2D& output_viewport) {
     ZoneScopedN("Engine::Init");
 
     if (state.pre_update_callback == nullptr) state.pre_update_callback = default_callback;
@@ -253,7 +258,7 @@ void Engine::Destroy() {
     glfwTerminate();
 }
 
-Renderer& Engine::Renderer() { return state.renderer; }
+renderer::Renderer& Engine::Renderer() { return state.renderer; }
 
 static void handle_keyboard_events(GLFWwindow*, int key, int, int action, int) {
     if (action == GLFW_PRESS) {
@@ -265,9 +270,9 @@ static void handle_keyboard_events(GLFWwindow*, int key, int, int action, int) {
 
 static void handle_mouse_button_events(GLFWwindow*, int button, int action, int) {
     if (action == GLFW_PRESS) {
-        Input::press(static_cast<MouseButton>(button));
+        Input::Press(static_cast<MouseButton>(button));
     } else if (action == GLFW_RELEASE) {
-        Input::release(static_cast<MouseButton>(button));
+        Input::Release(static_cast<MouseButton>(button));
     }
 }
 
@@ -294,9 +299,8 @@ static void handle_window_resize_events(GLFWwindow*, int width, int height) {
 
     const LLGL::Extent2D resolution = get_scaled_resolution(width, height);
 
-    state.renderer.CommandQueue()->WaitIdle();
-    state.renderer.SwapChain()->ResizeBuffers(resolution);
-    // state.renderer.SwapChain()->ResizeBuffers(LLGL::Extent2D(resolution.width * 8, resolution.height * 8));
+    // state.renderer.ResizeBuffers(LLGL::Extent2D(resolution.width * 4, resolution.height * 4));
+    state.renderer.ResizeBuffers(LLGL::Extent2D(resolution.width, resolution.height));
 
     state.window_width = width;
     state.window_height = height;

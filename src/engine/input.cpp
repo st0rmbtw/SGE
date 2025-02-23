@@ -1,5 +1,10 @@
 #include <unordered_set>
 #include "input.hpp"
+#include "defines.hpp"
+
+_SGE_BEGIN
+
+using namespace input;
 
 static struct InputState {
     std::unordered_set<Key> keyboard_pressed;
@@ -47,13 +52,13 @@ void Input::Clear() {
 }
 
 
-void Input::press(MouseButton button) {
+void Input::Press(MouseButton button) {
     if (input_state.mouse_pressed.insert(static_cast<uint8_t>(button)).second) {
         input_state.mouse_just_pressed.insert(static_cast<uint8_t>(button));
     }
 }
 
-void Input::release(MouseButton button) {
+void Input::Release(MouseButton button) {
     if (input_state.mouse_pressed.erase(static_cast<uint8_t>(button)) > 0) {
         input_state.mouse_just_released.insert(static_cast<uint8_t>(button));
     }
@@ -78,3 +83,5 @@ glm::vec2 Input::MouseDelta() { return input_state.mouse_delta; }
 const std::vector<float>& Input::ScrollEvents() { return input_state.mouse_scroll_events; }
 const glm::vec2& Input::MouseScreenPosition() { return input_state.mouse_screen_position; }
 bool Input::IsMouseOverUi() { return input_state.mouse_over_ui; }
+
+_SGE_END

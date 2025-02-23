@@ -1,9 +1,15 @@
 #pragma once
 
-#ifndef _ENGINE_TYPES_GLYPH_HPP_
-#define _ENGINE_TYPES_GLYPH_HPP_
+#ifndef _SGE_TYPES_GLYPH_HPP_
+#define _SGE_TYPES_GLYPH_HPP_
 
 #include <glm/vec2.hpp>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 struct Glyph {
     glm::ivec2 size;
@@ -12,5 +18,9 @@ struct Glyph {
     signed long advance;
     glm::vec2 texture_coords;
 };
+
+}
+
+_SGE_END
 
 #endif

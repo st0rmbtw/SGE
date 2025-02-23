@@ -1,10 +1,16 @@
-#ifndef _ENGINE_TYPES_SHADER_PIPELINE_HPP_
-#define _ENGINE_TYPES_SHADER_PIPELINE_HPP_
+#ifndef _SGE_TYPES_SHADER_PIPELINE_HPP_
+#define _SGE_TYPES_SHADER_PIPELINE_HPP_
 
 #pragma once
 
 #include <LLGL/Shader.h>
 #include <LLGL/RenderSystem.h>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 struct ShaderPipeline {
     LLGL::Shader* vs = nullptr; // Vertex shader
@@ -23,5 +29,9 @@ struct ShaderPipeline {
         if (cs != nullptr) context->Release(*cs);
     }
 };
+
+}
+
+_SGE_END
 
 #endif

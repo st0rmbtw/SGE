@@ -1,14 +1,19 @@
-#ifndef _ENGINE_TYPES_SHADER_TYPE_HPP_
-#define _ENGINE_TYPES_SHADER_TYPE_HPP_
+#ifndef _SGE_TYPES_SHADER_TYPE_HPP_
+#define _SGE_TYPES_SHADER_TYPE_HPP_
 
 #pragma once
 
 #include <cstdint>
 #include <LLGL/ShaderFlags.h>
 
-#include "../assert.hpp"
-
 #include "backend.hpp"
+
+#include "../assert.hpp"
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 class ShaderType {
 public:
@@ -108,5 +113,9 @@ public:
 private:
     Value m_value = Value::Vertex;
 };
+
+}
+
+_SGE_END
 
 #endif

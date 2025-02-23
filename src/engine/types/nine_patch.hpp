@@ -1,14 +1,20 @@
-#ifndef _ENGINE_TYPES_NINE_PATCH_HPP_
-#define _ENGINE_TYPES_NINE_PATCH_HPP_
+#ifndef _SGE_TYPES_NINE_PATCH_HPP_
+#define _SGE_TYPES_NINE_PATCH_HPP_
 
 #pragma once
 
 #include <glm/gtc/quaternion.hpp>
 
-#include "../math/rect.hpp"
-
 #include "texture.hpp"
 #include "anchor.hpp"
+#include "color.hpp"
+
+#include "../math/rect.hpp"
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 class NinePatch {
 public:
@@ -23,7 +29,7 @@ public:
     inline NinePatch& set_position(glm::vec2 position) { m_position = position; return *this; }
     inline NinePatch& set_rotation(glm::quat rotation) { m_rotation = rotation; return *this; }
     inline NinePatch& set_margin(glm::uvec4 margin) { m_margin = margin; return *this; }
-    inline NinePatch& set_color(glm::vec4 color) { m_color = color; return *this; }
+    inline NinePatch& set_color(color::LinearRgba color) { m_color = color; return *this; }
     inline NinePatch& set_scale(glm::vec2 scale) { m_scale = scale; return *this; }
     inline NinePatch& set_size(glm::vec2 size) { m_size = size; return *this; }
     inline NinePatch& set_flip_x(bool flip_x) { m_flip_x = flip_x; return *this; }
@@ -34,7 +40,7 @@ public:
     [[nodiscard]] inline glm::vec2 position() const { return m_position; }
     [[nodiscard]] inline glm::quat rotation() const { return m_rotation; }
     [[nodiscard]] inline glm::uvec4 margin() const { return m_margin; }
-    [[nodiscard]] inline glm::vec4 color() const { return m_color; }
+    [[nodiscard]] inline color::LinearRgba color() const { return m_color; }
     [[nodiscard]] inline glm::vec2 scale() const { return m_scale; }
     [[nodiscard]] inline bool flip_x() const { return m_flip_x; }
     [[nodiscard]] inline bool flip_y() const { return m_flip_y; }
@@ -50,7 +56,7 @@ private:
     Texture m_texture;
     glm::quat m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     glm::uvec4 m_margin = glm::uvec4(0); // Left Right Top Bottom
-    glm::vec4 m_color = glm::vec4(1.0f);
+    color::LinearRgba m_color = color::LinearRgba::white();
     glm::vec2 m_position = glm::vec2(0.0f);
     glm::vec2 m_size = glm::vec2(1.0f);
     glm::vec2 m_scale = glm::vec2(1.0f);
@@ -58,5 +64,9 @@ private:
     bool m_flip_y = false;
     Anchor m_anchor = Anchor::Center;
 };
+
+}
+
+_SGE_END
 
 #endif

@@ -1,10 +1,15 @@
-#ifndef _ENGINE_TYPES_BACKEND_HPP_
-#define _ENGINE_TYPES_BACKEND_HPP_
+#ifndef _SGE_TYPES_BACKEND_HPP_
+#define _SGE_TYPES_BACKEND_HPP_
 
 #pragma once
 
 #include <cstdint>
 #include "../assert.hpp"
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 class RenderBackend {
 public:
@@ -68,5 +73,9 @@ public:
 private:
     Value m_value = Value::Vulkan;
 };
+
+}
+
+_SGE_END
 
 #endif

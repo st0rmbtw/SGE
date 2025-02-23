@@ -1,5 +1,8 @@
-#ifndef _ENGINE_DEFINES_HPP_
-#define _ENGINE_DEFINES_HPP_
+#ifndef _SGE_DEFINES_HPP_
+#define _SGE_DEFINES_HPP_
+
+#define _SGE_BEGIN namespace sge {
+#define _SGE_END }
 
 #if defined(__APPLE__)
     #define MACOS_AUTORELEASEPOOL_OPEN @autoreleasepool {

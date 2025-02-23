@@ -1,5 +1,5 @@
-#ifndef _ENGINE_RENDERER_HPP_
-#define _ENGINE_RENDERER_HPP_
+#ifndef _SGE_RENDERER_HPP_
+#define _SGE_RENDERER_HPP_
 
 #include <GLFW/glfw3.h>
 
@@ -8,6 +8,7 @@
 #include <LLGL/Utils/Utility.h>
 #include <LLGL/CommandBufferFlags.h>
 #include <LLGL/SamplerFlags.h>
+#include <LLGL/PipelineState.h>
 
 #include "../types/backend.hpp"
 #include "../types/texture.hpp"
@@ -18,6 +19,12 @@
 #include "batch.hpp"
 #include "camera.hpp"
 #include "types.hpp"
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace renderer {
 
 struct ALIGN(16) ProjectionsUniform {
     glm::mat4 screen_projection_matrix;
@@ -44,7 +51,7 @@ static inline std::size_t GetArraySize(const T (&)[N])
 
 class Renderer {
 public:
-    bool InitEngine(RenderBackend backend);
+    bool InitEngine(types::RenderBackend backend);
     bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool vsync, bool fullscreen);
 
     void Begin(const Camera& camera);
@@ -52,22 +59,24 @@ public:
     void EndMainPass();
     void End();
 
-    void PrepareBatch(Batch& batch);
+    void PrepareBatch(batch::Batch& batch);
     void UploadBatchData();
-    void RenderBatch(Batch& batch);
+    void RenderBatch(batch::Batch& batch);
 
-    Sampler CreateSampler(const LLGL::SamplerDescriptor& descriptor);
+    types::Sampler CreateSampler(const LLGL::SamplerDescriptor& descriptor);
 
-    Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const Sampler& sampler, const void* data, bool generate_mip_maps = false);
+    types::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const types::Sampler& sampler, const void* data, bool generate_mip_maps = false);
 
-    Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const Sampler& sampler, const uint8_t* data, bool generate_mip_maps = false) {
+    types::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const types::Sampler& sampler, const uint8_t* data, bool generate_mip_maps = false) {
         return CreateTexture(type, image_format, LLGL::DataType::UInt8, width, height, layers, sampler, data, generate_mip_maps);
     }
-    Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const Sampler& sampler, const int8_t* data, bool generate_mip_maps = false) {
+    types::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const types::Sampler& sampler, const int8_t* data, bool generate_mip_maps = false) {
         return CreateTexture(type, image_format, LLGL::DataType::Int8, width, height, layers, sampler, data, generate_mip_maps);
     }
 
-    LLGL::Shader* LoadShader(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
+    LLGL::Shader* LoadShader(const types::ShaderPath& shader_path, const std::vector<types::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
+
+    void ResizeBuffers(LLGL::Extent2D size);
 
     void Terminate();
 
@@ -118,7 +127,7 @@ public:
     [[nodiscard]] inline LLGL::CommandQueue* CommandQueue() const { return m_command_queue; };
     [[nodiscard]] inline const std::shared_ptr<CustomSurface>& Surface() const { return m_surface; };
     [[nodiscard]] inline LLGL::Buffer* GlobalUniformBuffer() const { return m_constant_buffer; };
-    [[nodiscard]] inline RenderBackend Backend() const { return m_backend; };
+    [[nodiscard]] inline types::RenderBackend Backend() const { return m_backend; };
 
 #if DEBUG
     [[nodiscard]] inline LLGL::RenderingDebugger* Debugger() const { return m_debugger; }
@@ -129,10 +138,14 @@ private:
     void InitGlyphBatchPipeline();
     void InitNinepatchBatchPipeline();
     void InitShapeBatchPipeline();
+    void InitBlurPipeline();
+    void InitBlitPipeline();
 
-    void SortBatchDrawCommands(Batch& batch);
-    void UpdateBatchBuffers(Batch& batch, size_t begin = 0);
-    void ApplyBatchDrawCommands(Batch& batch);
+    void SortBatchDrawCommands(batch::Batch& batch);
+    void UpdateBatchBuffers(batch::Batch& batch, size_t begin = 0);
+    void ApplyBatchDrawCommands(batch::Batch& batch);
+
+    void RunBlurPass(uint32_t blur_radius);
 
     inline void UpdateBuffer(LLGL::Buffer* buffer, void* data, size_t length, size_t offset = 0) {
         static constexpr size_t SIZE = (1 << 16) - 1;
@@ -187,6 +200,7 @@ private:
     struct ShapeBatchData {
         LLGL::PipelineState* pipeline = nullptr;
         LLGL::PipelineState* pipeline_ui = nullptr;
+        LLGL::PipelineState* pipeline_stencil_write = nullptr;
 
         ShapeInstance* buffer = nullptr;
         ShapeInstance* buffer_ptr = nullptr;
@@ -204,9 +218,35 @@ private:
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::Buffer* m_constant_buffer = nullptr;
 
+    LLGL::RenderPass* m_pass = nullptr;
+
+    LLGL::PipelineState* m_blit_pipeline = nullptr;
+    LLGL::PipelineState* m_blit_stencil_pipeline = nullptr;
+    LLGL::PipelineState* m_blit_blend_pipeline = nullptr;
+    LLGL::Buffer* m_blit_vertex_buffer = nullptr;
+
+    LLGL::PipelineState* m_blur_pipeline = nullptr;
+    LLGL::Buffer* m_blur_vertex_buffer = nullptr;
+
+    LLGL::Sampler* m_sampler_linear = nullptr;
+    LLGL::Sampler* m_sampler_nearest = nullptr;
+
+    LLGL::Texture* m_blur_texture_a = nullptr;
+    LLGL::Texture* m_blur_texture_b = nullptr;
+    LLGL::Texture* m_blur_texture_c = nullptr;
+    LLGL::Texture* m_blur_stencil = nullptr;
+    LLGL::RenderTarget* m_blur_framebuffer_a = nullptr;
+    LLGL::RenderTarget* m_blur_framebuffer_b = nullptr;
+    LLGL::RenderTarget* m_blur_framebuffer_c = nullptr;
+
 #if DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;
 #endif
+
+    LLGL::RenderTarget* m_current_framebuffer = nullptr;
+    LLGL::RenderPass* m_current_pass = nullptr;
+
+    glm::uvec2 m_viewport = glm::uvec2(0);
 
     uint32_t m_texture_index = 0;
 
@@ -222,7 +262,11 @@ private:
     size_t m_ninepatch_instance_count = 0;
     size_t m_shape_instance_count = 0;
 
-    RenderBackend m_backend;
+    types::RenderBackend m_backend;
 };
+
+}
+
+_SGE_END
 
 #endif

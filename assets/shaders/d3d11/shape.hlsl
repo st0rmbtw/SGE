@@ -100,7 +100,6 @@ VSOutput VS(VSInput inp)
 }
 
 static const float CIRCLE_AA = 0.001;
-static const float RECT_AA = 0.1;
 
 float4 circle(in float2 st, in float4 color, in float4 border_color, float border_thickness) {
     float2 dist = st - float2(0.5, 0.5);
@@ -118,10 +117,10 @@ float4 circle(in float2 st, in float4 color, in float4 border_color, float borde
     return float4(lerp(border_color.rgb, color.rgb, t1), t2);
 }
 
-float rounded_box_sdf(float2 uv, float2 size, float radius) {
+float rounded_box_sdf(float2 uv, float2 size, float radius, float aa) {
     float2 center = size * (uv - 0.5);
     float2 dist = abs(center) - size * 0.5 + radius;
-    return min(max(dist.x,dist.y),0.0) + length(max(dist, 0.0)) - radius + RECT_AA;
+    return min(max(dist.x,dist.y),0.0) + length(max(dist, 0.0)) - radius + aa;
 }
 
 float4 PS(VSOutput inp) : SV_Target
@@ -131,17 +130,21 @@ float4 PS(VSOutput inp) : SV_Target
     }
 
     if (inp.border_radius > 0.0) {
-        float d = rounded_box_sdf(inp.uv, inp.size, inp.border_radius);
+        float aa = 1.0;
+        float d = rounded_box_sdf(inp.uv, inp.size, inp.border_radius, aa);
 
-        float smoothed_alpha = 1.0 - smoothstep(0.0, RECT_AA, d);
-        float border_alpha = 1.0 - smoothstep(inp.border_thickness - RECT_AA, inp.border_thickness, abs(d));
+        float smoothed_alpha = 1.0 - smoothstep(0.0, aa * 2.0, d);
+        float border_alpha = 1.0 - smoothstep(inp.border_thickness - aa, inp.border_thickness, abs(d));
 
         float4 quad_color = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
         float4 quad_color_with_border = lerp(quad_color, inp.border_color, min(inp.border_color.a, min(border_alpha, smoothed_alpha)));
+
+        float4 result = float4(quad_color_with_border.rgb, lerp(0.0, quad_color_with_border.a, smoothed_alpha));
+
+        if (result.a < 0.05) discard;
         
-        return float4(quad_color_with_border.rgb, lerp(0.0, quad_color_with_border.a, smoothed_alpha));
+        return result;
     }
 
     return inp.color;
 };
-

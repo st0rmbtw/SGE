@@ -3,6 +3,8 @@
 #include <LLGL/Platform/NativeHandle.h>
 #include <GLFW/glfw3native.h>
 
+using namespace sge::renderer;
+
 CustomSurface::CustomSurface(GLFWwindow * const window, const LLGL::Extent2D& size) :
     m_size(size),
     m_wnd(window) {}

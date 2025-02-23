@@ -1,5 +1,5 @@
-#ifndef _ENGINE_TYPES_TEXTURE_HPP_
-#define _ENGINE_TYPES_TEXTURE_HPP_
+#ifndef _SGE_TYPES_TEXTURE_HPP_
+#define _SGE_TYPES_TEXTURE_HPP_
 
 #pragma once
 
@@ -8,6 +8,12 @@
 #include <glm/glm.hpp>
 
 #include "../types/sampler.hpp"
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 namespace TextureSampler {
     enum : uint8_t {
@@ -46,5 +52,9 @@ private:
     LLGL::Texture* m_internal = nullptr;
     int m_id = -1;
 };
+
+}
+
+_SGE_END
 
 #endif

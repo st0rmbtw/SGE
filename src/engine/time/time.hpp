@@ -1,9 +1,15 @@
-#ifndef _ENGINE_TIME_TIME_HPP_
-#define _ENGINE_TIME_TIME_HPP_
+#ifndef _SGE_TIME_TIME_HPP_
+#define _SGE_TIME_TIME_HPP_
 
 #pragma once
 
 #include <chrono>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace time {
 
 using delta_time_t = std::chrono::duration<float>;
 
@@ -26,5 +32,9 @@ namespace Time {
     void AdvanceBy(const delta_time_t& delta);
     void AdvanceFixed();
 };
+
+}
+
+_SGE_END
 
 #endif

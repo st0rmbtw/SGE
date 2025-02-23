@@ -1,8 +1,14 @@
-#ifndef _ENGINE_RENDERER_TYPES_HPP_
-#define _ENGINE_RENDERER_TYPES_HPP_
+#ifndef _SGE_RENDERER_TYPES_HPP_
+#define _SGE_RENDERER_TYPES_HPP_
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace renderer {
 
 struct Vertex {
     float x;
@@ -54,5 +60,9 @@ struct ShapeInstance {
     float border_radius;
     uint32_t shape;
 };
+
+}
+
+_SGE_END
 
 #endif

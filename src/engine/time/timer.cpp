@@ -1,6 +1,8 @@
 #include "timer.hpp"
 #include "stopwatch.hpp"
 
+using namespace sge::time;
+
 void Timer::tick_impl(const duration_t& delta) {
     if (paused()) {
         m_times_finished_this_tick = 0;

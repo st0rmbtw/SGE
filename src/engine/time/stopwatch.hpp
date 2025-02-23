@@ -1,9 +1,15 @@
-#ifndef _ENGINE_TIME_STOPWATCH_HPP_
-#define _ENGINE_TIME_STOPWATCH_HPP_
+#ifndef _SGE_TIME_STOPWATCH_HPP_
+#define _SGE_TIME_STOPWATCH_HPP_
 
 #pragma once
 
 #include <chrono>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace time {
 
 namespace Duration {
     using SecondsFloat = std::chrono::duration<float>;
@@ -47,5 +53,9 @@ private:
     duration_t m_elapsed;
     bool m_paused = false;
 };
+
+}
+
+_SGE_END
 
 #endif

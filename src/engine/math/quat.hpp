@@ -1,9 +1,15 @@
 #pragma once
 
-#ifndef _ENGINE_MATH_QUAT_HPP_
-#define _ENGINE_MATH_QUAT_HPP_
+#ifndef _SGE_MATH_QUAT_HPP_
+#define _SGE_MATH_QUAT_HPP_
 
 #include <glm/gtx/quaternion.hpp>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace math {
 
 namespace Quat {
     [[nodiscard]]
@@ -13,5 +19,9 @@ namespace Quat {
         return {c, 0.0f, 0.0f, -s};
     }
 }
+
+}
+
+_SGE_END
 
 #endif

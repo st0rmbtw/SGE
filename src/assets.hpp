@@ -60,18 +60,18 @@ enum class VertexFormatAsset : uint8_t {
 constexpr uint32_t PARTICLES_ATLAS_COLUMNS = 100;
 
 namespace Assets {
-    bool LoadTextures(Renderer& renderer);
-    bool LoadFonts(Renderer& renderer);
+    bool LoadTextures(sge::renderer::Renderer& renderer);
+    bool LoadFonts(sge::renderer::Renderer& renderer);
 
-    void DestroyTextures(Renderer& renderer);
-    void DestroySamplers(Renderer& renderer);
+    void DestroyTextures(sge::renderer::Renderer& renderer);
+    void DestroySamplers(sge::renderer::Renderer& renderer);
     void DestroyFonts();
 
-    const Texture& GetTexture(TextureAsset key);
-    const TextureAtlas& GetTextureAtlas(TextureAsset key);
-    const Font& GetFont(FontAsset key);
+    const sge::types::Texture& GetTexture(TextureAsset key);
+    const sge::types::TextureAtlas& GetTextureAtlas(TextureAsset key);
+    const sge::types::Font& GetFont(FontAsset key);
     LLGL::Shader* GetComputeShader(ComputeShaderAsset key);
-    const Sampler& GetSampler(size_t index);
+    const sge::types::Sampler& GetSampler(size_t index);
 };
 
 #endif

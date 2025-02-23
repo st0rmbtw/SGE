@@ -1,9 +1,13 @@
-#ifndef _ENGINE_MATH_RECT_HPP_
-#define _ENGINE_MATH_RECT_HPP_
+#ifndef _SGE_MATH_RECT_HPP_
+#define _SGE_MATH_RECT_HPP_
 
 #pragma once
 
 #include <glm/glm.hpp>
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
 
 namespace math {
 
@@ -184,5 +188,7 @@ using URect = rect<glm::uint32>;
 using IRect = rect<glm::int32>;
 
 }
+
+_SGE_END
 
 #endif

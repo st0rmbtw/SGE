@@ -1,15 +1,20 @@
-#ifndef _ENGINE_TYPES_TEXTURE_ATLAS_HPP_
-#define _ENGINE_TYPES_TEXTURE_ATLAS_HPP_
+#ifndef _SGE_TYPES_TEXTURE_ATLAS_HPP_
+#define _SGE_TYPES_TEXTURE_ATLAS_HPP_
 
 #pragma once
 
 #include <utility>
 #include <vector>
 
+#include "texture.hpp"
+
 #include "../math/rect.hpp"
 #include "../assert.hpp"
+#include "../defines.hpp"
 
-#include "texture.hpp"
+_SGE_BEGIN
+
+namespace types {
 
 struct TextureAtlas {
     TextureAtlas() = default;
@@ -40,5 +45,9 @@ private:
     uint32_t m_columns;
     uint32_t m_rows;
 };
+
+}
+
+_SGE_END
 
 #endif

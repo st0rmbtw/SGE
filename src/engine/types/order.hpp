@@ -1,7 +1,13 @@
 #pragma once
 
-#ifndef _ENGINE_TYPES_ORDER_HPP_
-#define _ENGINE_TYPES_ORDER_HPP_
+#ifndef _SGE_TYPES_ORDER_HPP_
+#define _SGE_TYPES_ORDER_HPP_
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 struct Order {
     Order() = default;
@@ -13,5 +19,9 @@ struct Order {
     int value = -1;
     bool advance = true;
 };
+
+}
+
+_SGE_END
 
 #endif

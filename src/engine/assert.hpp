@@ -1,5 +1,5 @@
-#ifndef _ENGINE_ASSERT_HPP_
-#define _ENGINE_ASSERT_HPP_
+#ifndef _SGE_ASSERT_HPP_
+#define _SGE_ASSERT_HPP_
 
 #pragma once
 

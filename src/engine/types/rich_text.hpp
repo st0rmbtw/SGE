@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef _ENGINE_RICH_TEXT_HPP_
-#define _ENGINE_RICH_TEXT_HPP_
+#ifndef _SGE_RICH_TEXT_HPP_
+#define _SGE_RICH_TEXT_HPP_
 
 #include <string_view>
 #include <utility>
@@ -9,14 +9,22 @@
 #include <array>
 #include <glm/vec3.hpp>
 
+#include "color.hpp"
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
+
 struct RichTextSection {
-    RichTextSection(std::string_view text, float size = 14.0f, glm::vec3 color = glm::vec3(1.0f)) :
+    RichTextSection(std::string_view text, float size = 14.0f, color::LinearRgba color = color::LinearRgba(1.0f)) :
         size(size),
         color(color),
         text(text) {}
 
     float size;
-    glm::vec3 color;
+    color::LinearRgba color;
     std::string_view text;
 };
 
@@ -25,7 +33,7 @@ class RichText {
 private:
     using sections_t = std::array<RichTextSection, 1>;
 public:
-    explicit inline RichText(std::string_view text, float size, glm::vec3 color) :
+    explicit inline RichText(std::string_view text, float size, color::LinearRgba color) :
         m_sections{RichTextSection(text, size, color)} {}
     
     [[nodiscard]] inline const sections_t& sections() const { return m_sections; }
@@ -50,17 +58,17 @@ private:
     sections_t m_sections;
 };
 
-inline RichText<1> rich_text(std::string_view text, float size, glm::vec3 color) {
+inline RichText<1> rich_text(std::string_view text, float size, color::LinearRgba color) {
     return RichText<1>(text, size, color);
 }
 
-inline RichText<1> rich_text(const std::string& text, float size, glm::vec3 color) {
+inline RichText<1> rich_text(const std::string& text, float size, color::LinearRgba color) {
     return RichText<1>(std::string_view(text), size, color);
 }
 
-inline RichText<1> rich_text(std::string&& text, float size, glm::vec3 color) = delete;
+inline RichText<1> rich_text(std::string&& text, float size, color::LinearRgba color) = delete;
 
-inline RichText<1> rich_text(const char* text, float size, glm::vec3 color) {
+inline RichText<1> rich_text(const char* text, float size, color::LinearRgba color) {
     return RichText<1>(text, size, color);
 }
 
@@ -68,5 +76,9 @@ template <typename... N>
 constexpr inline auto rich_text(const N&&... args) -> RichText<sizeof...(args)> {
     return RichText<sizeof...(args)>(args...);
 }
+
+}
+
+_SGE_END
 
 #endif

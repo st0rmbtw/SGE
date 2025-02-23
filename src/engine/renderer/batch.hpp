@@ -1,5 +1,5 @@
-#ifndef _ENGINE_RENDERER_BATCH_HPP_
-#define _ENGINE_RENDERER_BATCH_HPP_
+#ifndef _SGE_RENDERER_BATCH_HPP_
+#define _SGE_RENDERER_BATCH_HPP_
 
 #include <vector>
 
@@ -13,8 +13,19 @@
 #include "../types/order.hpp"
 #include "../types/font.hpp"
 #include "../types/shape.hpp"
+#include "../types/color.hpp"
 
-namespace batch_internal {
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace renderer {
+
+class Renderer;
+
+namespace batch {
+
+namespace internal {
 
 enum class FlushDataType : uint8_t {
     Sprite = 0,
@@ -24,15 +35,16 @@ enum class FlushDataType : uint8_t {
 };
 
 struct FlushData {
-    std::optional<Texture> texture;
+    std::optional<types::Texture> texture;
     uint32_t offset;
     uint32_t count;
     uint32_t order;
     FlushDataType type;
+    bool blur = false;
 };
 
 struct DrawCommandSprite {
-    Texture texture;
+    types::Texture texture;
     glm::quat rotation;
     glm::vec4 uv_offset_scale;
     glm::vec4 color;
@@ -47,7 +59,7 @@ struct DrawCommandSprite {
 };
 
 struct DrawCommandNinePatch {
-    Texture texture;
+    types::Texture texture;
     glm::quat rotation;
     glm::vec4 uv_offset_scale;
     glm::vec4 color;
@@ -61,7 +73,7 @@ struct DrawCommandNinePatch {
 };
 
 struct DrawCommandGlyph {
-    Texture texture;
+    types::Texture texture;
     glm::vec3 color;
     glm::vec2 pos;
     glm::vec2 size;
@@ -74,12 +86,13 @@ struct DrawCommandShape {
     glm::vec2 position;
     glm::vec2 size;
     glm::vec2 offset;
-    glm::vec4 color;
-    glm::vec4 border_color;
+    color::LinearRgba color;
+    color::LinearRgba border_color;
     float border_thickness;
     float border_radius;
     uint32_t shape;
     uint32_t order;
+    bool blur;
 };
 
 class DrawCommand {
@@ -123,7 +136,7 @@ public:
         }
     }
 
-    [[nodiscard]] inline const Texture* texture() const {
+    [[nodiscard]] inline const types::Texture* texture() const {
         switch (m_type) {
         case DrawSprite: return &m_sprite_data.texture;
         case DrawGlyph: return &m_glyph_data.texture;
@@ -169,11 +182,11 @@ inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
 };
 
 class Batch {
-    friend class Renderer;
+    friend class sge::renderer::Renderer;
 
 public:
-    using DrawCommands = std::vector<batch_internal::DrawCommand>;
-    using FlushQueue = std::vector<batch_internal::FlushData>;
+    using DrawCommands = std::vector<internal::DrawCommand>;
+    using FlushQueue = std::vector<internal::FlushData>;
 
     Batch() {
         m_draw_commands.reserve(500);
@@ -233,32 +246,32 @@ public:
         m_global_order.advance = false;
     }
 
-    uint32_t DrawText(const RichTextSection* sections, size_t size, const glm::vec2& position, const Font& font, Order order = -1);
+    uint32_t DrawText(const types::RichTextSection* sections, size_t size, const glm::vec2& position, const types::Font& font, types::Order order = -1);
 
-    uint32_t DrawAtlasSprite(const TextureAtlasSprite& sprite, Order order = -1);
+    uint32_t DrawAtlasSprite(const types::TextureAtlasSprite& sprite, types::Order order = -1);
 
-    inline uint32_t DrawSprite(const Sprite& sprite, Order custom_order = -1) {
-        const glm::vec4 uv_offset_scale = batch_internal::get_uv_offset_scale(sprite.flip_x(), sprite.flip_y());
+    inline uint32_t DrawSprite(const types::Sprite& sprite, types::Order custom_order = -1) {
+        const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(sprite.flip_x(), sprite.flip_y());
         return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.texture(), custom_order);
     }
 
-    inline uint32_t DrawNinePatch(const NinePatch& ninepatch, Order custom_order = -1) {
-        const glm::vec4 uv_offset_scale = batch_internal::get_uv_offset_scale(ninepatch.flip_x(), ninepatch.flip_y());
+    inline uint32_t DrawNinePatch(const types::NinePatch& ninepatch, types::Order custom_order = -1) {
+        const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(ninepatch.flip_x(), ninepatch.flip_y());
         return AddNinePatchDrawCommand(ninepatch, uv_offset_scale, custom_order);
     }
 
-    uint32_t DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, float border_radius = 0.0f, Anchor anchor = Anchor::Center, Order custom_order = -1);
+    uint32_t DrawShape(types::Shape::Type shape, glm::vec2 position, glm::vec2 size, const color::LinearRgba& color, const color::LinearRgba& border_color, float border_thickness, float border_radius = 0.0f, bool blur = false, types::Anchor anchor = types::Anchor::Center, types::Order custom_order = -1);
 
-    inline uint32_t DrawCircle(glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, Anchor anchor = Anchor::Center, Order custom_order = -1) {
-        return DrawShape(Shape::Circle, position, size, color, border_color, border_thickness, 0.0, anchor, custom_order);
+    inline uint32_t DrawCircle(glm::vec2 position, glm::vec2 size, const color::LinearRgba& color, const color::LinearRgba& border_color, float border_thickness, types::Anchor anchor = types::Anchor::Center, bool blur = false, types::Order custom_order = -1) {
+        return DrawShape(types::Shape::Circle, position, size, color, border_color, border_thickness, 0.0, blur, anchor, custom_order);
     }
 
-    inline uint32_t DrawRect(glm::vec2 position, glm::vec2 size, const glm::vec4& color, const glm::vec4& border_color, float border_thickness, float border_radius = 0.0f, Anchor anchor = Anchor::Center, Order custom_order = -1) {
-        return DrawShape(Shape::Rect, position, size, color, border_color, border_thickness, border_radius, anchor, custom_order);
+    inline uint32_t DrawRect(glm::vec2 position, glm::vec2 size, const color::LinearRgba& color, const color::LinearRgba& border_color, float border_thickness, float border_radius = 0.0f, types::Anchor anchor = types::Anchor::Center, bool blur = false, types::Order custom_order = -1) {
+        return DrawShape(types::Shape::Rect, position, size, color, border_color, border_thickness, border_radius, blur, anchor, custom_order);
     }
 
-    inline uint32_t DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const glm::vec4& color, float border_radius = 0.0f, Anchor anchor = Anchor::Center, Order custom_order = -1) {
-        return DrawShape(shape, position, size, color, color, 0.0f, border_radius, anchor, custom_order);
+    inline uint32_t DrawShape(types::Shape::Type shape, glm::vec2 position, glm::vec2 size, const color::LinearRgba& color, float border_radius = 0.0f, types::Anchor anchor = types::Anchor::Center, bool blur = false, types::Order custom_order = -1) {
+        return DrawShape(shape, position, size, color, color, 0.0f, border_radius, blur, anchor, custom_order);
     }
 
     inline void Reset() {
@@ -303,9 +316,9 @@ public:
     inline size_t shape_count() const { return m_shape_count; }
 
 private:
-    uint32_t AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const Texture& texture, Order custom_order);
-    uint32_t AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::vec4& uv_offset_scale, Order custom_order);
-    void AddGlyphDrawCommand(const batch_internal::DrawCommandGlyph& command);
+    uint32_t AddSpriteDrawCommand(const types::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const types::Texture& texture, types::Order custom_order);
+    uint32_t AddNinePatchDrawCommand(const types::NinePatch& ninepatch, const glm::vec4& uv_offset_scale, types::Order custom_order);
+    void AddGlyphDrawCommand(const internal::DrawCommandGlyph& command);
 
     inline void set_sprite_offset(size_t offset) { m_sprite_instance_offset = offset; }
     inline void set_glyph_offset(size_t offset) { m_glyph_instance_offset = offset; }
@@ -353,11 +366,17 @@ private:
 
     uint32_t m_draw_commands_done = 0;
 
-    Order m_global_order;
+    types::Order m_global_order;
 
     bool m_order_mode = false;
     bool m_depth_enabled = false;
     bool m_is_ui = false;
 };
+
+}
+
+}
+
+_SGE_END
 
 #endif

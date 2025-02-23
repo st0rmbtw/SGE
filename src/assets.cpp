@@ -18,6 +18,9 @@
 
 #include "engine/utils.hpp"
 
+using namespace sge::types;
+using namespace sge::renderer;
+
 struct AssetTextureAtlas {
     uint32_t rows;
     uint32_t columns;
@@ -44,7 +47,7 @@ struct AssetTexture {
 
 
 static const std::pair<TextureAsset, AssetTexture> TEXTURE_ASSETS[] = {
-    {TextureAsset::DesktopBackground, AssetTexture("assets/images/iridescence.jpg", TextureSampler::Linear)},
+    {TextureAsset::DesktopBackground, AssetTexture("assets/images/monterey_wallpaper.jpg", TextureSampler::Linear)},
     {TextureAsset::IconFinder, AssetTexture("assets/images/finder.png", TextureSampler::Linear)},
     {TextureAsset::IconAppStore, AssetTexture("assets/images/appstore.png", TextureSampler::Linear)},
     {TextureAsset::IconBin, AssetTexture("assets/images/bin.png", TextureSampler::Linear)},
@@ -180,7 +183,7 @@ bool Assets::LoadFonts(Renderer& renderer) {
     }
 
     for (const auto& [key, path] : FONT_ASSETS) {
-        if (!FileExists(path)) {
+        if (!sge::FileExists(path)) {
             LOG_ERROR("Failed to find font '%s'",  path);
             return false;
         }

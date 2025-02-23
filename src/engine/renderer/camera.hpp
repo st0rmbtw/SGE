@@ -1,11 +1,17 @@
-#ifndef _ENGINE_RENDERER_CAMERA_HPP_
-#define _ENGINE_RENDERER_CAMERA_HPP_
+#ifndef _SGE_RENDERER_CAMERA_HPP_
+#define _SGE_RENDERER_CAMERA_HPP_
 
 #pragma once
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "../math/rect.hpp"
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace renderer {
 
 enum class CameraOrigin : uint8_t {
     TopLeft = 0,
@@ -123,5 +129,9 @@ private:
 
     CameraOrigin m_origin;
 };
+
+}
+
+_SGE_END
 
 #endif

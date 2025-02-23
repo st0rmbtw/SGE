@@ -1,5 +1,7 @@
 #include "texture_atlas.hpp"
 
+using namespace sge::types;
+
 TextureAtlas TextureAtlas::from_grid(const Texture& texture, const glm::uvec2 &tile_size, uint32_t columns, uint32_t rows, const glm::uvec2& padding, const glm::uvec2& offset) {
     std::vector<math::Rect> sprites;
 

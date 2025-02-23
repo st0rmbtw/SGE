@@ -1,11 +1,16 @@
 #pragma once
 
-#ifndef _ENGINE_TYPES_FONT_HPP_
-#define _ENGINE_TYPES_FONT_HPP_
+#ifndef _SGE_TYPES_FONT_HPP_
+#define _SGE_TYPES_FONT_HPP_
 
 #include <unordered_map>
 #include "texture.hpp"
 #include "glyph.hpp"
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace types {
 
 struct Font {
     std::unordered_map<uint32_t, Glyph> glyphs;
@@ -13,5 +18,9 @@ struct Font {
     float font_size;
     int16_t ascender;
 };
+
+}
+
+_SGE_END
 
 #endif

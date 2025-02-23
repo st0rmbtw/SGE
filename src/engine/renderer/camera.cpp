@@ -5,6 +5,8 @@
 
 #include "../engine.hpp"
 
+using namespace sge::renderer;
+
 void Camera::update_projection_area() {
     switch (m_origin) {
 
@@ -36,7 +38,7 @@ void Camera::compute_projection_and_view_matrix() {
     const math::Rect& projection_area = get_projection_area();
     const math::Rect& nozoom_projection_area = get_nozoom_projection_area();
 
-    if (Engine::Renderer().Backend().IsOpenGL()) {
+    if (sge::Engine::Renderer().Backend().IsOpenGL()) {
         m_projection_matrix = glm::orthoRH_NO(
             projection_area.min.x, projection_area.max.x,
             projection_area.max.y, projection_area.min.y,

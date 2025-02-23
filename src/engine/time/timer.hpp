@@ -1,13 +1,19 @@
 // Based on https://github.com/bevyengine/bevy/blob/main/crates/bevy_time/src/timer.rs
 
-#ifndef _ENGINE_TIME_TIMER_HPP_
-#define _ENGINE_TIME_TIMER_HPP_
+#ifndef _SGE_TIME_TIMER_HPP_
+#define _SGE_TIME_TIMER_HPP_
 
 #pragma once
 
 #include <chrono>
 #include <cstdint>
 #include "stopwatch.hpp"
+
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
+namespace time {
 
 enum class TimerMode : uint8_t {
     Once = 0,
@@ -84,5 +90,9 @@ private:
     TimerMode m_mode;
     bool m_finished;
 };
+
+}
+
+_SGE_END
 
 #endif
