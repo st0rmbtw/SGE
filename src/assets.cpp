@@ -183,7 +183,7 @@ bool Assets::LoadFonts(Renderer& renderer) {
     }
 
     for (const auto& [key, path] : FONT_ASSETS) {
-        if (!sge::FileExists(path)) {
+        if (!sge::utils::FileExists(path)) {
             LOG_ERROR("Failed to find font '%s'",  path);
             return false;
         }

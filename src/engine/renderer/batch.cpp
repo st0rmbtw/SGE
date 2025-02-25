@@ -5,6 +5,7 @@
 #include "../utils.hpp"
 
 using namespace sge::types;
+using namespace sge::utils;
 using namespace sge::renderer::batch;
 
 uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, Order custom_order) {

@@ -8,6 +8,8 @@
 #include "engine/types/color.hpp"
 #include "engine/types/window_settings.hpp"
 
+#include "utils.hpp"
+
 #include "assets.hpp"
 
 #include "constants.hpp"

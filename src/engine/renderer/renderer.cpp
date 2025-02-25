@@ -28,6 +28,7 @@
 
 using namespace sge::types;
 using namespace sge::renderer;
+using namespace sge::utils;
 
 using namespace batch::internal;
 
@@ -394,15 +395,13 @@ void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
             commands->EndRenderPass();
 
             RunBlurPass(30);
-        }
-
-        if (prev_blur) {
+        } else if (prev_blur) {
             commands->EndRenderPass();
             commands->BeginRenderPass(*m_current_framebuffer, m_current_pass);
             m_command_buffer->SetViewport(m_current_framebuffer->GetResolution());
         }
 
-        if (prev_flush_data_type != static_cast<int>(flush_data.type) || prev_blur != flush_data.blur) {
+        if (prev_flush_data_type != static_cast<int>(flush_data.type) || flush_data.blur) {
             switch (flush_data.type) {
             case FlushDataType::Sprite:
                 commands->SetVertexBufferArray(*m_sprite_batch_data.buffer_array);
@@ -472,7 +471,6 @@ void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
         }
 
         prev_flush_data_type = static_cast<int>(flush_data.type);
-
         prev_blur = flush_data.blur;
     }
 
