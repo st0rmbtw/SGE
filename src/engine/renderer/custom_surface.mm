@@ -1,4 +1,4 @@
-#include "custom_surface.hpp"
+#include <SGE/renderer/custom_surface.hpp>
 
 #include <LLGL/Platform/NativeHandle.h>
 #include <GLFW/glfw3native.h>
@@ -22,9 +22,9 @@ CustomSurface::~CustomSurface() {
 
 bool CustomSurface::GetNativeHandle(void* nativeHandle, std::size_t nativeHandleSize) {
     auto* handle = reinterpret_cast<LLGL::NativeHandle*>(nativeHandle);
-#if defined(PLATFORM_WINDOWS)
+#if defined(SGE_PLATFORM_WINDOWS)
     handle->window = glfwGetWin32Window(m_wnd);
-#elif defined(PLATFORM_MACOS)
+#elif defined(SGE_PLATFORM_MACOS)
     handle->responder = glfwGetCocoaWindow(m_wnd);
 #elif defined(WAYLAND)
     // TODO

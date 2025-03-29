@@ -1,21 +1,24 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(LLGLTemplate LANGUAGES CXX)
+project(SGE LANGUAGES CXX C)
 
 cmake_policy(SET CMP0069 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 
-find_package(OpenMP)
-
 if(MSVC)
     set(CMAKE_CXX_STANDARD 20)
 else()
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 20)
 endif()
+
+set(CMAKE_C_STANDARD 99)
 
 if(APPLE)
     enable_language(OBJCXX)
 endif()
+
+option(SGE_BUILD_STATIC "Build SGE as static library" ON)
+option(SGE_BUILD_EXAMPLES "Build examples" ON)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 
@@ -70,8 +73,6 @@ endif()
 
 add_compile_definitions(GLM_FORCE_INTRINSICS)
 
-option(ENABLE_TRACY "Enable Tracy profiler" OFF)
-
 set(LLGL_BUILD_RENDERER_NULL OFF CACHE BOOL "" FORCE)
 
 if (APPLE)
@@ -99,20 +100,30 @@ add_subdirectory(thirdparty/LLGL)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
 add_subdirectory(thirdparty/STB)
-add_subdirectory(shader_compiler)
 add_subdirectory(thirdparty/freetype-2.13.2)
 add_subdirectory(thirdparty/tracy-0.11.1)
+add_subdirectory(shader_compiler)
 
-unset(EXECUTABLE_OUTPUT_PATH CACHE)
-set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR} CACHE STRING "" FORCE)
+if(SGE_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
-file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm")
+# unset(EXECUTABLE_OUTPUT_PATH CACHE)
+# set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR} CACHE STRING "" FORCE)
+
+file(GLOB_RECURSE SGE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm")
 if (APPLE)
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/game.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
 endif()
 
-add_executable(${PROJECT_NAME})
-target_sources(${PROJECT_NAME} PRIVATE ${SRC})
+if(SGE_BUILD_STATIC)
+    add_library(${PROJECT_NAME} STATIC)
+else()
+    add_library(${PROJECT_NAME} SHARED)
+endif()
+
+target_sources(${PROJECT_NAME} PRIVATE ${SGE_SRC})
+target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/include")
 
 if(NOT MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE "-Wall" "-Wextra" "-Wno-gnu-zero-variadic-macro-arguments")
@@ -123,63 +134,23 @@ if(MSVC)
 endif()
 
 if(RELEASE_BUILD)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG=0)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG=0)
 else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG=1)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG=1)
 endif()
 
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(${PROJECT_NAME} PUBLIC OpenMP::OpenMP_CXX)
-endif()
+target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw LLGL freetype TracyClient)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glm STB glfw LLGL freetype TracyClient)
+# ========================= Embed Shaders =========================
 
-# ========================= Copy Assets =========================
+file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders/*.*)
 
-file(GLOB_RECURSE ASSETS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/assets/**/*.*)
-
-set(ASSETS_OUTPUT)
-foreach(asset ${ASSETS})
-    file(RELATIVE_PATH out_file ${CMAKE_CURRENT_SOURCE_DIR}/assets/ ${asset})
-    get_filename_component(out_dir ${out_file} DIRECTORY)
-    get_filename_component(out_name ${out_file} NAME)
- 
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir})
-
-    if (NOT ${out_dir} STREQUAL "shaders/vulkan")
-        add_custom_command(
-            OUTPUT
-                ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir}/${out_name}
-            COMMAND
-                ${CMAKE_COMMAND} -E copy ${asset} ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir}
-            DEPENDS
-                ${asset}
-        )
-
-        list(APPEND ASSETS_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/assets/${out_dir}/${out_name})
-    endif()
-endforeach()
-
-add_custom_target(COPY_ASSETS ALL DEPENDS ${ASSETS_OUTPUT})
-
-# ===================== Compile Vulkan Shaders =====================
-
-file(GLOB_RECURSE VULKAN_SHADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/vulkan/*.*)
-
-set(VULKAN_SHADERS_OUTPUT)
-
-foreach(shader ${VULKAN_SHADERS})
-    get_filename_component(shader_name ${shader} NAME)
+foreach(shader ${SHADERS})
     add_custom_command(
-        OUTPUT
-            assets/shaders/vulkan/${shader_name}.spv
-        COMMAND
-            ${CMAKE_CURRENT_BINARY_DIR}/shader_compiler/ShaderCompiler${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${shader}
-        DEPENDS
-            ${shader} ShaderCompiler
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
+        COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDS ${shader}
     )
-    list(APPEND VULKAN_SHADERS_OUTPUT assets/shaders/vulkan/${shader_name}.spv)
 endforeach()
 
-add_custom_target(COMPILE_VULKAN_SHADERS ALL DEPENDS ${VULKAN_SHADERS_OUTPUT})
-add_dependencies(COMPILE_VULKAN_SHADERS ShaderCompiler)
+add_custom_target(EmbedShaders ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp)

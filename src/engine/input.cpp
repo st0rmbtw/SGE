@@ -1,6 +1,5 @@
 #include <unordered_set>
-#include "input.hpp"
-#include "defines.hpp"
+#include <SGE/input.hpp>
 
 _SGE_BEGIN
 

@@ -1,14 +1,15 @@
 #include <LLGL/Types.h>
+#include <LLGL/Log.h>
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
 
-#include "../engine/time/time.hpp"
-#include "../utils.hpp"
+#include <SGE/time/time.hpp>
+
+#include <SGE/engine.hpp>
+#include <SGE/input.hpp>
+#include <SGE/log.hpp>
 
 #include "defines.hpp"
-#include "engine.hpp"
-#include "input.hpp"
-#include "log.hpp"
 
 using namespace sge;
 using namespace sge::renderer;
@@ -59,7 +60,7 @@ static GLFWwindow* create_window(LLGL::Extent2D size, bool fullscreen, bool hidd
 
     GLFWwindow *window = glfwCreateWindow(size.width, size.height, "AAA", primary_monitor, nullptr);
     if (window == nullptr) {
-        LOG_ERROR("Couldn't create a window: %s", glfwGetErrorString());
+        SGE_LOG_ERROR("Couldn't create a window: %s", glfwGetErrorString());
         return nullptr;
     }
 
@@ -164,7 +165,7 @@ bool Engine::Init(types::RenderBackend backend, bool vsync, types::WindowSetting
     if (state.load_assets_callback == nullptr) state.load_assets_callback = default_load_assets_callback;
 
     if (!glfwInit()) {
-        LOG_ERROR("Couldn't initialize GLFW: %s", glfwGetErrorString());
+        SGE_LOG_ERROR("Couldn't initialize GLFW: %s", glfwGetErrorString());
         return false;
     }
 

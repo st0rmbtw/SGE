@@ -1,4 +1,4 @@
-#include "utils.hpp"
+#include <SGE/utils.hpp>
 
 #include <tracy/Tracy.hpp>
 

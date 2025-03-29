@@ -1,4 +1,4 @@
-#include "texture_atlas.hpp"
+#include <SGE/types/texture_atlas.hpp>
 
 using namespace sge::types;
 

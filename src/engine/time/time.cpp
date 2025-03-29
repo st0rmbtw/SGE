@@ -1,4 +1,4 @@
-#include "time.hpp"
+#include <SGE/time/time.hpp>
 
 using namespace sge::time;
 

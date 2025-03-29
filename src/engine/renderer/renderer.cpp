@@ -1,9 +1,16 @@
-#include "renderer.hpp"
+#include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/batch.hpp>
+#include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/types.hpp>
+#include <SGE/log.hpp>
+#include <SGE/utils.hpp>
 
+#include <cstddef>
 #include <fstream>
 #include <optional>
 #include <sstream>
 #include <utility>
+#include <filesystem>
 
 #include <tracy/Tracy.hpp>
 
@@ -19,18 +26,16 @@
 #include <LLGL/TextureFlags.h>
 #include <LLGL/Types.h>
 
-#include "../log.hpp"
-#include "../utils.hpp"
-
-#include "batch.hpp"
-#include "macros.hpp"
-#include "types.hpp"
+#include "LLGL/PipelineCache.h"
+#include "shaders.hpp"
 
 using namespace sge::types;
 using namespace sge::renderer;
 using namespace sge::utils;
 
 using namespace batch::internal;
+
+namespace fs = std::filesystem;
 
 static constexpr size_t MAX_QUADS = 2500;
 
@@ -41,7 +46,705 @@ namespace SpriteFlags {
     };
 };
 
-bool Renderer::InitEngine(RenderBackend backend) {
+namespace GlyphFlags {
+    enum : uint8_t {
+        UI = 0,
+    };
+};
+
+namespace NinePatchFlags {
+    enum : uint8_t {
+        UI = 0,
+    };
+};
+
+namespace ShapeFlags {
+    enum : uint8_t {
+        UI = 0,
+    };
+};
+
+static LLGL::Shader* CreateShader(Renderer& renderer, ShaderType shader_type, const void* data, size_t length, const char* entry_point, std::vector<LLGL::VertexAttribute> vertex_attributes = {}) {
+    const RenderBackend backend = renderer.Backend();
+
+    const char* shader_source = static_cast<const char*>(data);
+
+    LLGL::ShaderDescriptor shader_desc;
+    shader_desc.type = shader_type.ToLLGLType();
+    shader_desc.source = shader_source;
+    shader_desc.sourceSize = length;
+
+    if (shader_type.IsVertex()) {
+        shader_desc.vertex.inputAttribs = vertex_attributes;
+    }
+
+    if (backend.IsOpenGL() && shader_type.IsFragment()) {
+        shader_desc.fragment.outputAttribs = {
+            { "frag_color", LLGL::Format::RGBA8UNorm, 0, LLGL::SystemValue::Color }
+        };
+    }
+
+    if (backend.IsVulkan()) {
+        shader_desc.sourceType = LLGL::ShaderSourceType::BinaryBuffer;
+    } else {
+        shader_desc.sourceType = LLGL::ShaderSourceType::CodeString;
+        shader_desc.entryPoint = entry_point;
+        shader_desc.profile = shader_type.Profile(backend);
+    }
+
+#if SGE_DEBUG
+    shader_desc.flags |= LLGL::ShaderCompileFlags::NoOptimization;
+#else
+    shader_desc.flags |= LLGL::ShaderCompileFlags::OptimizationLevel3;
+#endif
+
+    LLGL::Shader* shader = renderer.Context()->CreateShader(shader_desc);
+    if (const LLGL::Report* report = shader->GetReport()) {
+        if (*report->GetText() != '\0') {
+            if (report->HasErrors()) {
+                SGE_LOG_ERROR("Failed to create a shader: %s", report->GetText());
+                return nullptr;
+            }
+            
+            SGE_LOG_INFO("%s", report->GetText());
+        }
+    }
+
+    return shader;
+}
+
+LLGL::PipelineCache* Renderer::ReadPipelineCache(const std::string& name, bool& hasInitialCache) {
+    // Try to read PSO cache from file
+    const std::string cacheFilename = name + '.' + std::string(m_backend.ToString()) + ".cache";
+    const fs::path cachePath = fs::path(m_cache_pipeline_dir) / cacheFilename;
+
+    LLGL::Blob pipelineCacheBlob = LLGL::Blob::CreateFromFile(cachePath.string());
+    if (pipelineCacheBlob) {
+        hasInitialCache = true;
+    }
+
+    return m_context->CreatePipelineCache(pipelineCacheBlob);
+}
+
+void Renderer::SavePipelineCache(const std::string& name, LLGL::PipelineCache* pipelineCache) {
+    if (LLGL::Blob psoCache = pipelineCache->GetBlob())
+    {
+        const std::string cacheFilename = name + '.' + std::string(m_backend.ToString()) + ".cache";
+        const fs::path cachePath = fs::path(m_cache_pipeline_dir) / cacheFilename;
+
+        // Store PSO cache to file
+        std::ofstream file{ cachePath, std::ios::out | std::ios::binary };
+        file.write(
+            reinterpret_cast<const char*>(psoCache.GetData()),
+            static_cast<std::streamsize>(psoCache.GetSize())
+        );
+    }
+}
+
+SpriteBatchData Renderer::InitSpriteBatchPipeline() {
+    ZoneScopedN("RenderBatchSprite::init");
+
+    const RenderBackend backend = m_backend;
+    const auto& context = m_context;
+
+    const Vertex vertices[] = {
+        Vertex(0.0f, 0.0f),
+        Vertex(0.0f, 1.0f),
+        Vertex(1.0f, 0.0f),
+        Vertex(1.0f, 1.0f),
+    };
+
+    LLGL::VertexFormat vertex_format;
+    LLGL::VertexFormat instance_format;
+
+    if (backend.IsGLSL()) {
+        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    } else if (backend.IsHLSL()) {
+        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    } else {
+        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    }
+
+    if (backend.IsGLSL()) {
+        instance_format.attributes = {
+            {"i_position",           LLGL::Format::RGB32Float,  1,  offsetof(SpriteInstance,position),          sizeof(SpriteInstance), 1, 1 },
+            {"i_rotation",           LLGL::Format::RGBA32Float, 2,  offsetof(SpriteInstance,rotation),          sizeof(SpriteInstance), 1, 1 },
+            {"i_size",               LLGL::Format::RG32Float,   3,  offsetof(SpriteInstance,size),              sizeof(SpriteInstance), 1, 1 },
+            {"i_offset",             LLGL::Format::RG32Float,   4,  offsetof(SpriteInstance,offset),            sizeof(SpriteInstance), 1, 1 },
+            {"i_uv_offset_scale",    LLGL::Format::RGBA32Float, 5,  offsetof(SpriteInstance,uv_offset_scale),   sizeof(SpriteInstance), 1, 1 },
+            {"i_color",              LLGL::Format::RGBA32Float, 6,  offsetof(SpriteInstance,color),             sizeof(SpriteInstance), 1, 1 },
+            {"i_outline_color",      LLGL::Format::RGBA32Float, 7,  offsetof(SpriteInstance,outline_color),     sizeof(SpriteInstance), 1, 1 },
+            {"i_outline_thickness",  LLGL::Format::R32Float,    8,  offsetof(SpriteInstance,outline_thickness), sizeof(SpriteInstance), 1, 1 },
+            {"i_flags",              LLGL::Format::R8UInt,      9,  offsetof(SpriteInstance,flags),             sizeof(SpriteInstance), 1, 1 },
+        };
+    } else if (backend.IsHLSL()) {
+        instance_format.attributes = {
+            {"I_Position",         LLGL::Format::RGB32Float,  1,  offsetof(SpriteInstance,position),          sizeof(SpriteInstance), 1, 1 },
+            {"I_Rotation",         LLGL::Format::RGBA32Float, 2,  offsetof(SpriteInstance,rotation),          sizeof(SpriteInstance), 1, 1 },
+            {"I_Size",             LLGL::Format::RG32Float,   3,  offsetof(SpriteInstance,size),              sizeof(SpriteInstance), 1, 1 },
+            {"I_Offset",           LLGL::Format::RG32Float,   4,  offsetof(SpriteInstance,offset),            sizeof(SpriteInstance), 1, 1 },
+            {"I_UvOffsetScale",    LLGL::Format::RGBA32Float, 5,  offsetof(SpriteInstance,uv_offset_scale),   sizeof(SpriteInstance), 1, 1 },
+            {"I_Color",            LLGL::Format::RGBA32Float, 6,  offsetof(SpriteInstance,color),             sizeof(SpriteInstance), 1, 1 },
+            {"I_OutlineColor",     LLGL::Format::RGBA32Float, 7,  offsetof(SpriteInstance,outline_color),     sizeof(SpriteInstance), 1, 1 },
+            {"I_OutlineThickness", LLGL::Format::R32Float,    8,  offsetof(SpriteInstance,outline_thickness), sizeof(SpriteInstance), 1, 1 },
+            {"I_Flags",            LLGL::Format::R8UInt,      9,  offsetof(SpriteInstance,flags),             sizeof(SpriteInstance), 1, 1 },
+        };
+    } else {
+        instance_format.attributes = {
+            {"i_position",           LLGL::Format::RGB32Float,  1,  offsetof(SpriteInstance,position),          sizeof(SpriteInstance), 1, 1 },
+            {"i_rotation",           LLGL::Format::RGBA32Float, 2,  offsetof(SpriteInstance,rotation),          sizeof(SpriteInstance), 1, 1 },
+            {"i_size",               LLGL::Format::RG32Float,   3,  offsetof(SpriteInstance,size),              sizeof(SpriteInstance), 1, 1 },
+            {"i_offset",             LLGL::Format::RG32Float,   4,  offsetof(SpriteInstance,offset),            sizeof(SpriteInstance), 1, 1 },
+            {"i_uv_offset_scale",    LLGL::Format::RGBA32Float, 5,  offsetof(SpriteInstance,uv_offset_scale),   sizeof(SpriteInstance), 1, 1 },
+            {"i_color",              LLGL::Format::RGBA32Float, 6,  offsetof(SpriteInstance,color),             sizeof(SpriteInstance), 1, 1 },
+            {"i_outline_color",      LLGL::Format::RGBA32Float, 7,  offsetof(SpriteInstance,outline_color),     sizeof(SpriteInstance), 1, 1 },
+            {"i_outline_thickness",  LLGL::Format::R32Float,    8,  offsetof(SpriteInstance,outline_thickness), sizeof(SpriteInstance), 1, 1 },
+            {"i_flags",              LLGL::Format::R8UInt,      9,  offsetof(SpriteInstance,flags),             sizeof(SpriteInstance), 1, 1 },
+        };
+    }
+
+    SpriteBatchData batchData;
+
+    batchData.buffer = checked_alloc<SpriteInstance>(MAX_QUADS);
+    batchData.buffer_ptr = batchData.buffer;
+
+    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "SpriteBatch VertexBuffer");
+    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(SpriteInstance), instance_format, "SpriteBatch InstanceBuffer");
+
+    LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
+    batchData.buffer_array = context->CreateBufferArray(2, buffers);
+
+    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+    pipelineLayoutDesc.bindings = {
+        LLGL::BindingDescriptor(
+            "GlobalUniformBuffer",
+            LLGL::ResourceType::Buffer,
+            LLGL::BindFlags::ConstantBuffer,
+            LLGL::StageFlags::VertexStage,
+            LLGL::BindingSlot(2)
+        ),
+        LLGL::BindingDescriptor("u_texture", LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(3)),
+        LLGL::BindingDescriptor("u_sampler", LLGL::ResourceType::Sampler, 0, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(backend.IsOpenGL() ? 3 : 4)),
+    };
+
+    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
+
+    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
+    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
+
+    const void* vsSource = nullptr;
+    size_t vsSize = 0;
+    const void* psSource = nullptr;
+    size_t psSize = 0;
+
+    if (backend.IsD3D11() || backend.IsD3D12()) {
+        vsSource = D3D11_SPRITE;
+        vsSize = sizeof(D3D11_SPRITE);
+        psSource = D3D11_SPRITE;
+        psSize = sizeof(D3D11_SPRITE);
+    } else if (backend.IsMetal()) {
+        vsSource = METAL_SPRITE;
+        vsSize = sizeof(METAL_SPRITE);
+        psSource = METAL_SPRITE;
+        psSize = sizeof(METAL_SPRITE);
+    } else if (backend.IsOpenGL()) {
+        vsSource = GL_SPRITE_VERT;
+        vsSize = sizeof(GL_SPRITE_VERT);
+        psSource = GL_SPRITE_FRAG;
+        psSize = sizeof(GL_SPRITE_FRAG);
+    }
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.debugName = "SpriteBatch Pipeline";
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
+    pipelineDesc.pipelineLayout = pipelineLayout;
+    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
+    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
+    pipelineDesc.renderPass = SwapChain()->GetRenderPass();
+    pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.blend = LLGL::BlendDescriptor {
+        .targets = {
+            LLGL::BlendTargetDescriptor {
+                .blendEnabled = true,
+                .srcColor = LLGL::BlendOp::SrcAlpha,
+                .dstColor = LLGL::BlendOp::InvSrcAlpha,
+                .srcAlpha = LLGL::BlendOp::Zero,
+                .dstAlpha = LLGL::BlendOp::One,
+                .alphaArithmetic = LLGL::BlendArithmetic::Max
+            }
+        }
+    };
+
+    {
+        bool hasInitialCache = false;
+        LLGL::PipelineCache* pipelineCache = ReadPipelineCache("SpriteBatchPipeline", hasInitialCache);
+
+        batchData.pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+
+        if (!hasInitialCache) {
+            SavePipelineCache("SpriteBatchPipeline", pipelineCache);
+        }
+    }
+    {
+
+        LLGL::GraphicsPipelineDescriptor depthPipelineDesc = pipelineDesc;
+        depthPipelineDesc.debugName = "SpriteBatch Pipeline Depth";
+        depthPipelineDesc.depth = LLGL::DepthDescriptor {
+            .testEnabled = true,
+            .writeEnabled = true,
+            .compareOp = LLGL::CompareOp::GreaterEqual,
+        };
+
+        bool hasInitialCache = false;
+        LLGL::PipelineCache* pipelineCache = ReadPipelineCache("SpriteBatchPipelineDepth", hasInitialCache);
+        
+        batchData.pipeline_depth = context->CreatePipelineState(depthPipelineDesc, pipelineCache);
+
+        if (!hasInitialCache) {
+            SavePipelineCache("SpriteBatchPipelineDepth", pipelineCache);
+        }
+    }
+
+    if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
+        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+    }
+
+    return batchData;
+}
+
+NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
+    ZoneScopedN("RenderBatchNinePatch::init");
+
+    const RenderBackend backend = m_backend;
+    const auto& context = m_context;
+
+    const Vertex vertices[] = {
+        Vertex(0.0f, 0.0f),
+        Vertex(0.0f, 1.0f),
+        Vertex(1.0f, 0.0f),
+        Vertex(1.0f, 1.0f),
+    };
+
+    LLGL::VertexFormat vertex_format;
+    LLGL::VertexFormat instance_format;
+
+    if (backend.IsGLSL()) {
+        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    } else if (backend.IsHLSL()) {
+        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    } else {
+        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    }
+
+    if (backend.IsGLSL()) {
+        instance_format.attributes = {
+            {"i_position",         LLGL::Format::RG32Float,   1,  offsetof(NinePatchInstance,position),          sizeof(NinePatchInstance), 1, 1 },
+            {"i_rotation",         LLGL::Format::RGBA32Float, 2,  offsetof(NinePatchInstance,rotation),          sizeof(NinePatchInstance), 1, 1 },
+            {"i_size",             LLGL::Format::RG32Float,   3,  offsetof(NinePatchInstance,size),              sizeof(NinePatchInstance), 1, 1 },
+            {"i_offset",           LLGL::Format::RG32Float,   4,  offsetof(NinePatchInstance,offset),            sizeof(NinePatchInstance), 1, 1 },
+            {"i_source_size",      LLGL::Format::RG32Float,   5,  offsetof(NinePatchInstance,source_size),       sizeof(NinePatchInstance), 1, 1 },
+            {"i_output_size",      LLGL::Format::RG32Float,   6,  offsetof(NinePatchInstance,output_size),       sizeof(NinePatchInstance), 1, 1 },
+            {"i_margin",           LLGL::Format::RGBA32UInt,  7,  offsetof(NinePatchInstance,margin),            sizeof(NinePatchInstance), 1, 1 },
+            {"i_uv_offset_scale",  LLGL::Format::RGBA32Float, 8,  offsetof(NinePatchInstance,uv_offset_scale),   sizeof(NinePatchInstance), 1, 1 },
+            {"i_color",            LLGL::Format::RGBA32Float, 9,  offsetof(NinePatchInstance,color),             sizeof(NinePatchInstance), 1, 1 },
+            {"i_flags",            LLGL::Format::R8UInt,     10, offsetof(NinePatchInstance,flags),             sizeof(NinePatchInstance), 1, 1 },
+        };
+    } else if (backend.IsHLSL()) {
+        instance_format.attributes = {
+            {"I_Position",         LLGL::Format::RG32Float,   1,  offsetof(NinePatchInstance,position),          sizeof(NinePatchInstance), 1, 1 },
+            {"I_Rotation",         LLGL::Format::RGBA32Float, 2,  offsetof(NinePatchInstance,rotation),          sizeof(NinePatchInstance), 1, 1 },
+            {"I_Size",             LLGL::Format::RG32Float,   3,  offsetof(NinePatchInstance,size),              sizeof(NinePatchInstance), 1, 1 },
+            {"I_Offset",           LLGL::Format::RG32Float,   4,  offsetof(NinePatchInstance,offset),            sizeof(NinePatchInstance), 1, 1 },
+            {"I_SourceSize",       LLGL::Format::RG32Float,   5,  offsetof(NinePatchInstance,source_size),       sizeof(NinePatchInstance), 1, 1 },
+            {"I_OutputSize",       LLGL::Format::RG32Float,   6,  offsetof(NinePatchInstance,output_size),       sizeof(NinePatchInstance), 1, 1 },
+            {"I_Margin",           LLGL::Format::RGBA32UInt,  7,  offsetof(NinePatchInstance,margin),            sizeof(NinePatchInstance), 1, 1 },
+            {"I_UvOffsetScale",    LLGL::Format::RGBA32Float, 8,  offsetof(NinePatchInstance,uv_offset_scale),   sizeof(NinePatchInstance), 1, 1 },
+            {"I_Color",            LLGL::Format::RGBA32Float, 9,  offsetof(NinePatchInstance,color),             sizeof(NinePatchInstance), 1, 1 },
+            {"I_Flags",            LLGL::Format::R8UInt,     10, offsetof(NinePatchInstance,flags),             sizeof(NinePatchInstance), 1, 1 },
+        };
+    } else {
+        instance_format.attributes = {
+            {"i_position",         LLGL::Format::RG32Float,   1,  offsetof(NinePatchInstance,position),          sizeof(NinePatchInstance), 1, 1 },
+            {"i_rotation",         LLGL::Format::RGBA32Float, 2,  offsetof(NinePatchInstance,rotation),          sizeof(NinePatchInstance), 1, 1 },
+            {"i_size",             LLGL::Format::RG32Float,   3,  offsetof(NinePatchInstance,size),              sizeof(NinePatchInstance), 1, 1 },
+            {"i_offset",           LLGL::Format::RG32Float,   4,  offsetof(NinePatchInstance,offset),            sizeof(NinePatchInstance), 1, 1 },
+            {"i_source_size",      LLGL::Format::RG32Float,   5,  offsetof(NinePatchInstance,source_size),       sizeof(NinePatchInstance), 1, 1 },
+            {"i_output_size",      LLGL::Format::RG32Float,   6,  offsetof(NinePatchInstance,output_size),       sizeof(NinePatchInstance), 1, 1 },
+            {"i_margin",           LLGL::Format::RGBA32UInt,  7,  offsetof(NinePatchInstance,margin),            sizeof(NinePatchInstance), 1, 1 },
+            {"i_uv_offset_scale",  LLGL::Format::RGBA32Float, 8,  offsetof(NinePatchInstance,uv_offset_scale),   sizeof(NinePatchInstance), 1, 1 },
+            {"i_color",            LLGL::Format::RGBA32Float, 9,  offsetof(NinePatchInstance,color),             sizeof(NinePatchInstance), 1, 1 },
+            {"i_flags",            LLGL::Format::R8UInt,     10, offsetof(NinePatchInstance,flags),             sizeof(NinePatchInstance), 1, 1 },
+        };
+    }
+
+    NinePatchBatchData batchData;
+
+    batchData.buffer = checked_alloc<NinePatchInstance>(MAX_QUADS);
+    batchData.buffer_ptr = batchData.buffer;
+
+    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "NinePatchBatch VertexBuffer");
+    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(NinePatchInstance), instance_format, "NinePatchBatch InstanceBuffer");
+
+    {
+        LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
+        batchData.buffer_array = context->CreateBufferArray(2, buffers);
+    }
+
+    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+    pipelineLayoutDesc.bindings = {
+        LLGL::BindingDescriptor(
+            "GlobalUniformBuffer",
+            LLGL::ResourceType::Buffer,
+            LLGL::BindFlags::ConstantBuffer,
+            LLGL::StageFlags::VertexStage,
+            LLGL::BindingSlot(2)
+        ),
+        LLGL::BindingDescriptor("u_texture", LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(3)),
+        LLGL::BindingDescriptor("u_sampler", LLGL::ResourceType::Sampler, 0, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(backend.IsOpenGL() ? 3 : 4)),
+    };
+
+    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
+
+    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
+    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
+
+    const void* vsSource = nullptr;
+    size_t vsSize = 0;
+    const void* psSource = nullptr;
+    size_t psSize = 0;
+    
+    if (backend.IsD3D11() || backend.IsD3D12()) {
+        vsSource = D3D11_NINEPATCH;
+        vsSize = sizeof(D3D11_NINEPATCH);
+        psSource = D3D11_NINEPATCH;
+        psSize = sizeof(D3D11_NINEPATCH);
+    } else if (backend.IsMetal()) {
+    } else if (backend.IsOpenGL()) {
+    }
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.debugName = "NinePatchBatch Pipeline";
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
+    pipelineDesc.pipelineLayout = pipelineLayout;
+    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
+    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
+    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
+    pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.blend = LLGL::BlendDescriptor {
+        .targets = {
+            LLGL::BlendTargetDescriptor {
+                .blendEnabled = true,
+                .srcColor = LLGL::BlendOp::SrcAlpha,
+                .dstColor = LLGL::BlendOp::InvSrcAlpha,
+                .srcAlpha = LLGL::BlendOp::Zero,
+                .dstAlpha = LLGL::BlendOp::One,
+                .alphaArithmetic = LLGL::BlendArithmetic::Max
+            }
+        }
+    };
+
+    bool hasInitialCache = false;
+    LLGL::PipelineCache* pipelineCache = ReadPipelineCache("NinePatchBatchPipeline", hasInitialCache);
+
+    batchData.pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+
+    if (!hasInitialCache) {
+        SavePipelineCache("NinePatchBatchPipeline", pipelineCache);
+    }
+    
+    if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
+        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+    }
+
+    return batchData;
+}
+
+GlyphBatchData Renderer::InitGlyphBatchPipeline() {
+    ZoneScopedN("RenderBatchGlyph::init");
+
+    const RenderBackend backend = m_backend;
+    const auto& context = m_context;
+
+    const Vertex vertices[] = {
+        Vertex(0.0f, 0.0f),
+        Vertex(0.0f, 1.0f),
+        Vertex(1.0f, 0.0f),
+        Vertex(1.0f, 1.0f),
+    };
+
+    LLGL::VertexFormat vertex_format;
+    LLGL::VertexFormat instance_format;
+
+    if (backend.IsGLSL()) {
+        vertex_format.AppendAttribute({"a_position", LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0});
+    } else if (backend.IsHLSL()) {
+        vertex_format.AppendAttribute({"Position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0});
+    } else {
+        vertex_format.AppendAttribute({"position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0});
+    }
+
+    if (backend.IsGLSL()) {
+        instance_format.attributes = {
+            {"i_color",     LLGL::Format::RGB32Float, 1, offsetof(GlyphInstance,color),    sizeof(GlyphInstance), 1, 1},
+            {"i_position",  LLGL::Format::RGB32Float, 2, offsetof(GlyphInstance,pos),      sizeof(GlyphInstance), 1, 1},
+            {"i_size",      LLGL::Format::RG32Float,  3, offsetof(GlyphInstance,size),     sizeof(GlyphInstance), 1, 1},
+            {"i_tex_size",  LLGL::Format::RG32Float,  4, offsetof(GlyphInstance,tex_size), sizeof(GlyphInstance), 1, 1},
+            {"i_uv",        LLGL::Format::RG32Float,  5, offsetof(GlyphInstance,uv),       sizeof(GlyphInstance), 1, 1},
+            {"i_flags",     LLGL::Format::R8UInt,     6, offsetof(GlyphInstance,flags),    sizeof(GlyphInstance), 1, 1},
+        };
+    } else if (backend.IsHLSL()) {
+        instance_format.attributes = {
+            {"I_Color",    LLGL::Format::RGB32Float, 1, offsetof(GlyphInstance,color),    sizeof(GlyphInstance), 1, 1},
+            {"I_Position", LLGL::Format::RG32Float,  2, offsetof(GlyphInstance,pos),      sizeof(GlyphInstance), 1, 1},
+            {"I_Size",     LLGL::Format::RG32Float,  3, offsetof(GlyphInstance,size),     sizeof(GlyphInstance), 1, 1},
+            {"I_TexSize",  LLGL::Format::RG32Float,  4, offsetof(GlyphInstance,tex_size), sizeof(GlyphInstance), 1, 1},
+            {"I_UV",       LLGL::Format::RG32Float,  5, offsetof(GlyphInstance,uv),       sizeof(GlyphInstance), 1, 1},
+            {"I_Flags",    LLGL::Format::R8UInt,     6, offsetof(GlyphInstance,flags),    sizeof(GlyphInstance), 1, 1},
+        };
+    } else {
+        instance_format.attributes = {
+            {"i_color",     LLGL::Format::RGB32Float, 1, offsetof(GlyphInstance,color),    sizeof(GlyphInstance), 1, 1},
+            {"i_position",  LLGL::Format::RGB32Float, 2, offsetof(GlyphInstance,pos),      sizeof(GlyphInstance), 1, 1},
+            {"i_size",      LLGL::Format::RG32Float,  3, offsetof(GlyphInstance,size),     sizeof(GlyphInstance), 1, 1},
+            {"i_tex_size",  LLGL::Format::RG32Float,  4, offsetof(GlyphInstance,tex_size), sizeof(GlyphInstance), 1, 1},
+            {"i_uv",        LLGL::Format::RG32Float,  5, offsetof(GlyphInstance,uv),       sizeof(GlyphInstance), 1, 1},
+            {"i_flags",     LLGL::Format::R8UInt,     6, offsetof(GlyphInstance,flags),    sizeof(GlyphInstance), 1, 1},
+        };
+    }
+
+    GlyphBatchData batchData;
+
+    batchData.buffer = checked_alloc<GlyphInstance>(MAX_QUADS);
+    batchData.buffer_ptr = batchData.buffer;
+
+    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "GlyphBatch VertexBuffer");
+    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(GlyphInstance), instance_format, "GlyphBatch InstanceBuffer");
+
+    LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
+    batchData.buffer_array = context->CreateBufferArray(2, buffers);
+
+    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+    pipelineLayoutDesc.bindings = {
+        LLGL::BindingDescriptor(
+            "GlobalUniformBuffer",
+            LLGL::ResourceType::Buffer,
+            LLGL::BindFlags::ConstantBuffer,
+            LLGL::StageFlags::VertexStage,
+            LLGL::BindingSlot(2)
+        ),
+        LLGL::BindingDescriptor("u_texture", LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(3)),
+        LLGL::BindingDescriptor("u_sampler", LLGL::ResourceType::Sampler, 0, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(backend.IsOpenGL() ? 3 : 4)),
+    };
+
+    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
+
+    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
+    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
+
+    const void* vsSource = nullptr;
+    size_t vsSize = 0;
+    const void* psSource = nullptr;
+    size_t psSize = 0;
+    
+    if (backend.IsD3D11() || backend.IsD3D12()) {
+        vsSource = D3D11_FONT;
+        vsSize = sizeof(D3D11_FONT);
+        psSource = D3D11_FONT;
+        psSize = sizeof(D3D11_FONT);
+    } else if (backend.IsMetal()) {
+        vsSource = METAL_FONT;
+        vsSize = sizeof(METAL_FONT);
+        psSource = METAL_FONT;
+        psSize = sizeof(METAL_FONT);
+    } else if (backend.IsOpenGL()) {
+        vsSource = GL_FONT_VERT;
+        vsSize = sizeof(GL_FONT_VERT);
+        psSource = GL_FONT_FRAG;
+        psSize = sizeof(GL_FONT_FRAG);
+    }
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.debugName = "GlyphBatch Pipeline";
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
+    pipelineDesc.pipelineLayout = pipelineLayout;
+    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
+    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
+    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
+    pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.blend = LLGL::BlendDescriptor {
+        .targets = {
+            LLGL::BlendTargetDescriptor {
+                .blendEnabled = true,
+                .srcColor = LLGL::BlendOp::SrcAlpha,
+                .dstColor = LLGL::BlendOp::InvSrcAlpha,
+                .srcAlpha = LLGL::BlendOp::Zero,
+                .dstAlpha = LLGL::BlendOp::One,
+                .alphaArithmetic = LLGL::BlendArithmetic::Max
+            }
+        }
+    };
+
+    bool hasInitialCache = false;
+    LLGL::PipelineCache* pipelineCache = ReadPipelineCache("GlyphBatchPipeline", hasInitialCache);
+
+    batchData.pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+
+    if (!hasInitialCache) {
+        SavePipelineCache("GlyphBatchPipeline", pipelineCache);
+    }
+
+    if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
+        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+    }
+
+    return batchData;
+}
+
+ShapeBatchData Renderer::InitShapeBatchPipeline() {
+    const RenderBackend backend = m_backend;
+    const auto& context = m_context;
+
+    const Vertex vertices[] = {
+        Vertex(0.0f, 0.0f),
+        Vertex(0.0f, 1.0f),
+        Vertex(1.0f, 0.0f),
+        Vertex(1.0f, 1.0f),
+    };
+
+    LLGL::VertexFormat vertex_format;
+    LLGL::VertexFormat instance_format;
+
+    if (backend.IsGLSL()) {
+        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    } else if (backend.IsHLSL()) {
+        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    } else {
+        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
+    }
+
+    if (backend.IsGLSL()) {
+        instance_format.attributes = {
+            {"i_position",           LLGL::Format::RGB32Float,  1,  offsetof(ShapeInstance,position),          sizeof(ShapeInstance), 1, 1 },
+            {"i_size",               LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
+            {"i_offset",             LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
+            {"i_color",              LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
+            {"i_border_color",       LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
+            {"i_border_radius",      LLGL::Format::RGBA32Float, 6,  offsetof(ShapeInstance,border_radius),     sizeof(ShapeInstance), 1, 1 },
+            {"i_border_thickness",   LLGL::Format::R32Float,    7,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
+            {"i_shape",              LLGL::Format::R8UInt,      8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
+            {"i_flags",              LLGL::Format::R8UInt,      9,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1},
+        };
+    } else if (backend.IsHLSL()) {
+        instance_format.attributes = {
+            {"I_Position",         LLGL::Format::RGB32Float,  1,  offsetof(ShapeInstance,position),          sizeof(ShapeInstance), 1, 1 },
+            {"I_Size",             LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
+            {"I_Offset",           LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
+            {"I_Color",            LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
+            {"I_BorderColor",      LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
+            {"I_BorderRadius",     LLGL::Format::RGBA32Float, 6,  offsetof(ShapeInstance,border_radius),     sizeof(ShapeInstance), 1, 1 },
+            {"I_BorderThickness",  LLGL::Format::R32Float,    7,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
+            {"I_Shape",            LLGL::Format::R8UInt,      8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
+            {"I_Flags",            LLGL::Format::R8UInt,      9,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1},
+        };
+    } else {
+        instance_format.attributes = {
+            {"i_position",           LLGL::Format::RGB32Float,  1,  offsetof(ShapeInstance,position),          sizeof(ShapeInstance), 1, 1 },
+            {"i_size",               LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
+            {"i_offset",             LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
+            {"i_color",              LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
+            {"i_border_color",       LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
+            {"i_border_radius",      LLGL::Format::RGBA32Float, 6,  offsetof(ShapeInstance,border_radius),     sizeof(ShapeInstance), 1, 1 },
+            {"i_border_thickness",   LLGL::Format::R32Float,    7,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
+            {"i_shape",              LLGL::Format::R8UInt,      8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
+            {"i_flags",              LLGL::Format::R8UInt,      9,  offsetof(ShapeInstance,flags),             sizeof(ShapeInstance), 1, 1},
+        };
+    }
+
+    ShapeBatchData batchData;
+
+    batchData.buffer = checked_alloc<ShapeInstance>(MAX_QUADS);
+    batchData.buffer_ptr = batchData.buffer;
+
+    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "ShapeBatch VertexBuffer");
+    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(ShapeInstance), instance_format, "ShapeBatch InstanceBuffer");
+
+    LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
+    batchData.buffer_array = context->CreateBufferArray(2, buffers);
+
+    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+    pipelineLayoutDesc.bindings = {
+        LLGL::BindingDescriptor(
+            "GlobalUniformBuffer",
+            LLGL::ResourceType::Buffer,
+            LLGL::BindFlags::ConstantBuffer,
+            LLGL::StageFlags::VertexStage,
+            LLGL::BindingSlot(2)
+        ),
+    };
+
+    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
+
+    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
+    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
+
+    const void* vsSource = nullptr;
+    size_t vsSize = 0;
+    const void* psSource = nullptr;
+    size_t psSize = 0;
+    
+    if (backend.IsD3D11() || backend.IsD3D12()) {
+        vsSource = D3D11_SHAPE;
+        vsSize = sizeof(D3D11_SHAPE);
+        psSource = D3D11_SHAPE;
+        psSize = sizeof(D3D11_SHAPE);
+    } else if (backend.IsMetal()) {
+        // TODO
+    } else if (backend.IsOpenGL()) {
+        // TODO
+    }
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.debugName = "ShapeBatch Pipeline";
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
+    pipelineDesc.pipelineLayout = pipelineLayout;
+    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
+    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
+    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
+    pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.blend = LLGL::BlendDescriptor {
+        .targets = {
+            LLGL::BlendTargetDescriptor {
+                .blendEnabled = true,
+                .srcColor = LLGL::BlendOp::SrcAlpha,
+                .dstColor = LLGL::BlendOp::InvSrcAlpha,
+                .srcAlpha = LLGL::BlendOp::Zero,
+                .dstAlpha = LLGL::BlendOp::One,
+                .alphaArithmetic = LLGL::BlendArithmetic::Max
+            }
+        }
+    };
+
+    bool hasInitialCache = false;
+    LLGL::PipelineCache* pipelineCache = ReadPipelineCache("ShapeBatchPipeline", hasInitialCache);
+
+    batchData.pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+
+    if (!hasInitialCache) {
+        SavePipelineCache("ShapeBatchPipeline", pipelineCache);
+    }
+    
+    if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
+        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+    }
+
+    return batchData;
+}
+
+bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path) {
     ZoneScopedN("Renderer::InitEngine");
 
     LLGL::Report report;
@@ -59,7 +762,7 @@ bool Renderer::InitEngine(RenderBackend backend) {
         rendererDesc.rendererConfigSize = sizeof(LLGL::RendererConfigurationOpenGL);
     }
 
-#if DEBUG
+#if SGE_DEBUG
     m_debugger = new LLGL::RenderingDebugger();
     rendererDesc.flags    = LLGL::RenderSystemFlags::DebugDevice;
     rendererDesc.debugger = m_debugger;
@@ -68,25 +771,37 @@ bool Renderer::InitEngine(RenderBackend backend) {
     m_context = LLGL::RenderSystem::Load(rendererDesc, &report);
     m_backend = backend;
 
+    if (m_context == nullptr) {
+        SGE_LOG_ERROR("Couldn't load render system. %s", report.GetText());
+        return false;
+    }
+
     if (backend.IsOpenGL()) {
         delete (LLGL::OpenGLContextProfile*) rendererDesc.rendererConfig;
     }
 
     if (report.HasErrors()) {
-        LOG_ERROR("%s", report.GetText());
+        SGE_LOG_ERROR("%s", report.GetText());
         return false;
     }
 
     const auto& info = m_context->GetRendererInfo();
 
-    LOG_INFO("Renderer:             %s", info.rendererName.c_str());
-    LOG_INFO("Device:               %s", info.deviceName.c_str());
-    LOG_INFO("Vendor:               %s", info.vendorName.c_str());
-    LOG_INFO("Shading Language:     %s", info.shadingLanguageName.c_str());
+    SGE_LOG_INFO("Renderer:             %s", info.rendererName.c_str());
+    SGE_LOG_INFO("Device:               %s", info.deviceName.c_str());
+    SGE_LOG_INFO("Vendor:               %s", info.vendorName.c_str());
+    SGE_LOG_INFO("Shading Language:     %s", info.shadingLanguageName.c_str());
 
-    LOG_INFO("Extensions:");
+    SGE_LOG_INFO("Extensions:");
     for (const auto& extension : info.extensionNames) {
-        LOG_INFO("  %s", extension.c_str());
+        SGE_LOG_INFO("  %s", extension.c_str());
+    }
+
+    m_cache_pipelines = cache_pipelines;
+    m_cache_pipeline_dir = cache_dir_path;
+
+    if (cache_pipelines && (!fs::is_directory(cache_dir_path) || !fs::exists(cache_dir_path))) {
+        fs::create_directories(cache_dir_path);
     }
 
     return true;
@@ -127,38 +842,12 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
 
     m_pass = m_context->CreateRenderPass(render_pass);
 
-    LLGL::SamplerDescriptor linearSamplerDesc;
-    linearSamplerDesc.addressModeU = LLGL::SamplerAddressMode::Clamp;
-    linearSamplerDesc.addressModeV = LLGL::SamplerAddressMode::Clamp;
-    linearSamplerDesc.addressModeW = LLGL::SamplerAddressMode::Clamp;
-    linearSamplerDesc.minFilter = LLGL::SamplerFilter::Linear;
-    linearSamplerDesc.magFilter = LLGL::SamplerFilter::Linear;
-    linearSamplerDesc.mipMapFilter = LLGL::SamplerFilter::Linear;
-    linearSamplerDesc.mipMapEnabled = false;
-    linearSamplerDesc.minLOD = 0.0f;
-    linearSamplerDesc.maxLOD = 0.0f;
-    m_sampler_linear = context->CreateSampler(linearSamplerDesc);
-
-    LLGL::SamplerDescriptor nearestSamplerDesc;
-    nearestSamplerDesc.addressModeU = LLGL::SamplerAddressMode::Clamp;
-    nearestSamplerDesc.addressModeV = LLGL::SamplerAddressMode::Clamp;
-    nearestSamplerDesc.addressModeW = LLGL::SamplerAddressMode::Clamp;
-    nearestSamplerDesc.minFilter = LLGL::SamplerFilter::Nearest;
-    nearestSamplerDesc.magFilter = LLGL::SamplerFilter::Nearest;
-    nearestSamplerDesc.mipMapFilter = LLGL::SamplerFilter::Nearest;
-    nearestSamplerDesc.mipMapEnabled = false;
-    nearestSamplerDesc.minLOD = 0.0f;
-    nearestSamplerDesc.maxLOD = 0.0f;
-    m_sampler_nearest = context->CreateSampler(nearestSamplerDesc);
-
     m_constant_buffer = CreateConstantBuffer(sizeof(ProjectionsUniform), "ConstantBuffer");
 
-    InitSpriteBatchPipeline();
-    InitNinepatchBatchPipeline();
-    InitGlyphBatchPipeline();
-    InitShapeBatchPipeline();
-    InitBlurPipeline();
-    InitBlitPipeline();
+    m_sprite_batch_data = InitSpriteBatchPipeline();
+    m_ninepatch_batch_data = InitNinepatchBatchPipeline();
+    m_glyph_batch_data = InitGlyphBatchPipeline();
+    m_shape_batch_data = InitShapeBatchPipeline();
 
     ResizeBuffers(resolution);
 
@@ -168,62 +857,6 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
 void Renderer::ResizeBuffers(LLGL::Extent2D size) {
     m_command_queue->WaitIdle();
     m_swap_chain->ResizeBuffers(size);
-
-    auto& context = m_context;
-
-    RESOURCE_RELEASE(m_blur_framebuffer_a);
-    RESOURCE_RELEASE(m_blur_texture_a);
-
-    RESOURCE_RELEASE(m_blur_framebuffer_b);
-    RESOURCE_RELEASE(m_blur_texture_b);
-
-    LLGL::TextureDescriptor blurTextureDesc;
-    blurTextureDesc.format = m_swap_chain->GetColorFormat();
-    blurTextureDesc.type = LLGL::TextureType::Texture2D;
-    blurTextureDesc.bindFlags |= LLGL::BindFlags::CopyDst;
-    blurTextureDesc.cpuAccessFlags = 0;
-    blurTextureDesc.miscFlags = 0;
-    blurTextureDesc.mipLevels = 1;
-
-    LLGL::Extent2D lowres = LLGL::Extent2D(size.width / 12, size.height / 12);
-
-    blurTextureDesc.extent = LLGL::Extent3D(lowres.width, lowres.height, 1);
-    m_blur_texture_a = m_context->CreateTexture(blurTextureDesc);
-    m_blur_texture_b = m_context->CreateTexture(blurTextureDesc);
-
-    blurTextureDesc.extent = LLGL::Extent3D(size.width, size.height, 1);
-    m_blur_texture_c = m_context->CreateTexture(blurTextureDesc);
-
-    LLGL::RenderTargetDescriptor blurFramebufferDesc;
-    blurFramebufferDesc.resolution = lowres;
-
-    blurFramebufferDesc.colorAttachments[0].texture = m_blur_texture_a;
-    blurFramebufferDesc.colorAttachments[0].format = blurTextureDesc.format;
-    m_blur_framebuffer_a = m_context->CreateRenderTarget(blurFramebufferDesc);
-
-    blurFramebufferDesc.colorAttachments[0].texture = m_blur_texture_b;
-    blurFramebufferDesc.colorAttachments[0].format = blurTextureDesc.format;
-    m_blur_framebuffer_b = m_context->CreateRenderTarget(blurFramebufferDesc);
-    
-    blurFramebufferDesc.resolution = LLGL::Extent2D(size.width, size.height);
-    blurFramebufferDesc.colorAttachments[0].texture = m_blur_texture_c;
-    blurFramebufferDesc.colorAttachments[0].format = blurTextureDesc.format;
-
-    LLGL::TextureDescriptor depthStencilTextureDesc;
-    depthStencilTextureDesc.format = m_swap_chain->GetDepthStencilFormat();
-    depthStencilTextureDesc.extent = LLGL::Extent3D(size.width, size.height, 1);
-    depthStencilTextureDesc.type = LLGL::TextureType::Texture2D;
-    depthStencilTextureDesc.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::DepthStencilAttachment;
-    depthStencilTextureDesc.cpuAccessFlags = 0;
-    depthStencilTextureDesc.miscFlags = 0;
-    depthStencilTextureDesc.mipLevels = 1;
-
-    m_blur_stencil = m_context->CreateTexture(depthStencilTextureDesc);
-
-    blurFramebufferDesc.depthStencilAttachment.texture = m_blur_stencil;
-    blurFramebufferDesc.depthStencilAttachment.format = depthStencilTextureDesc.format;
-
-    m_blur_framebuffer_c = m_context->CreateRenderTarget(blurFramebufferDesc);
 }
 
 void Renderer::Begin(const Camera& camera) {
@@ -288,74 +921,6 @@ void Renderer::End() {
     m_swap_chain->Present();
 }
 
-void Renderer::RunBlurPass(uint32_t blur_radius) {
-    // // Downscale
-    // m_command_buffer->BeginRenderPass(*m_blur_framebuffer_a);
-    // {   
-    //     m_command_buffer->SetViewport(m_blur_framebuffer_a->GetResolution());
-    //     m_command_buffer->SetPipelineState(*m_blit_pipeline);
-    //     m_command_buffer->SetVertexBuffer(*m_blit_vertex_buffer);
-
-    //     m_command_buffer->SetResource(0, *m_blur_texture_c);
-    //     m_command_buffer->SetResource(1, *m_blur_sampler);
-
-    //     m_command_buffer->Draw(3, 0);
-    // }
-    // m_command_buffer->EndRenderPass();
-
-    // Horizontal Pass
-    m_command_buffer->BeginRenderPass(*m_blur_framebuffer_a);
-    {
-        m_command_buffer->SetViewport(m_blur_framebuffer_a->GetResolution());
-        m_command_buffer->SetPipelineState(*m_blur_pipeline);
-        m_command_buffer->SetVertexBuffer(*m_blur_vertex_buffer);
-
-        m_command_buffer->SetResource(0, *m_blur_texture_c);
-        m_command_buffer->SetResource(1, *m_sampler_linear);
-
-        m_command_buffer->SetUniforms(0, &blur_radius, sizeof(blur_radius));
-        
-        uint32_t direction = 0;
-        m_command_buffer->SetUniforms(1, &direction, sizeof(direction));
-
-        m_command_buffer->Draw(3, 0);
-    }
-    m_command_buffer->EndRenderPass();
-
-    // Vertical Pass
-    m_command_buffer->BeginRenderPass(*m_blur_framebuffer_b);
-    {
-        m_command_buffer->SetViewport(m_blur_framebuffer_b->GetResolution());
-        m_command_buffer->SetPipelineState(*m_blur_pipeline);
-        m_command_buffer->SetVertexBuffer(*m_blur_vertex_buffer);
-
-        m_command_buffer->SetResource(0, *m_blur_texture_a);
-        m_command_buffer->SetResource(1, *m_sampler_linear);
-
-        m_command_buffer->SetUniforms(0, &blur_radius, sizeof(blur_radius));
-        
-        uint32_t direction = 1;
-        m_command_buffer->SetUniforms(1, &direction, sizeof(direction));
-
-        m_command_buffer->Draw(3, 0);
-    }
-    m_command_buffer->EndRenderPass();
-
-    // Upscale pass
-    m_command_buffer->BeginRenderPass(*m_blur_framebuffer_c);
-    {
-        m_command_buffer->Clear(LLGL::ClearFlags::All, LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1));
-        m_command_buffer->SetViewport(m_blur_framebuffer_c->GetResolution());
-        m_command_buffer->SetPipelineState(*m_blit_pipeline);
-        m_command_buffer->SetVertexBuffer(*m_blit_vertex_buffer);
-
-        m_command_buffer->SetResource(0, *m_blur_texture_b);
-        m_command_buffer->SetResource(1, *m_sampler_linear);
-
-        m_command_buffer->Draw(3, 0);
-    }
-}
-
 void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
     ZoneScopedN("Renderer::ApplyBatchDrawCommands");
 
@@ -366,42 +931,14 @@ void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
     int prev_flush_data_type = -1;
     int prev_texture_id = -1;
 
-    LLGL::PipelineState& sprite_pipeline = batch.is_ui()
-        ? *m_sprite_batch_data.pipeline_ui
-        : batch.depth_enabled()
-            ? *m_sprite_batch_data.pipeline_depth
-            : *m_sprite_batch_data.pipeline;
-
-    LLGL::PipelineState& glyph_pipeline = batch.is_ui()
-        ? *m_glyph_batch_data.pipeline_ui
-        : *m_glyph_batch_data.pipeline;
-
-    LLGL::PipelineState& ninepatch_pipeline = batch.is_ui()
-        ? *m_ninepatch_batch_data.pipeline_ui
-        : *m_ninepatch_batch_data.pipeline;
-
-    LLGL::PipelineState& shape_pipeline = batch.is_ui()
-        ? *m_shape_batch_data.pipeline_ui
-        : *m_shape_batch_data.pipeline;
+    LLGL::PipelineState& sprite_pipeline = batch.depth_enabled()
+        ? *m_sprite_batch_data.pipeline_depth
+        : *m_sprite_batch_data.pipeline;
 
     size_t offset = 0;
 
-    bool prev_blur = false;
-
     for (FlushData& flush_data : flush_queue) {
-        if (flush_data.blur) {
-            const LLGL::Extent2D resolution = m_swap_chain->GetResolution();
-            commands->CopyTextureFromFramebuffer(*m_blur_texture_c, LLGL::TextureRegion(LLGL::Offset3D(), LLGL::Extent3D(resolution.width, resolution.height, 1)), LLGL::Offset2D());
-            commands->EndRenderPass();
-
-            RunBlurPass(30);
-        } else if (prev_blur) {
-            commands->EndRenderPass();
-            commands->BeginRenderPass(*m_current_framebuffer, m_current_pass);
-            m_command_buffer->SetViewport(m_current_framebuffer->GetResolution());
-        }
-
-        if (prev_flush_data_type != static_cast<int>(flush_data.type) || flush_data.blur) {
+        if (prev_flush_data_type != static_cast<int>(flush_data.type)) {
             switch (flush_data.type) {
             case FlushDataType::Sprite:
                 commands->SetVertexBufferArray(*m_sprite_batch_data.buffer_array);
@@ -411,19 +948,19 @@ void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
 
             case FlushDataType::Glyph:
                 commands->SetVertexBufferArray(*m_glyph_batch_data.buffer_array);
-                commands->SetPipelineState(glyph_pipeline);
+                commands->SetPipelineState(*m_glyph_batch_data.pipeline);
                 offset = batch.glyph_offset();
             break;
 
             case FlushDataType::NinePatch:
                 commands->SetVertexBufferArray(*m_ninepatch_batch_data.buffer_array);
-                commands->SetPipelineState(ninepatch_pipeline);
+                commands->SetPipelineState(*m_ninepatch_batch_data.pipeline);
                 offset = batch.ninepatch_offset();
             break;
 
             case FlushDataType::Shape:
                 commands->SetVertexBufferArray(*m_shape_batch_data.buffer_array);
-                commands->SetPipelineState(flush_data.blur ? *m_shape_batch_data.pipeline_stencil_write : shape_pipeline);
+                commands->SetPipelineState(*m_shape_batch_data.pipeline);
                 offset = batch.ninepatch_offset();
             break;
             }
@@ -442,36 +979,7 @@ void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
         
         commands->DrawInstanced(4, 0, flush_data.count, offset + flush_data.offset);
 
-        if (flush_data.blur) {
-            m_command_buffer->EndRenderPass();
-            m_command_buffer->BeginRenderPass(*m_blur_framebuffer_c);
-            {
-                m_command_buffer->SetViewport(m_blur_framebuffer_c->GetResolution());
-                m_command_buffer->SetPipelineState(*m_blit_stencil_pipeline);
-                m_command_buffer->SetVertexBuffer(*m_blit_vertex_buffer);
-
-                m_command_buffer->SetResource(0, *m_blur_texture_c);
-                m_command_buffer->SetResource(1, *m_sampler_linear);
-
-                m_command_buffer->Draw(3, 0);
-            }
-            m_command_buffer->EndRenderPass();
-
-            m_command_buffer->BeginRenderPass(*m_current_framebuffer);
-            {
-                m_command_buffer->SetViewport(m_current_framebuffer->GetResolution());
-                m_command_buffer->SetPipelineState(*m_blit_blend_pipeline);
-                m_command_buffer->SetVertexBuffer(*m_blit_vertex_buffer);
-
-                m_command_buffer->SetResource(0, *m_blur_texture_c);
-                m_command_buffer->SetResource(1, *m_sampler_linear);
-
-                m_command_buffer->Draw(3, 0);
-            }
-        }
-
         prev_flush_data_type = static_cast<int>(flush_data.type);
-        prev_blur = flush_data.blur;
     }
 
     flush_queue.clear();
@@ -539,7 +1047,6 @@ void Renderer::UpdateBatchBuffers(
     uint32_t shape_vertex_offset = 0;
     uint32_t shape_remaining = batch.shape_count();
 
-
     size_t i = 0;
     for (i = begin; i < draw_commands.size(); ++i) {
         if (m_batch_instance_count >= MAX_QUADS) {
@@ -581,7 +1088,9 @@ void Renderer::UpdateBatchBuffers(
                 sprite_vertex_offset = sprite_total_count;
             }
 
-            int flags = sprite_data.ignore_camera_zoom << SpriteFlags::IgnoreCameraZoom;
+            uint8_t flags = 0;
+            flags |= sprite_data.ignore_camera_zoom << SpriteFlags::IgnoreCameraZoom;
+            flags |= batch.is_ui() << SpriteFlags::UI;
 
             m_sprite_batch_data.buffer_ptr->position = sprite_data.position;
             m_sprite_batch_data.buffer_ptr->rotation = sprite_data.rotation;
@@ -635,11 +1144,15 @@ void Renderer::UpdateBatchBuffers(
                 glyph_vertex_offset = glyph_total_count;
             }
 
+            uint8_t flags = 0;
+            flags |= batch.is_ui() << ShapeFlags::UI;
+
             m_glyph_batch_data.buffer_ptr->color = glyph_data.color;
             m_glyph_batch_data.buffer_ptr->pos = glyph_data.pos;
             m_glyph_batch_data.buffer_ptr->size = glyph_data.size;
             m_glyph_batch_data.buffer_ptr->tex_size = glyph_data.tex_size;
             m_glyph_batch_data.buffer_ptr->uv = glyph_data.tex_uv;
+            m_glyph_batch_data.buffer_ptr->flags = flags;
             m_glyph_batch_data.buffer_ptr++;
 
             ++glyph_count;
@@ -686,6 +1199,9 @@ void Renderer::UpdateBatchBuffers(
                 ninepatch_vertex_offset = ninepatch_total_count;
             }
 
+            uint8_t flags = 0;
+            flags |= batch.is_ui() << ShapeFlags::UI;
+
             m_ninepatch_batch_data.buffer_ptr->position = ninepatch_data.position;
             m_ninepatch_batch_data.buffer_ptr->rotation = ninepatch_data.rotation;
             m_ninepatch_batch_data.buffer_ptr->margin = ninepatch_data.margin;
@@ -695,7 +1211,7 @@ void Renderer::UpdateBatchBuffers(
             m_ninepatch_batch_data.buffer_ptr->output_size = ninepatch_data.output_size;
             m_ninepatch_batch_data.buffer_ptr->uv_offset_scale = ninepatch_data.uv_offset_scale;
             m_ninepatch_batch_data.buffer_ptr->color = ninepatch_data.color;
-            m_ninepatch_batch_data.buffer_ptr->flags = 0;
+            m_ninepatch_batch_data.buffer_ptr->flags = flags;
             m_ninepatch_batch_data.buffer_ptr++;
 
             ++ninepatch_count;
@@ -723,6 +1239,9 @@ void Renderer::UpdateBatchBuffers(
 
             const uint32_t current_order = shape_data.order;
 
+            uint8_t flags = 0;
+            flags |= batch.is_ui() << ShapeFlags::UI;
+
             m_shape_batch_data.buffer_ptr->position = glm::vec3(shape_data.position, 0.0f);
             m_shape_batch_data.buffer_ptr->size = shape_data.size;
             m_shape_batch_data.buffer_ptr->offset = shape_data.offset;
@@ -731,6 +1250,7 @@ void Renderer::UpdateBatchBuffers(
             m_shape_batch_data.buffer_ptr->border_thickness = shape_data.border_thickness;
             m_shape_batch_data.buffer_ptr->border_radius = shape_data.border_radius;
             m_shape_batch_data.buffer_ptr->shape = shape_data.shape;
+            m_shape_batch_data.buffer_ptr->flags = flags;
             m_shape_batch_data.buffer_ptr++;
 
             ++shape_count;
@@ -744,7 +1264,6 @@ void Renderer::UpdateBatchBuffers(
                     .count = shape_count,
                     .order = shape_data.order,
                     .type = FlushDataType::Shape,
-                    .blur = shape_data.blur
                 });
                 shape_count = 0;
                 shape_vertex_offset = shape_total_count;
@@ -921,6 +1440,23 @@ Texture Renderer::CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_
     return Texture(id, sampler, glm::uvec2(width, height), m_context->CreateTexture(texture_desc, &image_view));
 }
 
+static bool FileExists(const char *path) {
+#if SGE_PLATFORM_WINDOWS
+    FILE *file = NULL;
+    fopen_s(&file, path, "r");
+#else
+    FILE *file = fopen(path, "r");
+#endif
+
+    const bool exists = file != nullptr;
+
+    if (exists) {
+        fclose(file);
+    }
+
+    return exists;
+}
+
 LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
     ZoneScopedN("Renderer::LoadShader");
 
@@ -930,7 +1466,7 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
     const std::string path = backend.AssetFolder() + shader_path.name + shader_type.FileExtension(backend);
 
     if (!FileExists(path.c_str())) {
-        LOG_ERROR("Failed to find shader '%s'", path.c_str());
+        SGE_LOG_ERROR("Failed to find shader '%s'", path.c_str());
         return nullptr;
     }
 
@@ -979,7 +1515,7 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
         shader_desc.profile = shader_type.Profile(backend);
     }
 
-#if DEBUG
+#if SGE_DEBUG
     shader_desc.flags |= LLGL::ShaderCompileFlags::NoOptimization;
 #else
     shader_desc.flags |= LLGL::ShaderCompileFlags::OptimizationLevel3;
@@ -989,23 +1525,23 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
     if (const LLGL::Report* report = shader->GetReport()) {
         if (*report->GetText() != '\0') {
             if (report->HasErrors()) {
-                LOG_ERROR("Failed to create a shader. File: %s\nError: %s", path.c_str(), report->GetText());
+                SGE_LOG_ERROR("Failed to create a shader. File: %s\nError: %s", path.c_str(), report->GetText());
                 return nullptr;
             }
             
-            LOG_INFO("%s", report->GetText());
+            SGE_LOG_INFO("%s", report->GetText());
         }
     }
 
     return shader;
 }
 
-#if DEBUG
+#if SGE_DEBUG
 void Renderer::PrintDebugInfo() {
     LLGL::FrameProfile profile;
     m_debugger->FlushProfile(&profile);
 
-    LOG_DEBUG("Draw commands count: %u", profile.commandBufferRecord.drawCommands);
+    SGE_LOG_DEBUG("Draw commands count: %u", profile.commandBufferRecord.drawCommands);
 }
 #endif
 
@@ -1032,687 +1568,4 @@ void Renderer::Terminate() {
     RESOURCE_RELEASE(m_swap_chain);
 
     LLGL::RenderSystem::Unload(std::move(m_context));
-}
-
-void Renderer::InitSpriteBatchPipeline() {
-    ZoneScopedN("RenderBatchSprite::init");
-
-    const RenderBackend backend = m_backend;
-    const auto& context = m_context;
-
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    if (backend.IsGLSL()) {
-        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    } else if (backend.IsHLSL()) {
-        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    } else {
-        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    }
-
-    if (backend.IsGLSL()) {
-        instance_format.attributes = {
-            {"i_position",           LLGL::Format::RGB32Float,  1,  offsetof(SpriteInstance,position),          sizeof(SpriteInstance), 1, 1 },
-            {"i_rotation",           LLGL::Format::RGBA32Float, 2,  offsetof(SpriteInstance,rotation),          sizeof(SpriteInstance), 1, 1 },
-            {"i_size",               LLGL::Format::RG32Float,   3,  offsetof(SpriteInstance,size),              sizeof(SpriteInstance), 1, 1 },
-            {"i_offset",             LLGL::Format::RG32Float,   4,  offsetof(SpriteInstance,offset),            sizeof(SpriteInstance), 1, 1 },
-            {"i_uv_offset_scale",    LLGL::Format::RGBA32Float, 5,  offsetof(SpriteInstance,uv_offset_scale),   sizeof(SpriteInstance), 1, 1 },
-            {"i_color",              LLGL::Format::RGBA32Float, 6,  offsetof(SpriteInstance,color),             sizeof(SpriteInstance), 1, 1 },
-            {"i_outline_color",      LLGL::Format::RGBA32Float, 7,  offsetof(SpriteInstance,outline_color),     sizeof(SpriteInstance), 1, 1 },
-            {"i_outline_thickness",  LLGL::Format::R32Float,    8,  offsetof(SpriteInstance,outline_thickness), sizeof(SpriteInstance), 1, 1 },
-            {"i_flags",              LLGL::Format::R32SInt,     9,  offsetof(SpriteInstance,flags),             sizeof(SpriteInstance), 1, 1 },
-        };
-    } else if (backend.IsHLSL()) {
-        instance_format.attributes = {
-            {"I_Position",         LLGL::Format::RGB32Float,  1,  offsetof(SpriteInstance,position),          sizeof(SpriteInstance), 1, 1 },
-            {"I_Rotation",         LLGL::Format::RGBA32Float, 2,  offsetof(SpriteInstance,rotation),          sizeof(SpriteInstance), 1, 1 },
-            {"I_Size",             LLGL::Format::RG32Float,   3,  offsetof(SpriteInstance,size),              sizeof(SpriteInstance), 1, 1 },
-            {"I_Offset",           LLGL::Format::RG32Float,   4,  offsetof(SpriteInstance,offset),            sizeof(SpriteInstance), 1, 1 },
-            {"I_UvOffsetScale",    LLGL::Format::RGBA32Float, 5,  offsetof(SpriteInstance,uv_offset_scale),   sizeof(SpriteInstance), 1, 1 },
-            {"I_Color",            LLGL::Format::RGBA32Float, 6,  offsetof(SpriteInstance,color),             sizeof(SpriteInstance), 1, 1 },
-            {"I_OutlineColor",     LLGL::Format::RGBA32Float, 7,  offsetof(SpriteInstance,outline_color),     sizeof(SpriteInstance), 1, 1 },
-            {"I_OutlineThickness", LLGL::Format::R32Float,    8,  offsetof(SpriteInstance,outline_thickness), sizeof(SpriteInstance), 1, 1 },
-            {"I_Flags",            LLGL::Format::R32SInt,     9,  offsetof(SpriteInstance,flags),             sizeof(SpriteInstance), 1, 1 },
-        };
-    } else {
-        instance_format.attributes = {
-            {"i_position",           LLGL::Format::RGB32Float,  1,  offsetof(SpriteInstance,position),          sizeof(SpriteInstance), 1, 1 },
-            {"i_rotation",           LLGL::Format::RGBA32Float, 2,  offsetof(SpriteInstance,rotation),          sizeof(SpriteInstance), 1, 1 },
-            {"i_size",               LLGL::Format::RG32Float,   3,  offsetof(SpriteInstance,size),              sizeof(SpriteInstance), 1, 1 },
-            {"i_offset",             LLGL::Format::RG32Float,   4,  offsetof(SpriteInstance,offset),            sizeof(SpriteInstance), 1, 1 },
-            {"i_uv_offset_scale",    LLGL::Format::RGBA32Float, 5,  offsetof(SpriteInstance,uv_offset_scale),   sizeof(SpriteInstance), 1, 1 },
-            {"i_color",              LLGL::Format::RGBA32Float, 6,  offsetof(SpriteInstance,color),             sizeof(SpriteInstance), 1, 1 },
-            {"i_outline_color",      LLGL::Format::RGBA32Float, 7,  offsetof(SpriteInstance,outline_color),     sizeof(SpriteInstance), 1, 1 },
-            {"i_outline_thickness",  LLGL::Format::R32Float,    8,  offsetof(SpriteInstance,outline_thickness), sizeof(SpriteInstance), 1, 1 },
-            {"i_flags",              LLGL::Format::R32SInt,     9,  offsetof(SpriteInstance,flags),             sizeof(SpriteInstance), 1, 1 },
-        };
-    }
-
-    m_sprite_batch_data.buffer = checked_alloc<SpriteInstance>(MAX_QUADS);
-    m_sprite_batch_data.buffer_ptr = m_sprite_batch_data.buffer;
-
-    m_sprite_batch_data.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "SpriteBatch VertexBuffer");
-
-    m_sprite_batch_data.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(SpriteInstance), instance_format, "SpriteBatch InstanceBuffer");
-
-    LLGL::Buffer* buffers[] = { m_sprite_batch_data.vertex_buffer, m_sprite_batch_data.instance_buffer };
-    m_sprite_batch_data.buffer_array = context->CreateBufferArray(2, buffers);
-
-    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = {
-        LLGL::BindingDescriptor(
-            "GlobalUniformBuffer",
-            LLGL::ResourceType::Buffer,
-            LLGL::BindFlags::ConstantBuffer,
-            LLGL::StageFlags::VertexStage,
-            LLGL::BindingSlot(2)
-        ),
-        LLGL::BindingDescriptor("u_texture", LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(3)),
-        LLGL::BindingDescriptor("u_sampler", LLGL::ResourceType::Sampler, 0, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(backend.IsOpenGL() ? 3 : 4)),
-    };
-
-    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
-
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.debugName = "SpriteBatch Pipeline";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "sprite"), {}, vertex_attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "sprite"));
-    pipelineDesc.pipelineLayout = pipelineLayout;
-    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
-    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
-    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
-    pipelineDesc.rasterizer.frontCCW = true;
-    pipelineDesc.blend = LLGL::BlendDescriptor {
-        .targets = {
-            LLGL::BlendTargetDescriptor {
-                .blendEnabled = true,
-                .srcColor = LLGL::BlendOp::SrcAlpha,
-                .dstColor = LLGL::BlendOp::InvSrcAlpha,
-                .srcAlpha = LLGL::BlendOp::Zero,
-                .dstAlpha = LLGL::BlendOp::One,
-                .alphaArithmetic = LLGL::BlendArithmetic::Max
-            }
-        }
-    };
-
-    m_sprite_batch_data.pipeline = context->CreatePipelineState(pipelineDesc);
-
-    {
-        LLGL::GraphicsPipelineDescriptor depthPipelineDesc = pipelineDesc;
-        depthPipelineDesc.debugName = "SpriteBatch Pipeline Depth";
-        depthPipelineDesc.depth = LLGL::DepthDescriptor {
-            .testEnabled = true,
-            .writeEnabled = true,
-            .compareOp = LLGL::CompareOp::GreaterEqual,
-        };
-        m_sprite_batch_data.pipeline_depth = context->CreatePipelineState(depthPipelineDesc);
-    }
-
-    {
-        LLGL::GraphicsPipelineDescriptor uiPipelineDesc = pipelineDesc;
-        uiPipelineDesc.debugName = "SpriteBatch Pipeline UI";
-        uiPipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "sprite_ui"), {}, vertex_attributes);
-        uiPipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "sprite_ui"));
-        m_sprite_batch_data.pipeline_ui = context->CreatePipelineState(uiPipelineDesc);
-    }
-
-    if (const LLGL::Report* report = m_sprite_batch_data.pipeline->GetReport()) {
-        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-    }
-}
-
-void Renderer::InitNinepatchBatchPipeline() {
-    ZoneScopedN("RenderBatchNinePatch::init");
-
-    const RenderBackend backend = m_backend;
-    const auto& context = m_context;
-
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    if (backend.IsGLSL()) {
-        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    } else if (backend.IsHLSL()) {
-        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    } else {
-        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    }
-
-    if (backend.IsGLSL()) {
-        instance_format.attributes = {
-            {"i_position",         LLGL::Format::RG32Float,   1,  offsetof(NinePatchInstance,position),          sizeof(NinePatchInstance), 1, 1 },
-            {"i_rotation",         LLGL::Format::RGBA32Float, 2,  offsetof(NinePatchInstance,rotation),          sizeof(NinePatchInstance), 1, 1 },
-            {"i_size",             LLGL::Format::RG32Float,   3,  offsetof(NinePatchInstance,size),              sizeof(NinePatchInstance), 1, 1 },
-            {"i_offset",           LLGL::Format::RG32Float,   4,  offsetof(NinePatchInstance,offset),            sizeof(NinePatchInstance), 1, 1 },
-            {"i_source_size",      LLGL::Format::RG32Float,   5,  offsetof(NinePatchInstance,source_size),       sizeof(NinePatchInstance), 1, 1 },
-            {"i_output_size",      LLGL::Format::RG32Float,   6,  offsetof(NinePatchInstance,output_size),       sizeof(NinePatchInstance), 1, 1 },
-            {"i_margin",           LLGL::Format::RGBA32UInt,  7,  offsetof(NinePatchInstance,margin),            sizeof(NinePatchInstance), 1, 1 },
-            {"i_uv_offset_scale",  LLGL::Format::RGBA32Float, 8,  offsetof(NinePatchInstance,uv_offset_scale),   sizeof(NinePatchInstance), 1, 1 },
-            {"i_color",            LLGL::Format::RGBA32Float, 9,  offsetof(NinePatchInstance,color),             sizeof(NinePatchInstance), 1, 1 },
-            {"i_flags",            LLGL::Format::R32SInt,     10, offsetof(NinePatchInstance,flags),             sizeof(NinePatchInstance), 1, 1 },
-        };
-    } else if (backend.IsHLSL()) {
-        instance_format.attributes = {
-            {"I_Position",         LLGL::Format::RG32Float,   1,  offsetof(NinePatchInstance,position),          sizeof(NinePatchInstance), 1, 1 },
-            {"I_Rotation",         LLGL::Format::RGBA32Float, 2,  offsetof(NinePatchInstance,rotation),          sizeof(NinePatchInstance), 1, 1 },
-            {"I_Size",             LLGL::Format::RG32Float,   3,  offsetof(NinePatchInstance,size),              sizeof(NinePatchInstance), 1, 1 },
-            {"I_Offset",           LLGL::Format::RG32Float,   4,  offsetof(NinePatchInstance,offset),            sizeof(NinePatchInstance), 1, 1 },
-            {"I_SourceSize",       LLGL::Format::RG32Float,   5,  offsetof(NinePatchInstance,source_size),       sizeof(NinePatchInstance), 1, 1 },
-            {"I_OutputSize",       LLGL::Format::RG32Float,   6,  offsetof(NinePatchInstance,output_size),       sizeof(NinePatchInstance), 1, 1 },
-            {"I_Margin",           LLGL::Format::RGBA32UInt,  7,  offsetof(NinePatchInstance,margin),            sizeof(NinePatchInstance), 1, 1 },
-            {"I_UvOffsetScale",    LLGL::Format::RGBA32Float, 8,  offsetof(NinePatchInstance,uv_offset_scale),   sizeof(NinePatchInstance), 1, 1 },
-            {"I_Color",            LLGL::Format::RGBA32Float, 9,  offsetof(NinePatchInstance,color),             sizeof(NinePatchInstance), 1, 1 },
-            {"I_Flags",            LLGL::Format::R32SInt,     10, offsetof(NinePatchInstance,flags),             sizeof(NinePatchInstance), 1, 1 },
-        };
-    } else {
-        instance_format.attributes = {
-            {"i_position",         LLGL::Format::RG32Float,   1,  offsetof(NinePatchInstance,position),          sizeof(NinePatchInstance), 1, 1 },
-            {"i_rotation",         LLGL::Format::RGBA32Float, 2,  offsetof(NinePatchInstance,rotation),          sizeof(NinePatchInstance), 1, 1 },
-            {"i_size",             LLGL::Format::RG32Float,   3,  offsetof(NinePatchInstance,size),              sizeof(NinePatchInstance), 1, 1 },
-            {"i_offset",           LLGL::Format::RG32Float,   4,  offsetof(NinePatchInstance,offset),            sizeof(NinePatchInstance), 1, 1 },
-            {"i_source_size",      LLGL::Format::RG32Float,   5,  offsetof(NinePatchInstance,source_size),       sizeof(NinePatchInstance), 1, 1 },
-            {"i_output_size",      LLGL::Format::RG32Float,   6,  offsetof(NinePatchInstance,output_size),       sizeof(NinePatchInstance), 1, 1 },
-            {"i_margin",           LLGL::Format::RGBA32UInt,  7,  offsetof(NinePatchInstance,margin),            sizeof(NinePatchInstance), 1, 1 },
-            {"i_uv_offset_scale",  LLGL::Format::RGBA32Float, 8,  offsetof(NinePatchInstance,uv_offset_scale),   sizeof(NinePatchInstance), 1, 1 },
-            {"i_color",            LLGL::Format::RGBA32Float, 9,  offsetof(NinePatchInstance,color),             sizeof(NinePatchInstance), 1, 1 },
-            {"i_flags",            LLGL::Format::R32SInt,     10, offsetof(NinePatchInstance,flags),             sizeof(NinePatchInstance), 1, 1 },
-        };
-    }
-
-    m_ninepatch_batch_data.buffer = checked_alloc<NinePatchInstance>(MAX_QUADS);
-    m_ninepatch_batch_data.buffer_ptr = m_ninepatch_batch_data.buffer;
-
-    m_ninepatch_batch_data.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "NinePatchBatch VertexBuffer");
-    m_ninepatch_batch_data.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(NinePatchInstance), instance_format, "NinePatchBatch InstanceBuffer");
-
-    {
-        LLGL::Buffer* buffers[] = { m_ninepatch_batch_data.vertex_buffer, m_ninepatch_batch_data.instance_buffer };
-        m_ninepatch_batch_data.buffer_array = context->CreateBufferArray(2, buffers);
-    }
-
-    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = {
-        LLGL::BindingDescriptor(
-            "GlobalUniformBuffer",
-            LLGL::ResourceType::Buffer,
-            LLGL::BindFlags::ConstantBuffer,
-            LLGL::StageFlags::VertexStage,
-            LLGL::BindingSlot(2)
-        ),
-        LLGL::BindingDescriptor("u_texture", LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(3)),
-        LLGL::BindingDescriptor("u_sampler", LLGL::ResourceType::Sampler, 0, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(backend.IsOpenGL() ? 3 : 4)),
-    };
-
-    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
-
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.debugName = "NinePatchBatch Pipeline";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "ninepatch"), {}, vertex_attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "ninepatch"));
-    pipelineDesc.pipelineLayout = pipelineLayout;
-    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
-    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
-    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
-    pipelineDesc.rasterizer.frontCCW = true;
-    pipelineDesc.blend = LLGL::BlendDescriptor {
-        .targets = {
-            LLGL::BlendTargetDescriptor {
-                .blendEnabled = true,
-                .srcColor = LLGL::BlendOp::SrcAlpha,
-                .dstColor = LLGL::BlendOp::InvSrcAlpha,
-                .srcAlpha = LLGL::BlendOp::Zero,
-                .dstAlpha = LLGL::BlendOp::One,
-                .alphaArithmetic = LLGL::BlendArithmetic::Max
-            }
-        }
-    };
-
-    m_ninepatch_batch_data.pipeline = context->CreatePipelineState(pipelineDesc);
-
-    pipelineDesc.debugName = "NinePatchBatch Pipeline UI";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "ninepatch_ui"), {}, vertex_attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "ninepatch_ui"));
-
-    m_ninepatch_batch_data.pipeline_ui = context->CreatePipelineState(pipelineDesc);
-
-    if (const LLGL::Report* report = m_ninepatch_batch_data.pipeline->GetReport()) {
-        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-    }
-}
-
-void Renderer::InitGlyphBatchPipeline() {
-    ZoneScopedN("RenderBatchGlyph::init");
-
-    const RenderBackend backend = m_backend;
-    const auto& context = m_context;
-
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    if (backend.IsGLSL()) {
-        vertex_format.AppendAttribute({"a_position", LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0});
-    } else if (backend.IsHLSL()) {
-        vertex_format.AppendAttribute({"Position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0});
-    } else {
-        vertex_format.AppendAttribute({"position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0});
-    }
-
-    if (backend.IsGLSL()) {
-        instance_format.attributes = {
-            {"i_color",     LLGL::Format::RGB32Float, 1, offsetof(GlyphInstance,color),    sizeof(GlyphInstance), 1, 1},
-            {"i_position",  LLGL::Format::RGB32Float, 2, offsetof(GlyphInstance,pos),      sizeof(GlyphInstance), 1, 1},
-            {"i_size",      LLGL::Format::RG32Float,  3, offsetof(GlyphInstance,size),     sizeof(GlyphInstance), 1, 1},
-            {"i_tex_size",  LLGL::Format::RG32Float,  4, offsetof(GlyphInstance,tex_size), sizeof(GlyphInstance), 1, 1},
-            {"i_uv",        LLGL::Format::RG32Float,  5, offsetof(GlyphInstance,uv),       sizeof(GlyphInstance), 1, 1},
-        };
-    } else if (backend.IsHLSL()) {
-        instance_format.attributes = {
-            {"I_Color",    LLGL::Format::RGB32Float, 1, offsetof(GlyphInstance,color),    sizeof(GlyphInstance), 1, 1},
-            {"I_Position", LLGL::Format::RG32Float,  2, offsetof(GlyphInstance,pos),      sizeof(GlyphInstance), 1, 1},
-            {"I_Size",     LLGL::Format::RG32Float,  3, offsetof(GlyphInstance,size),     sizeof(GlyphInstance), 1, 1},
-            {"I_TexSize",  LLGL::Format::RG32Float,  4, offsetof(GlyphInstance,tex_size), sizeof(GlyphInstance), 1, 1},
-            {"I_UV",       LLGL::Format::RG32Float,  5, offsetof(GlyphInstance,uv),       sizeof(GlyphInstance), 1, 1},
-        };
-    } else {
-        instance_format.attributes = {
-            {"i_color",     LLGL::Format::RGB32Float, 1, offsetof(GlyphInstance,color),    sizeof(GlyphInstance), 1, 1},
-            {"i_position",  LLGL::Format::RGB32Float, 2, offsetof(GlyphInstance,pos),      sizeof(GlyphInstance), 1, 1},
-            {"i_size",      LLGL::Format::RG32Float,  3, offsetof(GlyphInstance,size),     sizeof(GlyphInstance), 1, 1},
-            {"i_tex_size",  LLGL::Format::RG32Float,  4, offsetof(GlyphInstance,tex_size), sizeof(GlyphInstance), 1, 1},
-            {"i_uv",        LLGL::Format::RG32Float,  5, offsetof(GlyphInstance,uv),       sizeof(GlyphInstance), 1, 1},
-        };
-    }
-
-    m_glyph_batch_data.buffer = checked_alloc<GlyphInstance>(MAX_QUADS);
-    m_glyph_batch_data.buffer_ptr = m_glyph_batch_data.buffer;
-
-    m_glyph_batch_data.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "GlyphBatch VertexBuffer");
-    m_glyph_batch_data.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(GlyphInstance), instance_format, "GlyphBatch InstanceBuffer");
-
-    LLGL::Buffer* buffers[] = { m_glyph_batch_data.vertex_buffer, m_glyph_batch_data.instance_buffer };
-    m_glyph_batch_data.buffer_array = context->CreateBufferArray(2, buffers);
-
-    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = {
-        LLGL::BindingDescriptor(
-            "GlobalUniformBuffer",
-            LLGL::ResourceType::Buffer,
-            LLGL::BindFlags::ConstantBuffer,
-            LLGL::StageFlags::VertexStage,
-            LLGL::BindingSlot(2)
-        ),
-        LLGL::BindingDescriptor("u_texture", LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(3)),
-        LLGL::BindingDescriptor("u_sampler", LLGL::ResourceType::Sampler, 0, LLGL::StageFlags::FragmentStage, LLGL::BindingSlot(backend.IsOpenGL() ? 3 : 4)),
-    };
-
-    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
-
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.debugName = "GlyphBatch Pipeline";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "font"), {}, vertex_attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "font"));
-    pipelineDesc.pipelineLayout = pipelineLayout;
-    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
-    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
-    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
-    pipelineDesc.rasterizer.frontCCW = true;
-    pipelineDesc.blend = LLGL::BlendDescriptor {
-        .targets = {
-            LLGL::BlendTargetDescriptor {
-                .blendEnabled = true,
-                .srcColor = LLGL::BlendOp::SrcAlpha,
-                .dstColor = LLGL::BlendOp::InvSrcAlpha,
-                .srcAlpha = LLGL::BlendOp::Zero,
-                .dstAlpha = LLGL::BlendOp::One,
-                .alphaArithmetic = LLGL::BlendArithmetic::Max
-            }
-        }
-    };
-
-    m_glyph_batch_data.pipeline = context->CreatePipelineState(pipelineDesc);
-
-    pipelineDesc.debugName = "GlyphBatch Pipeline UI";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "font_ui"), {}, vertex_attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "font_ui"));
-
-    m_glyph_batch_data.pipeline_ui = context->CreatePipelineState(pipelineDesc);
-
-    if (const LLGL::Report* report = m_glyph_batch_data.pipeline->GetReport()) {
-        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-    }
-}
-
-void Renderer::InitShapeBatchPipeline() {
-    const RenderBackend backend = m_backend;
-    const auto& context = m_context;
-
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    if (backend.IsGLSL()) {
-        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    } else if (backend.IsHLSL()) {
-        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    } else {
-        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(Vertex), 0, 0 });
-    }
-
-    if (backend.IsGLSL()) {
-        instance_format.attributes = {
-            {"i_position",           LLGL::Format::RGB32Float,  1,  offsetof(ShapeInstance,position),          sizeof(ShapeInstance), 1, 1 },
-            {"i_size",               LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
-            {"i_offset",             LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
-            {"i_color",              LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
-            {"i_border_color",       LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
-            {"i_border_thickness",   LLGL::Format::R32Float,    6,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
-            {"i_border_radius",      LLGL::Format::R32Float,    7,  offsetof(ShapeInstance,border_radius),     sizeof(ShapeInstance), 1, 1 },
-            {"i_shape",              LLGL::Format::R32UInt,     8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
-        };
-    } else if (backend.IsHLSL()) {
-        instance_format.attributes = {
-            {"I_Position",         LLGL::Format::RGB32Float,  1,  offsetof(ShapeInstance,position),          sizeof(ShapeInstance), 1, 1 },
-            {"I_Size",             LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
-            {"I_Offset",           LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
-            {"I_Color",            LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
-            {"I_BorderColor",      LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
-            {"I_BorderThickness",  LLGL::Format::R32Float,    6,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
-            {"I_BorderRadius",     LLGL::Format::R32Float,    7,  offsetof(ShapeInstance,border_radius),     sizeof(ShapeInstance), 1, 1 },
-            {"I_Shape",            LLGL::Format::R32UInt,     8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
-        };
-    } else {
-        instance_format.attributes = {
-            {"i_position",           LLGL::Format::RGB32Float,  1,  offsetof(ShapeInstance,position),          sizeof(ShapeInstance), 1, 1 },
-            {"i_size",               LLGL::Format::RG32Float,   2,  offsetof(ShapeInstance,size),              sizeof(ShapeInstance), 1, 1 },
-            {"i_offset",             LLGL::Format::RG32Float,   3,  offsetof(ShapeInstance,offset),            sizeof(ShapeInstance), 1, 1 },
-            {"i_color",              LLGL::Format::RGBA32Float, 4,  offsetof(ShapeInstance,color),             sizeof(ShapeInstance), 1, 1 },
-            {"i_border_color",       LLGL::Format::RGBA32Float, 5,  offsetof(ShapeInstance,border_color),      sizeof(ShapeInstance), 1, 1 },
-            {"i_border_thickness",   LLGL::Format::R32Float,    6,  offsetof(ShapeInstance,border_thickness),  sizeof(ShapeInstance), 1, 1 },
-            {"i_border_radius",      LLGL::Format::R32Float,    7,  offsetof(ShapeInstance,border_radius),     sizeof(ShapeInstance), 1, 1 },
-            {"i_shape",              LLGL::Format::R32UInt,     8,  offsetof(ShapeInstance,shape),             sizeof(ShapeInstance), 1, 1 },
-        };
-    }
-
-    m_shape_batch_data.buffer = checked_alloc<ShapeInstance>(MAX_QUADS);
-    m_shape_batch_data.buffer_ptr = m_shape_batch_data.buffer;
-
-    m_shape_batch_data.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "ShapeBatch VertexBuffer");
-    m_shape_batch_data.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(ShapeInstance), instance_format, "ShapeBatch InstanceBuffer");
-
-    LLGL::Buffer* buffers[] = { m_shape_batch_data.vertex_buffer, m_shape_batch_data.instance_buffer };
-    m_shape_batch_data.buffer_array = context->CreateBufferArray(2, buffers);
-
-    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = {
-        LLGL::BindingDescriptor(
-            "GlobalUniformBuffer",
-            LLGL::ResourceType::Buffer,
-            LLGL::BindFlags::ConstantBuffer,
-            LLGL::StageFlags::VertexStage,
-            LLGL::BindingSlot(2)
-        ),
-    };
-
-    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
-
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.debugName = "ShapeBatch Pipeline";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "shape"), {}, vertex_attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "shape"));
-    pipelineDesc.pipelineLayout = pipelineLayout;
-    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
-    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
-    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
-    pipelineDesc.rasterizer.frontCCW = true;
-    pipelineDesc.blend = LLGL::BlendDescriptor {
-        .targets = {
-            LLGL::BlendTargetDescriptor {
-                .blendEnabled = true,
-                .srcColor = LLGL::BlendOp::SrcAlpha,
-                .dstColor = LLGL::BlendOp::InvSrcAlpha,
-                .srcAlpha = LLGL::BlendOp::Zero,
-                .dstAlpha = LLGL::BlendOp::One,
-                .alphaArithmetic = LLGL::BlendArithmetic::Max
-            }
-        }
-    };
-
-    m_shape_batch_data.pipeline = context->CreatePipelineState(pipelineDesc);
-    if (const LLGL::Report* report = m_shape_batch_data.pipeline->GetReport()) {
-        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-    }
-
-    {
-        LLGL::GraphicsPipelineDescriptor stencilPipelineDesc = pipelineDesc;
-        stencilPipelineDesc.debugName = "ShapeBatch Pipeline Stencil";
-        stencilPipelineDesc.stencil = LLGL::StencilDescriptor {
-            .testEnabled = true,
-            .front = {
-                .depthPassOp = LLGL::StencilOp::Replace,
-                .compareOp = LLGL::CompareOp::AlwaysPass,
-                .readMask = 0u,
-                .writeMask = ~0u,
-                .reference = 0
-            },
-            .back = {}
-        };
-
-        m_shape_batch_data.pipeline_stencil_write = context->CreatePipelineState(stencilPipelineDesc);
-        if (const LLGL::Report* report = m_shape_batch_data.pipeline_stencil_write->GetReport()) {
-            if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-        }
-    }
-
-    pipelineDesc.debugName = "ShapeBatch Pipeline UI";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "shape_ui"), {}, vertex_attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "shape_ui"));
-
-    m_shape_batch_data.pipeline_ui = context->CreatePipelineState(pipelineDesc);
-    if (const LLGL::Report* report = m_shape_batch_data.pipeline_ui->GetReport()) {
-        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-    }
-}
-
-void Renderer::InitBlurPipeline() {
-    const RenderBackend backend = m_backend;
-    const auto& context = m_context;
-
-    const glm::vec2 vertices[] = {
-        glm::vec2(-1.0f, 1.0f),  glm::vec2(0.0f, 0.0f),
-        glm::vec2(3.0f,  1.0f),  glm::vec2(2.0f, 0.0f),
-        glm::vec2(-1.0f, -3.0f), glm::vec2(0.0f, 2.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-
-    if (backend.IsGLSL()) {
-        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
-        vertex_format.AppendAttribute({ "a_uv",       LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
-    } else if (backend.IsHLSL()) {
-        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
-        vertex_format.AppendAttribute({ "UV",         LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
-    } else {
-        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
-        vertex_format.AppendAttribute({ "uv",         LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
-    }
-
-    m_blur_vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "Blur VertexBuffer");
-
-    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = {
-        LLGL::BindingDescriptor(
-            "Texture",
-            LLGL::ResourceType::Texture,
-            LLGL::BindFlags::Sampled,
-            LLGL::StageFlags::FragmentStage,
-            LLGL::BindingSlot(3)
-        ),
-        LLGL::BindingDescriptor(
-            "Sampler",
-            LLGL::ResourceType::Sampler,
-            0,
-            LLGL::StageFlags::FragmentStage,
-            LLGL::BindingSlot(4)
-        ),
-    };
-    pipelineLayoutDesc.uniforms = {
-        LLGL::UniformDescriptor("uniform_blur_size", LLGL::UniformType::UInt1),
-        LLGL::UniformDescriptor("uniform_direction", LLGL::UniformType::UInt1),
-    };
-
-    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.debugName = "Blur Pipeline";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "blur"), {}, vertex_format.attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "blur"));
-    pipelineDesc.pipelineLayout = pipelineLayout;
-    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
-    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleList;
-    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
-    pipelineDesc.rasterizer.frontCCW = true;
-
-    m_blur_pipeline = context->CreatePipelineState(pipelineDesc);
-
-    if (const LLGL::Report* report = m_blur_pipeline->GetReport()) {
-        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-    }
-}
-
-void Renderer::InitBlitPipeline() {
-    const RenderBackend backend = m_backend;
-    const auto& context = m_context;
-
-    const glm::vec2 vertices[] = {
-        glm::vec2(-1.0f, 1.0f),  glm::vec2(0.0f, 0.0f),
-        glm::vec2(3.0f,  1.0f),  glm::vec2(2.0f, 0.0f),
-        glm::vec2(-1.0f, -3.0f), glm::vec2(0.0f, 2.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-
-    if (backend.IsGLSL()) {
-        vertex_format.AppendAttribute({ "a_position", LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
-        vertex_format.AppendAttribute({ "a_uv",       LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
-    } else if (backend.IsHLSL()) {
-        vertex_format.AppendAttribute({ "Position",   LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
-        vertex_format.AppendAttribute({ "UV",         LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
-    } else {
-        vertex_format.AppendAttribute({ "position",   LLGL::Format::RG32Float, 0, 0, sizeof(glm::vec2) * 2, 0, 0 });
-        vertex_format.AppendAttribute({ "uv",         LLGL::Format::RG32Float, 1, sizeof(glm::vec2), sizeof(glm::vec2) * 2, 0, 0 });
-    }
-
-    m_blit_vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "Blit VertexBuffer");
-
-    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = {
-        LLGL::BindingDescriptor(
-            "Texture",
-            LLGL::ResourceType::Texture,
-            LLGL::BindFlags::Sampled,
-            LLGL::StageFlags::FragmentStage,
-            LLGL::BindingSlot(2)
-        ),
-        LLGL::BindingDescriptor(
-            "Sampler",
-            LLGL::ResourceType::Sampler,
-            0,
-            LLGL::StageFlags::FragmentStage,
-            LLGL::BindingSlot(3)
-        ),
-    };
-
-    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.debugName = "Blit Pipeline";
-    pipelineDesc.vertexShader = LoadShader(ShaderPath(ShaderType::Vertex, "blit"), {}, vertex_format.attributes);
-    pipelineDesc.fragmentShader = LoadShader(ShaderPath(ShaderType::Fragment, "blit"));
-    pipelineDesc.pipelineLayout = pipelineLayout;
-    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
-    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleList;
-    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
-    pipelineDesc.rasterizer.frontCCW = true;
-
-    m_blit_pipeline = context->CreatePipelineState(pipelineDesc);
-    if (const LLGL::Report* report = m_blit_pipeline->GetReport()) {
-        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-    }
-
-    {
-        LLGL::GraphicsPipelineDescriptor blendPipelineDesc = pipelineDesc;
-        blendPipelineDesc.blend = {
-            .targets = {
-                LLGL::BlendTargetDescriptor {
-                    .blendEnabled = true,
-                    .srcColor = LLGL::BlendOp::One,
-                    .dstColor = LLGL::BlendOp::InvSrcAlpha,
-                    .srcAlpha = LLGL::BlendOp::SrcAlpha,
-                    .dstAlpha = LLGL::BlendOp::DstAlpha,
-                    .alphaArithmetic = LLGL::BlendArithmetic::Add
-                }
-            }
-        };
-
-        m_blit_blend_pipeline = context->CreatePipelineState(blendPipelineDesc);
-        if (const LLGL::Report* report = m_blit_blend_pipeline->GetReport()) {
-            if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-        }
-    }
-
-    pipelineDesc.stencil = LLGL::StencilDescriptor {
-        .testEnabled = true,
-        .front = {
-            .compareOp = LLGL::CompareOp::Greater,
-            .readMask = ~0u,
-            .writeMask = 0u,
-            .reference = 0
-        },
-        .back = {}
-    };
-
-    m_blit_stencil_pipeline = context->CreatePipelineState(pipelineDesc);
-    if (const LLGL::Report* report = m_blit_stencil_pipeline->GetReport()) {
-        if (report->HasErrors()) LOG_ERROR("%s", report->GetText());
-    }
 }

@@ -1,8 +1,7 @@
-#include "batch.hpp"
+#include <SGE/renderer/batch.hpp>
+#include <SGE/utils.hpp>
 
 #include <tracy/Tracy.hpp>
-
-#include "../utils.hpp"
 
 using namespace sge::types;
 using namespace sge::utils;
@@ -160,7 +159,7 @@ void Batch::AddGlyphDrawCommand(const internal::DrawCommandGlyph& command) {
     ++m_glyph_count;
 }
 
-uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const color::LinearRgba& color, const color::LinearRgba& border_color, float border_thickness, float border_radius, bool blur, Anchor anchor, Order custom_order) {
+uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const color::LinearRgba& color, const color::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius, Anchor anchor, Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);
@@ -177,11 +176,10 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
         .offset = anchor.to_vec2(),
         .color = color,
         .border_color = border_color,
-        .border_thickness = border_thickness,
         .border_radius = border_radius,
+        .border_thickness = border_thickness,
         .shape = shape,
         .order = order,
-        .blur = blur
     };
 
     m_draw_commands.emplace_back(command, m_shape_count);
