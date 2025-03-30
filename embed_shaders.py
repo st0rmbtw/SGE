@@ -18,6 +18,8 @@ def main():
     
     renderer_dir = Path(cwd, "src/engine/renderer/")
     
+    if not renderer_dir.exists(): return
+    
     shaders_hpp_file = Path(renderer_dir, "shaders.hpp")
     
     shaders_dir = Path(renderer_dir, "shaders")
@@ -31,56 +33,60 @@ def main():
         "#define _SGE_RENDERER_SHADERS_HPP_\n\n"
     )
     
-    for item in d3d11_dir.iterdir():
-        if not item.is_file(): continue
-        
-        basename = item.stem.upper()
-        var_name = f"D3D11_{basename}"
-        shaders_hpp_content += write_constant(var_name, item)
-        
-    for item in metal_dir.iterdir():
-        if not item.is_file(): continue
-        
-        basename = item.stem.upper()
-        var_name = f"METAL_{basename}"
-        shaders_hpp_content += write_constant(var_name, item)
-        
-    for item in opengl_dir.iterdir():
-        if not item.is_file(): continue
-        
-        basename = item.stem.upper()
-        var_name = f"GL_{basename}"
-        
-        if item.suffix == ".vert":
-            var_name += "_VERT"
-        elif item.suffix == ".frag":
-            var_name += "_FRAG"
-        elif item.suffix == ".comp":
-            var_name += "_COMP"
-        
-        shaders_hpp_content += write_constant(var_name, item)
-        
-    for item in vulkan_dir.iterdir():
-        if not item.is_file(): continue
-        
-        basename = item.stem.upper()
-        var_name = f"VULKAN_{basename}"
-        
-        if item.suffix == ".vert":
-            var_name += "_VERT"
-        elif item.suffix == ".frag":
-            var_name += "_FRAG"
-        elif item.suffix == ".comp":
-            var_name += "_COMP"
+    if d3d11_dir.exists():
+        for item in d3d11_dir.iterdir():
+            if not item.is_file(): continue
             
-        fd, path = tempfile.mkstemp(suffix=".spv")
-        
-        subprocess.run(["glslang.exe", "--quiet", "-V", "--enhanced-msgs", "-o", path, str(item)])
-        
-        with os.fdopen(fd, "rb") as f:
-            content = ', '.join(str(signed_byte(x)) for x in list(f.read()))
-            size = len(content)
-            shaders_hpp_content += f"static const char {basename}[{size}] = {{{content}}};\n\n"
+            basename = item.stem.upper()
+            var_name = f"D3D11_{basename}"
+            shaders_hpp_content += write_constant(var_name, item)
+    
+    if metal_dir.exists():
+        for item in metal_dir.iterdir():
+            if not item.is_file(): continue
+            
+            basename = item.stem.upper()
+            var_name = f"METAL_{basename}"
+            shaders_hpp_content += write_constant(var_name, item)
+    
+    if opengl_dir.exists():
+        for item in opengl_dir.iterdir():
+            if not item.is_file(): continue
+            
+            basename = item.stem.upper()
+            var_name = f"GL_{basename}"
+            
+            if item.suffix == ".vert":
+                var_name += "_VERT"
+            elif item.suffix == ".frag":
+                var_name += "_FRAG"
+            elif item.suffix == ".comp":
+                var_name += "_COMP"
+            
+            shaders_hpp_content += write_constant(var_name, item)
+    
+    if vulkan_dir.exists():
+        for item in vulkan_dir.iterdir():
+            if not item.is_file(): continue
+            
+            basename = item.stem.upper()
+            var_name = f"VULKAN_{basename}"
+            
+            if item.suffix == ".vert":
+                var_name += "_VERT"
+            elif item.suffix == ".frag":
+                var_name += "_FRAG"
+            elif item.suffix == ".comp":
+                var_name += "_COMP"
+                
+            fd, path = tempfile.mkstemp(suffix=".spv")
+            
+            subprocess.run(["glslang.exe", "--quiet", "-V", "--enhanced-msgs", "-o", path, str(item)])
+            
+            with os.fdopen(fd, "rb") as f:
+                content = ', '.join(str(signed_byte(x)) for x in list(f.read()))
+                size = len(content)
+                shaders_hpp_content += f"static const char {basename}[{size}] = {{{content}}};\n\n"
             
     shaders_hpp_content += "#endif"
     
