@@ -5,7 +5,8 @@
 #include <cstdlib>
 #include <cstdint>
 
-#include "types/font.hpp"
+#include <SGE/types/rich_text.hpp>
+#include <SGE/types/font.hpp>
 
 #include "defines.hpp"
 #include "log.hpp"
@@ -42,6 +43,17 @@ inline bool FileExists(const char *path) {
 uint32_t next_utf8_codepoint(const char* text, size_t& index);
 
 glm::vec2 calculate_text_bounds(const sge::Font& font, size_t length, const char* text, float size);
+
+template <size_t Size>
+inline glm::vec2 calculate_text_bounds(const sge::Font& font, const sge::RichText<Size> text) {
+    glm::vec2 bounds = glm::vec2(0.0f);
+
+    for (const sge::RichTextSection& section : text.sections()) {
+        bounds = glm::max(bounds, calculate_text_bounds(font, section.text.size(), section.text.data(), section.size));
+    }
+
+    return bounds;
+}
 
 _SGE_END
 
