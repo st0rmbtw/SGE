@@ -9,8 +9,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 class Anchor {
 public:
     enum Value : uint8_t {
@@ -52,8 +50,6 @@ public:
 private:
     Value m_value = Value::Center;
 };
-
-}
 
 _SGE_END
 

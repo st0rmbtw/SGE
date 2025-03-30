@@ -18,9 +18,6 @@
 #include <SGE/utils.hpp>
 
 
-using namespace sge::types;
-using namespace sge::renderer;
-
 struct AssetTextureAtlas {
     uint32_t rows;
     uint32_t columns;
@@ -40,7 +37,7 @@ struct AssetTexture {
     std::string path;
     int sampler;
 
-    explicit AssetTexture(std::string path, int sampler = TextureSampler::Nearest) :
+    explicit AssetTexture(std::string path, int sampler = sge::TextureSampler::Nearest) :
         path(std::move(path)),
         sampler(sampler) {}
 };
@@ -59,20 +56,20 @@ static const std::pair<FontAsset, const char*> FONT_ASSETS[] = {
 };
 
 static struct AssetsState {
-    std::unordered_map<TextureAsset, Texture> textures;
-    std::unordered_map<TextureAsset, TextureAtlas> textures_atlases;
-    std::unordered_map<FontAsset, Font> fonts;
-    std::vector<Sampler> samplers;
+    std::unordered_map<TextureAsset, sge::Texture> textures;
+    std::unordered_map<TextureAsset, sge::TextureAtlas> textures_atlases;
+    std::unordered_map<FontAsset, sge::Font> fonts;
+    std::vector<sge::Sampler> samplers;
     uint32_t texture_index = 0;
 } state;
 
-static bool load_font(Renderer& renderer, FT_Library ft, const std::string& path, Font& font);
-static bool load_texture(Renderer& renderer, const char* path, int sampler, Texture* texture);
+static bool load_font(sge::Renderer& renderer, FT_Library ft, const std::string& path, sge::Font& font);
+static bool load_texture(sge::Renderer& renderer, const char* path, int sampler, sge::Texture* texture);
 
 template <size_t T>
-static Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps = false);
+static sge::Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps = false);
 
-static void InitSamplers(Renderer& renderer) {
+static void InitSamplers(sge::Renderer& renderer) {
     state.samplers.resize(4);
     {
         LLGL::SamplerDescriptor sampler_desc;
@@ -87,7 +84,7 @@ static void InitSamplers(Renderer& renderer) {
         sampler_desc.mipMapEnabled = false;
         sampler_desc.maxAnisotropy = 1;
 
-        state.samplers[TextureSampler::Linear] = renderer.CreateSampler(sampler_desc);
+        state.samplers[sge::TextureSampler::Linear] = renderer.CreateSampler(sampler_desc);
     }
     {
         LLGL::SamplerDescriptor sampler_desc;
@@ -102,7 +99,7 @@ static void InitSamplers(Renderer& renderer) {
         sampler_desc.mipMapEnabled = true;
         sampler_desc.maxAnisotropy = 1;
 
-        state.samplers[TextureSampler::LinearMips] = renderer.CreateSampler(sampler_desc);
+        state.samplers[sge::TextureSampler::LinearMips] = renderer.CreateSampler(sampler_desc);
     }
     {
         LLGL::SamplerDescriptor sampler_desc;
@@ -117,7 +114,7 @@ static void InitSamplers(Renderer& renderer) {
         sampler_desc.mipMapEnabled = false;
         sampler_desc.maxAnisotropy = 1;
 
-        state.samplers[TextureSampler::Nearest] = renderer.CreateSampler(sampler_desc);
+        state.samplers[sge::TextureSampler::Nearest] = renderer.CreateSampler(sampler_desc);
     }
     {
         LLGL::SamplerDescriptor sampler_desc;
@@ -132,18 +129,18 @@ static void InitSamplers(Renderer& renderer) {
         sampler_desc.mipMapEnabled = true;
         sampler_desc.maxAnisotropy = 1;
 
-        state.samplers[TextureSampler::NearestMips] = renderer.CreateSampler(sampler_desc);
+        state.samplers[sge::TextureSampler::NearestMips] = renderer.CreateSampler(sampler_desc);
     }
 }
 
-bool Assets::LoadTextures(Renderer& renderer) {
+bool Assets::LoadTextures(sge::Renderer& renderer) {
     InitSamplers(renderer);
 
     const uint8_t data[] = { 0xFF, 0xFF, 0xFF, 0xFF };
-    state.textures[TextureAsset::Stub] = renderer.CreateTexture(LLGL::TextureType::Texture2D, LLGL::ImageFormat::RGBA, 1, 1, 1, GetSampler(TextureSampler::Nearest), data);
+    state.textures[TextureAsset::Stub] = renderer.CreateTexture(LLGL::TextureType::Texture2D, LLGL::ImageFormat::RGBA, 1, 1, 1, GetSampler(sge::TextureSampler::Nearest), data);
 
     for (const auto& [key, asset] : TEXTURE_ASSETS) {
-        Texture texture;
+        sge::Texture texture;
         if (!load_texture(renderer, asset.path.c_str(), asset.sampler, &texture)) {
             return false;
         }
@@ -151,13 +148,13 @@ bool Assets::LoadTextures(Renderer& renderer) {
     }
 
     for (const auto& [key, asset] : TEXTURE_ATLAS_ASSETS) {
-        state.textures_atlases[key] = TextureAtlas::from_grid(Assets::GetTexture(key), asset.tile_size, asset.columns, asset.rows, asset.padding, asset.offset);
+        state.textures_atlases[key] = sge::TextureAtlas::from_grid(Assets::GetTexture(key), asset.tile_size, asset.columns, asset.rows, asset.padding, asset.offset);
     }
 
     return true;
 }
 
-bool Assets::LoadFonts(Renderer& renderer) {
+bool Assets::LoadFonts(sge::Renderer& renderer) {
     FT_Library ft;
     if (FT_Init_FreeType(&ft)) {
         SGE_LOG_ERROR("Couldn't init FreeType library.");
@@ -165,12 +162,12 @@ bool Assets::LoadFonts(Renderer& renderer) {
     }
 
     for (const auto& [key, path] : FONT_ASSETS) {
-        if (!sge::utils::FileExists(path)) {
+        if (!sge::FileExists(path)) {
             SGE_LOG_ERROR("Failed to find font '%s'",  path);
             return false;
         }
 
-        Font font;
+        sge::Font font;
         if (!load_font(renderer, ft, path, font)) return false;
 
         state.fonts[key] = font;
@@ -181,42 +178,42 @@ bool Assets::LoadFonts(Renderer& renderer) {
     return true;
 }
 
-void Assets::DestroyTextures(Renderer& renderer) {
+void Assets::DestroyTextures(sge::Renderer& renderer) {
     for (auto& entry : state.textures) {
         renderer.Context()->Release(entry.second);
     }
 }
 
-void Assets::DestroySamplers(Renderer& renderer) {
+void Assets::DestroySamplers(sge::Renderer& renderer) {
     for (auto& sampler : state.samplers) {
         renderer.Context()->Release(sampler);
     }
 }
 
-const Texture& Assets::GetTexture(TextureAsset key) {
+const sge::Texture& Assets::GetTexture(TextureAsset key) {
     const auto entry = std::as_const(state.textures).find(key);
     ASSERT(entry != state.textures.cend(), "Texture not found: %u", static_cast<uint32_t>(key));
     return entry->second;
 }
 
-const TextureAtlas& Assets::GetTextureAtlas(TextureAsset key) {
+const sge::TextureAtlas& Assets::GetTextureAtlas(TextureAsset key) {
     const auto entry = std::as_const(state.textures_atlases).find(key);
     ASSERT(entry != state.textures_atlases.cend(), "TextureAtlas not found: %u", static_cast<uint32_t>(key));
     return entry->second;
 }
 
-const Font& Assets::GetFont(FontAsset key) {
+const sge::Font& Assets::GetFont(FontAsset key) {
     const auto entry = std::as_const(state.fonts).find(key);
     ASSERT(entry != state.fonts.cend(), "Font not found: %u", static_cast<uint32_t>(key));
     return entry->second;
 }
 
-const Sampler& Assets::GetSampler(size_t index) {
+const sge::Sampler& Assets::GetSampler(size_t index) {
     ASSERT(index < state.samplers.size(), "Index is out of bounds: %zu", index);
     return state.samplers[index];
 }
 
-static bool load_texture(Renderer& renderer, const char* path, int sampler, Texture* texture) {
+static bool load_texture(sge::Renderer& renderer, const char* path, int sampler, sge::Texture* texture) {
     int width, height, components;
 
     uint8_t* data = stbi_load(path, &width, &height, &components, 4);
@@ -233,7 +230,7 @@ static bool load_texture(Renderer& renderer, const char* path, int sampler, Text
 }
 
 template <size_t T>
-static Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps) {
+static sge::Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps) {
     uint32_t width = 0;
     uint32_t height = 0;
     uint32_t layers_count = 0;
@@ -277,7 +274,7 @@ static Texture load_texture_array(const std::array<std::pair<uint32_t, const cha
     return create_texture_array(width, height, layers_count, 4, sampler, image_data, data_size, generate_mip_maps);
 }
 
-static bool load_font(Renderer& renderer, FT_Library ft, const std::string& path, Font& font) {
+static bool load_font(sge::Renderer& renderer, FT_Library ft, const std::string& path, sge::Font& font) {
     FT_Face face;
     if (FT_New_Face(ft, path.c_str(), 0, &face)) {
         SGE_LOG_ERROR("Failed to load font: %s", path.c_str());
@@ -319,7 +316,7 @@ static bool load_font(Renderer& renderer, FT_Library ft, const std::string& path
 
         const glm::ivec2 size = glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows);
         
-        Glyph glyph = {
+        sge::Glyph glyph = {
             .size = size,
             .tex_size = glm::vec2(size) / texture_size,
             .bearing = glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
@@ -332,7 +329,7 @@ static bool load_font(Renderer& renderer, FT_Library ft, const std::string& path
         col += face->glyph->bitmap.width + PADDING;
     }
 
-    font.texture = renderer.CreateTexture(LLGL::TextureType::Texture2D, LLGL::ImageFormat::R, texture_width, texture_height, 1, Assets::GetSampler(TextureSampler::Linear), texture_data);
+    font.texture = renderer.CreateTexture(LLGL::TextureType::Texture2D, LLGL::ImageFormat::R, texture_width, texture_height, 1, Assets::GetSampler(sge::TextureSampler::Linear), texture_data);
     font.font_size = FONT_SIZE;
 
     FT_Done_Face(face);

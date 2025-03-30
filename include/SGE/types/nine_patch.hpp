@@ -14,8 +14,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 class NinePatch {
 public:
     NinePatch() = default;
@@ -29,7 +27,7 @@ public:
     inline NinePatch& set_position(glm::vec2 position) { m_position = position; return *this; }
     inline NinePatch& set_rotation(glm::quat rotation) { m_rotation = rotation; return *this; }
     inline NinePatch& set_margin(glm::uvec4 margin) { m_margin = margin; return *this; }
-    inline NinePatch& set_color(color::LinearRgba color) { m_color = color; return *this; }
+    inline NinePatch& set_color(sge::LinearRgba color) { m_color = color; return *this; }
     inline NinePatch& set_scale(glm::vec2 scale) { m_scale = scale; return *this; }
     inline NinePatch& set_size(glm::vec2 size) { m_size = size; return *this; }
     inline NinePatch& set_flip_x(bool flip_x) { m_flip_x = flip_x; return *this; }
@@ -40,7 +38,7 @@ public:
     [[nodiscard]] inline glm::vec2 position() const { return m_position; }
     [[nodiscard]] inline glm::quat rotation() const { return m_rotation; }
     [[nodiscard]] inline glm::uvec4 margin() const { return m_margin; }
-    [[nodiscard]] inline color::LinearRgba color() const { return m_color; }
+    [[nodiscard]] inline sge::LinearRgba color() const { return m_color; }
     [[nodiscard]] inline glm::vec2 scale() const { return m_scale; }
     [[nodiscard]] inline bool flip_x() const { return m_flip_x; }
     [[nodiscard]] inline bool flip_y() const { return m_flip_y; }
@@ -48,15 +46,15 @@ public:
 
     [[nodiscard]] glm::vec2 size() const { return m_size * scale(); }
 
-    [[nodiscard]] inline math::Rect calculate_aabb() const {
-        return math::Rect::from_top_left(m_position - m_anchor.to_vec2() * size(), size());
+    [[nodiscard]] inline sge::Rect calculate_aabb() const {
+        return sge::Rect::from_top_left(m_position - m_anchor.to_vec2() * size(), size());
     }
 
 private:
     Texture m_texture;
     glm::quat m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     glm::uvec4 m_margin = glm::uvec4(0); // Left Right Top Bottom
-    color::LinearRgba m_color = color::LinearRgba::white();
+    sge::LinearRgba m_color = sge::LinearRgba::white();
     glm::vec2 m_position = glm::vec2(0.0f);
     glm::vec2 m_size = glm::vec2(1.0f);
     glm::vec2 m_scale = glm::vec2(1.0f);
@@ -64,8 +62,6 @@ private:
     bool m_flip_y = false;
     Anchor m_anchor = Anchor::Center;
 };
-
-}
 
 _SGE_END
 

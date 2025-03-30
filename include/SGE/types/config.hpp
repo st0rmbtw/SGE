@@ -7,14 +7,10 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 struct AppConfig {
     bool vsync = false;
     bool fullscreen = false;
 };
-
-}
 
 _SGE_END
 

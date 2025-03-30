@@ -3,12 +3,10 @@
 
 #include <tracy/Tracy.hpp>
 
-using namespace sge::types;
-using namespace sge::utils;
-using namespace sge::renderer::batch;
+using namespace sge;
 
 uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, Order custom_order) {
-    const math::Rect& rect = sprite.atlas().get_rect(sprite.index());
+    const sge::Rect& rect = sprite.atlas().get_rect(sprite.index());
 
     glm::vec4 uv_offset_scale = glm::vec4(
         rect.min.x / sprite.atlas().texture().width(),
@@ -159,7 +157,7 @@ void Batch::AddGlyphDrawCommand(const internal::DrawCommandGlyph& command) {
     ++m_glyph_count;
 }
 
-uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const color::LinearRgba& color, const color::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius, Anchor anchor, Order custom_order) {
+uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius, Anchor anchor, Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);

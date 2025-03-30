@@ -1,17 +1,15 @@
 #ifndef _SGE_INPUT_HPP_
 #define _SGE_INPUT_HPP_
 
-#include "defines.hpp"
 #pragma once
 
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <stdint.h>
 #include <vector>
+#include "defines.hpp"
 
 _SGE_BEGIN
-
-namespace input {
 
 enum class MouseButton : uint8_t {
     Left = GLFW_MOUSE_BUTTON_LEFT,
@@ -95,8 +93,6 @@ namespace Input {
     bool IsMouseOverUi();
 
     void Clear();
-}
-
 }
 
 _SGE_END

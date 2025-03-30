@@ -1,4 +1,5 @@
 #include "game.hpp"
+
 #include <SGE/engine.hpp>
 #include <SGE/renderer/renderer.hpp>
 #include <SGE/renderer/camera.hpp>
@@ -8,20 +9,15 @@
 #include <SGE/types/color.hpp>
 #include <SGE/types/window_settings.hpp>
 
-#include "assets.hpp"
+#include <glm/trigonometric.hpp>
 
+#include "assets.hpp"
 #include "constants.hpp"
-#include "glm/trigonometric.hpp"
 
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
 
 using namespace sge;
-using namespace sge::renderer;
-using namespace sge::renderer::batch;
-using namespace sge::input;
-using namespace sge::types;
-using namespace sge::time;
 
 static struct GameState {
     Batch batch;
@@ -53,7 +49,7 @@ void update() {
         const glm::vec2 scaledLength = length * zoom_factor;
         const glm::vec2 deltaLength = length - scaledLength;
 
-        const math::Rect area = g.camera.get_projection_area();
+        const Rect area = g.camera.get_projection_area();
         const glm::vec2 window_size = g.camera.viewport();
 
         const glm::vec2 new_position = g.camera.position() + deltaLength;
@@ -61,7 +57,7 @@ void update() {
     }
 
     if (Input::Pressed(MouseButton::Left)) {
-        const math::Rect area = g.camera.get_projection_area();
+        const Rect area = g.camera.get_projection_area();
         const glm::vec2 window_size = g.camera.viewport();
 
         const glm::vec2 new_position = g.camera.position() - Input::MouseDelta() * g.camera.zoom();
@@ -121,15 +117,15 @@ void render() {
             Clay_RectangleRenderData *config = &drawCommand->renderData.rectangle;
             const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y);
             const glm::vec2 size = glm::vec2(boundingBox.width, boundingBox.height);
-            const color::LinearRgba color = color::LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
+            const LinearRgba color = LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
             const glm::vec4 cornerRadius = glm::vec4(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
-            g.batch.DrawRect(position, size, color, color::LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+            g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
         } break;
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
             Clay_BorderRenderData *config = &drawCommand->renderData.border;
             
-            const color::LinearRgba color = color::LinearRgba(config->color.r / 255.0f, config->color.g / 255.0f, config->color.b / 255.0f, config->color.a / 255.0f);
+            const LinearRgba color = LinearRgba(config->color.r / 255.0f, config->color.g / 255.0f, config->color.b / 255.0f, config->color.a / 255.0f);
 
             const glm::vec4 cornerRadius = glm::vec4(0.0f);
 
@@ -138,21 +134,21 @@ void render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y + config->cornerRadius.topLeft);
                 const glm::vec2 size = glm::vec2(config->width.left, boundingBox.height - config->cornerRadius.topLeft - config->cornerRadius.bottomLeft);
 
-                g.batch.DrawRect(position, size, color, color::LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
             }
             // Right border
             if (config->width.right > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->width.right, boundingBox.y + config->cornerRadius.topRight);
                 const glm::vec2 size = glm::vec2(config->width.right, boundingBox.height - config->cornerRadius.topRight - config->cornerRadius.bottomRight);
 
-                g.batch.DrawRect(position, size, color, color::LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
             }
             // Top border
             if (config->width.top > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.topLeft - config->cornerRadius.topRight, config->width.top);
 
-                g.batch.DrawRect(position, size, color, color::LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
             }
 
             // Bottom border
@@ -160,7 +156,7 @@ void render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->width.bottom);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.bottomLeft - config->cornerRadius.bottomRight, config->width.bottom);
 
-                g.batch.DrawRect(position, size, color, color::LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
             }
 
             if (config->cornerRadius.topLeft > 0) {

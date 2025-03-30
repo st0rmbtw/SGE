@@ -9,8 +9,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 class RenderBackend {
 public:
     enum Value : uint8_t {
@@ -73,8 +71,6 @@ public:
 private:
     Value m_value = Value::Vulkan;
 };
-
-}
 
 _SGE_END
 

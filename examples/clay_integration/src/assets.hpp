@@ -32,17 +32,17 @@ enum class VertexFormatAsset : uint8_t {
 constexpr uint32_t PARTICLES_ATLAS_COLUMNS = 100;
 
 namespace Assets {
-    bool LoadTextures(sge::renderer::Renderer& renderer);
-    bool LoadFonts(sge::renderer::Renderer& renderer);
+    bool LoadTextures(sge::Renderer& renderer);
+    bool LoadFonts(sge::Renderer& renderer);
 
-    void DestroyTextures(sge::renderer::Renderer& renderer);
-    void DestroySamplers(sge::renderer::Renderer& renderer);
+    void DestroyTextures(sge::Renderer& renderer);
+    void DestroySamplers(sge::Renderer& renderer);
     void DestroyFonts();
 
-    const sge::types::Texture& GetTexture(TextureAsset key);
-    const sge::types::TextureAtlas& GetTextureAtlas(TextureAsset key);
-    const sge::types::Font& GetFont(FontAsset key);
-    const sge::types::Sampler& GetSampler(size_t index);
+    const sge::Texture& GetTexture(TextureAsset key);
+    const sge::TextureAtlas& GetTextureAtlas(TextureAsset key);
+    const sge::Font& GetFont(FontAsset key);
+    const sge::Sampler& GetSampler(size_t index);
 };
 
 #endif

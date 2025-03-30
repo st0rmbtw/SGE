@@ -22,14 +22,12 @@
 
 _SGE_BEGIN
 
-namespace renderer {
-
 struct SpriteBatchData {
     LLGL::PipelineState* pipeline = nullptr;
     LLGL::PipelineState* pipeline_depth = nullptr;
 
-    SpriteInstance* buffer = nullptr;
-    SpriteInstance* buffer_ptr = nullptr;
+    sge::SpriteInstance* buffer = nullptr;
+    sge::SpriteInstance* buffer_ptr = nullptr;
 
     LLGL::Buffer* vertex_buffer = nullptr;
     LLGL::Buffer* instance_buffer = nullptr;
@@ -39,8 +37,8 @@ struct SpriteBatchData {
 struct GlyphBatchData {
     LLGL::PipelineState* pipeline = nullptr;
 
-    GlyphInstance* buffer = nullptr;
-    GlyphInstance* buffer_ptr = nullptr;
+    sge::GlyphInstance* buffer = nullptr;
+    sge::GlyphInstance* buffer_ptr = nullptr;
 
     LLGL::Buffer* vertex_buffer = nullptr;
     LLGL::Buffer* instance_buffer = nullptr;
@@ -50,8 +48,8 @@ struct GlyphBatchData {
 struct NinePatchBatchData {
     LLGL::PipelineState* pipeline = nullptr;
 
-    NinePatchInstance* buffer = nullptr;
-    NinePatchInstance* buffer_ptr = nullptr;
+    sge::NinePatchInstance* buffer = nullptr;
+    sge::NinePatchInstance* buffer_ptr = nullptr;
 
     LLGL::Buffer* vertex_buffer = nullptr;
     LLGL::Buffer* instance_buffer = nullptr;
@@ -61,8 +59,8 @@ struct NinePatchBatchData {
 struct ShapeBatchData {
     LLGL::PipelineState* pipeline = nullptr;
 
-    ShapeInstance* buffer = nullptr;
-    ShapeInstance* buffer_ptr = nullptr;
+    sge::ShapeInstance* buffer = nullptr;
+    sge::ShapeInstance* buffer_ptr = nullptr;
 
     LLGL::Buffer* vertex_buffer = nullptr;
     LLGL::Buffer* instance_buffer = nullptr;
@@ -96,30 +94,30 @@ inline constexpr const char* DEFAULT_CACHE_DIR = "./cache/pipeline/";
 
 class Renderer {
 public:
-    bool InitEngine(types::RenderBackend backend, bool cache_pipelines = true, const std::string& cache_dir_path = DEFAULT_CACHE_DIR);
+    bool InitEngine(sge::RenderBackend backend, bool cache_pipelines = true, const std::string& cache_dir_path = DEFAULT_CACHE_DIR);
     bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool vsync, bool fullscreen);
 
-    void Begin(const Camera& camera);
+    void Begin(const sge::Camera& camera);
     void BeginMainPass(const LLGL::ClearValue& clear_color, long flags = LLGL::ClearFlags::Color);
     void EndMainPass();
     void End();
 
-    void PrepareBatch(batch::Batch& batch);
+    void PrepareBatch(sge::Batch& batch);
     void UploadBatchData();
-    void RenderBatch(batch::Batch& batch);
+    void RenderBatch(sge::Batch& batch);
 
-    types::Sampler CreateSampler(const LLGL::SamplerDescriptor& descriptor);
+    sge::Sampler CreateSampler(const LLGL::SamplerDescriptor& descriptor);
 
-    types::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const types::Sampler& sampler, const void* data, bool generate_mip_maps = false);
+    sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const sge::Sampler& sampler, const void* data, bool generate_mip_maps = false);
 
-    types::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const types::Sampler& sampler, const uint8_t* data, bool generate_mip_maps = false) {
+    sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const sge::Sampler& sampler, const uint8_t* data, bool generate_mip_maps = false) {
         return CreateTexture(type, image_format, LLGL::DataType::UInt8, width, height, layers, sampler, data, generate_mip_maps);
     }
-    types::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const types::Sampler& sampler, const int8_t* data, bool generate_mip_maps = false) {
+    sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const sge::Sampler& sampler, const int8_t* data, bool generate_mip_maps = false) {
         return CreateTexture(type, image_format, LLGL::DataType::Int8, width, height, layers, sampler, data, generate_mip_maps);
     }
 
-    LLGL::Shader* LoadShader(const types::ShaderPath& shader_path, const std::vector<types::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
+    LLGL::Shader* LoadShader(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
 
     void ResizeBuffers(LLGL::Extent2D size);
 
@@ -172,7 +170,7 @@ public:
     [[nodiscard]] inline LLGL::CommandQueue* CommandQueue() const { return m_command_queue; };
     [[nodiscard]] inline const std::shared_ptr<CustomSurface>& Surface() const { return m_surface; };
     [[nodiscard]] inline LLGL::Buffer* GlobalUniformBuffer() const { return m_constant_buffer; };
-    [[nodiscard]] inline types::RenderBackend Backend() const { return m_backend; };
+    [[nodiscard]] inline sge::RenderBackend Backend() const { return m_backend; };
 
 #if SGE_DEBUG
     [[nodiscard]] inline LLGL::RenderingDebugger* Debugger() const { return m_debugger; }
@@ -187,9 +185,9 @@ private:
     LLGL::PipelineCache* ReadPipelineCache(const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::string& name, LLGL::PipelineCache* pipelineCache);
 
-    void SortBatchDrawCommands(batch::Batch& batch);
-    void UpdateBatchBuffers(batch::Batch& batch, size_t begin = 0);
-    void ApplyBatchDrawCommands(batch::Batch& batch);
+    void SortBatchDrawCommands(sge::Batch& batch);
+    void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
+    void ApplyBatchDrawCommands(sge::Batch& batch);
 
     inline void UpdateBuffer(LLGL::Buffer* buffer, void* data, size_t length, size_t offset = 0) {
         const char* src = static_cast<char*>(data);
@@ -237,12 +235,10 @@ private:
     size_t m_ninepatch_instance_count = 0;
     size_t m_shape_instance_count = 0;
 
-    types::RenderBackend m_backend;
+    sge::RenderBackend m_backend;
 
     bool m_cache_pipelines = true;
 };
-
-}
 
 _SGE_END
 

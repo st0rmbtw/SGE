@@ -4,28 +4,28 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
-using namespace sge::renderer;
+using namespace sge;
 
 void Camera::update_projection_area() {
     switch (m_origin) {
 
     case CameraOrigin::TopLeft:
-        m_area = math::Rect::from_corners(
+        m_area = sge::Rect::from_corners(
             glm::vec2(0.0f),
             glm::vec2(m_viewport) * m_zoom
         );
-        m_area_nozoom = math::Rect::from_corners(
+        m_area_nozoom = sge::Rect::from_corners(
             glm::vec2(0.0f),
             glm::vec2(m_viewport)
         );
     break;
 
     case CameraOrigin::Center:
-        m_area = math::Rect::from_corners(
+        m_area = sge::Rect::from_corners(
             -glm::vec2(m_viewport) / 2.0f * m_zoom,
             glm::vec2(m_viewport) / 2.0f * m_zoom
         );
-        m_area_nozoom = math::Rect::from_corners(
+        m_area_nozoom = sge::Rect::from_corners(
             -glm::vec2(m_viewport) / 2.0f,
             glm::vec2(m_viewport) / 2.0f
         );
@@ -34,8 +34,8 @@ void Camera::update_projection_area() {
 }
 
 void Camera::compute_projection_and_view_matrix() {
-    const math::Rect& projection_area = get_projection_area();
-    const math::Rect& nozoom_projection_area = get_nozoom_projection_area();
+    const sge::Rect& projection_area = get_projection_area();
+    const sge::Rect& nozoom_projection_area = get_nozoom_projection_area();
 
     if (sge::Engine::Renderer().Backend().IsOpenGL()) {
         m_projection_matrix = glm::orthoRH_NO(

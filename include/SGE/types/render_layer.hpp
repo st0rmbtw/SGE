@@ -9,14 +9,10 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 enum class RenderLayer : uint8_t {
     Main = 0,
     World = 1
 };
-
-}
 
 _SGE_END
 

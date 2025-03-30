@@ -9,8 +9,6 @@
 
 _SGE_BEGIN
 
-namespace math {
-
 template <class T> 
 struct rect {
 private:
@@ -186,8 +184,6 @@ public:
 using Rect = rect<glm::float32>;
 using URect = rect<glm::uint32>;
 using IRect = rect<glm::int32>;
-
-}
 
 _SGE_END
 

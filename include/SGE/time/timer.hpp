@@ -13,8 +13,6 @@
 
 _SGE_BEGIN
 
-namespace time {
-
 enum class TimerMode : uint8_t {
     Once = 0,
     Repeating = 1
@@ -90,8 +88,6 @@ private:
     TimerMode m_mode;
     bool m_finished;
 };
-
-}
 
 _SGE_END
 

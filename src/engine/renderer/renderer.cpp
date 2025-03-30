@@ -29,11 +29,8 @@
 #include "LLGL/PipelineCache.h"
 #include "shaders.hpp"
 
-using namespace sge::types;
-using namespace sge::renderer;
-using namespace sge::utils;
-
-using namespace batch::internal;
+using namespace sge;
+using namespace sge::internal;
 
 namespace fs = std::filesystem;
 
@@ -921,10 +918,10 @@ void Renderer::End() {
     m_swap_chain->Present();
 }
 
-void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
+void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
     ZoneScopedN("Renderer::ApplyBatchDrawCommands");
 
-    batch::Batch::FlushQueue& flush_queue = batch.flush_queue();
+    sge::Batch::FlushQueue& flush_queue = batch.flush_queue();
 
     auto* const commands = m_command_buffer;
 
@@ -985,10 +982,10 @@ void Renderer::ApplyBatchDrawCommands(batch::Batch& batch) {
     flush_queue.clear();
 }
 
-void Renderer::SortBatchDrawCommands(batch::Batch& batch) {
+void Renderer::SortBatchDrawCommands(sge::Batch& batch) {
     ZoneScopedN("Renderer::SortBatchDrawCommands");
 
-    batch::Batch::DrawCommands& draw_commands = batch.draw_commands();
+    sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
     std::sort(
         draw_commands.begin(),
@@ -1013,16 +1010,16 @@ void Renderer::SortBatchDrawCommands(batch::Batch& batch) {
 }
 
 void Renderer::UpdateBatchBuffers(
-    batch::Batch& batch,
+    sge::Batch& batch,
     size_t begin
 ) {
     ZoneScopedN("Renderer::UpdateBatchBuffers");
 
-    const batch::Batch::DrawCommands& draw_commands = batch.draw_commands();
+    const sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
     if (draw_commands.empty()) return;
 
-    batch::Batch::FlushQueue& flush_queue = batch.flush_queue();
+    sge::Batch::FlushQueue& flush_queue = batch.flush_queue();
 
     Texture sprite_prev_texture;
     uint32_t sprite_count = 0;
@@ -1340,7 +1337,7 @@ void Renderer::UpdateBatchBuffers(
 }
 
 
-void Renderer::PrepareBatch(batch::Batch& batch) {
+void Renderer::PrepareBatch(sge::Batch& batch) {
     if (batch.draw_commands().empty()) return;
 
     batch.set_sprite_offset(m_sprite_instance_count);
@@ -1370,10 +1367,10 @@ void Renderer::UploadBatchData() {
     }
 }
 
-void Renderer::RenderBatch(batch::Batch& batch) {
+void Renderer::RenderBatch(sge::Batch& batch) {
     ZoneScopedN("Renderer::RenderBatch");
 
-    const batch::Batch::DrawCommands& draw_commands = batch.draw_commands();
+    const sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
     if (draw_commands.empty()) return;
 
@@ -1438,23 +1435,6 @@ Texture Renderer::CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_
     uint32_t id = m_texture_index++;
 
     return Texture(id, sampler, glm::uvec2(width, height), m_context->CreateTexture(texture_desc, &image_view));
-}
-
-static bool FileExists(const char *path) {
-#if SGE_PLATFORM_WINDOWS
-    FILE *file = NULL;
-    fopen_s(&file, path, "r");
-#else
-    FILE *file = fopen(path, "r");
-#endif
-
-    const bool exists = file != nullptr;
-
-    if (exists) {
-        fclose(file);
-    }
-
-    return exists;
 }
 
 LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {

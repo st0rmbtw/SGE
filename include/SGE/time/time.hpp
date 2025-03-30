@@ -9,8 +9,6 @@
 
 _SGE_BEGIN
 
-namespace time {
-
 using delta_time_t = std::chrono::duration<float>;
 
 namespace Time {
@@ -32,8 +30,6 @@ namespace Time {
     void AdvanceBy(const delta_time_t& delta);
     void AdvanceFixed();
 };
-
-}
 
 _SGE_END
 

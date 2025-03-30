@@ -1,6 +1,6 @@
 #include <SGE/time/time.hpp>
 
-using namespace sge::time;
+using namespace sge;
 
 static struct TimeState {
     delta_time_t delta;

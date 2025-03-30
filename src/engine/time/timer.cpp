@@ -1,7 +1,7 @@
 #include <SGE/time/timer.hpp>
 #include <SGE/time/stopwatch.hpp>
 
-using namespace sge::time;
+using namespace sge;
 
 void Timer::tick_impl(const duration_t& delta) {
     if (paused()) {

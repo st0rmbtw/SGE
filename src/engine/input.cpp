@@ -3,8 +3,6 @@
 
 _SGE_BEGIN
 
-using namespace input;
-
 static struct InputState {
     std::unordered_set<Key> keyboard_pressed;
     std::unordered_set<Key> keyboard_just_pressed;

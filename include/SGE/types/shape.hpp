@@ -9,8 +9,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 namespace Shape {
     using Type = uint8_t;
 
@@ -19,8 +17,6 @@ namespace Shape {
         Circle,
         Arc
     };
-}
-
 }
 
 _SGE_END

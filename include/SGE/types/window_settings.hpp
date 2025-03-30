@@ -7,16 +7,12 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 struct WindowSettings {
     uint32_t width = 1280;
     uint32_t height = 720;
     bool fullscreen = false;
     bool hidden = false;
 };
-
-}
 
 _SGE_END
 

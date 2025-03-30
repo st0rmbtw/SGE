@@ -10,11 +10,9 @@
 
 _SGE_BEGIN
 
-namespace renderer {
-
-#if defined(SGE_PLATFORM_WINDOWS)
+#if SGE_PLATFORM_WINDOWS
     #define GLFW_EXPOSE_NATIVE_WIN32
-#elif defined(SGE_PLATFORM_MACOS)
+#elif SGE_PLATFORM_MACOS
     #define GLFW_EXPOSE_NATIVE_COCOA
 #else
     #if defined(WAYLAND)
@@ -41,8 +39,6 @@ private:
     LLGL::Extent2D m_size;
     GLFWwindow* m_wnd = nullptr;
 };
-
-}
 
 _SGE_END
 

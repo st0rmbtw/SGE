@@ -10,8 +10,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 struct ShaderPipeline {
     LLGL::Shader* vs = nullptr; // Vertex shader
     LLGL::Shader* hs = nullptr; // Hull shader (aka. tessellation control shader)
@@ -29,8 +27,6 @@ struct ShaderPipeline {
         if (cs != nullptr) context->Release(*cs);
     }
 };
-
-}
 
 _SGE_END
 

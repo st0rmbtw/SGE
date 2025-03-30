@@ -14,16 +14,14 @@
 
 _SGE_BEGIN
 
-namespace color {
-
 struct LinearRgba;
 struct Hsla;
 struct Srgba;
 
 namespace detail {
     inline float lerp_hue(float a, float b, float t) {
-        float diff = math::rem_euclid(b - a + 180.0f, 360.0f) - 180.0f;
-        return math::rem_euclid(a + diff * t, 360.0f);
+        float diff = sge::rem_euclid(b - a + 180.0f, 360.0f) - 180.0f;
+        return sge::rem_euclid(a + diff * t, 360.0f);
     }
 
     inline LinearRgba hsla_to_linear_rgba(const Hsla& hlsa);
@@ -394,8 +392,6 @@ inline Srgba detail::linear_rgba_to_srgba(const LinearRgba& rgba) {
         Srgba::correct_gamma_inverse(rgba.green),
         rgba.alpha
     );
-}
-
 }
 
 _SGE_END

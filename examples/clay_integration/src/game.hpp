@@ -7,7 +7,7 @@
 #include <SGE/types/config.hpp>
 
 namespace Game {
-    bool Init(sge::types::RenderBackend backend, sge::types::AppConfig config);
+    bool Init(sge::RenderBackend backend, sge::AppConfig config);
     void Run();
     void Destroy();
 };

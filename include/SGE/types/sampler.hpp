@@ -8,8 +8,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 class Sampler {
 public:
     Sampler() = default;
@@ -27,8 +25,6 @@ private:
     LLGL::Sampler* m_internal = nullptr;
     LLGL::SamplerDescriptor m_descriptor;
 };
-
-}
 
 _SGE_END
 

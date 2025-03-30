@@ -10,16 +10,12 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 struct Font {
     std::unordered_map<uint32_t, Glyph> glyphs;
     Texture texture;
     float font_size;
     int16_t ascender;
 };
-
-}
 
 _SGE_END
 

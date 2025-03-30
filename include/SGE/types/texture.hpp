@@ -13,8 +13,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 namespace TextureSampler {
     enum : uint8_t {
         Linear = 0,
@@ -52,8 +50,6 @@ private:
     LLGL::Texture* m_internal = nullptr;
     int m_id = -1;
 };
-
-}
 
 _SGE_END
 

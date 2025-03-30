@@ -12,8 +12,6 @@
 
 _SGE_BEGIN
 
-namespace utils {
-
 template <typename T> 
 T* checked_alloc(size_t count) {
     T* _ptr = (T*) malloc(count * sizeof(T));
@@ -24,11 +22,26 @@ T* checked_alloc(size_t count) {
     return _ptr;
 }
 
+inline bool FileExists(const char *path) {
+#if SGE_PLATFORM_WINDOWS
+    FILE *file = NULL;
+    fopen_s(&file, path, "r");
+#else
+    FILE *file = fopen(path, "r");
+#endif
+
+    const bool exists = file != nullptr;
+
+    if (exists) {
+        fclose(file);
+    }
+
+    return exists;
+}
+
 uint32_t next_utf8_codepoint(const char* text, size_t& index);
 
-glm::vec2 calculate_text_bounds(const types::Font& font, size_t length, const char* text, float size);
-
-}
+glm::vec2 calculate_text_bounds(const sge::Font& font, size_t length, const char* text, float size);
 
 _SGE_END
 

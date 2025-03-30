@@ -23,7 +23,7 @@ namespace Engine {
     using LoadAssetsCallback = bool (*)(void);
     using WindowResizeCallback = void (*)(uint32_t width, uint32_t height, uint32_t scaled_width, uint32_t scaled_height);
 
-    bool Init(types::RenderBackend backend, bool vsync, types::WindowSettings settings, LLGL::Extent2D& viewport);
+    bool Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings settings, LLGL::Extent2D& viewport);
     void SetPreUpdateCallback(PreUpdateCallback);
     void SetUpdateCallback(UpdateCallback);
     void SetPostUpdateCallback(PostUpdateCallback);
@@ -45,7 +45,7 @@ namespace Engine {
     void Run();
     void Destroy();
 
-    renderer::Renderer& Renderer();
+    sge::Renderer& Renderer();
 };
 
 _SGE_END

@@ -6,11 +6,11 @@
 using namespace sge;
 
 inline void print_render_backends() {
-    #if defined(SGE_PLATFORM_WINDOWS)
+    #if SGE_PLATFORM_WINDOWS
         printf("Available render backends: d3d11, d3d12, opengl, vulkan.\n");
-    #elif defined(SGE_PLATFORM_MACOS)
+    #elif SGE_PLATFORM_MACOS
         printf("Available render backends: metal, opengl, vulkan.\n");
-    #elif defined(SGE_PLATFORM_LINUX)
+    #elif SGE_PLATFORM_LINUX
         printf("Available render backends: opengl, vulkan.\n");
     #endif
 }
@@ -18,14 +18,14 @@ inline void print_render_backends() {
 #define str_eq(a, b) strcmp(a, b) == 0
 
 int main(int argc, char** argv) {
-#if defined(SGE_PLATFORM_WINDOWS)
-    types::RenderBackend backend = types::RenderBackend::D3D11;
-#elif defined(SGE_PLATFORM_MACOS)
-    types::RenderBackend backend = types::RenderBackend::Metal;
+#if SGE_PLATFORM_WINDOWS
+    sge::RenderBackend backend = sge::RenderBackend::D3D11;
+#elif SGE_PLATFORM_MACOS
+    sge::RenderBackend backend = sge::RenderBackend::Metal;
 #else
-    types::RenderBackend backend = types::RenderBackend::OpenGL;
+    sge::RenderBackend backend = sge::RenderBackend::OpenGL;
 #endif
-    types::AppConfig config;
+    sge::AppConfig config;
 
     for (int i = 1; i < argc; i++) {
         if (str_eq(argv[i], "--pause")) {
@@ -41,27 +41,27 @@ int main(int argc, char** argv) {
             const char* arg = argv[i + 1];
 
             if (str_eq(arg, "vulkan")) {
-                backend = types::RenderBackend::Vulkan;
+                backend = sge::RenderBackend::Vulkan;
             } else
 
             #ifdef SGE_PLATFORM_WINDOWS
             if (str_eq(arg, "d3d12")) {
-                backend = types::RenderBackend::D3D12;
+                backend = sge::RenderBackend::D3D12;
             } else
             
             if (str_eq(arg, "d3d11")) {
-                backend = types::RenderBackend::D3D11;
+                backend = sge::RenderBackend::D3D11;
             } else
             #endif
 
             #ifdef SGE_PLATFORM_MACOS
             if (str_eq(arg, "metal")) {
-                backend = types::RenderBackend::Metal;
+                backend = sge::RenderBackend::Metal;
             } else
             #endif
 
             if (str_eq(arg, "opengl")) {
-                backend = types::RenderBackend::OpenGL;
+                backend = sge::RenderBackend::OpenGL;
             } else {
                 printf("Unknown render backend: \"%s\". ", arg);
                 print_render_backends();

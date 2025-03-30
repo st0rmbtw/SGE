@@ -18,8 +18,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 class BaseSprite {
 protected:
     BaseSprite() = default;
@@ -31,7 +29,7 @@ protected:
         m_position(position),
         m_scale(scale) {}
 
-    BaseSprite(glm::vec2 position, glm::vec2 scale, color::LinearRgba color, Anchor anchor) : 
+    BaseSprite(glm::vec2 position, glm::vec2 scale, sge::LinearRgba color, Anchor anchor) : 
         m_position(position),
         m_scale(scale),
         m_color(color),
@@ -42,8 +40,8 @@ public:
     [[nodiscard]] inline const glm::vec2& position() const { return m_position; }
     [[nodiscard]] inline const glm::quat& rotation() const { return m_rotation; }
     [[nodiscard]] inline const glm::vec2& scale() const { return m_scale; }
-    [[nodiscard]] inline const color::LinearRgba& color() const { return m_color; }
-    [[nodiscard]] inline const color::LinearRgba& outline_color() const { return m_outline_color; }
+    [[nodiscard]] inline const sge::LinearRgba& color() const { return m_color; }
+    [[nodiscard]] inline const sge::LinearRgba& outline_color() const { return m_outline_color; }
     [[nodiscard]] inline float outline_thickness() const { return m_outline_thickness; }
     [[nodiscard]] inline float z() const { return m_z; }
 
@@ -54,8 +52,8 @@ public:
 
     [[nodiscard]] virtual inline glm::vec2 size() const = 0;
 
-    [[nodiscard]] inline math::Rect calculate_aabb() const {
-        return math::Rect::from_top_left(m_position - m_anchor.to_vec2() * size(), size());
+    [[nodiscard]] inline sge::Rect calculate_aabb() const {
+        return sge::Rect::from_top_left(m_position - m_anchor.to_vec2() * size(), size());
     }
 
     inline BaseSprite& set_position(const glm::vec2& position) { m_position = position; return *this; }
@@ -63,8 +61,8 @@ public:
     inline BaseSprite& set_scale(const glm::vec2& scale) { m_scale = scale; return *this; }
     inline BaseSprite& set_scale(const float scale) { m_scale = glm::vec2(scale); return *this; }
     inline BaseSprite& set_custom_size(const std::optional<glm::vec2> size) { m_custom_size = size; return *this; }
-    inline BaseSprite& set_color(const color::LinearRgba& color) { m_color = color; return *this; }
-    inline BaseSprite& set_outline_color(const color::LinearRgba& color) { m_outline_color = color; return *this; }
+    inline BaseSprite& set_color(const sge::LinearRgba& color) { m_color = color; return *this; }
+    inline BaseSprite& set_outline_color(const sge::LinearRgba& color) { m_outline_color = color; return *this; }
     inline BaseSprite& set_outline_thickness(const float thickness) { m_outline_thickness = thickness; return *this; }
     inline BaseSprite& set_anchor(Anchor anchor) { m_anchor = anchor; return *this; }
     inline BaseSprite& set_flip_x(bool flip_x) { m_flip_x = flip_x; return *this; }
@@ -76,8 +74,8 @@ protected:
     glm::quat m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     glm::vec2 m_position = glm::vec2(0.0f);
     glm::vec2 m_scale = glm::vec2(1.0f);
-    color::LinearRgba m_color = color::LinearRgba(1.0f);
-    color::LinearRgba m_outline_color = color::LinearRgba(0.0f);
+    sge::LinearRgba m_color = sge::LinearRgba(1.0f);
+    sge::LinearRgba m_outline_color = sge::LinearRgba(0.0f);
     std::optional<glm::vec2> m_custom_size = std::nullopt;
     float m_outline_thickness = 0.0f;
     float m_z = 0.0f;
@@ -132,8 +130,6 @@ private:
     TextureAtlas m_texture_atlas;
     uint32_t m_index = 0;
 };
-
-}
 
 _SGE_END
 

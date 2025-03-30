@@ -8,8 +8,6 @@
 
 _SGE_BEGIN
 
-namespace renderer {
-
 struct Vertex {
     float x;
     float y;
@@ -62,8 +60,6 @@ struct ShapeInstance {
     uint8_t shape;
     uint8_t flags;
 };
-
-}
 
 _SGE_END
 

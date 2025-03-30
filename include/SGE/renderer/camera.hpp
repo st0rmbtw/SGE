@@ -11,8 +11,6 @@
 
 _SGE_BEGIN
 
-namespace renderer {
-
 enum class CameraOrigin : uint8_t {
     TopLeft = 0,
     Center = 1
@@ -96,10 +94,10 @@ public:
     inline auto get_transform_matrix() const -> const glm::mat4x4& { return m_transform_matrix; }
 
     [[nodiscard]]
-    inline auto get_projection_area() const -> const math::Rect& { return m_area; }
+    inline auto get_projection_area() const -> const sge::Rect& { return m_area; }
 
     [[nodiscard]]
-    inline auto get_nozoom_projection_area() const -> const math::Rect& { return m_area_nozoom; }
+    inline auto get_nozoom_projection_area() const -> const sge::Rect& { return m_area_nozoom; }
 
     [[nodiscard]]
     inline float zoom() const { return m_zoom; }
@@ -119,8 +117,8 @@ private:
     glm::mat4x4 m_view_proj_matrix;
     glm::mat4x4 m_nozoom_view_proj_matrix;
 
-    math::Rect m_area;
-    math::Rect m_area_nozoom;
+    sge::Rect m_area;
+    sge::Rect m_area_nozoom;
 
     glm::uvec2 m_viewport;
     glm::vec2 m_position;
@@ -129,8 +127,6 @@ private:
 
     CameraOrigin m_origin;
 };
-
-}
 
 _SGE_END
 

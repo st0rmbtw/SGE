@@ -9,8 +9,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 struct Glyph {
     glm::ivec2 size;
     glm::vec2 tex_size;
@@ -18,8 +16,6 @@ struct Glyph {
     signed long advance;
     glm::vec2 texture_coords;
 };
-
-}
 
 _SGE_END
 

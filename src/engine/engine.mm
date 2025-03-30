@@ -12,9 +12,6 @@
 #include "defines.hpp"
 
 using namespace sge;
-using namespace sge::renderer;
-using namespace sge::input;
-using namespace sge::time;
 
 static struct EngineState {
     Renderer renderer;
@@ -150,7 +147,7 @@ void Engine::HideCursor() {
     glfwSetInputMode(state.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 }
 
-bool Engine::Init(types::RenderBackend backend, bool vsync, types::WindowSettings settings, LLGL::Extent2D& output_viewport) {
+bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings settings, LLGL::Extent2D& output_viewport) {
     ZoneScopedN("Engine::Init");
 
     if (state.pre_update_callback == nullptr) state.pre_update_callback = default_callback;
@@ -259,7 +256,7 @@ void Engine::Destroy() {
     glfwTerminate();
 }
 
-renderer::Renderer& Engine::Renderer() { return state.renderer; }
+sge::Renderer& Engine::Renderer() { return state.renderer; }
 
 static void handle_keyboard_events(GLFWwindow*, int key, int, int action, int) {
     if (action == GLFW_PRESS) {

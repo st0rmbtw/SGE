@@ -13,8 +13,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 class ShaderType {
 public:
     enum Value : uint8_t {
@@ -113,8 +111,6 @@ public:
 private:
     Value m_value = Value::Vertex;
 };
-
-}
 
 _SGE_END
 

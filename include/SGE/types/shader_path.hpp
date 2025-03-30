@@ -7,8 +7,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 struct ShaderPath {
     ShaderPath(ShaderType shader_type, std::string name, std::string func_name = {}) :
         shader_type(shader_type),
@@ -19,8 +17,6 @@ struct ShaderPath {
     std::string name;
     std::string func_name;
 };
-
-}
 
 _SGE_END
 

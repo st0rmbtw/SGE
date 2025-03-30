@@ -9,8 +9,6 @@
 
 _SGE_BEGIN
 
-namespace time {
-
 namespace Duration {
     using SecondsFloat = std::chrono::duration<float>;
     using Nanos = std::chrono::duration<uint64_t, std::nano>;
@@ -53,8 +51,6 @@ private:
     duration_t m_elapsed;
     bool m_paused = false;
 };
-
-}
 
 _SGE_END
 

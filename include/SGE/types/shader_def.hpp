@@ -7,8 +7,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 struct ShaderDef {
     std::string name;
     std::string value;
@@ -17,8 +15,6 @@ struct ShaderDef {
         name(std::move(name)),
         value(std::move(value)) {}
 };
-
-}
 
 _SGE_END
 

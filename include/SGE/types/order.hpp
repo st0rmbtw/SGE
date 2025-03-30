@@ -7,8 +7,6 @@
 
 _SGE_BEGIN
 
-namespace types {
-
 struct Order {
     Order() = default;
 
@@ -19,8 +17,6 @@ struct Order {
     int value = -1;
     bool advance = true;
 };
-
-}
 
 _SGE_END
 

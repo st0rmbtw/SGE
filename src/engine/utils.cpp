@@ -2,9 +2,7 @@
 
 #include <tracy/Tracy.hpp>
 
-using namespace sge::types;
-
-uint32_t sge::utils::next_utf8_codepoint(const char* text, size_t& index) {
+uint32_t sge::next_utf8_codepoint(const char* text, size_t& index) {
     uint32_t c = (uint8_t) text[index];
 
     int cplen = 1;
@@ -55,7 +53,7 @@ uint32_t sge::utils::next_utf8_codepoint(const char* text, size_t& index) {
     return c;
 }
 
-glm::vec2 calculate_text_bounds(const Font& font, size_t length, const char* text, float size) {
+glm::vec2 calculate_text_bounds(const sge::Font& font, size_t length, const char* text, float size) {
     ZoneScopedN("Utils::calculate_text_bounds");
 
     auto bounds = glm::vec2(0.0f);
@@ -64,7 +62,7 @@ glm::vec2 calculate_text_bounds(const Font& font, size_t length, const char* tex
     const float scale = size / font.font_size;
 
     for (size_t i = 0; i < length;) {
-        const uint32_t ch = sge::utils::next_utf8_codepoint(text, i);
+        const uint32_t ch = sge::next_utf8_codepoint(text, i);
 
         if (ch == '\n') {
             bounds.y += size;
@@ -72,7 +70,7 @@ glm::vec2 calculate_text_bounds(const Font& font, size_t length, const char* tex
             continue;
         }
 
-        const Glyph& glyph = font.glyphs.find(ch)->second;
+        const sge::Glyph& glyph = font.glyphs.find(ch)->second;
         prev_x += (glyph.advance >> 6) * scale;
         bounds.x = std::max(prev_x, bounds.x);
     }
