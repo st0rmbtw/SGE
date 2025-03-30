@@ -53,7 +53,7 @@ uint32_t sge::next_utf8_codepoint(const char* text, size_t& index) {
     return c;
 }
 
-glm::vec2 calculate_text_bounds(const sge::Font& font, size_t length, const char* text, float size) {
+glm::vec2 sge::calculate_text_bounds(const sge::Font& font, size_t length, const char* text, float size) {
     ZoneScopedN("Utils::calculate_text_bounds");
 
     auto bounds = glm::vec2(0.0f);

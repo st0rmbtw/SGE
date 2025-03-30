@@ -42,13 +42,13 @@ inline bool FileExists(const char *path) {
 
 uint32_t next_utf8_codepoint(const char* text, size_t& index);
 
-glm::vec2 calculate_text_bounds(const sge::Font& font, size_t length, const char* text, float size);
+glm::vec2 calculate_text_bounds(const Font& font, size_t length, const char* text, float size);
 
 template <size_t Size>
-inline glm::vec2 calculate_text_bounds(const sge::Font& font, const sge::RichText<Size> text) {
+inline glm::vec2 calculate_text_bounds(const Font& font, const RichText<Size> text) {
     glm::vec2 bounds = glm::vec2(0.0f);
 
-    for (const sge::RichTextSection& section : text.sections()) {
+    for (const RichTextSection& section : text.sections()) {
         bounds = glm::max(bounds, calculate_text_bounds(font, section.text.size(), section.text.data(), section.size));
     }
 
