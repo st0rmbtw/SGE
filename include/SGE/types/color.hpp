@@ -151,6 +151,18 @@ struct LinearRgba {
         return LinearRgba(red - c.red, green - c.green, blue - c.blue, alpha - c.alpha);
     }
 
+    LinearRgba operator*(const float x) const {
+        return LinearRgba(red * x, green * x, blue * x, alpha * x);
+    }
+
+    LinearRgba operator+(const float x) const {
+        return LinearRgba(red + x, green + x, blue + x, alpha + x);
+    }
+
+    LinearRgba operator-(const float x) const {
+        return LinearRgba(red - x, green - x, blue - x, alpha - x);
+    }
+
     float red = 0.0f;
     float green = 0.0f;
     float blue = 0.0f;
@@ -275,6 +287,18 @@ struct Srgba {
 
     Srgba operator-(const Srgba& c) const {
         return Srgba(red - c.red, green - c.green, blue - c.blue, alpha - c.alpha);
+    }
+
+    Srgba operator*(const float x) const {
+        return Srgba(red * x, green * x, blue * x, alpha * x);
+    }
+
+    Srgba operator+(const float x) const {
+        return Srgba(red + x, green + x, blue + x, alpha + x);
+    }
+
+    Srgba operator-(const float x) const {
+        return Srgba(red - x, green - x, blue - x, alpha - x);
     }
 
     float red = 0.0f;
