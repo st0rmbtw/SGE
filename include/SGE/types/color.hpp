@@ -139,6 +139,18 @@ struct LinearRgba {
         return glm::vec3(red, green, blue);
     }
 
+    LinearRgba operator*(const LinearRgba& c) const {
+        return LinearRgba(red * c.red, green * c.green, blue * c.blue, alpha * c.alpha);
+    }
+
+    LinearRgba operator+(const LinearRgba& c) const {
+        return LinearRgba(red + c.red, green + c.green, blue + c.blue, alpha + c.alpha);
+    }
+
+    LinearRgba operator-(const LinearRgba& c) const {
+        return LinearRgba(red - c.red, green - c.green, blue - c.blue, alpha - c.alpha);
+    }
+
     float red = 0.0f;
     float green = 0.0f;
     float blue = 0.0f;
@@ -252,6 +264,18 @@ struct Srgba {
 
     [[nodiscard]] glm::vec4 to_vec4() const { return glm::vec4(red, green, blue, alpha); }
     [[nodiscard]] glm::vec3 to_vec3() const { return glm::vec3(red, green, blue); }
+
+    Srgba operator*(const Srgba& c) const {
+        return Srgba(red * c.red, green * c.green, blue * c.blue, alpha * c.alpha);
+    }
+
+    Srgba operator+(const Srgba& c) const {
+        return Srgba(red + c.red, green + c.green, blue + c.blue, alpha + c.alpha);
+    }
+
+    Srgba operator-(const Srgba& c) const {
+        return Srgba(red - c.red, green - c.green, blue - c.blue, alpha - c.alpha);
+    }
 
     float red = 0.0f;
     float green = 0.0f;
