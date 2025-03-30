@@ -87,6 +87,8 @@ protected:
 
 class Sprite : public BaseSprite {
 public:
+    Sprite() = default;
+
     Sprite(Texture texture) : BaseSprite(), m_texture(texture) {};
 
     Sprite(Texture texture, glm::vec2 position) : BaseSprite(position), m_texture(texture) {}

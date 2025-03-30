@@ -78,52 +78,52 @@ static inline LLGL::Extent2D get_scaled_resolution(uint32_t width, uint32_t heig
 }
 
 void Engine::SetPreUpdateCallback(PreUpdateCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.pre_update_callback = callback;
 }
 
 void Engine::SetUpdateCallback(UpdateCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.update_callback = callback;
 }
 
 void Engine::SetPostUpdateCallback(PostUpdateCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.post_update_callback = callback;
 }
 
 void Engine::SetFixedUpdateCallback(FixedUpdateCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.fixed_update_callback = callback;
 }
 
 void Engine::SetFixedPostUpdateCallback(FixedUpdateCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.fixed_post_update_callback = callback;
 }
 
 void Engine::SetRenderCallback(RenderCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.render_callback = callback;
 }
 
 void Engine::SetPostRenderCallback(PostRenderCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.post_render_callback = callback;
 }
 
 void Engine::SetDestroyCallback(PostRenderCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.destroy_callback = callback;
 }
 
 void Engine::SetWindowResizeCallback(WindowResizeCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.window_resize_callback = callback;
 }
 
 void Engine::SetLoadAssetsCallback(LoadAssetsCallback callback) {
-    ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
+    SGE_ASSERT(callback != nullptr, "Pointer to the callback must not be null.");
     state.load_assets_callback = callback;
 }
 

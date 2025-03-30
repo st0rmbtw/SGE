@@ -192,24 +192,24 @@ void Assets::DestroySamplers(sge::Renderer& renderer) {
 
 const sge::Texture& Assets::GetTexture(TextureAsset key) {
     const auto entry = std::as_const(state.textures).find(key);
-    ASSERT(entry != state.textures.cend(), "Texture not found: %u", static_cast<uint32_t>(key));
+    SGE_ASSERT(entry != state.textures.cend(), "Texture not found: %u", static_cast<uint32_t>(key));
     return entry->second;
 }
 
 const sge::TextureAtlas& Assets::GetTextureAtlas(TextureAsset key) {
     const auto entry = std::as_const(state.textures_atlases).find(key);
-    ASSERT(entry != state.textures_atlases.cend(), "TextureAtlas not found: %u", static_cast<uint32_t>(key));
+    SGE_ASSERT(entry != state.textures_atlases.cend(), "TextureAtlas not found: %u", static_cast<uint32_t>(key));
     return entry->second;
 }
 
 const sge::Font& Assets::GetFont(FontAsset key) {
     const auto entry = std::as_const(state.fonts).find(key);
-    ASSERT(entry != state.fonts.cend(), "Font not found: %u", static_cast<uint32_t>(key));
+    SGE_ASSERT(entry != state.fonts.cend(), "Font not found: %u", static_cast<uint32_t>(key));
     return entry->second;
 }
 
 const sge::Sampler& Assets::GetSampler(size_t index) {
-    ASSERT(index < state.samplers.size(), "Index is out of bounds: %zu", index);
+    SGE_ASSERT(index < state.samplers.size(), "Index is out of bounds: %zu", index);
     return state.samplers[index];
 }
 

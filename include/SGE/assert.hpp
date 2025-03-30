@@ -6,7 +6,7 @@
 #if SGE_DEBUG
     #include <stdio.h>
     #include <stdlib.h>
-    #define ASSERT(expression, message, ...)                                                    \
+    #define SGE_ASSERT(expression, message, ...)                                                    \
         do {                                                                                    \
             if (!(expression)) {                                                                \
                 fprintf(stderr, "[%s:%d] " message "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
@@ -14,16 +14,16 @@
             }                                                                                   \
         } while (0)
         
-    #define UNREACHABLE() ASSERT(false, "Reached an unreachable point!")
+    #define SGE_UNREACHABLE() SGE_ASSERT(false, "Reached an unreachable point!")
 #else
-    #define ASSERT(expression, message, ...) ((void)0)
+    #define SGE_ASSERT(expression, message, ...) ((void)0)
 
     #if defined(__GNUC__) || defined(__clang__)
-        #define UNREACHABLE() __builtin_unreachable()
+        #define SGE_UNREACHABLE() __builtin_unreachable()
     #elif defiend(_MSC_VER)
-        #define UNREACHABLE() __assume(false)
+        #define SGE_UNREACHABLE() __assume(false)
     #else
-        #error "Unknown compiler; can't define UNREACHABLE"
+        #error "Unknown compiler; can't define SGE_UNREACHABLE"
     #endif
 
 #endif

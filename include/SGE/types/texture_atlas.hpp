@@ -32,7 +32,7 @@ struct TextureAtlas {
     [[nodiscard]] inline uint32_t columns() const { return m_columns; }
     [[nodiscard]] inline uint32_t rows() const { return m_rows; }
     [[nodiscard]] const sge::Rect& get_rect(size_t index) const {
-        ASSERT(index < m_rects.size(), "Index is out of bounds.");
+        SGE_ASSERT(index < m_rects.size(), "Index is out of bounds.");
         return m_rects[index];
     }
 

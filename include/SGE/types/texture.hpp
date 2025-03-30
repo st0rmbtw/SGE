@@ -39,6 +39,8 @@ public:
     [[nodiscard]] inline uint32_t height() const { return m_size.y; }
     [[nodiscard]] inline LLGL::Texture* internal() const { return m_internal; }
 
+    [[nodiscard]] inline bool is_valid() const { return m_id >= 0 && m_internal != nullptr; }
+
     inline operator LLGL::Resource*() const { return m_internal; }
     inline operator LLGL::Texture*() const { return m_internal; }
     inline operator LLGL::Texture&() const { return *m_internal; }

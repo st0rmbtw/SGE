@@ -38,7 +38,7 @@ public:
             break;
             case Value::OpenGL: return "OpenGL";
             break;
-            default: UNREACHABLE();
+            default: SGE_UNREACHABLE();
         };
     }
 
@@ -55,7 +55,7 @@ public:
             break;
             case Value::OpenGL: return "assets/shaders/opengl/";
             break;
-            default: UNREACHABLE();
+            default: SGE_UNREACHABLE();
         };
     }
 

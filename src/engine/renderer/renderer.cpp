@@ -4,6 +4,7 @@
 #include <SGE/renderer/types.hpp>
 #include <SGE/log.hpp>
 #include <SGE/utils.hpp>
+#include <SGE/assert.hpp>
 
 #include <cstddef>
 #include <fstream>
@@ -25,8 +26,8 @@
 #include <LLGL/SamplerFlags.h>
 #include <LLGL/TextureFlags.h>
 #include <LLGL/Types.h>
+#include <LLGL/PipelineCache.h>
 
-#include "LLGL/PipelineCache.h"
 #include "shaders.hpp"
 
 using namespace sge;
@@ -967,6 +968,7 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
 
         if (flush_data.texture.has_value() && prev_texture_id != flush_data.texture->id()) {
             const Texture& texture = flush_data.texture.value();
+            SGE_ASSERT(texture.is_valid(), "Texture must be valid");
 
             commands->SetResource(1, texture);
             commands->SetResource(2, texture.sampler());
