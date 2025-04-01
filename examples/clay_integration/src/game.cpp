@@ -196,7 +196,8 @@ void render() {
         renderer.RenderBatch(g.batch);
 
         g.batch.Reset();
-    renderer.EndMainPass();
+    renderer.EndPass();
+    
     renderer.End();
 }
 

@@ -18,7 +18,7 @@ if(APPLE)
 endif()
 
 option(SGE_BUILD_STATIC "Build SGE as static library" ON)
-option(SGE_BUILD_EXAMPLES "Build examples" ON)
+option(SGE_BUILD_EXAMPLES "Build examples" OFF)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 
