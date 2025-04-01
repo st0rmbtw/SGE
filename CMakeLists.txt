@@ -94,8 +94,6 @@ endif()
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 
-set(LLGL_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
-
 add_subdirectory(thirdparty/LLGL)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
@@ -106,9 +104,6 @@ add_subdirectory(thirdparty/tracy-0.11.1)
 if(SGE_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
-
-# unset(EXECUTABLE_OUTPUT_PATH CACHE)
-# set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR} CACHE STRING "" FORCE)
 
 file(GLOB_RECURSE SGE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm")
 if (APPLE)
