@@ -28,6 +28,7 @@
 #include <LLGL/Types.h>
 #include <LLGL/PipelineCache.h>
 
+#include "LLGL/RenderTarget.h"
 #include "shaders.hpp"
 
 using namespace sge;
@@ -893,25 +894,18 @@ void Renderer::Begin(const Camera& camera) {
     m_shape_batch_data.buffer_ptr = m_shape_batch_data.buffer;
 }
 
-void Renderer::BeginMainPass(const LLGL::ClearValue& clear_color, long flags) {
-    m_current_framebuffer = m_swap_chain;
-    m_current_pass = m_pass;
-
-    m_command_buffer->BeginRenderPass(*m_swap_chain);
-    // m_command_buffer->BeginRenderPass(*m_swap_chain, m_pass);
-    m_command_buffer->Clear(flags, clear_color);
-    m_command_buffer->SetViewport(m_swap_chain->GetResolution());
+void Renderer::BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport, LLGL::ClearValue clear_value, long clear_flags) {
+    m_command_buffer->BeginRenderPass(target);
+    m_command_buffer->SetViewport(viewport);
+    m_command_buffer->Clear(clear_flags, clear_value);
 }
 
-void Renderer::EndMainPass() {
+void Renderer::EndPass() {
     m_command_buffer->EndRenderPass();
 }
 
 void Renderer::End() {
     ZoneScopedN("Renderer::End");
-
-    m_current_framebuffer = nullptr;
-    m_current_pass = nullptr;
 
     m_command_buffer->End();
     m_command_queue->Submit(*m_command_buffer);
@@ -1530,24 +1524,24 @@ void Renderer::PrintDebugInfo() {
 void Renderer::Terminate() {
     const auto& context = m_context;
 
-    RESOURCE_RELEASE(m_sprite_batch_data.vertex_buffer)
-    RESOURCE_RELEASE(m_sprite_batch_data.instance_buffer)
-    RESOURCE_RELEASE(m_sprite_batch_data.buffer_array)
-    RESOURCE_RELEASE(m_sprite_batch_data.pipeline)
+    SGE_RESOURCE_RELEASE(m_sprite_batch_data.vertex_buffer)
+    SGE_RESOURCE_RELEASE(m_sprite_batch_data.instance_buffer)
+    SGE_RESOURCE_RELEASE(m_sprite_batch_data.buffer_array)
+    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline)
 
-    RESOURCE_RELEASE(m_glyph_batch_data.vertex_buffer)
-    RESOURCE_RELEASE(m_glyph_batch_data.instance_buffer)
-    RESOURCE_RELEASE(m_glyph_batch_data.buffer_array)
-    RESOURCE_RELEASE(m_glyph_batch_data.pipeline)
+    SGE_RESOURCE_RELEASE(m_glyph_batch_data.vertex_buffer)
+    SGE_RESOURCE_RELEASE(m_glyph_batch_data.instance_buffer)
+    SGE_RESOURCE_RELEASE(m_glyph_batch_data.buffer_array)
+    SGE_RESOURCE_RELEASE(m_glyph_batch_data.pipeline)
 
-    RESOURCE_RELEASE(m_ninepatch_batch_data.vertex_buffer)
-    RESOURCE_RELEASE(m_ninepatch_batch_data.instance_buffer)
-    RESOURCE_RELEASE(m_ninepatch_batch_data.buffer_array)
-    RESOURCE_RELEASE(m_ninepatch_batch_data.pipeline)
+    SGE_RESOURCE_RELEASE(m_ninepatch_batch_data.vertex_buffer)
+    SGE_RESOURCE_RELEASE(m_ninepatch_batch_data.instance_buffer)
+    SGE_RESOURCE_RELEASE(m_ninepatch_batch_data.buffer_array)
+    SGE_RESOURCE_RELEASE(m_ninepatch_batch_data.pipeline)
 
-    RESOURCE_RELEASE(m_constant_buffer);
-    RESOURCE_RELEASE(m_command_buffer);
-    RESOURCE_RELEASE(m_swap_chain);
+    SGE_RESOURCE_RELEASE(m_constant_buffer);
+    SGE_RESOURCE_RELEASE(m_command_buffer);
+    SGE_RESOURCE_RELEASE(m_swap_chain);
 
     LLGL::RenderSystem::Unload(std::move(m_context));
 }

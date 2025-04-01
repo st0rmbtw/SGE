@@ -98,8 +98,18 @@ public:
     bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool vsync, bool fullscreen);
 
     void Begin(const sge::Camera& camera);
-    void BeginMainPass(const LLGL::ClearValue& clear_color, long flags = LLGL::ClearFlags::Color);
-    void EndMainPass();
+
+    void BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport, LLGL::ClearValue clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color);
+
+    void BeginPass(LLGL::RenderTarget& target, LLGL::ClearValue clear_value, long clear_flags) {
+        BeginPassWithViewport(target, target.GetResolution(), clear_value, clear_flags);
+    }
+
+    void BeginMainPass(const LLGL::ClearValue& clear_color, long flags = LLGL::ClearFlags::Color) {
+        BeginPass(*m_swap_chain, clear_color, flags);
+    }
+
+    void EndPass();
     void End();
 
     void PrepareBatch(sge::Batch& batch);
@@ -115,6 +125,10 @@ public:
     }
     sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const sge::Sampler& sampler, const int8_t* data, bool generate_mip_maps = false) {
         return CreateTexture(type, image_format, LLGL::DataType::Int8, width, height, layers, sampler, data, generate_mip_maps);
+    }
+
+    sge::Texture CopyTextureWithSampler(const sge::Texture& texture, const sge::Sampler& sampler) {
+        return Texture(m_texture_index++, sampler, texture.size(), texture.internal());
     }
 
     LLGL::Shader* LoadShader(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
@@ -189,7 +203,7 @@ private:
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
     void ApplyBatchDrawCommands(sge::Batch& batch);
 
-    inline void UpdateBuffer(LLGL::Buffer* buffer, void* data, size_t length, size_t offset = 0) {
+    inline void UpdateBuffer(LLGL::Buffer* buffer, void* data, uint64_t length, uint64_t offset = 0) {
         const char* src = static_cast<char*>(data);
         m_command_buffer->UpdateBuffer(*buffer, offset, src + offset, length);
     }
@@ -215,9 +229,6 @@ private:
 #if SGE_DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;
 #endif
-
-    LLGL::RenderTarget* m_current_framebuffer = nullptr;
-    LLGL::RenderPass* m_current_pass = nullptr;
 
     glm::uvec2 m_viewport = glm::uvec2(0);
 
