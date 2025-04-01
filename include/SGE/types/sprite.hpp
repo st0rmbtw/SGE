@@ -78,7 +78,7 @@ protected:
     sge::LinearRgba m_outline_color = sge::LinearRgba(0.0f);
     std::optional<glm::vec2> m_custom_size = std::nullopt;
     float m_outline_thickness = 0.0f;
-    float m_z = 0.0f;
+    float m_z = 1.0f;
     Anchor m_anchor = Anchor::Center;
     bool m_flip_x = false;
     bool m_flip_y = false;
