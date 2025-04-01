@@ -102,7 +102,6 @@ add_subdirectory(thirdparty/glfw)
 add_subdirectory(thirdparty/STB)
 add_subdirectory(thirdparty/freetype-2.13.2)
 add_subdirectory(thirdparty/tracy-0.11.1)
-add_subdirectory(shader_compiler)
 
 if(SGE_BUILD_EXAMPLES)
     add_subdirectory(examples)
