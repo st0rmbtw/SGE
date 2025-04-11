@@ -1,17 +1,18 @@
-#version 330 core
+#version 450 core
 
 layout(location = 0) in vec2 a_position;
 layout(location = 1) in vec3 i_position;
 layout(location = 2) in vec4 i_rotation;
 layout(location = 3) in vec2 i_size;
 layout(location = 4) in vec2 i_offset;
-layout(location = 5) in vec4 i_uv_offset_scale;
-layout(location = 6) in vec4 i_color;
-layout(location = 7) in vec4 i_outline_color;
-layout(location = 8) in float i_outline_thickness;
-layout(location = 9) in uint i_flags;
+layout(location = 5) in vec2 i_source_size;
+layout(location = 6) in vec2 i_output_size;
+layout(location = 7) in uvec4 i_margin;
+layout(location = 8) in vec4 i_uv_offset_scale;
+layout(location = 9) in vec4 i_color;
+layout(location = 10) in uint i_flags;
 
-layout(std140) uniform GlobalUniformBuffer {
+layout(binding = 2) uniform GlobalUniformBuffer {
     mat4 screen_projection;
     mat4 view_projection;
     mat4 nozoom_view_projection;
@@ -22,10 +23,11 @@ layout(std140) uniform GlobalUniformBuffer {
     vec2 window_size;
 } global_ubo;
 
-out vec2 v_uv;
-flat out vec4 v_color;
-flat out vec4 v_outline_color;
-flat out float v_outline_thickness;
+layout(location = 0) out vec2 v_uv;
+layout(location = 1) flat out vec4 v_color;
+layout(location = 2) flat out uvec4 v_margin;
+layout(location = 3) flat out vec2 v_source_size;
+layout(location = 4) flat out vec2 v_output_size;
 
 const uint IS_UI_FLAG = 1u << 0u;
 const uint FLAG_IGNORE_CAMERA_ZOOM = 1u << 1u;
@@ -73,9 +75,10 @@ void main() {
 
     v_uv = a_position * i_uv_offset_scale.zw + i_uv_offset_scale.xy;
     v_color = i_color;
-    v_outline_color = i_outline_color;
-    v_outline_thickness = i_outline_thickness;
+    v_margin = i_margin;
+    v_source_size = i_source_size;
+    v_output_size = i_output_size;
     
     gl_Position = mvp * vec4(a_position, 0, 1);
-    gl_Position.z = i_position.z;
+    gl_Position.z = 1.0;
 }

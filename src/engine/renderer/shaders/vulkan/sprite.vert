@@ -1,4 +1,4 @@
-#version 330 core
+#version 450 core
 
 layout(location = 0) in vec2 a_position;
 layout(location = 1) in vec3 i_position;
@@ -11,7 +11,7 @@ layout(location = 7) in vec4 i_outline_color;
 layout(location = 8) in float i_outline_thickness;
 layout(location = 9) in uint i_flags;
 
-layout(std140) uniform GlobalUniformBuffer {
+layout(binding = 2) uniform GlobalUniformBuffer {
     mat4 screen_projection;
     mat4 view_projection;
     mat4 nozoom_view_projection;
@@ -22,10 +22,10 @@ layout(std140) uniform GlobalUniformBuffer {
     vec2 window_size;
 } global_ubo;
 
-out vec2 v_uv;
-flat out vec4 v_color;
-flat out vec4 v_outline_color;
-flat out float v_outline_thickness;
+layout(location = 0) out vec2 v_uv;
+layout(location = 1) flat out vec4 v_color;
+layout(location = 2) flat out vec4 v_outline_color;
+layout(location = 3) flat out float v_outline_thickness;
 
 const uint IS_UI_FLAG = 1u << 0u;
 const uint FLAG_IGNORE_CAMERA_ZOOM = 1u << 1u;

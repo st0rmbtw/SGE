@@ -251,6 +251,11 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
         vsSize = sizeof(GL_SPRITE_VERT);
         psSource = GL_SPRITE_FRAG;
         psSize = sizeof(GL_SPRITE_FRAG);
+    } else if (backend.IsVulkan()) {
+        vsSource = VULKAN_SPRITE_VERT;
+        vsSize = sizeof(VULKAN_SPRITE_VERT);
+        psSource = VULKAN_SPRITE_FRAG;
+        psSize = sizeof(VULKAN_SPRITE_FRAG);
     }
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
@@ -419,7 +424,20 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
         psSource = D3D11_NINEPATCH;
         psSize = sizeof(D3D11_NINEPATCH);
     } else if (backend.IsMetal()) {
+        vsSource = METAL_NINEPATCH;
+        vsSize = sizeof(METAL_NINEPATCH);
+        psSource = METAL_NINEPATCH;
+        psSize = sizeof(METAL_NINEPATCH);
     } else if (backend.IsOpenGL()) {
+        vsSource = GL_NINEPATCH_VERT;
+        vsSize = sizeof(GL_NINEPATCH_VERT);
+        psSource = GL_NINEPATCH_FRAG;
+        psSize = sizeof(GL_NINEPATCH_FRAG);
+    } else if (backend.IsVulkan()) {
+        vsSource = VULKAN_NINEPATCH_VERT;
+        vsSize = sizeof(VULKAN_NINEPATCH_VERT);
+        psSource = VULKAN_NINEPATCH_FRAG;
+        psSize = sizeof(VULKAN_NINEPATCH_FRAG);
     }
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
@@ -562,6 +580,11 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
         vsSize = sizeof(GL_FONT_VERT);
         psSource = GL_FONT_FRAG;
         psSize = sizeof(GL_FONT_FRAG);
+    } else if (backend.IsVulkan()) {
+        vsSource = VULKAN_FONT_VERT;
+        vsSize = sizeof(VULKAN_FONT_VERT);
+        psSource = VULKAN_FONT_FRAG;
+        psSize = sizeof(VULKAN_FONT_FRAG);
     }
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
@@ -700,9 +723,20 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
         psSource = D3D11_SHAPE;
         psSize = sizeof(D3D11_SHAPE);
     } else if (backend.IsMetal()) {
-        // TODO
+        vsSource = METAL_SHAPE;
+        vsSize = sizeof(METAL_SHAPE);
+        psSource = METAL_SHAPE;
+        psSize = sizeof(METAL_SHAPE);
     } else if (backend.IsOpenGL()) {
-        // TODO
+        vsSource = GL_SHAPE_VERT;
+        vsSize = sizeof(GL_SHAPE_VERT);
+        psSource = GL_SHAPE_FRAG;
+        psSize = sizeof(GL_SHAPE_FRAG);
+    } else if (backend.IsVulkan()) {
+        vsSource = VULKAN_SHAPE_VERT;
+        vsSize = sizeof(VULKAN_SHAPE_VERT);
+        psSource = VULKAN_SHAPE_FRAG;
+        psSize = sizeof(VULKAN_SHAPE_FRAG);
     }
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;

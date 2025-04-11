@@ -87,7 +87,7 @@ VSOutput VS(VSInput inp)
 
     const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
 
-    const float4x4 mvp = mul(u_screen_projection, transform);
+    const float4x4 mvp = mul(is_ui ? u_screen_projection : u_view_projection, transform);
     const float4 uv_offset_scale = inp.i_uv_offset_scale;
 
     VSOutput outp;

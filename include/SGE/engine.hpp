@@ -7,6 +7,7 @@
 
 #include "types/backend.hpp"
 #include "types/window_settings.hpp"
+#include "types/cursor_mode.hpp"
 #include "renderer/renderer.hpp"
 #include "defines.hpp"
 
@@ -39,8 +40,7 @@ namespace Engine {
     void ShowWindow();
     void HideWindow();
 
-    void ShowCursor();
-    void HideCursor();
+    void SetCursorMode(CursorMode cursor_mode);
 
     void Run();
     void Destroy();

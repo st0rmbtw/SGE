@@ -139,12 +139,8 @@ void Engine::HideWindow() {
     glfwHideWindow(state.window);
 }
 
-void Engine::ShowCursor() {
-    glfwSetInputMode(state.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-}
-
-void Engine::HideCursor() {
-    glfwSetInputMode(state.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+void Engine::SetCursorMode(CursorMode cursor_mode) {
+    glfwSetInputMode(state.window, GLFW_CURSOR, static_cast<int>(cursor_mode));
 }
 
 bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings settings, LLGL::Extent2D& output_viewport) {

@@ -81,12 +81,16 @@ def main():
                 
             fd, path = tempfile.mkstemp(suffix=".spv")
             
-            subprocess.run(["glslang.exe", "--quiet", "-V", "--enhanced-msgs", "-o", path, str(item)])
+            ps = subprocess.Popen(
+                ("glslang.exe", "-V", "--enhanced-msgs", "-o", path, str(item)),
+            )
+            ps.wait()
             
             with os.fdopen(fd, "rb") as f:
-                content = ', '.join(str(signed_byte(x)) for x in list(f.read()))
-                size = len(content)
-                shaders_hpp_content += f"static const char {basename}[{size}] = {{{content}}};\n\n"
+                l = list(f.read())
+                content = ', '.join(str(x) for x in l)
+                size = len(l)
+                shaders_hpp_content += f"static const unsigned char {var_name}[{size}] = {{{content}}};\n\n"
             
     shaders_hpp_content += "#endif"
     

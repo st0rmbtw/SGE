@@ -1,4 +1,4 @@
-#version 330 core
+#version 450 core
 
 layout(location = 0) in vec2 a_position;
 layout(location = 1) in vec3 i_color;
@@ -8,7 +8,7 @@ layout(location = 4) in vec2 i_tex_size;
 layout(location = 5) in vec2 i_uv;
 layout(location = 6) in uint i_flags;
 
-layout(std140) uniform GlobalUniformBuffer {
+layout(binding = 2) uniform GlobalUniformBuffer {
     mat4 screen_projection;
     mat4 view_projection;
     mat4 nonscale_view_projection;
@@ -19,8 +19,8 @@ layout(std140) uniform GlobalUniformBuffer {
     vec2 window_size;
 } global_ubo;
 
-out vec2 v_uv;
-flat out vec3 v_color;
+layout(location = 0) out vec2 v_uv;
+layout(location = 1) flat out vec3 v_color;
 
 const uint FLAG_UI = 1u << 0u;
 

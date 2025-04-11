@@ -7,10 +7,12 @@ struct Constants
 {
     float4x4 screen_projection;
     float4x4 view_projection;
+    float4x4 nozoom_view_projection;
+    float4x4 nozoom_projection;
     float4x4 transform_matrix;
+    float4x4 inv_view_proj;
     float2 camera_position;
     float2 window_size;
-    float max_depth;
 };
 
 struct VertexIn
@@ -25,21 +27,20 @@ struct VertexIn
     float4 i_color             [[attribute(6)]];
     float4 i_outline_color     [[attribute(7)]];
     float  i_outline_thickness [[attribute(8)]];
-    int    i_flags             [[attribute(9)]];
+    uint   i_flags             [[attribute(9)]];
 };
 
 struct VertexOut
 {
     float4 position          [[position]];
-    float2 uv;
     float4 color             [[flat]];
     float4 outline_color     [[flat]];
+    float2 uv;
     float  outline_thickness [[flat]];
-    bool   has_texture       [[flat]];
 };
 
-constant constexpr int HAS_TEXTURE_FLAG = 1 << 0;
-constant constexpr int IS_UI_FLAG = 1 << 1;
+constant constexpr int IS_UI_FLAG = 1 << 0;
+constant constexpr int FLAG_IGNORE_CAMERA_ZOOM = 1 << 1;
 
 vertex VertexOut VS(
     VertexIn inp [[stage_in]],
@@ -90,14 +91,20 @@ vertex VertexOut VS(
     const float max_depth = constants.max_depth;
     const float order = inp.i_position.z / max_depth;
 
+    const int flags = inp.i_flags;
+    const bool ignore_camera_zoom = (flags & FLAG_IGNORE_CAMERA_ZOOM) == FLAG_IGNORE_CAMERA_ZOOM;
+    const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
+
+    const float4x4 mvp = (is_ui ? constants.screen_projection : ignore_camera_zoom ? constants.nozoom_view_projection : constants.view_projection) * transform;
+    const float4 uv_offset_scale = inp.i_uv_offset_scale;
+
     VertexOut outp;
-    outp.position = mvp * float4(position, 0.0, 1.0);
-    outp.position.z = order;
-    outp.uv = position * uv_offset_scale.zw + uv_offset_scale.xy;
+    outp.position = mvp * float4(inp.position, 0.0, 1.0);
+    outp.position.z = inp.i_position.z;
+    outp.uv = inp.position * uv_offset_scale.zw + uv_offset_scale.xy;
     outp.color = inp.i_color;
     outp.outline_color = inp.i_outline_color;
     outp.outline_thickness = inp.i_outline_thickness;
-    outp.has_texture = has_texture;
 
     return outp;
 }
