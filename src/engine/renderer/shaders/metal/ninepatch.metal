@@ -107,7 +107,7 @@ float map(float value, float in_min, float in_max, float out_min, float out_max)
 
 float process_axis(float coord, float2 source_margin, float2 out_margin) {
     if (coord < out_margin.x) {
-        return map(coord, 0.0f, out_margin.x, 0.0f, source_margin.x);
+        return map(coord, 0.0, out_margin.x, 0.0, source_margin.x);
     }
     if (coord < 1.0 - out_margin.y) {
         return map(coord, out_margin.x, 1.0 - out_margin.y, source_margin.x, 1.0 - source_margin.y);
@@ -120,8 +120,8 @@ fragment float4 PS(
     texture2d<float> texture [[texture(3)]],
     sampler texture_sampler [[sampler(4)]]
 ) {
-    const float2 horizontal_margin = inp.margin.xy;
-    const float2 vertical_margin = inp.margin.zw;
+    const float2 horizontal_margin = float2(inp.margin.xy);
+    const float2 vertical_margin = float2(inp.margin.zw);
 
     const float2 new_uv = float2(
         process_axis(inp.uv.x,

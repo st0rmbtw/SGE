@@ -82,7 +82,7 @@ def main():
             fd, path = tempfile.mkstemp(suffix=".spv")
             
             ps = subprocess.Popen(
-                ("glslang.exe", "-V", "--enhanced-msgs", "-o", path, str(item)),
+                ("glslang", "-V", "--enhanced-msgs", "-o", path, str(item)),
             )
             ps.wait()
             

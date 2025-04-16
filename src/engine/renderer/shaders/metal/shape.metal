@@ -89,7 +89,7 @@ vertex VertexOut VS(
     const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
 
     const float4x4 mvp = (is_ui ? constants.screen_projection : constants.view_projection) * transform;
-    const float4 uv_offset_scale = inp.i_uv_offset_scale;
+    const float2 position = inp.position;
 
     VertexOut outp;
     outp.position = mvp * float4(position, 0.0, 1.0);
@@ -105,20 +105,63 @@ vertex VertexOut VS(
     return outp;
 }
 
-constant constexpr float GLYPH_CENTER = 0.5;
+constant constexpr float CIRCLE_AA = 0.001;
 
-float map(float value, float in_min, float in_max, float out_min, float out_max) {
-    return (value - in_min) / (in_max - in_min) * (out_max - out_min) + out_min;
-} 
+float4 circle(float2 st, float4 color, float4 border_color, float border_thickness) {
+    float2 dist = st - float2(0.5, 0.5);
+    float d = dot(dist, dist);
+    
+    float border_cr = 0.5 - border_thickness * 0.5;
+    float2 border_weight = float2(border_cr*border_cr+border_cr*CIRCLE_AA,border_cr*border_cr-border_cr*CIRCLE_AA);
 
-float process_axis(float coord, float2 source_margin, float2 out_margin) {
-    if (coord < out_margin.x) {
-        return map(coord, 0.0f, out_margin.x, 0.0f, source_margin.x);
+    float cr = 0.5;
+    float2 weight = float2(cr*cr+cr*CIRCLE_AA,cr*cr-cr*CIRCLE_AA);
+
+    float t1 = 1.0 - clamp((d-border_weight.y)/(border_weight.x-border_weight.y),0.0,1.0);
+    float t2 = 1.0 - clamp((d-weight.y)/(weight.x-weight.y),0.0,1.0);
+
+    return float4(mix(border_color.rgb, color.rgb, t1), t2);
+}
+
+constant constexpr float PI = 3.1415926535;
+constant constexpr float TAU = 6.283185307179586;
+
+float mod(float x, float y) {
+    return x - y * floor(x/y);
+}
+
+float arc_sdf(float2 p, float a0, float a1, float r )
+{
+    float a = mod(atan2(p.y, p.x), TAU);
+
+    float ap = a - a0;
+    if (ap < 0.)
+        ap += TAU;
+    float a1p = a1 - a0;
+    if (a1p < 0.)
+        a1p += TAU;
+
+    // is a outside [a0, a1]?
+    // https://math.stackexchange.com/questions/1044905/simple-angle-between-two-angles-of-circle
+    if (ap >= a1p) {
+        // snap to the closest of the two endpoints
+        float2 q0 = float2(r * cos(a0), r * sin(a0));
+        float2 q1 = float2(r * cos(a1), r * sin(a1));
+        return min(length(p - q0), length(p - q1));
     }
-    if (coord < 1.0 - out_margin.y) {
-        return map(coord, out_margin.x, 1.0 - out_margin.y, source_margin.x, 1.0 - source_margin.y);
-    }
-    return map(coord, 1.0 - out_margin.y, 1.0, 1.0 - source_margin.y, 1.0);
+
+    return abs(length(p) - r);
+}
+
+// radius = [topLeft, topRight, bottomLeft, bottomRight]
+float rounded_box_sdf(float2 uv, float2 size, float4 radius) {
+    float2 center = size * (uv - 0.5);
+
+    radius.xy = (center.x < 0.0) ? radius.xz : radius.yw;
+    radius.x  = (center.y < 0.0) ? radius.x  : radius.y;
+
+    float2 dist = abs(center) - size * 0.5 + radius.x;
+    return min(max(dist.x,dist.y),0.0) + length(max(dist, 0.0)) - radius.x;
 }
 
 fragment float4 PS(
@@ -126,23 +169,42 @@ fragment float4 PS(
     texture2d<float> texture [[texture(3)]],
     sampler texture_sampler [[sampler(4)]]
 ) {
-    const float2 horizontal_margin = inp.margin.xy;
-    const float2 vertical_margin = inp.margin.zw;
+    if (inp.shape == SHAPE_CIRCLE) {
+        return circle(inp.uv, inp.color, inp.border_color, inp.border_thickness);
+    } else if (inp.shape == SHAPE_ARC) {
+        float start_angle = inp.border_radius.x;
+        float end_angle = inp.border_radius.y;
 
-    const float2 new_uv = float2(
-        process_axis(inp.uv.x,
-            horizontal_margin / inp.source_size.xx,
-            horizontal_margin / inp.output_size.xx
-        ),
-        process_axis(inp.uv.y,
-            vertical_margin / inp.source_size.yy,
-            vertical_margin / inp.output_size.yy
-        )
-    );
+        float thickness = 0.5 - inp.border_thickness / inp.size.y;
 
-    const float4 color = texture.sample(texture_sampler, new_uv) * inp.color;
+        float2 p = ((float2(inp.uv.x, 1.0 - inp.uv.y) * 2.0 - 1.0) * inp.size) / inp.size.y;
 
-    if (color.a < 0.05) discard_fragment();
+        float d = arc_sdf(p, start_angle, end_angle, 1.0 - thickness);
+        float aa = length(float2(dfdx(d), dfdy(d)));
 
-    return color;
+        float alpha = 1.0 - smoothstep(thickness - aa, thickness, d);
+
+        return float4(inp.color.rgb, min(inp.color.a, alpha));
+    }
+
+    float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
+
+    if (radius > 0.0) {
+        float d = rounded_box_sdf(inp.uv, inp.size, inp.border_radius);
+        float aa = length(float2(dfdx(d), dfdy(d)));
+
+        float smoothed_alpha = 1.0 - smoothstep(0.0-aa, 0.0, d);
+        float border_alpha = 1.0 - smoothstep(inp.border_thickness - aa, inp.border_thickness, abs(d));
+
+        float4 quad_color = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
+        float4 quad_color_with_border = mix(quad_color, inp.border_color, min(inp.border_color.a, min(border_alpha, smoothed_alpha)));
+
+        float4 result = float4(quad_color_with_border.rgb, mix(0.0, quad_color_with_border.a, smoothed_alpha));
+
+        if (result.a < 0.01) discard_fragment();
+        
+        return result;
+    }
+
+    return inp.color;
 }
