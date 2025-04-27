@@ -39,7 +39,7 @@ struct VertexOut
     float  outline_thickness [[flat]];
 };
 
-constant constexpr int IS_UI_FLAG = 1 << 0;
+constant constexpr int FLAG_UI = 1 << 0;
 constant constexpr int FLAG_IGNORE_CAMERA_ZOOM = 1 << 1;
 
 vertex VertexOut VS(
@@ -82,16 +82,6 @@ vertex VertexOut VS(
     transform[1] = transform[1] * inp.i_size[1];
 
     const int flags = inp.i_flags;
-    const bool is_ui = (flags & IS_UI_FLAG) == IS_UI_FLAG;
-    const bool has_texture = (flags & HAS_TEXTURE_FLAG) == HAS_TEXTURE_FLAG;
-
-    const float4x4 mvp = is_ui ? constants.screen_projection * transform : constants.view_projection * transform;
-    const float4 uv_offset_scale = inp.i_uv_offset_scale;
-    const float2 position = inp.position;
-    const float max_depth = constants.max_depth;
-    const float order = inp.i_position.z / max_depth;
-
-    const int flags = inp.i_flags;
     const bool ignore_camera_zoom = (flags & FLAG_IGNORE_CAMERA_ZOOM) == FLAG_IGNORE_CAMERA_ZOOM;
     const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
 
@@ -116,22 +106,20 @@ fragment float4 PS(
 ) {
     float4 color = inp.color;
 
-    if (inp.has_texture > 0) {
-        if (inp.outline_thickness > 0.0) {
-            float outline = texture.sample(texture_sampler, inp.uv + float2(inp.outline_thickness, 0.0)).a;
-            outline += texture.sample(texture_sampler, inp.uv + float2(-inp.outline_thickness, 0.0)).a;
-            outline += texture.sample(texture_sampler, inp.uv + float2(0.0, inp.outline_thickness)).a;
-            outline += texture.sample(texture_sampler, inp.uv + float2(0.0, -inp.outline_thickness)).a;
-            outline += texture.sample(texture_sampler, inp.uv + float2(inp.outline_thickness, -inp.outline_thickness)).a;
-            outline += texture.sample(texture_sampler, inp.uv + float2(-inp.outline_thickness, inp.outline_thickness)).a;
-            outline += texture.sample(texture_sampler, inp.uv + float2(inp.outline_thickness, inp.outline_thickness)).a;
-            outline += texture.sample(texture_sampler, inp.uv + float2(-inp.outline_thickness, -inp.outline_thickness)).a;
-            outline = min(outline, 1.0);
-            float4 c = texture.sample(texture_sampler, inp.uv);
-            color = mix(c, inp.outline_color, outline);
-        } else {
-            color = texture.sample(texture_sampler, inp.uv) * inp.color;
-        }
+    if (inp.outline_thickness > 0.0) {
+        float outline = texture.sample(texture_sampler, inp.uv + float2(inp.outline_thickness, 0.0)).a;
+        outline += texture.sample(texture_sampler, inp.uv + float2(-inp.outline_thickness, 0.0)).a;
+        outline += texture.sample(texture_sampler, inp.uv + float2(0.0, inp.outline_thickness)).a;
+        outline += texture.sample(texture_sampler, inp.uv + float2(0.0, -inp.outline_thickness)).a;
+        outline += texture.sample(texture_sampler, inp.uv + float2(inp.outline_thickness, -inp.outline_thickness)).a;
+        outline += texture.sample(texture_sampler, inp.uv + float2(-inp.outline_thickness, inp.outline_thickness)).a;
+        outline += texture.sample(texture_sampler, inp.uv + float2(inp.outline_thickness, inp.outline_thickness)).a;
+        outline += texture.sample(texture_sampler, inp.uv + float2(-inp.outline_thickness, -inp.outline_thickness)).a;
+        outline = min(outline, 1.0);
+        float4 c = texture.sample(texture_sampler, inp.uv);
+        color = mix(c, inp.outline_color, outline);
+    } else {
+        color = texture.sample(texture_sampler, inp.uv) * inp.color;
     }
 
     if (color.a < 0.5) discard_fragment();

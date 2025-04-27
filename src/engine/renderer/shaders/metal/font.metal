@@ -72,7 +72,7 @@ fragment float4 PS(
     // float4 color = float4(inp.color, alpha);
 
     const float mu = smoothstep(0.5-width, 0.5+width, abs(dist));
-    const float3 rgb = lerp(float3(0.0, 0.0, 0.0), inp.color, mu);
+    const float3 rgb = mix(float3(0.0, 0.0, 0.0), inp.color, mu);
     const float4 color = float4(rgb, alpha);
 
     if (color.a < 0.05) discard_fragment();

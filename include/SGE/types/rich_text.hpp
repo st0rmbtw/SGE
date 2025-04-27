@@ -7,6 +7,7 @@
 #include <utility>
 #include <type_traits>
 #include <array>
+#include <string>
 #include <glm/vec3.hpp>
 
 #include "color.hpp"

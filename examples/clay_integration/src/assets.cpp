@@ -67,7 +67,7 @@ static bool load_font(sge::Renderer& renderer, FT_Library ft, const std::string&
 static bool load_texture(sge::Renderer& renderer, const char* path, int sampler, sge::Texture* texture);
 
 template <size_t T>
-static sge::Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps = false);
+static sge::Texture load_texture_array(sge::Renderer& renderer, const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps = false);
 
 static void InitSamplers(sge::Renderer& renderer) {
     state.samplers.resize(4);
@@ -230,7 +230,7 @@ static bool load_texture(sge::Renderer& renderer, const char* path, int sampler,
 }
 
 template <size_t T>
-static sge::Texture load_texture_array(const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps) {
+static sge::Texture load_texture_array(sge::Renderer& renderer, const std::array<std::pair<uint32_t, const char*>, T>& assets, int sampler, bool generate_mip_maps) {
     uint32_t width = 0;
     uint32_t height = 0;
     uint32_t layers_count = 0;
@@ -271,7 +271,7 @@ static sge::Texture load_texture_array(const std::array<std::pair<uint32_t, cons
         stbi_image_free(layer_data.data);
     }
     
-    return create_texture_array(width, height, layers_count, 4, sampler, image_data, data_size, generate_mip_maps);
+    return renderer.CreateTexture(LLGL::TextureType::Texture2DArray, LLGL::ImageFormat::RGBA, width, height, layers_count, Assets::GetSampler(sampler), image_data, generate_mip_maps);
 }
 
 static bool load_font(sge::Renderer& renderer, FT_Library ft, const std::string& path, sge::Font& font) {

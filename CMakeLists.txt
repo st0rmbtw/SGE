@@ -17,6 +17,8 @@ if(APPLE)
     enable_language(OBJCXX)
 endif()
 
+find_package(Python REQUIRED COMPONENTS Interpreter)
+
 option(SGE_BUILD_STATIC "Build SGE as static library" ON)
 option(SGE_BUILD_EXAMPLES "Build examples" OFF)
 
@@ -142,7 +144,7 @@ file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shader
 foreach(shader ${SHADERS})
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
-        COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDS ${shader}
     )
 endforeach()

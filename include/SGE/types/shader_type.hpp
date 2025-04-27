@@ -75,7 +75,7 @@ public:
         };
         break;
 
-        case RenderBackend::Metal: return "1.1"; break;
+        case RenderBackend::Metal: return "2.2"; break;
         }
     }
 
