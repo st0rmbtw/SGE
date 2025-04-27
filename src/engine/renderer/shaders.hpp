@@ -433,7 +433,7 @@ float4 PS(VSOutput inp) : SV_Target
     return inp.color;
 };)";
 
-static const char D3D11_SPRITE[5296] = R"(cbuffer GlobalUniformBuffer : register( b2 )
+static const char D3D11_SPRITE[5298] = R"(cbuffer GlobalUniformBuffer : register( b2 )
 {
     float4x4 u_screen_projection;
     float4x4 u_view_projection;
@@ -560,7 +560,7 @@ float4 PS(VSOutput inp) : SV_Target
         color = Texture.Sample(Sampler, inp.uv) * inp.color;
     }
 
-    clip(color.a - 0.5);
+    clip(color.a - 0.025);
 
     return color;
 };

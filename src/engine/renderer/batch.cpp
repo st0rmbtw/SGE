@@ -5,7 +5,7 @@
 
 using namespace sge;
 
-uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, Order custom_order) {
+uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order custom_order) {
     const sge::Rect& rect = sprite.atlas().get_rect(sprite.index());
 
     glm::vec4 uv_offset_scale = glm::vec4(
@@ -28,7 +28,7 @@ uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, Order custom_o
     return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.atlas().texture(), custom_order);
 }
 
-uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm::vec2& position, const Font& font, Order custom_order) {
+uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm::vec2& position, const Font& font, struct Order custom_order) {
     float x = position.x;
     float y = position.y;
 
@@ -76,7 +76,6 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
                 .size = size,
                 .tex_size = ch.tex_size,
                 .tex_uv = ch.texture_coords,
-                .order = order,
             });
 
             x += (ch.advance >> 6) * scale;
@@ -86,7 +85,7 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
     return order;
 }
 
-uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const Texture& texture, Order custom_order) {
+uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const Texture& texture, struct Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);
@@ -106,20 +105,19 @@ uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& 
         .position = glm::vec3(sprite.position(), sprite.z()),
         .size = sprite.size(),
         .offset = sprite.anchor().to_vec2(),
-        .order = order,
         .outline_thickness = sprite.outline_thickness(),
         .ignore_camera_zoom = sprite.ignore_camera_zoom(),
         .depth_enabled = false
     };
 
-    m_draw_commands.emplace_back(draw_command, m_sprite_count);
+    m_draw_commands.emplace_back(draw_command, m_sprite_count, m_order, m_blend_mode);
 
     ++m_sprite_count;
 
     return order;
 }
 
-uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::vec4& uv_offset_scale, Order custom_order) {
+uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::vec4& uv_offset_scale, struct Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);
@@ -141,10 +139,9 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
         .offset = ninepatch.anchor().to_vec2(),
         .source_size = ninepatch.texture().size(),
         .output_size = ninepatch.size(),
-        .order = order,
     };
     
-    m_draw_commands.emplace_back(draw_command, m_ninepatch_count);
+    m_draw_commands.emplace_back(draw_command, m_ninepatch_count, m_order, m_blend_mode);
 
     ++m_ninepatch_count;
 
@@ -152,12 +149,12 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
 }
 
 void Batch::AddGlyphDrawCommand(const internal::DrawCommandGlyph& command) {
-    m_draw_commands.emplace_back(command, m_glyph_count);
+    m_draw_commands.emplace_back(command, m_glyph_count, m_order, m_blend_mode);
     
     ++m_glyph_count;
 }
 
-uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius, Anchor anchor, Order custom_order) {
+uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius, Anchor anchor, struct Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);
@@ -177,10 +174,9 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
         .border_radius = border_radius,
         .border_thickness = border_thickness,
         .shape = shape,
-        .order = order,
     };
 
-    m_draw_commands.emplace_back(command, m_shape_count);
+    m_draw_commands.emplace_back(command, m_shape_count, m_order, m_blend_mode);
 
     ++m_shape_count;
 

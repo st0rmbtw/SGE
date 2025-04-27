@@ -8,6 +8,7 @@
 #include <SGE/types/anchor.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/window_settings.hpp>
+#include <SGE/types/blend_mode.hpp>
 
 #include <glm/trigonometric.hpp>
 
@@ -190,7 +191,9 @@ void render() {
         }
     }
 
-    renderer.BeginMainPass(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
+    renderer.BeginMainPass();
+        renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
+
         renderer.PrepareBatch(g.batch);
         renderer.UploadBatchData();
         renderer.RenderBatch(g.batch);
@@ -269,7 +272,8 @@ bool Game::Init(RenderBackend backend, AppConfig config) {
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, (char *)malloc(totalMemorySize));
     Clay_Initialize(clayMemory, (Clay_Dimensions) {1024,768}, (Clay_ErrorHandler) { .errorHandlerFunction = HandleClayErrors, .userData = NULL });
 
-    // g.batch.set_is_ui(true);
+    //g.batch.SetIsUi(true);
+    g.batch.BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
     return true;
 }

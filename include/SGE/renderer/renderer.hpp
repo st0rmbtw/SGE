@@ -23,8 +23,15 @@
 _SGE_BEGIN
 
 struct SpriteBatchData {
-    LLGL::PipelineState* pipeline = nullptr;
-    LLGL::PipelineState* pipeline_depth = nullptr;
+    LLGL::PipelineState* pipeline_additive = nullptr;
+    LLGL::PipelineState* pipeline_alpha_blend = nullptr;
+    LLGL::PipelineState* pipeline_opaque = nullptr;
+    LLGL::PipelineState* pipeline_premultiplied_alpha = nullptr;
+
+    LLGL::PipelineState* pipeline_depth_additive = nullptr;
+    LLGL::PipelineState* pipeline_depth_alpha_blend = nullptr;
+    LLGL::PipelineState* pipeline_depth_opaque = nullptr;
+    LLGL::PipelineState* pipeline_depth_premultiplied_alpha = nullptr;
 
     sge::SpriteInstance* buffer = nullptr;
     sge::SpriteInstance* buffer_ptr = nullptr;
@@ -99,17 +106,24 @@ public:
 
     void Begin(const sge::Camera& camera);
 
-    void BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport, LLGL::ClearValue clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color);
-
-    void BeginPass(LLGL::RenderTarget& target, LLGL::ClearValue clear_value, long clear_flags) {
-        BeginPassWithViewport(target, target.GetResolution(), clear_value, clear_flags);
+    void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
+        m_command_buffer->Clear(clear_flags, clear_value);
     }
 
-    void BeginMainPass(const LLGL::ClearValue& clear_color, long flags = LLGL::ClearFlags::Color) {
-        BeginPass(*m_swap_chain, clear_color, flags);
+    void BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport);
+
+    void BeginPass(LLGL::RenderTarget& target) {
+        BeginPassWithViewport(target, target.GetResolution());
     }
 
-    void EndPass();
+    void BeginMainPass() {
+        BeginPass(*m_swap_chain);
+    }
+
+    void EndPass() {
+        m_command_buffer->EndRenderPass();
+    }
+
     void End();
 
     void PrepareBatch(sge::Batch& batch);

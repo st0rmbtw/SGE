@@ -14,6 +14,7 @@
 #include "../types/font.hpp"
 #include "../types/shape.hpp"
 #include "../types/color.hpp"
+#include "../types/blend_mode.hpp"
 
 #include "../defines.hpp"
 
@@ -36,6 +37,7 @@ struct FlushData {
     uint32_t count;
     uint32_t order;
     FlushDataType type;
+    sge::BlendMode blend_mode;
 };
 
 struct DrawCommandSprite {
@@ -47,7 +49,6 @@ struct DrawCommandSprite {
     glm::vec3 position;
     glm::vec2 size;
     glm::vec2 offset;
-    uint32_t order;
     float outline_thickness;
     bool ignore_camera_zoom;
     bool depth_enabled;
@@ -64,7 +65,6 @@ struct DrawCommandNinePatch {
     glm::vec2 offset;
     glm::vec2 source_size;
     glm::vec2 output_size;
-    uint32_t order;
 };
 
 struct DrawCommandGlyph {
@@ -74,7 +74,6 @@ struct DrawCommandGlyph {
     glm::vec2 size;
     glm::vec2 tex_size;
     glm::vec2 tex_uv;
-    uint32_t order;
 };
 
 struct DrawCommandShape {
@@ -86,7 +85,6 @@ struct DrawCommandShape {
     glm::vec4 border_radius;
     float border_thickness;
     uint32_t shape;
-    uint32_t order;
 };
 
 class DrawCommand {
@@ -98,37 +96,39 @@ public:
         DrawShape
     };
 
-    DrawCommand(DrawCommandSprite sprite_data, uint32_t id) :
+    DrawCommand(DrawCommandSprite sprite_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_sprite_data(sprite_data),
         m_id(id),
-        m_type(Type::DrawSprite) {}
+        m_order(order),
+        m_type(Type::DrawSprite),
+        m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandGlyph glyph_data, uint32_t id) :
+    DrawCommand(DrawCommandGlyph glyph_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_glyph_data(glyph_data),
         m_id(id),
-        m_type(Type::DrawGlyph) {}
+        m_order(order),
+        m_type(Type::DrawGlyph),
+        m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandNinePatch ninepatch_data, uint32_t id) :
+    DrawCommand(DrawCommandNinePatch ninepatch_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_ninepatch_data(ninepatch_data),
         m_id(id),
-        m_type(Type::DrawNinePatch) {}
+        m_order(order),
+        m_type(Type::DrawNinePatch),
+        m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandShape shape_data, uint32_t id) :
+    DrawCommand(DrawCommandShape shape_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_shape_data(shape_data),
         m_id(id),
-        m_type(Type::DrawShape) {}
+        m_order(order),
+        m_type(Type::DrawShape),
+        m_blend_mode(blend_mode) {}
 
     [[nodiscard]] inline Type type() const { return m_type; }
     [[nodiscard]] inline uint32_t id() const { return m_id; }
 
-    [[nodiscard]] inline uint32_t order() const {
-        switch (m_type) {
-        case DrawSprite: return m_sprite_data.order;
-        case DrawGlyph: return m_glyph_data.order;
-        case DrawNinePatch: return m_ninepatch_data.order;
-        case DrawShape: return m_shape_data.order;
-        }
-    }
+    [[nodiscard]] inline uint32_t order() const { return m_order; }
+    [[nodiscard]] inline sge::BlendMode blend_mode() const { return m_blend_mode; }
 
     [[nodiscard]] inline const sge::Texture* texture() const {
         switch (m_type) {
@@ -153,8 +153,10 @@ private:
     };
 
     uint32_t m_id;
+    uint32_t m_order;
 
     Type m_type;
+    sge::BlendMode m_blend_mode;
 };
 
 inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
@@ -217,8 +219,21 @@ public:
         return *this;
     }
 
-    inline void set_depth_enabled(bool depth_enabled) { m_depth_enabled = depth_enabled; }
-    inline void set_is_ui(bool is_ui) { m_is_ui = is_ui; }
+    inline void SetDepthEnabled(bool depth_enabled) { m_depth_enabled = depth_enabled; }
+    inline void SetIsUi(bool is_ui) { m_is_ui = is_ui; }
+
+    inline void SetBlendMode(sge::BlendMode blend_mode) {
+        m_blend_mode = blend_mode;
+    }
+
+    inline void BeginBlendMode(sge::BlendMode blend_mode) {
+        m_prev_blend_mode = m_blend_mode;
+        m_blend_mode = blend_mode;
+    }
+
+    inline void EndBlendMode() {
+        m_blend_mode = m_prev_blend_mode;
+    }
 
     inline void BeginOrderMode(int order, bool advance) {
         m_order_mode = true;
@@ -291,10 +306,10 @@ public:
     }
 
     [[nodiscard]]
-    inline bool depth_enabled() const { return m_depth_enabled; }
+    inline bool DepthEnabled() const { return m_depth_enabled; }
 
     [[nodiscard]]
-    inline bool is_ui() const { return m_is_ui; }
+    inline bool IsUi() const { return m_is_ui; }
 
     [[nodiscard]]
     inline uint32_t order() const { return m_order; }
@@ -367,6 +382,9 @@ private:
     bool m_order_mode = false;
     bool m_depth_enabled = false;
     bool m_is_ui = false;
+
+    sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
+    sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
 };
 
 _SGE_END

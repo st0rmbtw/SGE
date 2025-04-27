@@ -125,7 +125,7 @@ float4 PS(VSOutput inp) : SV_Target
         color = Texture.Sample(Sampler, inp.uv) * inp.color;
     }
 
-    clip(color.a - 0.5);
+    clip(color.a - 0.025);
 
     return color;
 };
