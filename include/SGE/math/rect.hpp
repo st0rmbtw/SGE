@@ -4,6 +4,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <limits>
 
 #include "../defines.hpp"
 
@@ -38,6 +39,11 @@ public:
         this->max = other.max;
         return *this;
     }
+
+    [[nodiscard]]
+    inline constexpr static Self uninitialized() noexcept {
+        return Self(vec2(std::numeric_limits<T>::max()), vec2(std::numeric_limits<T>::min()));
+    }
     
     [[nodiscard]]
     inline constexpr static Self from_corners(vec2 p1, vec2 p2) noexcept {
@@ -58,6 +64,11 @@ public:
     [[nodiscard]]
     inline constexpr static Self from_center_half_size(vec2 origin, vec2 half_size) noexcept {
         return Self(origin - half_size, origin + half_size);
+    }
+
+    [[nodiscard]]
+    inline constexpr Self merge(Self other) {
+        return Self(glm::min(min, other.min), glm::max(max, other.max));
     }
 
     [[nodiscard]]
