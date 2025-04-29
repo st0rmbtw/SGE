@@ -774,7 +774,7 @@ bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std
         return false;
     }
 
-    const auto& info = m_context->GetRendererInfo();
+    const LLGL::RendererInfo& info = GetRendererInfo();
 
     SGE_LOG_INFO("Renderer:             %s", info.rendererName.c_str());
     SGE_LOG_INFO("Device:               %s", info.deviceName.c_str());

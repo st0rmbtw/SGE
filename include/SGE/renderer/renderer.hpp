@@ -1,6 +1,7 @@
 #ifndef _SGE_RENDERER_HPP_
 #define _SGE_RENDERER_HPP_
 
+#include "LLGL/RenderSystemFlags.h"
 #include <GLFW/glfw3.h>
 
 #include <LLGL/Shader.h>
@@ -203,6 +204,9 @@ public:
 #if SGE_DEBUG
     [[nodiscard]] inline LLGL::RenderingDebugger* Debugger() const { return m_debugger; }
 #endif
+
+    [[nodiscard]] inline const LLGL::RendererInfo& GetRendererInfo() { return m_context->GetRendererInfo(); }
+    [[nodiscard]] inline const LLGL::RenderingCapabilities& GetRenderingCaps() { return m_context->GetRenderingCaps(); }
 
 private:
     SpriteBatchData InitSpriteBatchPipeline();
