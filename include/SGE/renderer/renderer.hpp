@@ -205,8 +205,8 @@ public:
     [[nodiscard]] inline LLGL::RenderingDebugger* Debugger() const { return m_debugger; }
 #endif
 
-    [[nodiscard]] inline const LLGL::RendererInfo& GetRendererInfo() { return m_context->GetRendererInfo(); }
-    [[nodiscard]] inline const LLGL::RenderingCapabilities& GetRenderingCaps() { return m_context->GetRenderingCaps(); }
+    [[nodiscard]] inline const LLGL::RendererInfo& GetRendererInfo() const { return m_context->GetRendererInfo(); }
+    [[nodiscard]] inline const LLGL::RenderingCapabilities& GetRenderingCaps() const { return m_context->GetRenderingCaps(); }
 
 private:
     SpriteBatchData InitSpriteBatchPipeline();
