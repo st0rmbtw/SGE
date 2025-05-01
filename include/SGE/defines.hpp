@@ -7,7 +7,23 @@
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(__NT__)
     #define SGE_PLATFORM_WINDOWS 1
 #elif defined(__APPLE__)
-    #define SGE_PLATFORM_MACOS 1
+    #define SGE_PLATFORM_APPLE 1
+
+    #include <TargetConditionals.h>
+    
+    #if TARGET_OS_OSX
+        #define SGE_PLATFORM_MACOS 1
+    #elif TARGET_OS_IOS
+        #define SGE_PLATFORM_IOS 1
+    #elif TARGET_OS_TV
+        #define SGE_PLATFORM_TVOS 1
+    #elif TARGET_OS_WATCH
+        #define SGE_PLATFORM_WATCHOS 1
+    #elif TARGET_OS_BRIDGE
+        #define SGE_PLATFORM_BRIDGEOS 1
+    #endif
+
+
 #elif defined(__linux__)
     #define SGE_PLATFORM_LINUX 1
 #else
