@@ -15,6 +15,7 @@ def signed_byte(b):
 
 def main():
     cwd = sys.argv[1]
+    ext = sys.argv[2] if len(sys.argv) > 2 else ".exe"
     
     renderer_dir = Path(cwd, "src/engine/renderer/")
     

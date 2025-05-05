@@ -110,6 +110,8 @@ endif()
 file(GLOB_RECURSE SGE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm")
 if (APPLE)
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/game.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
+else()
+    set_source_files_properties(${SGE_SRC} PROPERTIES COMPILE_FLAGS "-x c++")
 endif()
 
 if(SGE_BUILD_STATIC)
@@ -144,7 +146,7 @@ file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shader
 foreach(shader ${SHADERS})
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
-        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_EXECUTABLE_SUFFIX}
         DEPENDS ${shader}
     )
 endforeach()
