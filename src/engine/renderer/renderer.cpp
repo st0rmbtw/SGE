@@ -1566,32 +1566,16 @@ void Renderer::PrintDebugInfo() {
 void Renderer::Terminate() {
     const auto& context = m_context;
 
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.vertex_buffer)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.instance_buffer)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.buffer_array)
-
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline_additive)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline_alpha_blend)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline_opaque)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline_premultiplied_alpha)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline_depth_additive)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline_depth_alpha_blend)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline_depth_opaque)
-    SGE_RESOURCE_RELEASE(m_sprite_batch_data.pipeline_depth_premultiplied_alpha)
-
-    SGE_RESOURCE_RELEASE(m_glyph_batch_data.vertex_buffer)
-    SGE_RESOURCE_RELEASE(m_glyph_batch_data.instance_buffer)
-    SGE_RESOURCE_RELEASE(m_glyph_batch_data.buffer_array)
-    SGE_RESOURCE_RELEASE(m_glyph_batch_data.pipeline)
-
-    SGE_RESOURCE_RELEASE(m_ninepatch_batch_data.vertex_buffer)
-    SGE_RESOURCE_RELEASE(m_ninepatch_batch_data.instance_buffer)
-    SGE_RESOURCE_RELEASE(m_ninepatch_batch_data.buffer_array)
-    SGE_RESOURCE_RELEASE(m_ninepatch_batch_data.pipeline)
-
     SGE_RESOURCE_RELEASE(m_constant_buffer);
     SGE_RESOURCE_RELEASE(m_command_buffer);
     SGE_RESOURCE_RELEASE(m_swap_chain);
 
+    m_sprite_batch_data.Destroy(context);
+    m_ninepatch_batch_data.Destroy(context);
+    m_glyph_batch_data.Destroy(context);
+    m_shape_batch_data.Destroy(context);
+
     LLGL::RenderSystem::Unload(std::move(m_context));
+
+    delete m_debugger;
 }

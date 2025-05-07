@@ -19,6 +19,7 @@
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/types.hpp>
+#include <SGE/renderer/macros.hpp>
 #include <SGE/defines.hpp>
 
 _SGE_BEGIN
@@ -40,6 +41,22 @@ struct SpriteBatchData {
     LLGL::Buffer* vertex_buffer = nullptr;
     LLGL::Buffer* instance_buffer = nullptr;
     LLGL::BufferArray* buffer_array = nullptr;
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        SGE_RESOURCE_RELEASE(pipeline_additive);
+        SGE_RESOURCE_RELEASE(pipeline_alpha_blend);
+        SGE_RESOURCE_RELEASE(pipeline_opaque);
+        SGE_RESOURCE_RELEASE(pipeline_premultiplied_alpha);
+        SGE_RESOURCE_RELEASE(pipeline_depth_additive);
+        SGE_RESOURCE_RELEASE(pipeline_depth_alpha_blend);
+        SGE_RESOURCE_RELEASE(pipeline_depth_opaque);
+        SGE_RESOURCE_RELEASE(pipeline_depth_premultiplied_alpha);
+        SGE_RESOURCE_RELEASE(vertex_buffer);
+        SGE_RESOURCE_RELEASE(instance_buffer);
+        SGE_RESOURCE_RELEASE(buffer_array);
+
+        free(buffer);
+    }
 };
 
 struct GlyphBatchData {
@@ -51,6 +68,15 @@ struct GlyphBatchData {
     LLGL::Buffer* vertex_buffer = nullptr;
     LLGL::Buffer* instance_buffer = nullptr;
     LLGL::BufferArray* buffer_array = nullptr;
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        SGE_RESOURCE_RELEASE(pipeline);
+        SGE_RESOURCE_RELEASE(vertex_buffer);
+        SGE_RESOURCE_RELEASE(instance_buffer);
+        SGE_RESOURCE_RELEASE(buffer_array);
+
+        free(buffer);
+    }
 };
 
 struct NinePatchBatchData {
@@ -62,6 +88,15 @@ struct NinePatchBatchData {
     LLGL::Buffer* vertex_buffer = nullptr;
     LLGL::Buffer* instance_buffer = nullptr;
     LLGL::BufferArray* buffer_array = nullptr;
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        SGE_RESOURCE_RELEASE(pipeline);
+        SGE_RESOURCE_RELEASE(vertex_buffer);
+        SGE_RESOURCE_RELEASE(instance_buffer);
+        SGE_RESOURCE_RELEASE(buffer_array);
+
+        free(buffer);
+    }
 };
 
 struct ShapeBatchData {
@@ -73,6 +108,15 @@ struct ShapeBatchData {
     LLGL::Buffer* vertex_buffer = nullptr;
     LLGL::Buffer* instance_buffer = nullptr;
     LLGL::BufferArray* buffer_array = nullptr;
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        SGE_RESOURCE_RELEASE(pipeline);
+        SGE_RESOURCE_RELEASE(vertex_buffer);
+        SGE_RESOURCE_RELEASE(instance_buffer);
+        SGE_RESOURCE_RELEASE(buffer_array);
+
+        free(buffer);
+    }
 };
 
 struct SGE_ALIGN(16) ProjectionsUniform {
