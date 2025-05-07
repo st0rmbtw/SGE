@@ -29,7 +29,7 @@ void main() {
         color = texture(sampler2D(u_texture, u_sampler), v_uv) * v_color;
     }
 
-    if (color.a < 0.5) discard;
+    if (color.a < 0.025) discard;
 
     frag_color = color;
 }

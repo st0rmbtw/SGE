@@ -28,7 +28,7 @@ void main() {
         color = texture(u_texture, v_uv) * v_color;
     }
 
-    if (color.a < 0.5) discard;
+    if (color.a < 0.025) discard;
 
     frag_color = color;
 }

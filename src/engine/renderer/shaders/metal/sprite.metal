@@ -122,7 +122,7 @@ fragment float4 PS(
         color = texture.sample(texture_sampler, inp.uv) * inp.color;
     }
 
-    if (color.a < 0.5) discard_fragment();
+    if (color.a < 0.025) discard_fragment();
 
     return color;
 }
