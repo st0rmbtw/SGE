@@ -34,11 +34,11 @@ std::vector<LLGL::VertexAttribute> sge::Attributes::ToLLGL(sge::RenderBackend ba
 
     uint32_t location = start_location;
     
-    for (const Attribute& item : m_items) {
-        const LLGL::StringLiteral name = backend.IsHLSL() ? item.semantic_name : item.name;
+    for (Attribute& item : m_items) {
+        LLGL::StringLiteral name = std::move(backend.IsHLSL() ? item.semantic_name : item.name);
         const uint32_t instance_divisor = item.type == Attribute::Type::PerInstance ? 1 : 0;
 
-        items.emplace_back(name, item.format, location, item.offset, stride, item.slot, instance_divisor);
+        items.emplace_back(std::move(name), item.format, location, item.offset, stride, item.slot, instance_divisor);
 
         ++location;
     }

@@ -70,7 +70,7 @@ public:
         uint32_t last_index = 0;
         for (const BindingLayoutItem& item : m_items) {
             uint32_t index = item.slot >= 0 ? item.slot : last_index;
-            items.emplace_back(item.resource_type, item.bind_flags, m_stage, index, item.array_size);
+            items.emplace_back(item.name, item.resource_type, item.bind_flags, m_stage, index, item.array_size);
             last_index = index + 1;
         }
 
