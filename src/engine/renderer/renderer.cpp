@@ -11,7 +11,9 @@
 
 #include <cstddef>
 #include <fstream>
+#include <iostream>
 #include <optional>
+#include <ostream>
 #include <sstream>
 #include <utility>
 #include <filesystem>
@@ -774,18 +776,6 @@ bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std
         return false;
     }
 
-    const LLGL::RendererInfo& info = GetRendererInfo();
-
-    SGE_LOG_INFO("Renderer:             %s", info.rendererName.c_str());
-    SGE_LOG_INFO("Device:               %s", info.deviceName.c_str());
-    SGE_LOG_INFO("Vendor:               %s", info.vendorName.c_str());
-    SGE_LOG_INFO("Shading Language:     %s", info.shadingLanguageName.c_str());
-
-    SGE_LOG_INFO("Extensions:");
-    for (const auto& extension : info.extensionNames) {
-        SGE_LOG_INFO("  %s", extension.c_str());
-    }
-
     m_cache_pipelines = cache_pipelines;
     m_cache_pipeline_dir = cache_dir_path;
 
@@ -810,6 +800,18 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
 
     m_swap_chain = context->CreateSwapChain(swapChainDesc, m_surface);
     m_swap_chain->SetVsyncInterval(vsync ? 1 : 0);
+
+    const LLGL::RendererInfo& info = GetRendererInfo();
+
+    SGE_LOG_INFO("Renderer:             %s", info.rendererName.c_str());
+    SGE_LOG_INFO("Device:               %s", info.deviceName.c_str());
+    SGE_LOG_INFO("Vendor:               %s", info.vendorName.c_str());
+    SGE_LOG_INFO("Shading Language:     %s", info.shadingLanguageName.c_str());
+
+    SGE_LOG_INFO("Extensions:");
+    for (const auto& extension : info.extensionNames) {
+        SGE_LOG_INFO("  %s", extension.c_str());
+    }
 
     LLGL::CommandBufferDescriptor command_buffer_desc;
     command_buffer_desc.numNativeBuffers = 3;

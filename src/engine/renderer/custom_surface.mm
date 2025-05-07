@@ -3,6 +3,8 @@
 #include <LLGL/Platform/NativeHandle.h>
 #include <GLFW/glfw3native.h>
 
+#include <SGE/defines.hpp>
+
 using namespace sge;
 
 CustomSurface::CustomSurface(GLFWwindow * const window, const LLGL::Extent2D& size) :
@@ -26,10 +28,9 @@ bool CustomSurface::GetNativeHandle(void* nativeHandle, std::size_t nativeHandle
     handle->window = glfwGetWin32Window(m_wnd);
 #elif defined(SGE_PLATFORM_MACOS)
     handle->responder = glfwGetCocoaWindow(m_wnd);
-#elif defined(WAYLAND)
-    // TODO
-#elif defined(X11)
-    // TODO
+#elif defined(SGE_PLATFORM_LINUX)
+    handle->window = glfwGetX11Window(m_wnd);
+    handle->display = glfwGetX11Display();
 #endif
     return true;
 }

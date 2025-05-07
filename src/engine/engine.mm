@@ -157,6 +157,10 @@ bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings se
     if (state.window_resize_callback == nullptr) state.window_resize_callback = default_window_resize_callback;
     if (state.load_assets_callback == nullptr) state.load_assets_callback = default_load_assets_callback;
 
+#if SGE_PLATFORM_LINUX
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+#endif
+
     if (!glfwInit()) {
         SGE_LOG_ERROR("Couldn't initialize GLFW: %s", glfwGetErrorString());
         return false;
@@ -164,9 +168,7 @@ bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings se
 
     LLGL::Log::RegisterCallbackStd();
 
-    if (!state.renderer.InitEngine(backend)) return false;
-    
-    if (!state.load_assets_callback()) return false;
+    if (!state.renderer.InitEngine(backend)) return false;    
 
     LLGL::Extent2D window_size = LLGL::Extent2D(settings.width, settings.height);
     if (settings.fullscreen) {
@@ -186,6 +188,8 @@ bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings se
     
     const LLGL::Extent2D resolution = get_scaled_resolution(window_size.width, window_size.height);
     if (!state.renderer.Init(window, resolution, vsync, settings.fullscreen)) return false;
+
+    if (!state.load_assets_callback()) return false;
 
     Time::SetFixedTimestepSeconds(1.0f / 60.0f);
 

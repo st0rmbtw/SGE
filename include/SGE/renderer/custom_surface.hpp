@@ -15,11 +15,10 @@ _SGE_BEGIN
 #elif SGE_PLATFORM_MACOS
     #define GLFW_EXPOSE_NATIVE_COCOA
 #else
-    #if defined(WAYLAND)
+    #if SGE_PLATFORM_LINUX
         #define GLFW_EXPOSE_NATIVE_WAYLAND
-    #elif defined(X11)
         #define GLFW_EXPOSE_NATIVE_X11
-  #endif
+    #endif
 #endif
 
 class CustomSurface : public LLGL::Surface {

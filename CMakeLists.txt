@@ -108,9 +108,7 @@ if(SGE_BUILD_EXAMPLES)
 endif()
 
 file(GLOB_RECURSE SGE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm")
-if (APPLE)
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/game.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
-else()
+if (NOT APPLE)
     set_source_files_properties(${SGE_SRC} PROPERTIES COMPILE_FLAGS "-x c++")
 endif()
 
