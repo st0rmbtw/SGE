@@ -85,8 +85,20 @@ struct LinearRgba {
         return LinearRgba(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
+    static constexpr LinearRgba transparent() {
+        return LinearRgba(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
     static constexpr LinearRgba red() {
         return LinearRgba(1.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    static constexpr LinearRgba green() {
+        return LinearRgba(0.0f, 1.0f, 0.0f, 1.0f);
+    }
+
+    static constexpr LinearRgba blue() {
+        return LinearRgba(0.0f, 0.0f, 1.0f, 1.0f);
     }
 
     [[nodiscard]]

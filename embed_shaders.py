@@ -35,7 +35,7 @@ def main():
     )
     
     if d3d11_dir.exists():
-        for item in d3d11_dir.iterdir():
+        for item in sorted(d3d11_dir.iterdir()):
             if not item.is_file(): continue
             
             basename = item.stem.upper()
@@ -43,7 +43,7 @@ def main():
             shaders_hpp_content += write_constant(var_name, item)
     
     if metal_dir.exists():
-        for item in metal_dir.iterdir():
+        for item in sorted(metal_dir.iterdir()):
             if not item.is_file(): continue
             
             basename = item.stem.upper()
@@ -51,7 +51,7 @@ def main():
             shaders_hpp_content += write_constant(var_name, item)
     
     if opengl_dir.exists():
-        for item in opengl_dir.iterdir():
+        for item in sorted(opengl_dir.iterdir()):
             if not item.is_file(): continue
             
             basename = item.stem.upper()
@@ -67,7 +67,7 @@ def main():
             shaders_hpp_content += write_constant(var_name, item)
     
     if vulkan_dir.exists():
-        for item in vulkan_dir.iterdir():
+        for item in sorted(vulkan_dir.iterdir()):
             if not item.is_file(): continue
             
             basename = item.stem.upper()
@@ -83,7 +83,7 @@ def main():
             fd, path = tempfile.mkstemp(suffix=".spv")
             
             ps = subprocess.Popen(
-                ("glslang", "-V", "--enhanced-msgs", "-o", path, str(item)),
+                (f"glslang{ext}", "-V", "--enhanced-msgs", "-o", path, str(item)),
             )
             ps.wait()
             

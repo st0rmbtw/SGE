@@ -744,7 +744,7 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     vertex_format.attributes = Attributes({
         Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
         Attribute::Vertex(LLGL::Format::RGBA32Float, "a_color", "Color"),
-        Attribute::Vertex(LLGL::Format::RGBA32Float, "a_flags", "Flags"),
+        Attribute::Vertex(LLGL::Format::R8UInt, "a_flags", "Flags"),
     }).ToLLGL(backend);
 
     LineBatchData batchData;
@@ -1433,7 +1433,7 @@ void Renderer::UpdateBatchBuffers(
             uint8_t flags = 0;
             flags |= batch.IsUi() << ShapeFlags::UI;
 
-            m_line_batch_data.buffer_ptr->pos = line_data.v4;
+            m_line_batch_data.buffer_ptr->pos = line_data.v1;
             m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
             m_line_batch_data.buffer_ptr->flags = flags;
             m_line_batch_data.buffer_ptr++;
@@ -1448,7 +1448,7 @@ void Renderer::UpdateBatchBuffers(
             m_line_batch_data.buffer_ptr->flags = flags;
             m_line_batch_data.buffer_ptr++;
 
-            m_line_batch_data.buffer_ptr->pos = line_data.v1;
+            m_line_batch_data.buffer_ptr->pos = line_data.v4;
             m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
             m_line_batch_data.buffer_ptr->flags = flags;
             m_line_batch_data.buffer_ptr++;

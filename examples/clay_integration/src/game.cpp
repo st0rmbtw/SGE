@@ -50,7 +50,7 @@ void update() {
         const glm::vec2 scaledLength = length * zoom_factor;
         const glm::vec2 deltaLength = length - scaledLength;
 
-        const Rect area = g.camera.get_projection_area();
+        const Rect& area = g.camera.get_projection_area();
         const glm::vec2 window_size = g.camera.viewport();
 
         const glm::vec2 new_position = g.camera.position() + deltaLength;
@@ -58,11 +58,14 @@ void update() {
     }
 
     if (Input::Pressed(MouseButton::Left)) {
-        const Rect area = g.camera.get_projection_area();
-        const glm::vec2 window_size = g.camera.viewport();
+        const Rect& area = g.camera.get_projection_area();
+        const glm::vec2 half_screen_size = glm::vec2(g.camera.viewport()) / 2.0f;
 
-        const glm::vec2 new_position = g.camera.position() - Input::MouseDelta() * g.camera.zoom();
-        g.camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size - area.size())));
+        const glm::vec2 dir = glm::vec2(g.camera.right(), g.camera.down());
+
+        const glm::vec2 new_position = g.camera.position() - Input::MouseDelta() * g.camera.zoom() * dir;
+        g.camera.set_position(glm::clamp(new_position, -area.min, area.max));
+        g.camera.set_position(new_position);
     }
 
     if (Input::JustPressed(Key::Escape)) {
@@ -84,29 +87,30 @@ void render() {
 
     Clay_BeginLayout();
 
-    // CLAY({
-    //     .layout = {
-    //         .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
-    //         .padding = { 10, 10, 10, 10 },
-    //         .childAlignment = {
-    //             .x = Clay_LayoutAlignmentX::CLAY_ALIGN_X_CENTER,
-    //             .y = Clay_LayoutAlignmentY::CLAY_ALIGN_Y_CENTER
-    //         },
-    //     },
-    //     .backgroundColor = { 25, 25, 25, 255 }
-    // }) {
-    //     CLAY({
-    //         .layout = {
-    //             .sizing = { CLAY_SIZING_FIXED(100), CLAY_SIZING_FIXED(100) },
-    //         },
-    //         .backgroundColor = { 255, 250, 250, 255},
-    //         .cornerRadius = CLAY_CORNER_RADIUS(20),
-    //         .border = {
-    //             .color = {255, 0, 0, 255},
-    //             .width = CLAY_BORDER_ALL(10)
-    //         }
-    //     });
-    // }
+    CLAY({
+        .layout = {
+            .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+            .padding = { 10, 10, 10, 10 },
+            .childGap = 0,
+        },
+        .backgroundColor = { 25, 25, 25, 255 }
+    }) {
+        CLAY({
+            .layout = {
+                .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+            },
+            .backgroundColor = { 255, 0, 0, 255 },
+            .cornerRadius = { 12, 0, 12, 0 },
+        });
+
+        CLAY({
+            .layout = {
+                .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+            },
+            .backgroundColor = { 0, 255, 0, 255 },
+            .cornerRadius = { 0, 12, 0, 12 },
+        });
+    }
 
     Clay_RenderCommandArray drawCommands = Clay_EndLayout();
     for (int i = 0; i < drawCommands.length; ++i) {
@@ -121,7 +125,7 @@ void render() {
             const LinearRgba color = LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
             const glm::vec4 cornerRadius = glm::vec4(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
-            g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+            g.batch.DrawRect(position, size, color, color, 0.0f, cornerRadius, Anchor::TopLeft);
         } break;
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
             Clay_BorderRenderData *config = &drawCommand->renderData.border;
@@ -190,8 +194,6 @@ void render() {
           break;
         }
     }
-
-    g.batch.DrawLine(glm::vec2(g.camera.viewport()), glm::vec2(g.camera.viewport()) + glm::vec2(100.0, 100.0), 10.0, sge::LinearRgba::red());
 
     renderer.BeginMainPass();
         renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));

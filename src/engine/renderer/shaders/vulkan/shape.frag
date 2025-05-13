@@ -3,12 +3,13 @@
 layout(location = 0) out vec4 frag_color;
 
 layout(location = 0) in vec2 v_uv;
-layout(location = 1) flat in vec4 v_color;
-layout(location = 2) flat in vec2 v_size;
-layout(location = 3) flat in vec4 v_border_color;
-layout(location = 4) flat in vec4 v_border_radius;
-layout(location = 5) flat in float v_border_thickness;
-layout(location = 6) flat in uint v_shape;
+layout(location = 1) in vec2 v_point;
+layout(location = 2) flat in vec4 v_color;
+layout(location = 3) flat in vec2 v_size;
+layout(location = 4) flat in vec4 v_border_color;
+layout(location = 5) flat in vec4 v_border_radius;
+layout(location = 6) flat in float v_border_thickness;
+layout(location = 7) flat in uint v_shape;
 
 const float CIRCLE_AA = 0.001;
 
@@ -59,11 +60,9 @@ float arc_sdf(in vec2 p, in float a0, in float a1, in float r )
 }
 
 // radius = [topLeft, topRight, bottomLeft, bottomRight]
-float rounded_box_sdf(vec2 uv, vec2 size, vec4 radius) {
-    vec2 center = size * (uv - 0.5);
-
+float rounded_box_sdf(vec2 center, vec2 size, vec4 radius) {
     radius.xy = (center.x < 0.0) ? radius.xz : radius.yw;
-    radius.x  = (center.y < 0.0) ? radius.x  : radius.y;
+    radius.x  = (center.y < 0.0) ? radius.y  : radius.x;
 
     vec2 dist = abs(center) - size * 0.5 + radius.x;
     return min(max(dist.x,dist.y),0.0) + length(max(dist, 0.0)) - radius.x;
@@ -95,11 +94,13 @@ void main() {
         float radius = max(v_border_radius.x, max(v_border_radius.y, max(v_border_radius.z, v_border_radius.w)));
 
         if (radius > 0.0) {
-            float d = rounded_box_sdf(v_uv, v_size, v_border_radius);
-            float aa = length(vec2(dFdx(d), dFdy(d)));
+            float d = rounded_box_sdf(v_point, v_size, v_border_radius);
+            // float aa = pow(fwidth(d), 1.0 / 2.2);
+            // float aa = fwidth(d) * 1.5;
+            float aa = length(vec2(dFdx(d), dFdy(d))) * 1.5;
 
-            float smoothed_alpha = 1.0 - smoothstep(0.0-aa, 0.0, d);
-            float border_alpha = 1.0 - smoothstep(v_border_thickness - aa, v_border_thickness, abs(d));
+            float smoothed_alpha = 1.0 - smoothstep(0.0, aa, d);
+            float border_alpha = 1.0 - smoothstep(v_border_thickness, v_border_thickness + aa, abs(d));
 
             vec4 quad_color = vec4(v_color.rgb, min(v_color.a, smoothed_alpha));
             vec4 quad_color_with_border = mix(quad_color, v_border_color, min(v_border_color.a, min(border_alpha, smoothed_alpha)));
