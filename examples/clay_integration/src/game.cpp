@@ -84,29 +84,29 @@ void render() {
 
     Clay_BeginLayout();
 
-    CLAY({
-        .layout = {
-            .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
-            .padding = { 10, 10, 10, 10 },
-            .childAlignment = {
-                .x = Clay_LayoutAlignmentX::CLAY_ALIGN_X_CENTER,
-                .y = Clay_LayoutAlignmentY::CLAY_ALIGN_Y_CENTER
-            },
-        },
-        .backgroundColor = { 25, 25, 25, 255 }
-    }) {
-        CLAY({
-            .layout = {
-                .sizing = { CLAY_SIZING_FIXED(100), CLAY_SIZING_FIXED(100) },
-            },
-            .backgroundColor = { 255, 250, 250, 255},
-            .cornerRadius = CLAY_CORNER_RADIUS(20),
-            .border = {
-                .color = {255, 0, 0, 255},
-                .width = CLAY_BORDER_ALL(10)
-            }
-        });
-    }
+    // CLAY({
+    //     .layout = {
+    //         .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+    //         .padding = { 10, 10, 10, 10 },
+    //         .childAlignment = {
+    //             .x = Clay_LayoutAlignmentX::CLAY_ALIGN_X_CENTER,
+    //             .y = Clay_LayoutAlignmentY::CLAY_ALIGN_Y_CENTER
+    //         },
+    //     },
+    //     .backgroundColor = { 25, 25, 25, 255 }
+    // }) {
+    //     CLAY({
+    //         .layout = {
+    //             .sizing = { CLAY_SIZING_FIXED(100), CLAY_SIZING_FIXED(100) },
+    //         },
+    //         .backgroundColor = { 255, 250, 250, 255},
+    //         .cornerRadius = CLAY_CORNER_RADIUS(20),
+    //         .border = {
+    //             .color = {255, 0, 0, 255},
+    //             .width = CLAY_BORDER_ALL(10)
+    //         }
+    //     });
+    // }
 
     Clay_RenderCommandArray drawCommands = Clay_EndLayout();
     for (int i = 0; i < drawCommands.length; ++i) {
@@ -190,6 +190,8 @@ void render() {
           break;
         }
     }
+
+    g.batch.DrawLine(glm::vec2(g.camera.viewport()), glm::vec2(g.camera.viewport()) + glm::vec2(100.0, 100.0), 10.0, sge::LinearRgba::red());
 
     renderer.BeginMainPass();
         renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));

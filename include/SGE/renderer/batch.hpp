@@ -28,7 +28,8 @@ enum class FlushDataType : uint8_t {
     Sprite = 0,
     Glyph,
     NinePatch,
-    Shape
+    Shape,
+    Line,
 };
 
 struct FlushData {
@@ -87,13 +88,22 @@ struct DrawCommandShape {
     uint32_t shape;
 };
 
+struct DrawCommandLine {
+    glm::vec2 v1;
+    glm::vec2 v2;
+    glm::vec2 v3;
+    glm::vec2 v4;
+    sge::LinearRgba color;
+};
+
 class DrawCommand {
 public:
     enum Type : uint8_t {
         DrawSprite = 0,
         DrawGlyph,
         DrawNinePatch,
-        DrawShape
+        DrawShape,
+        DrawLine
     };
 
     DrawCommand(DrawCommandSprite sprite_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
@@ -124,6 +134,13 @@ public:
         m_type(Type::DrawShape),
         m_blend_mode(blend_mode) {}
 
+    DrawCommand(DrawCommandLine line_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+        m_line_data(line_data),
+        m_id(id),
+        m_order(order),
+        m_type(Type::DrawLine),
+        m_blend_mode(blend_mode) {}
+
     [[nodiscard]] inline Type type() const { return m_type; }
     [[nodiscard]] inline uint32_t id() const { return m_id; }
 
@@ -143,6 +160,7 @@ public:
     [[nodiscard]] inline const DrawCommandGlyph& glyph_data() const { return m_glyph_data; }
     [[nodiscard]] inline const DrawCommandNinePatch& ninepatch_data() const { return m_ninepatch_data; }
     [[nodiscard]] inline const DrawCommandShape& shape_data() const { return m_shape_data; }
+    [[nodiscard]] inline const DrawCommandLine& line_data() const { return m_line_data; }
 
 private:
     union {
@@ -150,6 +168,7 @@ private:
         DrawCommandSprite m_sprite_data;
         DrawCommandGlyph m_glyph_data;
         DrawCommandShape m_shape_data;
+        DrawCommandLine m_line_data;
     };
 
     uint32_t m_id;
@@ -181,6 +200,16 @@ class Batch {
     friend class sge::Renderer;
 
 public:
+    struct Data {
+        void Reset() {
+            offset = 0;
+            count = 0;
+        }
+
+        uint32_t offset = 0;
+        uint32_t count = 0;
+    };
+
     using DrawCommands = std::vector<internal::DrawCommand>;
     using FlushQueue = std::vector<internal::FlushData>;
 
@@ -196,17 +225,13 @@ public:
         m_draw_commands = std::move(other.m_draw_commands);
         m_flush_queue = std::move(other.m_flush_queue);
 
-        m_sprite_instance_offset = other.m_sprite_instance_offset;
-        m_glyph_instance_offset = other.m_glyph_instance_offset;
-        m_ninepatch_instance_offset = other.m_ninepatch_instance_offset;
-        m_shape_instance_offset = other.m_shape_instance_offset;
+        m_sprite_data = other.m_sprite_data;
+        m_glyph_data = other.m_glyph_data;
+        m_ninepatch_data = other.m_ninepatch_data;
+        m_shape_data = other.m_shape_data;
+        m_line_data = other.m_line_data;
 
         m_order = other.m_order;
-
-        m_sprite_count = other.m_sprite_count;
-        m_glyph_count = other.m_glyph_count;
-        m_ninepatch_count = other.m_ninepatch_count;
-        m_shape_count = other.m_shape_count;
 
         m_draw_commands_done = other.m_draw_commands_done;
 
@@ -285,22 +310,18 @@ public:
         return DrawShape(sge::Shape::Arc, position, glm::vec2(outer_radius * 2.0f), color, sge::LinearRgba(0.0f), inner_radius, glm::vec4(start_angle, end_angle, 0.0f, 0.0f), anchor, custom_order);
     }
 
+    uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, sge::Order custom_order = {});
+
     inline void Reset() {
         m_draw_commands.clear();
         m_flush_queue.clear();
         m_order = 0;
 
-        m_sprite_instance_offset = 0;
-        m_sprite_count = 0;
-
-        m_glyph_instance_offset = 0;
-        m_glyph_count = 0;
-
-        m_ninepatch_instance_offset = 0;
-        m_ninepatch_count = 0;
-
-        m_shape_instance_offset = 0;
-        m_shape_count = 0;
+        m_sprite_data.Reset();
+        m_glyph_data.Reset();
+        m_ninepatch_data.Reset();
+        m_shape_data.Reset();
+        m_line_data.Reset();
 
         m_draw_commands_done = 0;
     }
@@ -314,39 +335,19 @@ public:
     [[nodiscard]]
     inline uint32_t order() const { return m_order; }
 
-    [[nodiscard]]
-    inline size_t sprite_count() const { return m_sprite_count; }
+    [[nodiscard]] inline const Data& sprite_data() const { return m_sprite_data; }
+    [[nodiscard]] inline const Data& glyph_data() const { return m_glyph_data; }
+    [[nodiscard]] inline const Data& ninepatch_data() const { return m_ninepatch_data; }
+    [[nodiscard]] inline const Data& shape_data() const { return m_shape_data; }
+    [[nodiscard]] inline const Data& line_data() const { return m_line_data; }
 
-    [[nodiscard]]
-    inline size_t glyph_count() const { return m_glyph_count; }
-
-    [[nodiscard]]
-    inline size_t ninepatch_count() const { return m_ninepatch_count; }
-
-    [[nodiscard]]
-    inline size_t shape_count() const { return m_shape_count; }
+    inline uint32_t GetNextOrder(Order custom_order = {});
 
 private:
     uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, sge::Order custom_order);
     uint32_t AddNinePatchDrawCommand(const sge::NinePatch& ninepatch, const glm::vec4& uv_offset_scale, sge::Order custom_order);
-    void AddGlyphDrawCommand(const internal::DrawCommandGlyph& command);
-
-    inline void set_sprite_offset(size_t offset) { m_sprite_instance_offset = offset; }
-    inline void set_glyph_offset(size_t offset) { m_glyph_instance_offset = offset; }
-    inline void set_ninepatch_offset(size_t offset) { m_ninepatch_instance_offset = offset; }
-    inline void set_shape_offset(size_t offset) { m_shape_instance_offset = offset; }
-
-    inline void set_sprite_count(size_t count) { m_sprite_count = count; }
-    inline void set_glyph_count(size_t count) { m_glyph_count = count; }
-    inline void set_ninepatch_count(size_t count) { m_ninepatch_count = count; }
-    inline void set_shape_count(size_t count) { m_shape_count = count; }
 
     inline void set_draw_commands_done(size_t count) { m_draw_commands_done = count; }
-
-    [[nodiscard]] inline size_t sprite_offset() const { return m_sprite_instance_offset; }
-    [[nodiscard]] inline size_t glyph_offset() const { return m_glyph_instance_offset; }
-    [[nodiscard]] inline size_t ninepatch_offset() const { return m_ninepatch_instance_offset; }
-    [[nodiscard]] inline size_t shape_offset() const { return m_shape_instance_offset; }
 
     [[nodiscard]] inline size_t draw_commands_done() const { return m_draw_commands_done; }
 
@@ -356,6 +357,12 @@ private:
     [[nodiscard]] inline const DrawCommands& draw_commands() const { return m_draw_commands; }
     [[nodiscard]] inline DrawCommands& draw_commands() { return m_draw_commands; }
 
+    [[nodiscard]] inline Data& sprite_data() { return m_sprite_data; }
+    [[nodiscard]] inline Data& glyph_data() { return m_glyph_data; }
+    [[nodiscard]] inline Data& ninepatch_data() { return m_ninepatch_data; }
+    [[nodiscard]] inline Data& shape_data() { return m_shape_data; }
+    [[nodiscard]] inline Data& line_data() { return m_line_data; }
+
 private:
     static constexpr size_t MAX_QUADS = 2500;
     static constexpr size_t MAX_GLYPHS = 2500;
@@ -363,17 +370,13 @@ private:
     DrawCommands m_draw_commands;
     FlushQueue m_flush_queue;
 
-    size_t m_sprite_instance_offset = 0;
-    size_t m_glyph_instance_offset = 0;
-    size_t m_ninepatch_instance_offset = 0;
-    size_t m_shape_instance_offset = 0;
+    Data m_sprite_data;
+    Data m_glyph_data;
+    Data m_ninepatch_data;
+    Data m_shape_data;
+    Data m_line_data;
 
     uint32_t m_order = 0;
-
-    uint32_t m_sprite_count = 0;
-    uint32_t m_glyph_count = 0;
-    uint32_t m_ninepatch_count = 0;
-    uint32_t m_shape_count = 0;
 
     uint32_t m_draw_commands_done = 0;
 

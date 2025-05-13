@@ -735,6 +735,108 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
     return batchData;
 }
 
+LineBatchData Renderer::InitLineBatchPipeline() {
+    const RenderBackend backend = m_backend;
+    const auto& context = m_context;
+
+    LLGL::VertexFormat vertex_format;
+
+    vertex_format.attributes = Attributes({
+        Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
+        Attribute::Vertex(LLGL::Format::RGBA32Float, "a_color", "Color"),
+        Attribute::Vertex(LLGL::Format::RGBA32Float, "a_flags", "Flags"),
+    }).ToLLGL(backend);
+
+    LineBatchData batchData;
+
+    batchData.buffer = checked_alloc<LineVertex>(MAX_QUADS);
+    batchData.buffer_ptr = batchData.buffer;
+
+    batchData.vertex_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(LineVertex), vertex_format, "LineBatch VertexBuffer");
+
+    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+    pipelineLayoutDesc.bindings = BindingLayout(
+        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
+        {
+            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
+        }
+    );
+
+    LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
+
+    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
+
+    const void* vsSource = nullptr;
+    size_t vsSize = 0;
+    const void* psSource = nullptr;
+    size_t psSize = 0;
+    
+    if (backend.IsD3D11() || backend.IsD3D12()) {
+        SGE_ASSERT(false, "TODO");
+        
+        vsSource = D3D11_SHAPE;
+        vsSize = sizeof(D3D11_SHAPE);
+        psSource = D3D11_SHAPE;
+        psSize = sizeof(D3D11_SHAPE);
+    } else if (backend.IsMetal()) {
+        SGE_ASSERT(false, "TODO");
+
+        vsSource = METAL_SHAPE;
+        vsSize = sizeof(METAL_SHAPE);
+        psSource = METAL_SHAPE;
+        psSize = sizeof(METAL_SHAPE);
+    } else if (backend.IsOpenGL()) {
+        SGE_ASSERT(false, "TODO");
+
+        vsSource = GL_SHAPE_VERT;
+        vsSize = sizeof(GL_SHAPE_VERT);
+        psSource = GL_SHAPE_FRAG;
+        psSize = sizeof(GL_SHAPE_FRAG);
+    } else if (backend.IsVulkan()) {
+        vsSource = VULKAN_LINE_VERT;
+        vsSize = sizeof(VULKAN_LINE_VERT);
+        psSource = VULKAN_LINE_FRAG;
+        psSize = sizeof(VULKAN_LINE_FRAG);
+    }
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.debugName = "LineBatch Pipeline";
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
+    pipelineDesc.pipelineLayout = pipelineLayout;
+    pipelineDesc.indexFormat = LLGL::Format::R16UInt;
+    pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
+    pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
+    pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.blend = LLGL::BlendDescriptor {
+        .targets = {
+            LLGL::BlendTargetDescriptor {
+                .blendEnabled = true,
+                .srcColor = LLGL::BlendOp::SrcAlpha,
+                .dstColor = LLGL::BlendOp::InvSrcAlpha,
+                .srcAlpha = LLGL::BlendOp::Zero,
+                .dstAlpha = LLGL::BlendOp::One,
+                .alphaArithmetic = LLGL::BlendArithmetic::Max
+            }
+        }
+    };
+
+    bool hasInitialCache = false;
+    LLGL::PipelineCache* pipelineCache = ReadPipelineCache("LineBatchPipeline", hasInitialCache);
+
+    batchData.pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+
+    if (!hasInitialCache) {
+        SavePipelineCache("LineBatchPipeline", pipelineCache);
+    }
+    
+    if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
+        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+    }
+
+    return batchData;
+}
+
 bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path) {
     ZoneScopedN("Renderer::InitEngine");
 
@@ -839,6 +941,7 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
     m_ninepatch_batch_data = InitNinepatchBatchPipeline();
     m_glyph_batch_data = InitGlyphBatchPipeline();
     m_shape_batch_data = InitShapeBatchPipeline();
+    m_line_batch_data = InitLineBatchPipeline();
 
     ResizeBuffers(resolution);
 
@@ -873,17 +976,20 @@ void Renderer::Begin(const Camera& camera) {
     m_glyph_instance_size = 0;
     m_ninepatch_instance_size = 0;
     m_shape_instance_size = 0;
+    m_line_vertex_size = 0;
 
     m_sprite_instance_count = 0;
     m_glyph_instance_count = 0;
     m_ninepatch_instance_count = 0;
     m_shape_instance_count = 0;
+    m_line_instance_count = 0;
     m_batch_instance_count = 0;
 
     m_sprite_batch_data.buffer_ptr = m_sprite_batch_data.buffer;
     m_glyph_batch_data.buffer_ptr = m_glyph_batch_data.buffer;
     m_ninepatch_batch_data.buffer_ptr = m_ninepatch_batch_data.buffer;
     m_shape_batch_data.buffer_ptr = m_shape_batch_data.buffer;
+    m_line_batch_data.buffer_ptr = m_line_batch_data.buffer;
 }
 
 void Renderer::BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport) {
@@ -954,25 +1060,30 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
             case FlushDataType::Sprite:
                 commands->SetVertexBufferArray(*m_sprite_batch_data.buffer_array);
                 commands->SetPipelineState(*sprite_pipeline);
-                offset = batch.sprite_offset();
+                offset = batch.sprite_data().offset;
             break;
 
             case FlushDataType::Glyph:
                 commands->SetVertexBufferArray(*m_glyph_batch_data.buffer_array);
                 commands->SetPipelineState(*m_glyph_batch_data.pipeline);
-                offset = batch.glyph_offset();
+                offset = batch.glyph_data().offset;
             break;
 
             case FlushDataType::NinePatch:
                 commands->SetVertexBufferArray(*m_ninepatch_batch_data.buffer_array);
                 commands->SetPipelineState(*m_ninepatch_batch_data.pipeline);
-                offset = batch.ninepatch_offset();
+                offset = batch.ninepatch_data().offset;
             break;
 
             case FlushDataType::Shape:
                 commands->SetVertexBufferArray(*m_shape_batch_data.buffer_array);
                 commands->SetPipelineState(*m_shape_batch_data.pipeline);
-                offset = batch.ninepatch_offset();
+                offset = batch.shape_data().offset;
+            break;
+            case FlushDataType::Line:
+                commands->SetVertexBuffer(*m_line_batch_data.vertex_buffer);
+                commands->SetPipelineState(*m_line_batch_data.pipeline);
+                offset = batch.line_data().offset;
             break;
             }
 
@@ -989,7 +1100,14 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
             prev_texture_id = texture.id();
         }
 
-        commands->DrawInstanced(4, 0, flush_data.count, offset + flush_data.offset);
+        switch (flush_data.type) {
+        case FlushDataType::Line: {
+            commands->Draw(flush_data.count, offset + flush_data.offset);
+        } break;
+        default: {
+            commands->DrawInstanced(4, 0, flush_data.count, offset + flush_data.offset);
+        }
+        }
 
         prev_flush_data_type = static_cast<int>(flush_data.type);
         prev_blend_mode = flush_data.blend_mode;
@@ -1048,24 +1166,29 @@ void Renderer::UpdateBatchBuffers(
     uint32_t sprite_count = 0;
     uint32_t sprite_total_count = 0;
     uint32_t sprite_vertex_offset = 0;
-    uint32_t sprite_remaining = batch.sprite_count();
+    uint32_t sprite_remaining = batch.sprite_data().count;
 
     Texture glyph_prev_texture;
     uint32_t glyph_count = 0;
     uint32_t glyph_total_count = 0;
     uint32_t glyph_vertex_offset = 0;
-    uint32_t glyph_remaining = batch.glyph_count();
+    uint32_t glyph_remaining = batch.glyph_data().count;
 
     Texture ninepatch_prev_texture;
     uint32_t ninepatch_count = 0;
     uint32_t ninepatch_total_count = 0;
     uint32_t ninepatch_vertex_offset = 0;
-    uint32_t ninepatch_remaining = batch.ninepatch_count();
+    uint32_t ninepatch_remaining = batch.ninepatch_data().count;
 
     uint32_t shape_count = 0;
     uint32_t shape_total_count = 0;
     uint32_t shape_vertex_offset = 0;
-    uint32_t shape_remaining = batch.shape_count();
+    uint32_t shape_remaining = batch.shape_data().count;
+
+    uint32_t line_count = 0;
+    uint32_t line_total_count = 0;
+    uint32_t line_vertex_offset = 0;
+    uint32_t line_remaining = batch.line_data().count;
 
     size_t i = 0;
     for (i = begin; i < draw_commands.size(); ++i) {
@@ -1083,9 +1206,9 @@ void Renderer::UpdateBatchBuffers(
 
         switch (draw_command.type()) {
         case DrawCommand::DrawSprite: {
-            const DrawCommandSprite& sprite_data = draw_command.sprite_data();
-            
             if (sprite_remaining == 0) continue;
+
+            const DrawCommandSprite& sprite_data = draw_command.sprite_data();
 
             if (sprite_total_count == 0) {
                 sprite_prev_texture = sprite_data.texture;
@@ -1148,9 +1271,9 @@ void Renderer::UpdateBatchBuffers(
             sprite_prev_blend_mode = draw_command.blend_mode();
         } break;
         case DrawCommand::DrawGlyph: {
-            const DrawCommandGlyph& glyph_data = draw_command.glyph_data();
-
             if (glyph_remaining == 0) continue;
+
+            const DrawCommandGlyph& glyph_data = draw_command.glyph_data();
 
             if (glyph_total_count == 0) {
                 glyph_prev_texture = glyph_data.texture;
@@ -1202,9 +1325,9 @@ void Renderer::UpdateBatchBuffers(
             glyph_prev_texture = glyph_data.texture;
         } break;
         case DrawCommand::DrawNinePatch: {
-            const DrawCommandNinePatch& ninepatch_data = draw_command.ninepatch_data();
-
             if (ninepatch_remaining == 0) continue;
+
+            const DrawCommandNinePatch& ninepatch_data = draw_command.ninepatch_data();
 
             if (ninepatch_total_count == 0) {
                 ninepatch_prev_texture = ninepatch_data.texture;
@@ -1263,9 +1386,9 @@ void Renderer::UpdateBatchBuffers(
             ninepatch_prev_texture = ninepatch_data.texture;
         } break;
         case DrawCommand::DrawShape: {
-            const DrawCommandShape& shape_data = draw_command.shape_data();
-
             if (shape_remaining == 0) continue;
+            
+            const DrawCommandShape& shape_data = draw_command.shape_data();
 
             const uint32_t current_order = draw_command.order();
 
@@ -1300,6 +1423,53 @@ void Renderer::UpdateBatchBuffers(
                 shape_vertex_offset = shape_total_count;
             }
         } break;
+        case DrawCommand::DrawLine: {
+            if (line_remaining == 0) continue;
+
+            const DrawCommandLine& line_data = draw_command.line_data();
+
+            const uint32_t current_order = draw_command.order();
+
+            uint8_t flags = 0;
+            flags |= batch.IsUi() << ShapeFlags::UI;
+
+            m_line_batch_data.buffer_ptr->pos = line_data.v4;
+            m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
+            m_line_batch_data.buffer_ptr->flags = flags;
+            m_line_batch_data.buffer_ptr++;
+            
+            m_line_batch_data.buffer_ptr->pos = line_data.v2;
+            m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
+            m_line_batch_data.buffer_ptr->flags = flags;
+            m_line_batch_data.buffer_ptr++;
+
+            m_line_batch_data.buffer_ptr->pos = line_data.v3;
+            m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
+            m_line_batch_data.buffer_ptr->flags = flags;
+            m_line_batch_data.buffer_ptr++;
+
+            m_line_batch_data.buffer_ptr->pos = line_data.v1;
+            m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
+            m_line_batch_data.buffer_ptr->flags = flags;
+            m_line_batch_data.buffer_ptr++;
+
+            ++line_count;
+            ++line_total_count;
+            --line_remaining;
+
+            if (line_remaining == 0 || current_order != next_order) {
+                flush_queue.push_back(FlushData {
+                    .texture = std::nullopt,
+                    .offset = line_vertex_offset,
+                    .count = line_count * 4,
+                    .order = draw_command.order(),
+                    .type = FlushDataType::Line,
+                    .blend_mode = draw_command.blend_mode()
+                });
+                line_count = 0;
+                line_vertex_offset = line_total_count * 4;
+            }
+        };
         }
 
         if (m_batch_instance_count + 1 >= MAX_QUADS) {
@@ -1346,6 +1516,17 @@ void Renderer::UpdateBatchBuffers(
                     .blend_mode = draw_command.blend_mode()
                 });
             }
+
+            if (line_count > 0) {
+                flush_queue.push_back(FlushData {
+                    .texture = std::nullopt,
+                    .offset = line_vertex_offset * 4,
+                    .count = line_count * 4,
+                    .order = draw_command.order(),
+                    .type = FlushDataType::Line,
+                    .blend_mode = draw_command.blend_mode()
+                });
+            }
         }
 
         ++m_batch_instance_count;
@@ -1356,32 +1537,38 @@ void Renderer::UpdateBatchBuffers(
     const size_t sprite_size = sprite_total_count * sizeof(SpriteInstance);
     m_sprite_instance_size += sprite_size;
     m_sprite_instance_count += sprite_total_count;
-    batch.set_sprite_count(sprite_remaining);
+    batch.sprite_data().count = sprite_remaining;
 
     const size_t glyph_size = glyph_total_count * sizeof(GlyphInstance);
     m_glyph_instance_size += glyph_size;
     m_glyph_instance_count += glyph_total_count;
-    batch.set_glyph_count(glyph_remaining);
+    batch.glyph_data().count = glyph_remaining;
 
     const size_t ninepatch_size = ninepatch_total_count * sizeof(NinePatchInstance);
     m_ninepatch_instance_size += ninepatch_size;
     m_ninepatch_instance_count += ninepatch_total_count;
-    batch.set_ninepatch_count(ninepatch_remaining);
+    batch.ninepatch_data().count = ninepatch_remaining;
 
     const size_t shape_size = shape_total_count * sizeof(ShapeInstance);
     m_shape_instance_size += shape_size;
     m_shape_instance_count += shape_total_count;
-    batch.set_shape_count(shape_remaining);
+    batch.shape_data().count = shape_remaining;
+
+    const size_t line_size = line_total_count * 4 * sizeof(LineVertex);
+    m_line_vertex_size += line_size;
+    m_line_instance_count += line_total_count;
+    batch.line_data().count = line_remaining;
 }
 
 
 void Renderer::PrepareBatch(sge::Batch& batch) {
     if (batch.draw_commands().empty()) return;
 
-    batch.set_sprite_offset(m_sprite_instance_count);
-    batch.set_glyph_offset(m_glyph_instance_count);
-    batch.set_ninepatch_offset(m_ninepatch_instance_count);
-    batch.set_shape_offset(m_shape_instance_count);
+    batch.sprite_data().offset = m_sprite_instance_count;
+    batch.glyph_data().offset = m_glyph_instance_count;
+    batch.ninepatch_data().offset = m_ninepatch_instance_count;
+    batch.shape_data().offset = m_shape_instance_count;
+    batch.line_data().offset = m_line_instance_count;
 
     SortBatchDrawCommands(batch);
     UpdateBatchBuffers(batch);
@@ -1403,6 +1590,10 @@ void Renderer::UploadBatchData() {
     if (m_shape_instance_size > 0) {
         UpdateBuffer(m_shape_batch_data.instance_buffer, m_shape_batch_data.buffer, m_shape_instance_size);
     }
+
+    if (m_line_vertex_size > 0) {
+        UpdateBuffer(m_line_batch_data.vertex_buffer, m_line_batch_data.buffer, m_line_vertex_size);
+    }
 }
 
 void Renderer::RenderBatch(sge::Batch& batch) {
@@ -1420,22 +1611,27 @@ void Renderer::RenderBatch(sge::Batch& batch) {
         m_sprite_instance_count = 0;
         m_sprite_instance_size = 0;
         m_sprite_batch_data.buffer_ptr = m_sprite_batch_data.buffer;
-        batch.set_sprite_offset(m_sprite_instance_count);
+        batch.sprite_data().offset = m_sprite_instance_count;
 
         m_glyph_instance_count = 0;
         m_glyph_instance_size = 0;
         m_glyph_batch_data.buffer_ptr = m_glyph_batch_data.buffer;
-        batch.set_glyph_offset(m_glyph_instance_count);
+        batch.glyph_data().offset = m_glyph_instance_count;
 
         m_ninepatch_instance_count = 0;
         m_ninepatch_instance_size = 0;
         m_ninepatch_batch_data.buffer_ptr = m_ninepatch_batch_data.buffer;
-        batch.set_ninepatch_offset(m_ninepatch_instance_count);
+        batch.ninepatch_data().offset = m_ninepatch_instance_count;
 
         m_shape_instance_count = 0;
         m_shape_instance_size = 0;
         m_shape_batch_data.buffer_ptr = m_shape_batch_data.buffer;
-        batch.set_shape_offset(m_shape_instance_count);
+        batch.shape_data().offset = m_shape_instance_count;
+
+        m_line_instance_count = 0;
+        m_line_vertex_size = 0;
+        m_line_batch_data.buffer_ptr = m_line_batch_data.buffer;
+        batch.line_data().offset = 0;
 
         UpdateBatchBuffers(batch, batch.draw_commands_done());
         UploadBatchData();

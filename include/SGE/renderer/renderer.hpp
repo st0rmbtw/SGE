@@ -119,6 +119,22 @@ struct ShapeBatchData {
     }
 };
 
+struct LineBatchData {
+    LLGL::PipelineState* pipeline = nullptr;
+
+    sge::LineVertex* buffer = nullptr;
+    sge::LineVertex* buffer_ptr = nullptr;
+
+    LLGL::Buffer* vertex_buffer = nullptr;
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        SGE_RESOURCE_RELEASE(pipeline);
+        SGE_RESOURCE_RELEASE(vertex_buffer);
+
+        free(buffer);
+    }
+};
+
 struct SGE_ALIGN(16) ProjectionsUniform {
     glm::mat4 screen_projection_matrix;
     glm::mat4 view_projection_matrix;
@@ -257,6 +273,7 @@ private:
     NinePatchBatchData InitNinepatchBatchPipeline();
     GlyphBatchData InitGlyphBatchPipeline();
     ShapeBatchData InitShapeBatchPipeline();
+    LineBatchData InitLineBatchPipeline();
 
     LLGL::PipelineCache* ReadPipelineCache(const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::string& name, LLGL::PipelineCache* pipelineCache);
@@ -275,6 +292,7 @@ private:
     GlyphBatchData m_glyph_batch_data;
     NinePatchBatchData m_ninepatch_batch_data;
     ShapeBatchData m_shape_batch_data;
+    LineBatchData m_line_batch_data;
 
     std::string m_cache_pipeline_dir;
 
@@ -302,11 +320,13 @@ private:
     size_t m_glyph_instance_size = 0;
     size_t m_ninepatch_instance_size = 0;
     size_t m_shape_instance_size = 0;
+    size_t m_line_vertex_size = 0;
 
     size_t m_sprite_instance_count = 0;
     size_t m_glyph_instance_count = 0;
     size_t m_ninepatch_instance_count = 0;
     size_t m_shape_instance_count = 0;
+    size_t m_line_instance_count = 0;
 
     sge::RenderBackend m_backend;
 

@@ -15,6 +15,12 @@ struct Vertex {
     explicit Vertex(float x, float y) : x(x), y(y) {}
 };
 
+struct LineVertex {
+    glm::vec2 pos;
+    glm::vec4 color;
+    uint8_t flags;
+};
+
 struct SpriteInstance {
     glm::vec3 position;
     glm::quat rotation;
