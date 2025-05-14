@@ -772,12 +772,10 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     size_t psSize = 0;
     
     if (backend.IsD3D11() || backend.IsD3D12()) {
-        SGE_ASSERT(false, "TODO");
-        
-        vsSource = D3D11_SHAPE;
-        vsSize = sizeof(D3D11_SHAPE);
-        psSource = D3D11_SHAPE;
-        psSize = sizeof(D3D11_SHAPE);
+        vsSource = D3D11_LINE;
+        vsSize = sizeof(D3D11_LINE);
+        psSource = D3D11_LINE;
+        psSize = sizeof(D3D11_LINE);
     } else if (backend.IsMetal()) {
         vsSource = METAL_LINE;
         vsSize = sizeof(METAL_LINE);

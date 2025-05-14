@@ -119,7 +119,10 @@ float sd_inset_rounded_box(vec2 point, vec2 size, vec4 radius, vec4 inset) {
 
 // get alpha for antialiasing for sdf
 float antialias(float d) {
-    return clamp(pow(0.5 - d, 1.0 / 2.2), 0.0, 1.0);
+    // return clamp(pow(0.5 - d, 1.0 / 2.2), 0.0, 1.0);
+
+    float afwidth = pow(fwidth(d), 1.0 / 2.2);
+    return 1.0 - smoothstep(0.0, afwidth, d);
 }
 
 const uint SHAPE_CIRCLE = 1u;
@@ -161,7 +164,7 @@ void main() {
             // outside the outside edge, or inside the inner edge have positive signed distance.
             float border_distance = max(external_distance, -internal_distance);
 
-            float border_alpha = external_distance < internal_distance ? antialias(border_distance) : 1.0 - step(0.0, border_distance);
+            float border_alpha = antialias(border_distance);
 
             float smoothed_alpha = antialias(external_distance);
 

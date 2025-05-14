@@ -100,7 +100,7 @@ void render() {
                 .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
             },
             .backgroundColor = { 255, 0, 0, 255 },
-            .cornerRadius = { 12, 0, 12, 0 },
+            .cornerRadius = { 18, 0, 18, 0 },
         });
 
         CLAY({
@@ -108,7 +108,7 @@ void render() {
                 .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
             },
             .backgroundColor = { 0, 255, 0, 255 },
-            .cornerRadius = { 0, 12, 0, 12 },
+            .cornerRadius = { 0, 18, 0, 18 },
         });
     }
 
@@ -197,6 +197,8 @@ void render() {
 
     const glm::vec2 center = g.camera.screen_center();
     g.batch.DrawLine(center, center + glm::vec2(100.0), 2.0, sge::LinearRgba::blue());
+
+    g.batch.DrawRect(center, glm::vec2(250.0f), sge::LinearRgba(0.2f, 0.2f, 0.9f), sge::LinearRgba::blue(), 2.0f, glm::vec4(14.0f));
 
     renderer.BeginMainPass();
         renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));

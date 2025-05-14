@@ -4,10 +4,30 @@ import sys
 import tempfile
 import subprocess
 import platform
+import re
+
+COMMENT_PATTERN = re.compile(
+    r'//.*?$|/\*.*?\*/|\'(?:\\.|[^\\\'])*\'|"(?:\\.|[^\\"])*"',
+    re.DOTALL | re.MULTILINE
+)
+
+def comment_remover(text):
+    def replacer(match):
+        s = match.group(0)
+        if s.startswith('/'):
+            return " "
+        else:
+            return s
+    return re.sub(COMMENT_PATTERN, replacer, text)
 
 def write_constant(name, path):
+    content = ""
     with open(path, "r") as f:
-        content = f.read()
+        for line in f.readlines():
+            l = comment_remover(line).strip(" \t")
+            if l == '\n': continue
+            content += l
+        # content = comment_remover(f.read())
         size = len(content) + 1
         return f"static const char {name}[{size}] = R\"({content})\";\n\n"
 
