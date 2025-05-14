@@ -139,7 +139,7 @@ file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shader
 foreach(shader ${SHADERS})
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
-        COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_EXECUTABLE_SUFFIX}
+        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_EXECUTABLE_SUFFIX}
         DEPENDS ${shader}
     )
 endforeach()

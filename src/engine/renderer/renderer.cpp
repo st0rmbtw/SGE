@@ -779,19 +779,15 @@ LineBatchData Renderer::InitLineBatchPipeline() {
         psSource = D3D11_SHAPE;
         psSize = sizeof(D3D11_SHAPE);
     } else if (backend.IsMetal()) {
-        SGE_ASSERT(false, "TODO");
-
-        vsSource = METAL_SHAPE;
-        vsSize = sizeof(METAL_SHAPE);
-        psSource = METAL_SHAPE;
-        psSize = sizeof(METAL_SHAPE);
+        vsSource = METAL_LINE;
+        vsSize = sizeof(METAL_LINE);
+        psSource = METAL_LINE;
+        psSize = sizeof(METAL_LINE);
     } else if (backend.IsOpenGL()) {
-        SGE_ASSERT(false, "TODO");
-
-        vsSource = GL_SHAPE_VERT;
-        vsSize = sizeof(GL_SHAPE_VERT);
-        psSource = GL_SHAPE_FRAG;
-        psSize = sizeof(GL_SHAPE_FRAG);
+        vsSource = GL_LINE_VERT;
+        vsSize = sizeof(GL_LINE_VERT);
+        psSource = GL_LINE_FRAG;
+        psSize = sizeof(GL_LINE_FRAG);
     } else if (backend.IsVulkan()) {
         vsSource = VULKAN_LINE_VERT;
         vsSize = sizeof(VULKAN_LINE_VERT);
@@ -864,17 +860,17 @@ bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std
     m_context = LLGL::RenderSystem::Load(rendererDesc, &report);
     m_backend = backend;
 
-    if (m_context == nullptr) {
-        SGE_LOG_ERROR("Couldn't load render system. %s", report.GetText());
-        return false;
-    }
-
     if (backend.IsOpenGL()) {
         delete (LLGL::OpenGLContextProfile*) rendererDesc.rendererConfig;
     }
 
     if (report.HasErrors()) {
-        SGE_LOG_ERROR("%s", report.GetText());
+        SGE_LOG_ERROR("An error occured while loading render system: %s", report.GetText());
+        return false;
+    }
+
+    if (m_context == nullptr) {
+        SGE_LOG_ERROR("Couldn't load render system");
         return false;
     }
 

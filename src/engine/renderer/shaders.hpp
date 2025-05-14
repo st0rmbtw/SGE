@@ -649,6 +649,63 @@ fragment float4 PS(
     return color;
 })";
 
+static const char METAL_LINE[1208] = R"(#include <metal_stdlib>
+
+using namespace metal;
+
+struct Constants
+{
+    float4x4 screen_projection;
+    float4x4 view_projection;
+    float4x4 nonscale_view_projection;
+    float4x4 nonscale_projection;
+    float4x4 transform_matrix;
+    float4x4 inv_view_proj;
+    float2 camera_position;
+    float2 window_size;
+};
+
+struct VertexIn
+{
+    float2 position   [[attribute(0)]];
+
+    float4 color      [[attribute(1)]];
+    uint   flags      [[attribute(2)]];
+};
+
+struct VertexOut
+{
+    float4 position [[position]];
+    float4 color [[flat]];
+};
+
+constant constexpr uint FLAG_UI = 1 << 0;
+
+vertex VertexOut VS(
+    VertexIn inp [[stage_in]],
+    constant Constants& constants [[buffer(2)]]
+) {
+    const bool is_ui = (inp.flags & FLAG_UI) == FLAG_UI;
+    const float4x4 mvp = is_ui ? constants.screen_projection : constants.view_projection;
+
+	VertexOut outp;
+    outp.color = inp.color;
+    outp.position = mvp * float4(inp.position, 0.0, 1.0);
+    outp.position.z = 1.0;
+
+    return outp;
+}
+
+fragment float4 PS(
+    VertexOut inp [[stage_in]],
+    texture2d<float> texture [[texture(3)]],
+    sampler texture_sampler [[sampler(4)]]
+) {
+    if (inp.color.a < 0.05) discard_fragment();
+
+    return inp.color;
+})";
+
 static const char METAL_NINEPATCH[4448] = R"(#include <metal_stdlib>
 
 using namespace metal;
@@ -1198,6 +1255,49 @@ void main() {
     v_uv = uv;
     v_color = i_color;
     gl_Position = mvp * vec4(position, 0.0, 1.0);
+    gl_Position.z = 1.0;
+})";
+
+static const char GL_LINE_FRAG[143] = R"(#version 330 core
+
+out vec4 frag_color;
+
+flat in vec4 v_color;
+
+void main() {
+    if (v_color.a <= 0.05) discard;
+
+    frag_color = v_color;
+})";
+
+static const char GL_LINE_VERT[720] = R"(#version 330 core
+
+layout(location = 0) in vec2 a_position;
+layout(location = 1) in vec4 a_color;
+layout(location = 2) in uint a_flags;
+
+layout(std140) uniform GlobalUniformBuffer {
+    mat4 screen_projection;
+    mat4 view_projection;
+    mat4 nonscale_view_projection;
+    mat4 nonscale_projection;
+    mat4 transform_matrix;
+    mat4 inv_view_proj;
+    vec2 camera_position;
+    vec2 window_size;
+} global_ubo;
+
+flat out vec4 v_color;
+
+const uint FLAG_UI = 1u << 0u;
+
+void main() {
+    bool is_ui = (a_flags & FLAG_UI) == FLAG_UI;
+
+    mat4 mvp = is_ui ? global_ubo.screen_projection : global_ubo.view_projection;
+
+    v_color = a_color;
+    gl_Position = mvp * vec4(a_position, 0.0, 1.0);
     gl_Position.z = 1.0;
 })";
 

@@ -195,6 +195,9 @@ void render() {
         }
     }
 
+    const glm::vec2 center = g.camera.screen_center();
+    g.batch.DrawLine(center, center + glm::vec2(100.0), 2.0, sge::LinearRgba::blue());
+
     renderer.BeginMainPass();
         renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
 
@@ -276,7 +279,7 @@ bool Game::Init(RenderBackend backend, AppConfig config) {
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, (char *)malloc(totalMemorySize));
     Clay_Initialize(clayMemory, (Clay_Dimensions) {1024,768}, (Clay_ErrorHandler) { .errorHandlerFunction = HandleClayErrors, .userData = NULL });
 
-    //g.batch.SetIsUi(true);
+    g.batch.SetIsUi(true);
     g.batch.BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
     return true;
