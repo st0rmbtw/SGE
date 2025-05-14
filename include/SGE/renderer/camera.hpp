@@ -5,9 +5,10 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "../math/rect.hpp"
 
-#include "../defines.hpp"
+#include <SGE/assert.hpp>
+#include <SGE/math/rect.hpp>
+#include <SGE/defines.hpp>
 
 _SGE_BEGIN
 
@@ -164,6 +165,7 @@ public:
     [[nodiscard]]
     inline glm::vec2 screen_center() const {
         switch (m_origin) {
+
         case CameraOrigin::TopLeft: {
             const glm::vec2 half = glm::vec2(viewport()) / 2.0f;
         
@@ -172,9 +174,12 @@ public:
                 half.y * m_up
             );
         } break;
+
         case CameraOrigin::Center:
             return glm::vec2(0.0f, 0.0f);
         break;
+
+        default: SGE_UNREACHABLE();
         }
     }
 

@@ -1008,6 +1008,7 @@ static SGE_FORCE_INLINE LLGL::PipelineState* GetPipelineByBlendMode(sge::BlendMo
     case BlendMode::Additive: return data.pipeline_additive;
     case BlendMode::Opaque: return data.pipeline_opaque;
     case BlendMode::PremultipliedAlpha: return data.pipeline_premultiplied_alpha;
+    default: SGE_UNREACHABLE();
     }
 }
 
@@ -1017,6 +1018,7 @@ static SGE_FORCE_INLINE LLGL::PipelineState* GetDepthPipelineByBlendMode(sge::Bl
     case BlendMode::Additive: return data.pipeline_depth_additive;
     case BlendMode::Opaque: return data.pipeline_depth_opaque;
     case BlendMode::PremultipliedAlpha: return data.pipeline_depth_premultiplied_alpha;
+    default: SGE_UNREACHABLE();
     }
 }
 

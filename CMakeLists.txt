@@ -91,6 +91,8 @@ endif()
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 
+set(LLGL_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+
 add_subdirectory(thirdparty/LLGL)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
@@ -139,7 +141,7 @@ file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shader
 foreach(shader ${SHADERS})
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
-        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_EXECUTABLE_SUFFIX}
+        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDS ${shader}
     )
 endforeach()

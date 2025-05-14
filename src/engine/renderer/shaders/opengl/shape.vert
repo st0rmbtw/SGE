@@ -20,6 +20,7 @@ layout(std140) uniform GlobalUniformBuffer {
 } global_ubo;
 
 out vec2 v_uv;
+out vec2 v_point;
 flat out vec4 v_color;
 flat out vec2 v_size;
 flat out vec4 v_border_color;
@@ -74,6 +75,7 @@ void main() {
     mat4 mvp = (is_ui ? global_ubo.screen_projection : global_ubo.view_projection) * transform;
 
     v_uv = a_position;
+    v_point = (a_position - 0.5) * i_size;
     v_color = i_color;
     v_size = i_size;
     v_border_color = i_border_color;

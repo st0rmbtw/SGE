@@ -277,7 +277,11 @@ bool Game::Init(RenderBackend backend, AppConfig config) {
     
     uint64_t totalMemorySize = Clay_MinMemorySize();
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, (char *)malloc(totalMemorySize));
-    Clay_Initialize(clayMemory, (Clay_Dimensions) {1024,768}, (Clay_ErrorHandler) { .errorHandlerFunction = HandleClayErrors, .userData = NULL });
+    Clay_Initialize(
+        clayMemory,
+        Clay_Dimensions{ static_cast<float>(resolution.width), static_cast<float>(resolution.height) },
+        Clay_ErrorHandler{ .errorHandlerFunction = HandleClayErrors, .userData = NULL }
+    );
 
     g.batch.SetIsUi(true);
     g.batch.BeginBlendMode(sge::BlendMode::PremultipliedAlpha);

@@ -168,7 +168,7 @@ bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings se
 
     LLGL::Log::RegisterCallbackStd();
 
-    if (!state.renderer.InitEngine(backend)) return false;    
+    if (!state.renderer.InitEngine(backend, false)) return false;    
 
     LLGL::Extent2D window_size = LLGL::Extent2D(settings.width, settings.height);
     if (settings.fullscreen) {

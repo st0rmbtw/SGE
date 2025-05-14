@@ -167,22 +167,26 @@ public:
 
     void Begin(const sge::Camera& camera);
 
-    void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
+    inline void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
         m_command_buffer->Clear(clear_flags, clear_value);
     }
 
     void BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport);
 
-    void BeginPass(LLGL::RenderTarget& target) {
+    inline void BeginPass(LLGL::RenderTarget& target) {
         BeginPassWithViewport(target, target.GetResolution());
     }
 
-    void BeginMainPass() {
+    inline void BeginMainPass() {
         BeginPass(*m_swap_chain);
     }
 
-    void EndPass() {
+    inline void EndPass() {
         m_command_buffer->EndRenderPass();
+    }
+
+    inline void SetScissor(const LLGL::Scissor& scissor) {
+        m_command_buffer->SetScissor(scissor);
     }
 
     void End();

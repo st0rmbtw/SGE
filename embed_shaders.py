@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import subprocess
+import platform
 
 def write_constant(name, path):
     with open(path, "r") as f:
@@ -15,7 +16,10 @@ def signed_byte(b):
 
 def main():
     cwd = sys.argv[1]
-    ext = sys.argv[2] if len(sys.argv) > 2 else ".exe"
+    ext = ""
+    
+    if platform.system() == "Windows":
+        ext = ".exe"
     
     renderer_dir = Path(cwd, "src/engine/renderer/")
     
