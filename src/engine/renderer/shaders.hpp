@@ -720,7 +720,7 @@ if (color.a < 0.05) discard_fragment();
 return color;
 })";
 
-static const char METAL_SHAPE[5039] = R"(#include <metal_stdlib>
+static const char METAL_SHAPE[6044] = R"(#include <metal_stdlib>
 using namespace metal;
 struct Constants
 {
@@ -750,6 +750,7 @@ struct VertexOut
 {
 float4 position [[position]];
 float2 uv;
+float2 p;
 float2 size [[flat]];
 float4 color [[flat]];
 float4 border_color [[flat]];
@@ -781,6 +782,7 @@ VertexOut outp;
 outp.position = mvp * float4(position, 0.0, 1.0);
 outp.position.z = inp.i_position.z;
 outp.uv = position;
+outp.p = (position - 0.5) * inp.i_size;
 outp.size = inp.i_size;
 outp.color = inp.i_color;
 outp.border_color = inp.i_border_color;
@@ -822,12 +824,32 @@ return min(length(p - q0), length(p - q1));
 }
 return abs(length(p) - r);
 }
-float rounded_box_sdf(float2 uv, float2 size, float4 radius) {
-float2 center = size * (uv - 0.5);
-radius.xy = (center.x < 0.0) ? radius.xz : radius.yw;
-radius.x  = (center.y < 0.0) ? radius.x  : radius.y;
-float2 dist = abs(center) - size * 0.5 + radius.x;
-return min(max(dist.x,dist.y),0.0) + length(max(dist, 0.0)) - radius.x;
+float sd_rounded_box(float2 p, float2 size, float4 corner_radii) {
+float2 rs = 0.0 < p.y ? corner_radii.zw : corner_radii.xy;
+float radius = 0.0 < p.x ? rs.y : rs.x;
+float2 corner_to_point = abs(p) - 0.5 * size;
+float2 q = corner_to_point + radius;
+float l = length(max(q, float2(0.0, 0.0)));
+float m = min(max(q.x, q.y), 0.0);
+return l + m - radius;
+}
+float sd_inset_rounded_box(float2 p, float2 size, float4 radius, float4 inset) {
+float2 inner_size = size - inset.xy - inset.zw;
+float2 inner_center = inset.xy + 0.5 * inner_size - 0.5 * size;
+float2 inner_point = p - inner_center;
+float4 r = radius;
+r.x = r.x - max(inset.x, inset.y);
+r.y = r.y - max(inset.z, inset.y);
+r.z = r.z - max(inset.z, inset.w); 
+r.w = r.w - max(inset.x, inset.w);
+float2 half_size = inner_size * 0.5;
+float min_size = min(half_size.x, half_size.y);
+r = min(max(r, float4(0.0, 0.0, 0.0, 0.0)), float4(min_size, min_size, min_size, min_size));
+return sd_rounded_box(inner_point, inner_size, r);
+}
+float antialias(float d) {
+float afwidth = pow(fwidth(d), 1.0 / 2.2);
+return 1.0 - smoothstep(0.0, afwidth, d);
 }
 fragment float4 PS(
 VertexOut inp [[stage_in]],
@@ -848,13 +870,16 @@ return float4(inp.color.rgb, min(inp.color.a, alpha));
 }
 float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
 if (radius > 0.0) {
-float d = rounded_box_sdf(inp.uv, inp.size, inp.border_radius);
-float aa = length(float2(dfdx(d), dfdy(d)));
-float smoothed_alpha = 1.0 - smoothstep(0.0-aa, 0.0, d);
-float border_alpha = 1.0 - smoothstep(inp.border_thickness - aa, inp.border_thickness, abs(d));
+float external_distance = sd_rounded_box(inp.p, inp.size, inp.border_radius);
+float internal_distance = sd_inset_rounded_box(inp.p, inp.size, inp.border_radius, float4(inp.border_thickness, inp.border_thickness, inp.border_thickness, inp.border_thickness));
+float border_distance = max(external_distance, -internal_distance);
+float border_alpha = antialias(border_distance);
+float smoothed_alpha = antialias(external_distance);
 float4 quad_color = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
 float4 quad_color_with_border = mix(quad_color, inp.border_color, min(inp.border_color.a, min(border_alpha, smoothed_alpha)));
-float4 result = float4(quad_color_with_border.rgb, mix(0.0, quad_color_with_border.a, smoothed_alpha));
+float4 result = internal_distance > 0.0 && border_alpha < 1.0
+? float4(inp.border_color.rgb, border_alpha)
+: quad_color_with_border;
 if (result.a < 0.01) discard_fragment();
 return result;
 }

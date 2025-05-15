@@ -48,7 +48,8 @@ public:
         m_transform_matrix(),
         m_viewport(0),
         m_position(0.0f),
-        m_origin(origin)
+        m_origin(origin),
+        m_changed(true)
     {
         set_coordinate_system(coordinate_system);
     }
@@ -61,7 +62,8 @@ public:
         m_transform_matrix(),
         m_viewport(viewport),
         m_position(0.0f),
-        m_origin(origin)
+        m_origin(origin),
+        m_changed(true)
     {
         set_coordinate_system(coordinate_system);
         update_projection_area();
@@ -69,29 +71,39 @@ public:
     }
 
     inline void update() {
-        compute_projection_and_view_matrix();
-        compute_transform_matrix();
+        if (m_changed) {
+            compute_projection_and_view_matrix();
+            compute_transform_matrix();
+            m_changed = false;
+        }
     }
 
-    inline void set_position(const glm::vec2& position) { m_position = position; }
+    inline void set_position(const glm::vec2& position) {
+        m_changed = true;
+        m_position = position;
+    }
 
     inline void set_zoom(float zoom) {
+        m_changed = true;
         m_zoom = zoom;
         update_projection_area();
     }
 
     inline void set_viewport(const glm::uvec2& viewport) {
+        m_changed = true;
         m_viewport = viewport;
         m_screen_projection_matrix = glm::ortho(0.0f, static_cast<float>(viewport.x), static_cast<float>(viewport.y), 0.0f);
         update_projection_area();
     }
 
     inline void set_flip_horizontal(bool flip_horizontal) {
+        m_changed = true;
         m_flip_horizontal = flip_horizontal;
         update_projection_area();
     }
 
     inline void set_flip_vertical(bool flip_vertical) {
+        m_changed = true;
         m_flip_vertical = flip_vertical;
         update_projection_area();
     }
@@ -137,6 +149,9 @@ public:
 
     [[nodiscard]]
     inline float zoom() const { return m_zoom; }
+
+    [[nodiscard]]
+    inline bool changed() const { return m_changed; }
 
     [[nodiscard]]
     inline bool flip_horizontal() const { return m_flip_horizontal; }
@@ -243,6 +258,7 @@ private:
 
     bool m_flip_horizontal = false;
     bool m_flip_vertical = false;
+    bool m_changed = false;
 };
 
 _SGE_END
