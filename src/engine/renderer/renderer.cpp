@@ -176,7 +176,7 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_outline_color", "I_OutlineColor", 1),
         Attribute::Instance(LLGL::Format::R32Float, "i_outline_thickness", "I_OutlineThickness", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
-    }).ToLLGL(backend, 1);
+    }).ToLLGL(backend, vertex_format.attributes.size());
 
     SpriteBatchData batchData;
 
@@ -239,6 +239,7 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
     pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineDesc.renderPass = SwapChain()->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
 
     LLGL::BlendDescriptor blend_modes[4] = {
         // AlphaBlend
@@ -401,7 +402,7 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_uv_offset_scale", "I_UvOffsetScale", 1),
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_color", "I_Color", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
-    }).ToLLGL(backend, 1);
+    }).ToLLGL(backend, vertex_format.attributes.size());
 
     NinePatchBatchData batchData;
 
@@ -467,6 +468,7 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
     pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
     pipelineDesc.blend = LLGL::BlendDescriptor {
         .targets = {
             LLGL::BlendTargetDescriptor {
@@ -523,7 +525,7 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
         Attribute::Instance(LLGL::Format::RG32Float, "i_tex_size", "I_TexSize", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_uv", "I_UV", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
-    }).ToLLGL(backend, 1);
+    }).ToLLGL(backend, vertex_format.attributes.size());
 
     GlyphBatchData batchData;
 
@@ -587,6 +589,7 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
     pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
     pipelineDesc.blend = LLGL::BlendDescriptor {
         .targets = {
             LLGL::BlendTargetDescriptor {
@@ -644,7 +647,7 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
         Attribute::Instance(LLGL::Format::R32Float, "i_border_thickness", "I_BorderThickness", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_shape", "I_Shape", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1)
-    }).ToLLGL(backend, 1);
+    }).ToLLGL(backend, vertex_format.attributes.size());
 
     ShapeBatchData batchData;
 
@@ -706,6 +709,7 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
     pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
     pipelineDesc.blend = LLGL::BlendDescriptor {
         .targets = {
             LLGL::BlendTargetDescriptor {
@@ -740,19 +744,38 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     const auto& context = m_context;
 
     LLGL::VertexFormat vertex_format;
+    LLGL::VertexFormat instance_format;
 
     vertex_format.attributes = Attributes({
         Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
-        Attribute::Vertex(LLGL::Format::RGBA32Float, "a_color", "Color"),
-        Attribute::Vertex(LLGL::Format::R8UInt, "a_flags", "Flags"),
     }).ToLLGL(backend);
+
+    instance_format.attributes = Attributes({
+        Attribute::Instance(LLGL::Format::RG32Float, "i_start", "I_Start", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "i_end", "I_End", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "i_color", "I_Color", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "i_border_radius", "I_Border_Radius", 1),
+        Attribute::Instance(LLGL::Format::R32Float, "i_thickness", "I_Thickness", 1),
+        Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
+    }).ToLLGL(backend, vertex_format.attributes.size());
+
+    const Vertex vertices[] = {
+        Vertex(0.0f, 0.0f),
+        Vertex(0.0f, 1.0f),
+        Vertex(1.0f, 0.0f),
+        Vertex(1.0f, 1.0f),
+    };
 
     LineBatchData batchData;
 
-    batchData.buffer = checked_alloc<LineVertex>(MAX_QUADS);
+    batchData.buffer = checked_alloc<LineInstance>(MAX_QUADS);
     batchData.buffer_ptr = batchData.buffer;
 
-    batchData.vertex_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(LineVertex), vertex_format, "LineBatch VertexBuffer");
+    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "LineBatch VertexBuffer");
+    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(ShapeInstance), instance_format, "LineBatch InstanceBuffer");
+
+    LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
+    batchData.buffer_array = context->CreateBufferArray(2, buffers);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout(
@@ -765,6 +788,7 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 
     std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
+    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
 
     const void* vsSource = nullptr;
     size_t vsSize = 0;
@@ -802,6 +826,7 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     pipelineDesc.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
+    pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
     pipelineDesc.blend = LLGL::BlendDescriptor {
         .targets = {
             LLGL::BlendTargetDescriptor {
@@ -892,7 +917,7 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
     LLGL::SwapChainDescriptor swapChainDesc;
     swapChainDesc.resolution = resolution;
     swapChainDesc.fullscreen = fullscreen;
-    // swapChainDesc.samples = 4;
+    swapChainDesc.samples = 4;
 
     m_swap_chain = context->CreateSwapChain(swapChainDesc, m_surface);
     m_swap_chain->SetVsyncInterval(vsync ? 1 : 0);
@@ -914,20 +939,6 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
 
     m_command_buffer = context->CreateCommandBuffer(command_buffer_desc);
     m_command_queue = context->GetCommandQueue();
-
-    LLGL::RenderPassDescriptor render_pass;
-    render_pass.colorAttachments[0].format = m_swap_chain->GetColorFormat();
-    render_pass.colorAttachments[0].loadOp = LLGL::AttachmentLoadOp::Undefined;
-    render_pass.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
-    render_pass.depthAttachment.format = m_swap_chain->GetDepthStencilFormat();
-    render_pass.depthAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
-    render_pass.depthAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
-    render_pass.stencilAttachment.format = m_swap_chain->GetDepthStencilFormat();
-    render_pass.stencilAttachment.loadOp = LLGL::AttachmentLoadOp::Load;
-    render_pass.stencilAttachment.storeOp = LLGL::AttachmentStoreOp::Store;
-    // render_pass.samples = 4;
-
-    m_pass = m_context->CreateRenderPass(render_pass);
 
     m_constant_buffer = CreateConstantBuffer(sizeof(ProjectionsUniform), "ConstantBuffer");
 
@@ -970,7 +981,7 @@ void Renderer::Begin(const Camera& camera) {
     m_glyph_instance_size = 0;
     m_ninepatch_instance_size = 0;
     m_shape_instance_size = 0;
-    m_line_vertex_size = 0;
+    m_line_instance_size = 0;
 
     m_sprite_instance_count = 0;
     m_glyph_instance_count = 0;
@@ -1077,7 +1088,7 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
                 offset = batch.shape_data().offset;
             break;
             case FlushDataType::Line:
-                commands->SetVertexBuffer(*m_line_batch_data.vertex_buffer);
+                commands->SetVertexBufferArray(*m_line_batch_data.buffer_array);
                 commands->SetPipelineState(*m_line_batch_data.pipeline);
                 offset = batch.line_data().offset;
             break;
@@ -1096,14 +1107,7 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
             prev_texture_id = texture.id();
         }
 
-        switch (flush_data.type) {
-        case FlushDataType::Line: {
-            commands->Draw(flush_data.count, offset + flush_data.offset);
-        } break;
-        default: {
-            commands->DrawInstanced(4, 0, flush_data.count, offset + flush_data.offset);
-        }
-        }
+        commands->DrawInstanced(4, 0, flush_data.count, offset + flush_data.offset);
 
         prev_flush_data_type = static_cast<int>(flush_data.type);
         prev_blend_mode = flush_data.blend_mode;
@@ -1429,23 +1433,11 @@ void Renderer::UpdateBatchBuffers(
             uint8_t flags = 0;
             flags |= batch.IsUi() << ShapeFlags::UI;
 
-            m_line_batch_data.buffer_ptr->pos = line_data.v1;
+            m_line_batch_data.buffer_ptr->start = line_data.start;
+            m_line_batch_data.buffer_ptr->end = line_data.end;
             m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
-            m_line_batch_data.buffer_ptr->flags = flags;
-            m_line_batch_data.buffer_ptr++;
-            
-            m_line_batch_data.buffer_ptr->pos = line_data.v2;
-            m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
-            m_line_batch_data.buffer_ptr->flags = flags;
-            m_line_batch_data.buffer_ptr++;
-
-            m_line_batch_data.buffer_ptr->pos = line_data.v3;
-            m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
-            m_line_batch_data.buffer_ptr->flags = flags;
-            m_line_batch_data.buffer_ptr++;
-
-            m_line_batch_data.buffer_ptr->pos = line_data.v4;
-            m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
+            m_line_batch_data.buffer_ptr->border_radius = line_data.border_radius;
+            m_line_batch_data.buffer_ptr->thickness = line_data.thickness;
             m_line_batch_data.buffer_ptr->flags = flags;
             m_line_batch_data.buffer_ptr++;
 
@@ -1457,13 +1449,13 @@ void Renderer::UpdateBatchBuffers(
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
                     .offset = line_vertex_offset,
-                    .count = line_count * 4,
+                    .count = line_count,
                     .order = draw_command.order(),
                     .type = FlushDataType::Line,
                     .blend_mode = draw_command.blend_mode()
                 });
                 line_count = 0;
-                line_vertex_offset = line_total_count * 4;
+                line_vertex_offset = line_total_count;
             }
         };
         }
@@ -1516,8 +1508,8 @@ void Renderer::UpdateBatchBuffers(
             if (line_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
-                    .offset = line_vertex_offset * 4,
-                    .count = line_count * 4,
+                    .offset = line_vertex_offset,
+                    .count = line_count,
                     .order = draw_command.order(),
                     .type = FlushDataType::Line,
                     .blend_mode = draw_command.blend_mode()
@@ -1550,8 +1542,8 @@ void Renderer::UpdateBatchBuffers(
     m_shape_instance_count += shape_total_count;
     batch.shape_data().count = shape_remaining;
 
-    const size_t line_size = line_total_count * 4 * sizeof(LineVertex);
-    m_line_vertex_size += line_size;
+    const size_t line_size = line_total_count * sizeof(LineInstance);
+    m_line_instance_size += line_size;
     m_line_instance_count += line_total_count;
     batch.line_data().count = line_remaining;
 }
@@ -1587,8 +1579,8 @@ void Renderer::UploadBatchData() {
         UpdateBuffer(m_shape_batch_data.instance_buffer, m_shape_batch_data.buffer, m_shape_instance_size);
     }
 
-    if (m_line_vertex_size > 0) {
-        UpdateBuffer(m_line_batch_data.vertex_buffer, m_line_batch_data.buffer, m_line_vertex_size);
+    if (m_line_instance_size > 0) {
+        UpdateBuffer(m_line_batch_data.instance_buffer, m_line_batch_data.buffer, m_line_instance_size);
     }
 }
 
@@ -1625,7 +1617,7 @@ void Renderer::RenderBatch(sge::Batch& batch) {
         batch.shape_data().offset = m_shape_instance_count;
 
         m_line_instance_count = 0;
-        m_line_vertex_size = 0;
+        m_line_instance_size = 0;
         m_line_batch_data.buffer_ptr = m_line_batch_data.buffer;
         batch.line_data().offset = 0;
 

@@ -39,7 +39,7 @@ LLGL::Extent2D CustomSurface::GetContentSize() const {
     return m_size;
 }
 
-bool CustomSurface::AdaptForVideoMode(LLGL::Extent2D *resolution, bool *fullscreen) {
+bool CustomSurface::AdaptForVideoMode(LLGL::Extent2D* resolution, bool *fullscreen) {
     m_size = *resolution;
     glfwSetWindowSize(m_wnd, m_size.width, m_size.height);
     return true;

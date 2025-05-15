@@ -165,17 +165,13 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
     return order;
 }
 
-uint32_t Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, sge::Order custom_order) {
-    const glm::vec2 d = end - start;
-    const float len = glm::length(d);
-    const glm::vec2 perp = (glm::vec2(d.y, -d.x) / len) * thickness * 0.5f;
-
+uint32_t Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, const glm::vec4& border_radius, sge::Order custom_order) {
     internal::DrawCommandLine command = {
-        .v1 = start - perp,
-        .v2 = start + perp,
-        .v3 = end - perp,
-        .v4 = end + perp,
-        .color = color
+        .start = start,
+        .end = end,
+        .color = color,
+        .border_radius = border_radius,
+        .thickness = thickness
     };
 
     const uint32_t order = GetNextOrder(custom_order);

@@ -15,9 +15,12 @@ struct Vertex {
     explicit Vertex(float x, float y) : x(x), y(y) {}
 };
 
-struct LineVertex {
-    glm::vec2 pos;
+struct LineInstance {
+    glm::vec2 start;
+    glm::vec2 end;
     glm::vec4 color;
+    glm::vec4 border_radius;
+    float thickness;
     uint8_t flags;
 };
 
