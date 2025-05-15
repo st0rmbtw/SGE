@@ -89,11 +89,11 @@ struct DrawCommandShape {
 };
 
 struct DrawCommandLine {
-    glm::vec2 v1;
-    glm::vec2 v2;
-    glm::vec2 v3;
-    glm::vec2 v4;
+    glm::vec2 start;
+    glm::vec2 end;
     sge::LinearRgba color;
+    glm::vec4 border_radius;
+    float thickness;
 };
 
 class DrawCommand {
@@ -310,7 +310,7 @@ public:
         return DrawShape(sge::Shape::Arc, position, glm::vec2(outer_radius * 2.0f), color, sge::LinearRgba(0.0f), inner_radius, glm::vec4(start_angle, end_angle, 0.0f, 0.0f), anchor, custom_order);
     }
 
-    uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, sge::Order custom_order = {});
+    uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, const glm::vec4& border_radius = glm::vec4(0.0f), sge::Order custom_order = {});
 
     inline void Reset() {
         m_draw_commands.clear();

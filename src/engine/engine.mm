@@ -52,6 +52,7 @@ static GLFWwindow* create_window(LLGL::Extent2D size, bool fullscreen, bool hidd
     glfwWindowHint(GLFW_FOCUSED, 1);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_VISIBLE, hidden ? GLFW_FALSE : GLFW_TRUE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
 
     GLFWmonitor* primary_monitor = fullscreen ? glfwGetPrimaryMonitor() : nullptr;
 

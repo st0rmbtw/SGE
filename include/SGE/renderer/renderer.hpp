@@ -122,14 +122,18 @@ struct ShapeBatchData {
 struct LineBatchData {
     LLGL::PipelineState* pipeline = nullptr;
 
-    sge::LineVertex* buffer = nullptr;
-    sge::LineVertex* buffer_ptr = nullptr;
+    sge::LineInstance* buffer = nullptr;
+    sge::LineInstance* buffer_ptr = nullptr;
 
     LLGL::Buffer* vertex_buffer = nullptr;
+    LLGL::Buffer* instance_buffer = nullptr;
+    LLGL::BufferArray* buffer_array = nullptr;
 
     void Destroy(const LLGL::RenderSystemPtr& context) {
         SGE_RESOURCE_RELEASE(pipeline);
         SGE_RESOURCE_RELEASE(vertex_buffer);
+        SGE_RESOURCE_RELEASE(instance_buffer);
+        SGE_RESOURCE_RELEASE(buffer_array);
 
         free(buffer);
     }
@@ -308,8 +312,6 @@ private:
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::Buffer* m_constant_buffer = nullptr;
 
-    LLGL::RenderPass* m_pass = nullptr;
-
 #if SGE_DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;
 #endif
@@ -324,7 +326,7 @@ private:
     size_t m_glyph_instance_size = 0;
     size_t m_ninepatch_instance_size = 0;
     size_t m_shape_instance_size = 0;
-    size_t m_line_vertex_size = 0;
+    size_t m_line_instance_size = 0;
 
     size_t m_sprite_instance_count = 0;
     size_t m_glyph_instance_count = 0;

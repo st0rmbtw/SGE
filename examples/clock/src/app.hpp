@@ -1,12 +1,12 @@
-#ifndef GAME_HPP
-#define GAME_HPP
+#ifndef APP_HPP
+#define APP_HPP
 
 #pragma once
 
 #include <SGE/types/backend.hpp>
 #include <SGE/types/config.hpp>
 
-namespace Game {
+namespace App {
     bool Init(sge::RenderBackend backend, sge::AppConfig config);
     void Run();
     void Destroy();
