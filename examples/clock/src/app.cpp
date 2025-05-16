@@ -182,7 +182,7 @@ void render() {
 
         // g.batch.DrawCircle(center, glm::vec2((size * 0.5f) + (size * CLOCK_TICKS_LENGTH)), sge::LinearRgba::transparent(), LinearRgba(1.0f, 1.0f, 0.0f), 2.0f);
 
-        g.batch.DrawCircle(center, glm::vec2((size * 0.5f) + (size * CLOCK_TICKS_LENGTH) - (size * CLOCK_TICKS_LENGTH) * 0.2f), sge::LinearRgba::transparent(), sge::LinearRgba::blue(), 2.0f);
+        // g.batch.DrawCircle(center, glm::vec2((size * 0.5f) + (size * CLOCK_TICKS_LENGTH) - (size * CLOCK_TICKS_LENGTH) * 0.2f), sge::LinearRgba::transparent(), sge::LinearRgba::blue(), 2.0f);
         
         const float wh = g.t.hours / 12.0f * (2.0 * glm::pi<float>());
         const float wm = g.t.minutes / 60.0f * (2.0 * glm::pi<float>());
