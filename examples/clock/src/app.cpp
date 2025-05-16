@@ -288,6 +288,7 @@ bool App::Init(RenderBackend backend, AppConfig config) {
     g.batch.BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
     sync_time();
+    sync_time();
 
     return true;
 }
