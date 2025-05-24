@@ -15,6 +15,7 @@
 #include <SGE/types/texture.hpp>
 #include <SGE/types/shader_path.hpp>
 #include <SGE/types/shader_def.hpp>
+#include <SGE/types/window_settings.hpp>
 #include <SGE/renderer/custom_surface.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
@@ -167,7 +168,7 @@ inline constexpr const char* DEFAULT_CACHE_DIR = "./cache/pipeline/";
 class Renderer {
 public:
     bool InitEngine(sge::RenderBackend backend, bool cache_pipelines = true, const std::string& cache_dir_path = DEFAULT_CACHE_DIR);
-    bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool vsync, bool fullscreen);
+    bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const WindowSettings& settings);
 
     void Begin(const sge::Camera& camera);
 

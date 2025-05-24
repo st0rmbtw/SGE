@@ -13,20 +13,8 @@ layout(location = 7) flat in uint v_shape;
 
 const float CIRCLE_AA = 0.001;
 
-vec4 circle(in vec2 st, in vec4 color, in vec4 border_color, float border_thickness) {
-    vec2 dist = st - vec2(0.5, 0.5);
-    float d = dot(dist, dist);
-    
-    float border_cr = 0.5 - border_thickness * 0.5;
-    vec2 border_weight = vec2(border_cr*border_cr+border_cr*CIRCLE_AA,border_cr*border_cr-border_cr*CIRCLE_AA);
-
-    float cr = 0.5;
-    vec2 weight = vec2(cr*cr+cr*CIRCLE_AA,cr*cr-cr*CIRCLE_AA);
-
-    float t1 = 1.0 - clamp((d-border_weight.y)/(border_weight.x-border_weight.y),0.0,1.0);
-    float t2 = 1.0 - clamp((d-weight.y)/(weight.x-weight.y),0.0,1.0);
-
-    return vec4(mix(border_color.rgb, color.rgb, t1), t2);
+float sdf_circle(vec2 p, float radius) {
+    return length(p) - radius;
 }
 
 const float PI = 3.1415926535;
@@ -62,31 +50,31 @@ float arc_sdf(in vec2 p, in float a0, in float a1, in float r )
 const uint SHAPE_CIRCLE = 1u;
 const uint SHAPE_ARC = 2u;
 
-// The returned value is the shortest distance from the given point to the boundary of the rounded 
+// The returned value is the shortest distance from the given point to the boundary of the rounded
 // box.
-// 
-// Negative values indicate that the point is inside the rounded box, positive values that the point 
+//
+// Negative values indicate that the point is inside the rounded box, positive values that the point
 // is outside, and zero is exactly on the boundary.
 //
-// Arguments: 
-//  - `point`        -> The function will return the distance from this point to the closest point on 
+// Arguments:
+//  - `point`        -> The function will return the distance from this point to the closest point on
 //                    the boundary.
 //  - `size`         -> The maximum width and height of the box.
-//  - `corner_radii` -> The radius of each rounded corner. Ordered counter clockwise starting 
+//  - `corner_radii` -> The radius of each rounded corner. Ordered counter clockwise starting
 //                    top left:
 //                      x: top left, y: top right, z: bottom left, w: bottom right.
 float sd_rounded_box(vec2 point, vec2 size, vec4 corner_radii) {
     // If 0.0 < y then select bottom left (z) and bottom right corner radius (w).
     // Else select top left (x) and top right corner radius (y).
     vec2 rs = 0.0 < point.y ? corner_radii.zw : corner_radii.xy;
-    // w and z are swapped above so that both pairs are in left to right order, otherwise this second 
+    // w and z are swapped above so that both pairs are in left to right order, otherwise this second
     // select statement would return the incorrect value for the bottom pair.
     float radius = 0.0 < point.x ? rs.y : rs.x;
     // Vector from the corner closest to the point, to the point.
     vec2 corner_to_point = abs(point) - 0.5 * size;
     // Vector from the center of the radius circle to the point.
     vec2 q = corner_to_point + radius;
-    // Length from center of the radius circle to the point, zeros a component if the point is not 
+    // Length from center of the radius circle to the point, zeros a component if the point is not
     // within the quadrant of the radius circle that is part of the curved corner.
     float l = length(max(q, vec2(0.0)));
     float m = min(max(q.x, q.y), 0.0);
@@ -107,7 +95,7 @@ float sd_inset_rounded_box(vec2 point, vec2 size, vec4 radius, vec4 inset) {
     r.y = r.y - max(inset.z, inset.y);
 
     // Bottom right corner.
-    r.z = r.z - max(inset.z, inset.w); 
+    r.z = r.z - max(inset.z, inset.w);
 
     // Bottom left corner.
     r.w = r.w - max(inset.x, inset.w);
@@ -128,11 +116,34 @@ float antialias(float d) {
     return 1.0 - smoothstep(0.0, afwidth, d);
 }
 
+float antialias_circle(float d) {
+    float afwidth = fwidth(d) * 1.3;
+    return 1.0 - smoothstep(0.0, afwidth, d);
+}
+
 void main() {
-    frag_color = v_color;
-    
+    vec4 result = v_color;
+
     if (v_shape == SHAPE_CIRCLE) {
-        frag_color = circle(v_uv, v_color, v_border_color, v_border_thickness);
+        float external_distance = sdf_circle(v_uv - 0.5, 0.5);
+        float alpha = antialias_circle(external_distance);
+
+        if (v_border_thickness > 0.0) {
+            float internal_distance = sdf_circle(v_uv - 0.5, 0.5 - v_border_thickness / v_size.x);
+
+            float border_distance = max(external_distance, -internal_distance);
+
+            float border_alpha = antialias_circle(border_distance);
+
+            vec4 color = vec4(v_color.rgb, min(v_color.a, alpha));
+            vec4 color_with_border = mix(color, v_border_color, min(v_border_color.a, min(border_alpha, alpha)));
+
+            result = internal_distance > 0.0 && border_alpha < 1.0
+                ? mix(vec4(0.0), v_border_color, border_alpha)
+                : color_with_border;
+        } else {
+            result = vec4(v_color.rgb, min(v_color.a, alpha));
+        }
     } else if (v_shape == SHAPE_ARC) {
         float start_angle = v_border_radius.x;
         float end_angle = v_border_radius.y;
@@ -146,7 +157,7 @@ void main() {
 
         float alpha = 1.0 - smoothstep(thickness - aa, thickness, d);
 
-        frag_color = vec4(v_color.rgb, min(v_color.a, alpha));
+        result = vec4(v_color.rgb, min(v_color.a, alpha));
     } else {
         float radius = max(v_border_radius.x, max(v_border_radius.y, max(v_border_radius.z, v_border_radius.w)));
 
@@ -154,13 +165,13 @@ void main() {
             // Signed distance from the exterior boundary.
             float external_distance = sd_rounded_box(v_point, v_size, v_border_radius);
 
-            // Signed distance from the border's internal edge (the signed distance is negative if the point 
+            // Signed distance from the border's internal edge (the signed distance is negative if the point
             // is inside the rect but not on the border).
             // If the border size is set to zero, this is the same as the external distance.
             float internal_distance = sd_inset_rounded_box(v_point, v_size, v_border_radius, vec4(v_border_thickness));
 
             // Signed distance from the border (the intersection of the rect with its border).
-            // Points inside the border have negative signed distance. Any point outside the border, whether 
+            // Points inside the border have negative signed distance. Any point outside the border, whether
             // outside the outside edge, or inside the inner edge have positive signed distance.
             float border_distance = max(external_distance, -internal_distance);
 
@@ -171,13 +182,13 @@ void main() {
             vec4 quad_color = vec4(v_color.rgb, min(v_color.a, smoothed_alpha));
             vec4 quad_color_with_border = mix(quad_color, v_border_color, min(v_border_color.a, min(border_alpha, smoothed_alpha)));
 
-            vec4 result = internal_distance > 0.0 && border_alpha < 1.0
+            result = internal_distance > 0.0 && border_alpha < 1.0
                 ? mix(vec4(0.0), v_border_color, border_alpha)
                 : quad_color_with_border;
-
-            if (result.a < 0.01) discard;
-            
-            frag_color = result;
         }
     }
+
+    if (result.a < 0.01) discard;
+
+    frag_color = result;
 }

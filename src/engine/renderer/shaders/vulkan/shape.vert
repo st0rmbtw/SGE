@@ -82,7 +82,7 @@ void main() {
     v_border_thickness = i_border_thickness;
     v_border_radius = i_border_radius;
     v_shape = i_shape;
-    
+
     gl_Position = mvp * vec4(a_position, 0, 1);
     gl_Position.z = i_position.z;
 }

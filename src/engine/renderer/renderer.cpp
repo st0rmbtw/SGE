@@ -110,7 +110,7 @@ static LLGL::Shader* CreateShader(Renderer& renderer, ShaderType shader_type, co
                 SGE_LOG_ERROR("Failed to create a shader: %s", report->GetText());
                 return nullptr;
             }
-            
+
             SGE_LOG_INFO("%s", report->GetText());
         }
     }
@@ -341,7 +341,7 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
                 sge::BlendMode::PremultipliedAlpha, &batchData.pipeline_depth_premultiplied_alpha, "SpriteBatchPipelinePremultipliedAlphaDepth", 3
             },
         };
-        
+
         LLGL::GraphicsPipelineDescriptor depthPipelineDesc = pipelineDesc;
         depthPipelineDesc.depth = LLGL::DepthDescriptor {
             .testEnabled = true,
@@ -436,7 +436,7 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
     size_t vsSize = 0;
     const void* psSource = nullptr;
     size_t psSize = 0;
-    
+
     if (backend.IsD3D11() || backend.IsD3D12()) {
         vsSource = D3D11_NINEPATCH;
         vsSize = sizeof(D3D11_NINEPATCH);
@@ -490,7 +490,7 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
     if (!hasInitialCache) {
         SavePipelineCache("NinePatchBatchPipeline", pipelineCache);
     }
-    
+
     if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
         if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
     }
@@ -557,7 +557,7 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
     size_t vsSize = 0;
     const void* psSource = nullptr;
     size_t psSize = 0;
-    
+
     if (backend.IsD3D11() || backend.IsD3D12()) {
         vsSource = D3D11_FONT;
         vsSize = sizeof(D3D11_FONT);
@@ -677,7 +677,7 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
     size_t vsSize = 0;
     const void* psSource = nullptr;
     size_t psSize = 0;
-    
+
     if (backend.IsD3D11() || backend.IsD3D12()) {
         vsSource = D3D11_SHAPE;
         vsSize = sizeof(D3D11_SHAPE);
@@ -731,7 +731,7 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
     if (!hasInitialCache) {
         SavePipelineCache("ShapeBatchPipeline", pipelineCache);
     }
-    
+
     if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
         if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
     }
@@ -794,7 +794,7 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     size_t vsSize = 0;
     const void* psSource = nullptr;
     size_t psSize = 0;
-    
+
     if (backend.IsD3D11() || backend.IsD3D12()) {
         vsSource = D3D11_LINE;
         vsSize = sizeof(D3D11_LINE);
@@ -848,7 +848,7 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     if (!hasInitialCache) {
         SavePipelineCache("LineBatchPipeline", pipelineCache);
     }
-    
+
     if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
         if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
     }
@@ -907,7 +907,7 @@ bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std
     return true;
 }
 
-bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool vsync, bool fullscreen) {
+bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const WindowSettings& settings) {
     ZoneScopedN("Renderer::Init");
 
     const LLGL::RenderSystemPtr& context = m_context;
@@ -916,11 +916,11 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool v
 
     LLGL::SwapChainDescriptor swapChainDesc;
     swapChainDesc.resolution = resolution;
-    swapChainDesc.fullscreen = fullscreen;
-    swapChainDesc.samples = 4;
+    swapChainDesc.fullscreen = settings.fullscreen;
+    swapChainDesc.samples = settings.samples;
 
     m_swap_chain = context->CreateSwapChain(swapChainDesc, m_surface);
-    m_swap_chain->SetVsyncInterval(vsync ? 1 : 0);
+    m_swap_chain->SetVsyncInterval(settings.vsync ? 1 : 0);
 
     const LLGL::RendererInfo& info = GetRendererInfo();
 
@@ -1217,7 +1217,7 @@ void Renderer::UpdateBatchBuffers(
 
             const uint32_t prev_texture_id = sprite_prev_texture.id();
             const uint32_t curr_texture_id = sprite_data.texture.id();
-            
+
             const sge::BlendMode curr_blend_mode = draw_command.blend_mode();
 
             const uint32_t current_order = draw_command.order();
@@ -1387,7 +1387,7 @@ void Renderer::UpdateBatchBuffers(
         } break;
         case DrawCommand::DrawShape: {
             if (shape_remaining == 0) continue;
-            
+
             const DrawCommandShape& shape_data = draw_command.shape_data();
 
             const uint32_t current_order = draw_command.order();
@@ -1730,7 +1730,7 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
                 SGE_LOG_ERROR("Failed to create a shader. File: %s\nError: %s", path.c_str(), report->GetText());
                 return nullptr;
             }
-            
+
             SGE_LOG_INFO("%s", report->GetText());
         }
     }

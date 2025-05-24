@@ -48,11 +48,11 @@ static inline const char* glfwGetErrorString() {
     return description;
 }
 
-static GLFWwindow* create_window(LLGL::Extent2D size, bool fullscreen, bool hidden) {
+static GLFWwindow* create_window(LLGL::Extent2D size, bool fullscreen, bool hidden, uint8_t samples) {
     glfwWindowHint(GLFW_FOCUSED, 1);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_VISIBLE, hidden ? GLFW_FALSE : GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_SAMPLES, samples);
 
     GLFWmonitor* primary_monitor = fullscreen ? glfwGetPrimaryMonitor() : nullptr;
 
@@ -73,9 +73,10 @@ static GLFWwindow* create_window(LLGL::Extent2D size, bool fullscreen, bool hidd
 }
 
 static inline LLGL::Extent2D get_scaled_resolution(uint32_t width, uint32_t height) {
-    const LLGL::Display* display = LLGL::Display::GetPrimary();
-    const std::uint32_t resScale = (display != nullptr ? static_cast<std::uint32_t>(display->GetScale()) : 1u);
-    return LLGL::Extent2D(width * resScale, height * resScale);
+    float xscale;
+    float yscale;
+    glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &xscale, &yscale);
+    return LLGL::Extent2D(width * xscale, height * yscale);
 }
 
 void Engine::SetPreUpdateCallback(PreUpdateCallback callback) {
@@ -144,7 +145,7 @@ void Engine::SetCursorMode(CursorMode cursor_mode) {
     glfwSetInputMode(state.window, GLFW_CURSOR, static_cast<int>(cursor_mode));
 }
 
-bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings settings, LLGL::Extent2D& output_viewport) {
+bool Engine::Init(sge::RenderBackend backend, sge::WindowSettings settings, LLGL::Extent2D& output_viewport) {
     ZoneScopedN("Engine::Init");
 
     if (state.pre_update_callback == nullptr) state.pre_update_callback = default_callback;
@@ -159,7 +160,7 @@ bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings se
     if (state.load_assets_callback == nullptr) state.load_assets_callback = default_load_assets_callback;
 
 #if SGE_PLATFORM_LINUX
-    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
 #endif
 
     if (!glfwInit()) {
@@ -169,7 +170,7 @@ bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings se
 
     LLGL::Log::RegisterCallbackStd();
 
-    if (!state.renderer.InitEngine(backend, false)) return false;    
+    if (!state.renderer.InitEngine(backend, false)) return false;
 
     LLGL::Extent2D window_size = LLGL::Extent2D(settings.width, settings.height);
     if (settings.fullscreen) {
@@ -177,7 +178,7 @@ bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings se
         window_size = LLGL::Extent2D(mode->width, mode->height);
     }
 
-    GLFWwindow *window = create_window(window_size, settings.fullscreen, settings.hidden);
+    GLFWwindow *window = create_window(window_size, settings.fullscreen, settings.hidden, settings.samples);
     if (window == nullptr) return false;
 
     state.window = window;
@@ -186,9 +187,9 @@ bool Engine::Init(sge::RenderBackend backend, bool vsync, sge::WindowSettings se
 
     output_viewport.width = window_size.width;
     output_viewport.height = window_size.height;
-    
+
     const LLGL::Extent2D resolution = get_scaled_resolution(window_size.width, window_size.height);
-    if (!state.renderer.Init(window, resolution, vsync, settings.fullscreen)) return false;
+    if (!state.renderer.Init(window, resolution, settings)) return false;
 
     if (!state.load_assets_callback()) return false;
 
@@ -201,7 +202,7 @@ void Engine::Run() {
     double prev_tick = glfwGetTime();
 
     double fixed_timer = 0;
-    
+
     while (state.renderer.Surface()->ProcessEvents()) {
         MACOS_AUTORELEASEPOOL_OPEN
             const double current_tick = glfwGetTime();
@@ -230,7 +231,7 @@ void Engine::Run() {
             }
 
             state.post_update_callback();
-            
+
             if (!state.minimized) {
                 state.render_callback();
                 state.post_render_callback();
@@ -249,7 +250,7 @@ void Engine::Destroy() {
     }
 
     state.destroy_callback();
-    
+
     if (state.renderer.Context()) {
         state.renderer.Terminate();
     }

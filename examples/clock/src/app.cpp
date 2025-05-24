@@ -51,15 +51,15 @@ void sync_time() {
 void update() {
     if (Input::JustPressed(Key::Space)) {
         g.paused = !g.paused;
-        if (!g.paused) 
+        if (!g.paused)
             sync_time();
     }
     if (g.paused) return;
-    
+
     for (const float scroll : Input::ScrollEvents()) {
         const float zoom_factor = glm::pow(0.75f, scroll);
         const float new_zoom = g.camera.zoom() * zoom_factor;
-        
+
         g.camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
 
         const glm::vec2 mouse_pos = g.camera.screen_to_world(Input::MouseScreenPosition());
@@ -122,9 +122,9 @@ void render() {
     static constexpr float CLOCK_FACE_PADDING = 20.0f / 400.0f;
     static constexpr float CLOCK_TICKS_LENGTH = 0.17f;
     static constexpr float CLOCK_HAND_OFFSET = 25.0f / 800.0f;
-    static constexpr float CLOCK_SECOND_HAND_LENGTH = 1.0f * 0.5f;
-    static constexpr float CLOCK_MINUTE_HAND_LENGTH = 0.9f * 0.5f;
-    static constexpr float CLOCK_HOUR_HAND_LENGTH = 0.75f * 0.5f;
+    static constexpr float CLOCK_SECOND_HAND_OFFSET = 0.0f;
+    static constexpr float CLOCK_MINUTE_HAND_OFFSET = 0.05f;
+    static constexpr float CLOCK_HOUR_HAND_OFFSET = 0.15f;
     static constexpr float CLOCK_CIRCLE_RADIUS = 30.0f / 800.0f;
 
     const glm::vec2 center = g.camera.screen_center();
@@ -137,7 +137,7 @@ void render() {
     const float radius = background_size.y * 0.2f;
 
     {
-        g.batch.DrawRect(center, background_size, sge::LinearRgba(0.0f, 0.0f, 0.0f), sge::LinearRgba(0x3B, 0x40, 0x43), CLOCK_BORDER_WIDTH * background_size.x / 2.0f, glm::vec4(radius));
+        g.batch.DrawRect(center, background_size, sge::LinearRgba(0.0f, 0.0f, 0.0f), CLOCK_BORDER_WIDTH * background_size.x / 2.0f, sge::LinearRgba(0x3B, 0x40, 0x43), glm::vec4(radius));
     }
     {
         const float padding = CLOCK_BORDER_WIDTH * background_size.x;
@@ -145,19 +145,21 @@ void render() {
         const float aspect = size.x / size.y;
         size.y *= aspect;
 
-        g.batch.DrawRect(center, size, sge::LinearRgba(0x05, 0x0C, 0x0B), sge::LinearRgba::black(), 0.0f, glm::vec4(radius - padding));
+        g.batch.DrawRect(center, size, sge::LinearRgba(0x05, 0x0C, 0x0B), 0.0f, sge::LinearRgba::black(), glm::vec4(radius - padding));
 
-        g.batch.DrawCircle(center, glm::vec2(CLOCK_CIRCLE_RADIUS * size.x), sge::LinearRgba::white(), sge::LinearRgba::white(), 0.0f);
+        g.batch.DrawCircle(center, glm::vec2(CLOCK_CIRCLE_RADIUS * size.x), sge::LinearRgba::white(), 0.0f, sge::LinearRgba::white());
 
         float tick_thickness = CLOCK_TICK_THICKNESS * size.x;
         float hand_thickness = CLOCK_HAND_THICKNESS * size.x;
-        
+
+
+        g.batch.BeginOrderMode();
         for (int i = 0; i < 4; ++i) {
             float t = ((float)i) / 4.0f;
             const float sin = glm::sin(t * 2.0f * glm::pi<float>());
             const float cos = glm::cos(t * 2.0f * glm::pi<float>());
 
-            const glm::vec2 dir = glm::normalize(glm::vec2(cos, sin));
+            const glm::vec2 dir = glm::vec2(cos, sin);
 
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f - (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH - (size * CLOCK_TICKS_LENGTH) * 0.2f);
@@ -172,30 +174,32 @@ void render() {
 
             if (i % 3 == 0) continue;
 
-            const glm::vec2 dir = glm::normalize(glm::vec2(cos, sin));
+            const glm::vec2 dir = glm::vec2(cos, sin);
 
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f + (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH);
 
             g.batch.DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), glm::vec4(tick_thickness / 2.0f));
         }
+        g.batch.EndOrderMode();
 
-        // g.batch.DrawCircle(center, glm::vec2((size * 0.5f) + (size * CLOCK_TICKS_LENGTH)), sge::LinearRgba::transparent(), LinearRgba(1.0f, 1.0f, 0.0f), 2.0f);
+        g.batch.DrawCircle(center, (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f, sge::LinearRgba::transparent(), 2.0f, sge::LinearRgba(1.0f, 1.0f, 0.0f));
+        g.batch.DrawCircle(center, (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH), sge::LinearRgba::transparent(), 2.0f, sge::LinearRgba::blue());
 
-        // g.batch.DrawCircle(center, glm::vec2((size * 0.5f) + (size * CLOCK_TICKS_LENGTH) - (size * CLOCK_TICKS_LENGTH) * 0.2f), sge::LinearRgba::transparent(), sge::LinearRgba::blue(), 2.0f);
-        
         const float wh = g.t.hours / 12.0f * (2.0 * glm::pi<float>());
         const float wm = g.t.minutes / 60.0f * (2.0 * glm::pi<float>());
         const float ws = g.t.seconds / 60.0f * (2.0 * glm::pi<float>());
+
+        float hand_length = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f + CLOCK_HAND_OFFSET * size.x;
 
         // Hour hand
         {
             const float sin = glm::sin(wh - glm::pi<float>() * 0.5f);
             const float cos = glm::cos(wh - glm::pi<float>() * 0.5f);
-            const glm::vec2 line_dir = glm::normalize(glm::vec2(cos, sin));
+            const glm::vec2 line_dir = glm::vec2(cos, sin);
 
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
-            const glm::vec2 length = size * (CLOCK_HOUR_HAND_LENGTH - CLOCK_TICKS_LENGTH - CLOCK_TICKS_LENGTH * 0.2f) - CLOCK_FACE_PADDING * size.x / 2.0f - 15.0f + CLOCK_HAND_OFFSET;
+            const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
 
             g.batch.DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), glm::vec4(hand_thickness / 2.0f));
         }
@@ -204,10 +208,10 @@ void render() {
         {
             const float sin = glm::sin(wm - glm::pi<float>() * 0.5f);
             const float cos = glm::cos(wm - glm::pi<float>() * 0.5f);
-            const glm::vec2 line_dir = glm::normalize(glm::vec2(cos, sin));
+            const glm::vec2 line_dir = glm::vec2(cos, sin);
 
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
-            const glm::vec2 length = size * (CLOCK_MINUTE_HAND_LENGTH - CLOCK_TICKS_LENGTH - CLOCK_TICKS_LENGTH * 0.2f) - CLOCK_FACE_PADDING * size.x / 2.0f - 15.0f + CLOCK_HAND_OFFSET;
+            const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
 
             g.batch.DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), glm::vec4(hand_thickness / 2.0f));
         }
@@ -216,10 +220,10 @@ void render() {
         {
             const float sin = glm::sin(ws - glm::pi<float>() * 0.5f);
             const float cos = glm::cos(ws - glm::pi<float>() * 0.5f);
-            const glm::vec2 line_dir = glm::normalize(glm::vec2(cos, sin));
+            const glm::vec2 line_dir = glm::vec2(cos, sin);
 
-            const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
-            const glm::vec2 length = glm::vec2(size * 0.5f - size * 0.5f * (CLOCK_TICKS_LENGTH + CLOCK_TICKS_LENGTH * 0.2f) - padding * 0.5f - 15.0f + CLOCK_HAND_OFFSET);
+            const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
+            const float length = hand_length - CLOCK_SECOND_HAND_OFFSET * size.x;
 
             g.batch.DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), glm::vec4(hand_thickness / 2.0f));
         }
@@ -237,16 +241,14 @@ void render() {
 
         g.batch.Reset();
     renderer.EndPass();
-    
+
     renderer.End();
 }
 
 void post_render() {
-#if DEBUG
-    Renderer& renderer = Engine::Renderer();
-
+#if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
-        renderer.PrintDebugInfo();
+        Engine::Renderer().PrintDebugInfo();
     }
 #endif
 }
@@ -272,13 +274,15 @@ bool App::Init(RenderBackend backend, AppConfig config) {
     settings.width = window_size.x;
     settings.height = window_size.y;
     settings.fullscreen = config.fullscreen;
+    settings.vsync = config.vsync;
     settings.hidden = true;
+    settings.samples = 8;
 
     LLGL::Extent2D resolution;
-    if (!Engine::Init(backend, config.vsync, settings, resolution)) return false;
+    if (!Engine::Init(backend, settings, resolution)) return false;
 
     Time::SetFixedTimestepSeconds(Constants::FIXED_UPDATE_INTERVAL);
-    
+
     g.camera.set_viewport({resolution.width, resolution.height});
     g.camera.set_zoom(1.0f);
 

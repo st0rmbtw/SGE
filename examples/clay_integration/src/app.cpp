@@ -1,4 +1,4 @@
-#include "game.hpp"
+#include "app.hpp"
 
 #include <SGE/engine.hpp>
 #include <SGE/renderer/renderer.hpp>
@@ -12,11 +12,10 @@
 
 #include <glm/trigonometric.hpp>
 
-#include "assets.hpp"
-#include "constants.hpp"
-
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
+
+static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
 using namespace sge;
 
@@ -38,11 +37,11 @@ void update() {
         .width = static_cast<float>(g.camera.viewport().x),
         .height = static_cast<float>(g.camera.viewport().y)
     });
-    
+
     for (const float scroll : Input::ScrollEvents()) {
         const float zoom_factor = glm::pow(0.75f, scroll);
         const float new_zoom = g.camera.zoom() * zoom_factor;
-        
+
         g.camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
 
         const glm::vec2 mouse_pos = g.camera.screen_to_world(Input::MouseScreenPosition());
@@ -125,11 +124,11 @@ void render() {
             const LinearRgba color = LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
             const glm::vec4 cornerRadius = glm::vec4(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
-            g.batch.DrawRect(position, size, color, color, 0.0f, cornerRadius, Anchor::TopLeft);
+            g.batch.DrawRect(position, size, color, 0.0f, color, cornerRadius, Anchor::TopLeft);
         } break;
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
             Clay_BorderRenderData *config = &drawCommand->renderData.border;
-            
+
             const LinearRgba color = LinearRgba(config->color.r / 255.0f, config->color.g / 255.0f, config->color.b / 255.0f, config->color.a / 255.0f);
 
             const glm::vec4 cornerRadius = glm::vec4(0.0f);
@@ -139,21 +138,21 @@ void render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y + config->cornerRadius.topLeft);
                 const glm::vec2 size = glm::vec2(config->width.left, boundingBox.height - config->cornerRadius.topLeft - config->cornerRadius.bottomLeft);
 
-                g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, size, color, 0.0f, LinearRgba::black(), cornerRadius, Anchor::TopLeft);
             }
             // Right border
             if (config->width.right > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->width.right, boundingBox.y + config->cornerRadius.topRight);
                 const glm::vec2 size = glm::vec2(config->width.right, boundingBox.height - config->cornerRadius.topRight - config->cornerRadius.bottomRight);
 
-                g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, size, color, 0.0f, LinearRgba::black(), cornerRadius, Anchor::TopLeft);
             }
             // Top border
             if (config->width.top > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.topLeft - config->cornerRadius.topRight, config->width.top);
 
-                g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, size, color, 0.0f, LinearRgba::black(), cornerRadius, Anchor::TopLeft);
             }
 
             // Bottom border
@@ -161,7 +160,7 @@ void render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->width.bottom);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.bottomLeft - config->cornerRadius.bottomRight, config->width.bottom);
 
-                g.batch.DrawRect(position, size, color, LinearRgba::black(), 0.0f, cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, size, color, 0.0f, LinearRgba::black(), cornerRadius, Anchor::TopLeft);
             }
 
             if (config->cornerRadius.topLeft > 0) {
@@ -198,7 +197,7 @@ void render() {
     const glm::vec2 center = g.camera.screen_center();
     g.batch.DrawLine(center, center + glm::vec2(100.0), 2.0, sge::LinearRgba::blue());
 
-    g.batch.DrawRect(center, glm::vec2(250.0f), sge::LinearRgba(0.2f, 0.2f, 0.9f), sge::LinearRgba::blue(), 2.0f, glm::vec4(14.0f));
+    g.batch.DrawRect(center, glm::vec2(250.0f), sge::LinearRgba(0.2f, 0.2f, 0.9f), 2.0f, sge::LinearRgba::blue(), glm::vec4(14.0f));
 
     renderer.BeginMainPass();
         renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
@@ -209,25 +208,20 @@ void render() {
 
         g.batch.Reset();
     renderer.EndPass();
-    
+
     renderer.End();
 }
 
 void post_render() {
-#if DEBUG
-    Renderer& renderer = Engine::Renderer();
-
+#if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
-        renderer.PrintDebugInfo();
+        Engine::Renderer().PrintDebugInfo();
     }
 #endif
 }
 
 bool load_assets() {
     Renderer& renderer = Engine::Renderer();
-
-    if (!Assets::LoadTextures(renderer)) return false;
-    if (!Assets::LoadFonts(renderer)) return false;
 
     return true;
 }
@@ -240,15 +234,13 @@ void window_resized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
 
 void destroy() {
     Renderer& renderer = Engine::Renderer();
-    Assets::DestroyTextures(renderer);
-    Assets::DestroySamplers(renderer);
 }
 
 static void HandleClayErrors(Clay_ErrorData errorData) {
     printf("%s", errorData.errorText.chars);
 }
 
-bool Game::Init(RenderBackend backend, AppConfig config) {
+bool App::Init(RenderBackend backend, AppConfig config) {
     Engine::SetLoadAssetsCallback(load_assets);
     Engine::SetPreUpdateCallback(pre_update);
     Engine::SetUpdateCallback(update);
@@ -265,18 +257,19 @@ bool Game::Init(RenderBackend backend, AppConfig config) {
     settings.width = window_size.x;
     settings.height = window_size.y;
     settings.fullscreen = config.fullscreen;
+    settings.vsync = config.vsync;
     settings.hidden = true;
 
     LLGL::Extent2D resolution;
-    if (!Engine::Init(backend, config.vsync, settings, resolution)) return false;
+    if (!Engine::Init(backend, settings, resolution)) return false;
 
-    Time::SetFixedTimestepSeconds(Constants::FIXED_UPDATE_INTERVAL);
-    
+    Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
+
     g.camera.set_viewport({resolution.width, resolution.height});
     g.camera.set_zoom(1.0f);
 
     Engine::ShowWindow();
-    
+
     uint64_t totalMemorySize = Clay_MinMemorySize();
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, (char *)malloc(totalMemorySize));
     Clay_Initialize(
@@ -291,10 +284,10 @@ bool Game::Init(RenderBackend backend, AppConfig config) {
     return true;
 }
 
-void Game::Run() {
+void App::Run() {
     Engine::Run();
 }
 
-void Game::Destroy() {
+void App::Destroy() {
     Engine::Destroy();
 }

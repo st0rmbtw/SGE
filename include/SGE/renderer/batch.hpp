@@ -296,12 +296,16 @@ public:
 
     uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius = glm::vec4(0.0f), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
 
-    inline uint32_t DrawCircle(glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {}) {
+    inline uint32_t DrawCircle(glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, float border_thickness = 0.0f, const sge::LinearRgba& border_color = sge::LinearRgba::transparent(), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {}) {
         return DrawShape(sge::Shape::Circle, position, size, color, border_color, border_thickness, glm::vec4(0.0), anchor, custom_order);
     }
 
+    inline uint32_t DrawCircle(glm::vec2 position, float radius, const sge::LinearRgba& color, float border_thickness = 0.0f, const sge::LinearRgba& border_color = sge::LinearRgba::transparent(), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {}) {
+        return DrawShape(sge::Shape::Circle, position, glm::vec2(radius * 2.0f), color, border_color, border_thickness, glm::vec4(0.0), anchor, custom_order);
+    }
+
     // border_radius = [topLeft, topRight, bottomLeft, bottomRight]
-    inline uint32_t DrawRect(glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius = glm::vec4(0.0f), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {}) {
+    inline uint32_t DrawRect(glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, float border_thickness = 0.0f, const sge::LinearRgba& border_color = sge::LinearRgba::transparent(), glm::vec4 border_radius = glm::vec4(0.0f), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {}) {
         return DrawShape(sge::Shape::Rect, position, size, color, border_color, border_thickness, border_radius, anchor, custom_order);
     }
 

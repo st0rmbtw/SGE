@@ -1,7 +1,7 @@
 #include <cstring>
 #include <cstdio>
 #include <SGE/defines.hpp>
-#include "game.hpp"
+#include "app.hpp"
 
 using namespace sge;
 
@@ -74,10 +74,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (Game::Init(backend, config)) {
-        Game::Run();
+    if (App::Init(backend, config)) {
+        App::Run();
     }
-    Game::Destroy();
+    App::Destroy();
 
     return 0;
 }
