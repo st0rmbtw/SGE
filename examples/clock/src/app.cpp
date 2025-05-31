@@ -107,10 +107,6 @@ void post_update() {
 
 }
 
-static float ApproxEquals(float a, float b) {
-    return std::abs(a-b) < 0.01f;
-}
-
 void render() {
     Renderer& renderer = Engine::Renderer();
 
