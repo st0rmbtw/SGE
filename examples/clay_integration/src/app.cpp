@@ -124,7 +124,14 @@ void render() {
             const LinearRgba color = LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
             const glm::vec4 cornerRadius = glm::vec4(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
-            g.batch.DrawRect(position, size, color, 0.0f, color, cornerRadius, Anchor::TopLeft);
+            g.batch.DrawRect(position, {
+                .size = size,
+                .color = color,
+                .border_thickness = 0.0f,
+                .border_color = color,
+                .border_radius = cornerRadius,
+                .anchor = Anchor::TopLeft
+            });
         } break;
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
             Clay_BorderRenderData *config = &drawCommand->renderData.border;
@@ -138,21 +145,42 @@ void render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y + config->cornerRadius.topLeft);
                 const glm::vec2 size = glm::vec2(config->width.left, boundingBox.height - config->cornerRadius.topLeft - config->cornerRadius.bottomLeft);
 
-                g.batch.DrawRect(position, size, color, 0.0f, LinearRgba::black(), cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, {
+                    .size = size,
+                    .color = color,
+                    .border_thickness = 0.0f,
+                    .border_color = LinearRgba::black(),
+                    .border_radius = cornerRadius,
+                    .anchor = Anchor::TopLeft
+                });
             }
             // Right border
             if (config->width.right > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->width.right, boundingBox.y + config->cornerRadius.topRight);
                 const glm::vec2 size = glm::vec2(config->width.right, boundingBox.height - config->cornerRadius.topRight - config->cornerRadius.bottomRight);
 
-                g.batch.DrawRect(position, size, color, 0.0f, LinearRgba::black(), cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, {
+                    .size = size,
+                    .color = color,
+                    .border_thickness = 0.0f,
+                    .border_color = LinearRgba::black(),
+                    .border_radius = cornerRadius,
+                    .anchor = Anchor::TopLeft
+                });
             }
             // Top border
             if (config->width.top > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.topLeft - config->cornerRadius.topRight, config->width.top);
 
-                g.batch.DrawRect(position, size, color, 0.0f, LinearRgba::black(), cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, {
+                    .size = size,
+                    .color = color,
+                    .border_thickness = 0.0f,
+                    .border_color = LinearRgba::black(),
+                    .border_radius = cornerRadius,
+                    .anchor = Anchor::TopLeft
+                });
             }
 
             // Bottom border
@@ -160,27 +188,62 @@ void render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->width.bottom);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.bottomLeft - config->cornerRadius.bottomRight, config->width.bottom);
 
-                g.batch.DrawRect(position, size, color, 0.0f, LinearRgba::black(), cornerRadius, Anchor::TopLeft);
+                g.batch.DrawRect(position, {
+                    .size = size,
+                    .color = color,
+                    .border_thickness = 0.0f,
+                    .border_color = LinearRgba::black(),
+                    .border_radius = cornerRadius,
+                    .anchor = Anchor::TopLeft
+                });
             }
 
             if (config->cornerRadius.topLeft > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y + config->cornerRadius.topLeft);
-                g.batch.DrawArc(position, config->cornerRadius.topLeft, config->cornerRadius.topLeft - config->width.top, color, glm::radians(90.0f), glm::radians(180.0f), Anchor::Center);
+                g.batch.DrawArc(position, {
+                    .outer_radius = config->cornerRadius.topLeft,
+                    .inner_radius = config->cornerRadius.topLeft - config->width.top,
+                    .start_angle = glm::radians(90.0f),
+                    .end_angle = glm::radians(180.0f),
+                    .color = color,
+                    .anchor = Anchor::TopLeft
+                });
             }
 
             if (config->cornerRadius.topRight > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->cornerRadius.topRight, boundingBox.y + config->cornerRadius.topRight);
-                g.batch.DrawArc(position, config->cornerRadius.topRight, config->cornerRadius.topRight - config->width.top, color, glm::radians(0.0f), glm::radians(90.0f), Anchor::Center);
+                g.batch.DrawArc(position, {
+                    .outer_radius = config->cornerRadius.topRight,
+                    .inner_radius = config->cornerRadius.topRight - config->width.top,
+                    .start_angle = glm::radians(0.0f),
+                    .end_angle = glm::radians(90.0f),
+                    .color = color,
+                    .anchor = Anchor::TopLeft
+                });
             }
 
             if (config->cornerRadius.bottomLeft > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->cornerRadius.bottomLeft);
-                g.batch.DrawArc(position, config->cornerRadius.bottomLeft, config->cornerRadius.bottomLeft - config->width.bottom, color, glm::radians(180.0f), glm::radians(270.0f), Anchor::Center);
+                g.batch.DrawArc(position, {
+                    .outer_radius = config->cornerRadius.bottomLeft,
+                    .inner_radius = config->cornerRadius.bottomLeft - config->width.bottom,
+                    .start_angle = glm::radians(180.0f),
+                    .end_angle = glm::radians(270.0f),
+                    .color = color,
+                    .anchor = Anchor::TopLeft
+                });
             }
 
             if (config->cornerRadius.bottomRight > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->cornerRadius.bottomRight, boundingBox.y + boundingBox.height - config->cornerRadius.bottomRight);
-                g.batch.DrawArc(position, config->cornerRadius.bottomRight, config->cornerRadius.bottomRight - config->width.bottom, color, glm::radians(270.0f), glm::radians(360.0f), Anchor::Center);
+                g.batch.DrawArc(position, {
+                    .outer_radius = config->cornerRadius.bottomRight,
+                    .inner_radius = config->cornerRadius.bottomRight - config->width.bottom,
+                    .start_angle = glm::radians(270.0f),
+                    .end_angle = glm::radians(360.0f),
+                    .color = color,
+                    .anchor = Anchor::TopLeft
+                });
             }
         }
         break;
@@ -197,7 +260,13 @@ void render() {
     const glm::vec2 center = g.camera.screen_center();
     g.batch.DrawLine(center, center + glm::vec2(100.0), 2.0, sge::LinearRgba::blue());
 
-    g.batch.DrawRect(center, glm::vec2(250.0f), sge::LinearRgba(0.2f, 0.2f, 0.9f), 2.0f, sge::LinearRgba::blue(), glm::vec4(14.0f));
+    g.batch.DrawRect(center, {
+        .size = glm::vec2(250.0f),
+        .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
+        .border_thickness = 2.0f,
+        .border_color = sge::LinearRgba::blue(),
+        .border_radius = glm::vec4(14.0f)
+    });
 
     renderer.BeginMainPass();
         renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));

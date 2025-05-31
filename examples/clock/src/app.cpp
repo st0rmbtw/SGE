@@ -136,18 +136,30 @@ void render() {
 
     const float radius = background_size.y * 0.2f;
 
-    {
-        g.batch.DrawRect(center, background_size, sge::LinearRgba(0.0f, 0.0f, 0.0f), CLOCK_BORDER_WIDTH * background_size.x / 2.0f, sge::LinearRgba(0x3B, 0x40, 0x43), glm::vec4(radius));
-    }
+    g.batch.DrawRect(center, {
+        .size = background_size,
+        .color = sge::LinearRgba(0.0f, 0.0f, 0.0f),
+        .border_thickness = CLOCK_BORDER_WIDTH * background_size.x / 2.0f,
+        .border_color = sge::LinearRgba(0x3B, 0x40, 0x43),
+        .border_radius = glm::vec4(radius)
+    });
+
     {
         const float padding = CLOCK_BORDER_WIDTH * background_size.x;
         glm::vec2 size = glm::vec2(screen_size - padding * 2.0f);
         const float aspect = size.x / size.y;
         size.y *= aspect;
 
-        g.batch.DrawRect(center, size, sge::LinearRgba(0x05, 0x0C, 0x0B), 0.0f, sge::LinearRgba::black(), glm::vec4(radius - padding));
+        g.batch.DrawRect(center, {
+            .size = size,
+            .color = sge::LinearRgba(0x05, 0x0C, 0x0B),
+            .border_radius = glm::vec4(radius - padding)
+        });
 
-        g.batch.DrawCircle(center, glm::vec2(CLOCK_CIRCLE_RADIUS * size.x), sge::LinearRgba::white(), 0.0f, sge::LinearRgba::white());
+        g.batch.DrawCircle(center, {
+            .radius = CLOCK_CIRCLE_RADIUS * size.x / 2.0f,
+            .color = sge::LinearRgba::white(),
+        });
 
         float tick_thickness = CLOCK_TICK_THICKNESS * size.x;
         float hand_thickness = CLOCK_HAND_THICKNESS * size.x;
@@ -183,8 +195,18 @@ void render() {
         }
         g.batch.EndOrderMode();
 
-        g.batch.DrawCircle(center, (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f, sge::LinearRgba::transparent(), 2.0f, sge::LinearRgba(1.0f, 1.0f, 0.0f));
-        g.batch.DrawCircle(center, (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH), sge::LinearRgba::transparent(), 2.0f, sge::LinearRgba::blue());
+        g.batch.DrawCircle(center, {
+            .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f,
+            .color = sge::LinearRgba::transparent(),
+            .border_thickness = 2.0f,
+            .border_color = sge::LinearRgba(1.0f, 1.0f, 0.0f)
+        });
+        g.batch.DrawCircle(center, {
+            .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH),
+            .color = sge::LinearRgba::transparent(),
+            .border_thickness = 2.0f,
+            .border_color = sge::LinearRgba::blue()
+        });
 
         const float wh = g.t.hours / 12.0f * (2.0 * glm::pi<float>());
         const float wm = g.t.minutes / 60.0f * (2.0 * glm::pi<float>());
@@ -291,7 +313,6 @@ bool App::Init(RenderBackend backend, AppConfig config) {
     g.batch.SetIsUi(true);
     g.batch.BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
-    sync_time();
     sync_time();
 
     return true;
