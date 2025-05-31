@@ -1761,5 +1761,7 @@ void Renderer::Terminate() {
 
     LLGL::RenderSystem::Unload(std::move(m_context));
 
+#if SGE_DEBUG
     delete m_debugger;
+#endif
 }
