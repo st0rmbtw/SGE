@@ -16,9 +16,6 @@ using namespace sge;
 static struct EngineState {
     Renderer renderer;
     GLFWwindow *window = nullptr;
-    bool minimized = false;
-    uint32_t window_width;
-    uint32_t window_height;
     Engine::PreUpdateCallback pre_update_callback = nullptr;
     Engine::UpdateCallback update_callback = nullptr;
     Engine::PostUpdateCallback post_update_callback = nullptr;
@@ -29,6 +26,9 @@ static struct EngineState {
     Engine::DestroyCallback destroy_callback = nullptr;
     Engine::LoadAssetsCallback load_assets_callback = nullptr;
     Engine::WindowResizeCallback window_resize_callback = nullptr;
+    uint32_t window_width;
+    uint32_t window_height;
+    bool minimized = false;
 } state;
 
 static void default_callback() {}
@@ -299,7 +299,6 @@ static void handle_window_resize_events(GLFWwindow*, int width, int height) {
 
     const LLGL::Extent2D resolution = get_scaled_resolution(width, height);
 
-    // state.renderer.ResizeBuffers(LLGL::Extent2D(resolution.width * 4, resolution.height * 4));
     state.renderer.ResizeBuffers(LLGL::Extent2D(resolution.width, resolution.height));
 
     state.window_width = width;

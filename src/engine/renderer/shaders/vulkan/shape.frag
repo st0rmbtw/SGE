@@ -11,8 +11,6 @@ layout(location = 5) flat in vec4 v_border_radius;
 layout(location = 6) flat in float v_border_thickness;
 layout(location = 7) flat in uint v_shape;
 
-const float CIRCLE_AA = 0.001;
-
 float sdf_circle(vec2 p, float radius) {
     return length(p) - radius;
 }
