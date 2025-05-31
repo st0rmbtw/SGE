@@ -1,6 +1,7 @@
 #include <cstring>
 #include <cstdio>
 #include <SGE/defines.hpp>
+
 #include "app.hpp"
 
 using namespace sge;

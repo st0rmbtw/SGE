@@ -5,12 +5,7 @@ project(SGE LANGUAGES CXX C)
 cmake_policy(SET CMP0069 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 
-if(MSVC)
-    set(CMAKE_CXX_STANDARD 20)
-else()
-    set(CMAKE_CXX_STANDARD 20)
-endif()
-
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 99)
 
 if(APPLE)
@@ -96,6 +91,8 @@ endif()
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 
+set(LLGL_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+
 add_subdirectory(thirdparty/LLGL)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
@@ -144,7 +141,7 @@ file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shader
 foreach(shader ${SHADERS})
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
-        COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_EXECUTABLE_SUFFIX}
+        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDS ${shader}
     )
 endforeach()

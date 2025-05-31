@@ -22,15 +22,25 @@ CustomSurface::~CustomSurface() {
     if (m_wnd) glfwDestroyWindow(m_wnd);
 }
 
-bool CustomSurface::GetNativeHandle(void* nativeHandle, std::size_t nativeHandleSize) {
+bool CustomSurface::GetNativeHandle(void* nativeHandle, std::size_t) {
     auto* handle = reinterpret_cast<LLGL::NativeHandle*>(nativeHandle);
 #if defined(SGE_PLATFORM_WINDOWS)
     handle->window = glfwGetWin32Window(m_wnd);
 #elif defined(SGE_PLATFORM_MACOS)
     handle->responder = glfwGetCocoaWindow(m_wnd);
 #elif defined(SGE_PLATFORM_LINUX)
-    handle->window = glfwGetX11Window(m_wnd);
-    handle->display = glfwGetX11Display();
+    int platform = glfwGetPlatform();
+
+    if (platform == GLFW_PLATFORM_WAYLAND) {
+        handle->wayland.window = glfwGetWaylandWindow(m_wnd);
+        handle->wayland.display = glfwGetWaylandDisplay();
+        handle->type = LLGL::NativeType::Wayland;
+    } else {
+        handle->window = glfwGetX11Window(m_wnd);
+        handle->display = glfwGetX11Display();
+        handle->type = LLGL::NativeType::X11;
+    }
+
 #endif
     return true;
 }
@@ -39,7 +49,7 @@ LLGL::Extent2D CustomSurface::GetContentSize() const {
     return m_size;
 }
 
-bool CustomSurface::AdaptForVideoMode(LLGL::Extent2D *resolution, bool *fullscreen) {
+bool CustomSurface::AdaptForVideoMode(LLGL::Extent2D* resolution, bool*) {
     m_size = *resolution;
     glfwSetWindowSize(m_wnd, m_size.width, m_size.height);
     return true;

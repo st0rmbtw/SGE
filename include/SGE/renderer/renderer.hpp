@@ -15,6 +15,7 @@
 #include <SGE/types/texture.hpp>
 #include <SGE/types/shader_path.hpp>
 #include <SGE/types/shader_def.hpp>
+#include <SGE/types/window_settings.hpp>
 #include <SGE/renderer/custom_surface.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
@@ -119,6 +120,26 @@ struct ShapeBatchData {
     }
 };
 
+struct LineBatchData {
+    LLGL::PipelineState* pipeline = nullptr;
+
+    sge::LineInstance* buffer = nullptr;
+    sge::LineInstance* buffer_ptr = nullptr;
+
+    LLGL::Buffer* vertex_buffer = nullptr;
+    LLGL::Buffer* instance_buffer = nullptr;
+    LLGL::BufferArray* buffer_array = nullptr;
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        SGE_RESOURCE_RELEASE(pipeline);
+        SGE_RESOURCE_RELEASE(vertex_buffer);
+        SGE_RESOURCE_RELEASE(instance_buffer);
+        SGE_RESOURCE_RELEASE(buffer_array);
+
+        free(buffer);
+    }
+};
+
 struct SGE_ALIGN(16) ProjectionsUniform {
     glm::mat4 screen_projection_matrix;
     glm::mat4 view_projection_matrix;
@@ -147,26 +168,30 @@ inline constexpr const char* DEFAULT_CACHE_DIR = "./cache/pipeline/";
 class Renderer {
 public:
     bool InitEngine(sge::RenderBackend backend, bool cache_pipelines = true, const std::string& cache_dir_path = DEFAULT_CACHE_DIR);
-    bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, bool vsync, bool fullscreen);
+    bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const WindowSettings& settings);
 
     void Begin(const sge::Camera& camera);
 
-    void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
+    inline void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
         m_command_buffer->Clear(clear_flags, clear_value);
     }
 
     void BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport);
 
-    void BeginPass(LLGL::RenderTarget& target) {
+    inline void BeginPass(LLGL::RenderTarget& target) {
         BeginPassWithViewport(target, target.GetResolution());
     }
 
-    void BeginMainPass() {
+    inline void BeginMainPass() {
         BeginPass(*m_swap_chain);
     }
 
-    void EndPass() {
+    inline void EndPass() {
         m_command_buffer->EndRenderPass();
+    }
+
+    inline void SetScissor(const LLGL::Scissor& scissor) {
+        m_command_buffer->SetScissor(scissor);
     }
 
     void End();
@@ -257,6 +282,7 @@ private:
     NinePatchBatchData InitNinepatchBatchPipeline();
     GlyphBatchData InitGlyphBatchPipeline();
     ShapeBatchData InitShapeBatchPipeline();
+    LineBatchData InitLineBatchPipeline();
 
     LLGL::PipelineCache* ReadPipelineCache(const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::string& name, LLGL::PipelineCache* pipelineCache);
@@ -275,6 +301,7 @@ private:
     GlyphBatchData m_glyph_batch_data;
     NinePatchBatchData m_ninepatch_batch_data;
     ShapeBatchData m_shape_batch_data;
+    LineBatchData m_line_batch_data;
 
     std::string m_cache_pipeline_dir;
 
@@ -285,8 +312,6 @@ private:
     LLGL::CommandBuffer* m_command_buffer = nullptr;
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::Buffer* m_constant_buffer = nullptr;
-
-    LLGL::RenderPass* m_pass = nullptr;
 
 #if SGE_DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;
@@ -302,11 +327,13 @@ private:
     size_t m_glyph_instance_size = 0;
     size_t m_ninepatch_instance_size = 0;
     size_t m_shape_instance_size = 0;
+    size_t m_line_instance_size = 0;
 
     size_t m_sprite_instance_count = 0;
     size_t m_glyph_instance_count = 0;
     size_t m_ninepatch_instance_count = 0;
     size_t m_shape_instance_count = 0;
+    size_t m_line_instance_count = 0;
 
     sge::RenderBackend m_backend;
 

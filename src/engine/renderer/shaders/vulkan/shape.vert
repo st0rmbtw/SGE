@@ -20,12 +20,13 @@ layout(binding = 2) uniform GlobalUniformBuffer {
 } global_ubo;
 
 layout(location = 0) out vec2 v_uv;
-layout(location = 1) flat out vec4 v_color;
-layout(location = 2) flat out vec2 v_size;
-layout(location = 3) flat out vec4 v_border_color;
-layout(location = 4) flat out vec4 v_border_radius;
-layout(location = 5) flat out float v_border_thickness;
-layout(location = 6) flat out uint v_shape;
+layout(location = 1) out vec2 v_point;
+layout(location = 2) flat out vec4 v_color;
+layout(location = 3) flat out vec2 v_size;
+layout(location = 4) flat out vec4 v_border_color;
+layout(location = 5) flat out vec4 v_border_radius;
+layout(location = 6) flat out float v_border_thickness;
+layout(location = 7) flat out uint v_shape;
 
 const uint IS_UI_FLAG = 1u << 0u;
 
@@ -74,13 +75,14 @@ void main() {
     mat4 mvp = (is_ui ? global_ubo.screen_projection : global_ubo.view_projection) * transform;
 
     v_uv = a_position;
+    v_point = (a_position - 0.5) * i_size;
     v_color = i_color;
     v_size = i_size;
     v_border_color = i_border_color;
     v_border_thickness = i_border_thickness;
     v_border_radius = i_border_radius;
     v_shape = i_shape;
-    
+
     gl_Position = mvp * vec4(a_position, 0, 1);
     gl_Position.z = i_position.z;
 }

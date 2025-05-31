@@ -76,6 +76,7 @@ public:
         break;
 
         case RenderBackend::Metal: return "2.2"; break;
+        default: SGE_UNREACHABLE();
         }
     }
 
