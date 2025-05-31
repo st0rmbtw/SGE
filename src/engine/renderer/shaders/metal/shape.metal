@@ -226,11 +226,12 @@ fragment float4 PS(
     float4 result = inp.color;
 
     if (inp.shape == SHAPE_CIRCLE) {
-        float external_distance = sdf_circle(inp.uv - 0.5, 0.5);
+        float radius = 0.5 - 1.0 / inp.size.x;
+        float external_distance = sdf_circle(inp.uv - 0.5, radius);
         float alpha = antialias_circle(external_distance);
 
         if (inp.border_thickness > 0.0) {
-            float internal_distance = sdf_circle(inp.uv - 0.5, 0.5 - inp.border_thickness / inp.size.x);
+            float internal_distance = sdf_circle(inp.uv - 0.5, radius - inp.border_thickness / inp.size.x);
 
             float border_distance = max(external_distance, -internal_distance);
 

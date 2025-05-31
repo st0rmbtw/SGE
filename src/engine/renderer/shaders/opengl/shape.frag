@@ -125,11 +125,12 @@ void main() {
     vec4 result = v_color;
 
     if (v_shape == SHAPE_CIRCLE) {
-        float external_distance = sdf_circle(v_uv - 0.5, 0.5);
+        float radius = 0.5 - 1.0 / v_size.x;
+        float external_distance = sdf_circle(v_uv - 0.5, radius);
         float alpha = antialias_circle(external_distance);
 
         if (v_border_thickness > 0.0) {
-            float internal_distance = sdf_circle(v_uv - 0.5, 0.5 - v_border_thickness / v_size.x);
+            float internal_distance = sdf_circle(v_uv - 0.5, radius - v_border_thickness / v_size.x);
 
             float border_distance = max(external_distance, -internal_distance);
 
