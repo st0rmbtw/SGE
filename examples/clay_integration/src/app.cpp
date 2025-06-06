@@ -24,15 +24,15 @@ static struct GameState {
     Camera camera = Camera(CameraOrigin::TopLeft);
 } g;
 
-void pre_update() {
+static void PreUpdate() {
 
 }
 
-void fixed_update() {
+static void FixedUpdate() {
 
 }
 
-void update() {
+static void Update() {
     Clay_SetLayoutDimensions(Clay_Dimensions {
         .width = static_cast<float>(g.camera.viewport().x),
         .height = static_cast<float>(g.camera.viewport().y)
@@ -75,11 +75,11 @@ void update() {
     g.camera.update();
 }
 
-void post_update() {
+static void PostUpdate() {
 
 }
 
-void render() {
+static void Render() {
     Renderer& renderer = Engine::Renderer();
 
     renderer.Begin(g.camera);
@@ -281,7 +281,7 @@ void render() {
     renderer.End();
 }
 
-void post_render() {
+static void PostRender() {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
         Engine::Renderer().PrintDebugInfo();
@@ -289,19 +289,19 @@ void post_render() {
 #endif
 }
 
-bool load_assets() {
+static bool LoadAssets() {
     Renderer& renderer = Engine::Renderer();
 
     return true;
 }
 
-void window_resized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
+static void WindowResized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
     g.camera.set_viewport(glm::uvec2(width, height));
     g.camera.update();
-    render();
+    Render();
 }
 
-void destroy() {
+static void Destroy() {
     Renderer& renderer = Engine::Renderer();
 }
 
@@ -310,15 +310,15 @@ static void HandleClayErrors(Clay_ErrorData errorData) {
 }
 
 bool App::Init(RenderBackend backend, AppConfig config) {
-    Engine::SetLoadAssetsCallback(load_assets);
-    Engine::SetPreUpdateCallback(pre_update);
-    Engine::SetUpdateCallback(update);
-    Engine::SetPostUpdateCallback(post_update);
-    Engine::SetFixedUpdateCallback(fixed_update);
-    Engine::SetRenderCallback(render);
-    Engine::SetPostRenderCallback(post_render);
-    Engine::SetWindowResizeCallback(window_resized);
-    Engine::SetDestroyCallback(destroy);
+    Engine::SetLoadAssetsCallback(LoadAssets);
+    Engine::SetPreUpdateCallback(PreUpdate);
+    Engine::SetUpdateCallback(Update);
+    Engine::SetPostUpdateCallback(PostUpdate);
+    Engine::SetFixedUpdateCallback(FixedUpdate);
+    Engine::SetRenderCallback(Render);
+    Engine::SetPostRenderCallback(PostRender);
+    Engine::SetWindowResizeCallback(WindowResized);
+    Engine::SetDestroyCallback(Destroy);
 
     glm::uvec2 window_size = glm::uvec2(1280, 720);
 

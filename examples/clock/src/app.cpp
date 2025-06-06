@@ -15,7 +15,7 @@
 #include <chrono>
 #include <glm/trigonometric.hpp>
 
-#include "constants.hpp"
+static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
 using namespace sge;
 
@@ -33,22 +33,22 @@ static struct GameState {
     CurrentTime t;
 } g;
 
-void pre_update() {
+static void PreUpdate() {
 
 }
 
-void fixed_update() {
+static void FixedUpdate() {
 
 }
 
-void sync_time() {
+static void sync_time() {
     std::time_t t = std::time(nullptr);
     std::tm* now = std::localtime(&t);
 
     g.t.time = Duration::Cast<Duration::Nanos>(std::chrono::seconds(t + now->tm_gmtoff));
 }
 
-void update() {
+static void Update() {
     if (Input::JustPressed(Key::Space)) {
         g.paused = !g.paused;
         if (!g.paused)
@@ -103,11 +103,11 @@ void update() {
     g.t.seconds = std::fmod(secs, 60.0f);
 }
 
-void post_update() {
+static void PostUpdate() {
 
 }
 
-void render() {
+static void Render() {
     Renderer& renderer = Engine::Renderer();
 
     renderer.Begin(g.camera);
@@ -263,7 +263,7 @@ void render() {
     renderer.End();
 }
 
-void post_render() {
+static void PostRender() {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
         Engine::Renderer().PrintDebugInfo();
@@ -271,20 +271,20 @@ void post_render() {
 #endif
 }
 
-void window_resized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
+static void WindowResized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
     g.camera.set_viewport(glm::uvec2(width, height));
     g.camera.update();
-    render();
+    Render();
 }
 
 bool App::Init(RenderBackend backend, AppConfig config) {
-    Engine::SetPreUpdateCallback(pre_update);
-    Engine::SetUpdateCallback(update);
-    Engine::SetPostUpdateCallback(post_update);
-    Engine::SetFixedUpdateCallback(fixed_update);
-    Engine::SetRenderCallback(render);
-    Engine::SetPostRenderCallback(post_render);
-    Engine::SetWindowResizeCallback(window_resized);
+    Engine::SetPreUpdateCallback(PreUpdate);
+    Engine::SetUpdateCallback(Update);
+    Engine::SetPostUpdateCallback(PostUpdate);
+    Engine::SetFixedUpdateCallback(FixedUpdate);
+    Engine::SetRenderCallback(Render);
+    Engine::SetPostRenderCallback(PostRender);
+    Engine::SetWindowResizeCallback(WindowResized);
 
     glm::uvec2 window_size = glm::uvec2(800, 800);
 
@@ -299,7 +299,7 @@ bool App::Init(RenderBackend backend, AppConfig config) {
     LLGL::Extent2D resolution;
     if (!Engine::Init(backend, settings, resolution)) return false;
 
-    Time::SetFixedTimestepSeconds(Constants::FIXED_UPDATE_INTERVAL);
+    Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
     g.camera.set_viewport({resolution.width, resolution.height});
     g.camera.set_zoom(1.0f);
