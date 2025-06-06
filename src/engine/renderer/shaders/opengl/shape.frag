@@ -162,7 +162,7 @@ void main() {
     } else {
         float radius = max(v_border_radius.x, max(v_border_radius.y, max(v_border_radius.z, v_border_radius.w)));
 
-        if (radius > 0.0) {
+        if (radius > 0.0 || v_border_thickness > 0.0) {
             // Signed distance from the exterior boundary.
             float external_distance = sd_rounded_box(v_point, v_size, v_border_radius);
 

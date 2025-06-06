@@ -264,7 +264,7 @@ fragment float4 PS(
 
     float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
 
-    if (radius > 0.0) {
+    if (radius > 0.0 || inp.border_thickness > 0.0) {
         // Signed distance from the exterior boundary.
         float external_distance = sd_rounded_box(inp.p, inp.size, inp.border_radius);
 
