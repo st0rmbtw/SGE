@@ -3,7 +3,8 @@
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/log.hpp>
-#include <SGE/utils.hpp>
+#include <SGE/utils/alloc.hpp>
+#include <SGE/utils/io.hpp>
 #include <SGE/assert.hpp>
 #include <SGE/types/blend_mode.hpp>
 #include <SGE/types/binding_layout.hpp>

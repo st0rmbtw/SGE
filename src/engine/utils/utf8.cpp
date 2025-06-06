@@ -1,6 +1,4 @@
-#include <SGE/utils.hpp>
-
-#include <tracy/Tracy.hpp>
+#include <SGE/utils/utf8.hpp>
 
 uint32_t sge::next_utf8_codepoint(const char* text, size_t& index) {
     uint32_t c = (uint8_t) text[index];
@@ -51,29 +49,4 @@ uint32_t sge::next_utf8_codepoint(const char* text, size_t& index) {
     index += cplen;
 
     return c;
-}
-
-glm::vec2 sge::calculate_text_bounds(const sge::Font& font, size_t length, const char* text, float size) {
-    ZoneScopedN("Utils::calculate_text_bounds");
-
-    auto bounds = glm::vec2(0.0f);
-    float prev_x = 0.0f;
-
-    const float scale = size / font.font_size;
-
-    for (size_t i = 0; i < length;) {
-        const uint32_t ch = sge::next_utf8_codepoint(text, i);
-
-        if (ch == '\n') {
-            bounds.y += size;
-            prev_x = 0.0f;
-            continue;
-        }
-
-        const sge::Glyph& glyph = font.glyphs.find(ch)->second;
-        prev_x += (glyph.advance >> 6) * scale;
-        bounds.x = std::max(prev_x, bounds.x);
-    }
-
-    return bounds;
 }

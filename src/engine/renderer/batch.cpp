@@ -1,5 +1,5 @@
 #include <SGE/renderer/batch.hpp>
-#include <SGE/utils.hpp>
+#include <SGE/utils/utf8.hpp>
 
 #include <tracy/Tracy.hpp>
 
@@ -34,7 +34,7 @@ inline uint32_t Batch::GetNextOrder(Order custom_order) {
         : (custom_order.value >= 0 ? custom_order.value : m_order);
 
     custom_order.advance |= m_global_order.advance;
-    
+
     if (custom_order.advance) {
         m_order = std::max(m_order, order + 1);
     }
@@ -136,7 +136,7 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
     };
 
     uint32_t order = GetNextOrder(custom_order);
-    
+
     m_draw_commands.emplace_back(draw_command, m_ninepatch_data.count, m_order, m_blend_mode);
 
     ++m_ninepatch_data.count;
