@@ -61,7 +61,7 @@ return color;
 };
 )";
 
-static const char D3D11_LINE[2401] = R"(cbuffer GlobalUniformBuffer : register( b2 )
+static const char D3D11_LINE[2411] = R"(cbuffer GlobalUniformBuffer : register( b2 )
 {
 float4x4 u_screen_projection;
 float4x4 u_view_projection;
@@ -74,7 +74,6 @@ float2 u_window_size;
 };
 struct VSInput
 {
-uint vid : SV_VertexID;
 float2 position : Position;
 float2 i_start : I_Start;
 float2 i_end : I_End;
@@ -82,6 +81,7 @@ float4 i_color : I_Color;
 float4 i_border_radius : I_Border_Radius;
 float i_thickness : I_Thickness;
 uint i_flags : I_Flags;
+uint vid : SV_VertexID;
 };
 struct VSOutput
 {
@@ -100,7 +100,7 @@ const float4x4 mvp = is_ui ? u_screen_projection : u_view_projection;
 const float2 d = inp.i_end - inp.i_start;
 const float len = length(d);
 const float2 perp = (float2(d.y, -d.x) / len) * inp.i_thickness * 0.5;
-float2 vertices[4] = {
+const float2 vertices[4] = {
 float2(inp.i_start - perp),
 float2(inp.i_start + perp),
 float2(inp.i_end - perp),
@@ -113,7 +113,7 @@ outp.border_radius = inp.i_border_radius;
 outp.size = size;
 outp.p = (inp.position - 0.5) * size;
 outp.uv = inp.position;
-outp.position = mvp * float4(vertices[inp.vid], 0.0, 1.0);
+outp.position = mul(mvp, float4(vertices[inp.vid], 0.0, 1.0));
 outp.position.z = 1.0;
 return outp;
 }
@@ -262,7 +262,7 @@ return color;
 };
 )";
 
-static const char D3D11_SHAPE[6805] = R"(cbuffer GlobalUniformBuffer : register( b2 )
+static const char D3D11_SHAPE[6814] = R"(cbuffer GlobalUniformBuffer : register( b2 )
 {
 float4x4 u_screen_projection;
 float4x4 u_view_projection;
@@ -418,7 +418,7 @@ float d = arc_sdf(p, start_angle, end_angle, 1.0 - thickness);
 float aa = length(float2(ddx(d), ddy(d)));
 float alpha = 1.0 - smoothstep(thickness - aa, thickness, d);
 return float4(inp.color.rgb, min(inp.color.a, alpha));
-}
+} else {
 float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
 if (radius > 0.0 || inp.border_thickness > 0.0) {
 float external_distance = sd_rounded_box(inp.p, inp.size, inp.border_radius);
@@ -431,6 +431,7 @@ float4 quad_color_with_border = lerp(quad_color, inp.border_color, min(inp.borde
 result = internal_distance > 0.0 && border_alpha < 1.0
 ? float4(inp.border_color.rgb, border_alpha)
 : quad_color_with_border;
+}
 }
 clip(result.a - 0.01);
 return result;

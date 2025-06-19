@@ -258,33 +258,33 @@ float4 PS(VSOutput inp) : SV_Target
         float alpha = 1.0 - smoothstep(thickness - aa, thickness, d);
 
         return float4(inp.color.rgb, min(inp.color.a, alpha));
-    }
+    } else {
+        float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
 
-    float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
+        if (radius > 0.0 || inp.border_thickness > 0.0) {
+            // Signed distance from the exterior boundary.
+            float external_distance = sd_rounded_box(inp.p, inp.size, inp.border_radius);
 
-    if (radius > 0.0 || inp.border_thickness > 0.0) {
-        // Signed distance from the exterior boundary.
-        float external_distance = sd_rounded_box(inp.p, inp.size, inp.border_radius);
+            // Signed distance from the border's internal edge (the signed distance is negative if the point
+            // is inside the rect but not on the border).
+            // If the border size is set to zero, this is the same as the external distance.
+            float internal_distance = sd_inset_rounded_box(inp.p, inp.size, inp.border_radius, float4(inp.border_thickness, inp.border_thickness, inp.border_thickness, inp.border_thickness));
 
-        // Signed distance from the border's internal edge (the signed distance is negative if the point
-        // is inside the rect but not on the border).
-        // If the border size is set to zero, this is the same as the external distance.
-        float internal_distance = sd_inset_rounded_box(inp.p, inp.size, inp.border_radius, float4(inp.border_thickness, inp.border_thickness, inp.border_thickness, inp.border_thickness));
+            // Signed distance from the border (the intersection of the rect with its border).
+            // Points inside the border have negative signed distance. Any point outside the border, whether
+            // outside the outside edge, or inside the inner edge have positive signed distance.
+            float border_distance = max(external_distance, -internal_distance);
 
-        // Signed distance from the border (the intersection of the rect with its border).
-        // Points inside the border have negative signed distance. Any point outside the border, whether
-        // outside the outside edge, or inside the inner edge have positive signed distance.
-        float border_distance = max(external_distance, -internal_distance);
+            float border_alpha = antialias(border_distance);
+            float smoothed_alpha = antialias(external_distance);
 
-        float border_alpha = antialias(border_distance);
-        float smoothed_alpha = antialias(external_distance);
+            float4 quad_color = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
+            float4 quad_color_with_border = lerp(quad_color, inp.border_color, min(inp.border_color.a, min(border_alpha, smoothed_alpha)));
 
-        float4 quad_color = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
-        float4 quad_color_with_border = lerp(quad_color, inp.border_color, min(inp.border_color.a, min(border_alpha, smoothed_alpha)));
-
-        result = internal_distance > 0.0 && border_alpha < 1.0
-            ? float4(inp.border_color.rgb, border_alpha)
-            : quad_color_with_border;
+            result = internal_distance > 0.0 && border_alpha < 1.0
+                ? float4(inp.border_color.rgb, border_alpha)
+                : quad_color_with_border;
+        }
     }
 
     clip(result.a - 0.01);

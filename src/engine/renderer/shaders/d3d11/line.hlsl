@@ -12,8 +12,6 @@ cbuffer GlobalUniformBuffer : register( b2 )
 
 struct VSInput
 {
-    uint vid : SV_VertexID;
-
     float2 position : Position;
     float2 i_start : I_Start;
     float2 i_end : I_End;
@@ -21,6 +19,8 @@ struct VSInput
     float4 i_border_radius : I_Border_Radius;
     float i_thickness : I_Thickness;
     uint i_flags : I_Flags;
+
+    uint vid : SV_VertexID;
 };
 
 struct VSOutput
@@ -45,7 +45,7 @@ VSOutput VS(VSInput inp)
     const float len = length(d);
     const float2 perp = (float2(d.y, -d.x) / len) * inp.i_thickness * 0.5;
 
-    float2 vertices[4] = {
+    const float2 vertices[4] = {
         float2(inp.i_start - perp),
         float2(inp.i_start + perp),
         float2(inp.i_end - perp),
@@ -60,7 +60,7 @@ VSOutput VS(VSInput inp)
     outp.size = size;
     outp.p = (inp.position - 0.5) * size;
     outp.uv = inp.position;
-    outp.position = mvp * float4(vertices[inp.vid], 0.0, 1.0);
+    outp.position = mul(mvp, float4(vertices[inp.vid], 0.0, 1.0));
     outp.position.z = 1.0;
 
 	return outp;

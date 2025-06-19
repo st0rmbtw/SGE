@@ -1,6 +1,8 @@
 [submodule "thirdparty/LLGL"]
 	path = thirdparty/LLGL
 	url = https://github.com/LukasBanana/LLGL/
+	ignore = dirty
 [submodule "thirdparty/glfw"]
 	path = thirdparty/glfw
 	url = https://github.com/glfw/glfw.git
+	ignore = dirty

@@ -293,8 +293,8 @@ bool App::Init(RenderBackend backend, AppConfig config) {
     settings.height = window_size.y;
     settings.fullscreen = config.fullscreen;
     settings.vsync = config.vsync;
+    settings.samples = config.samples;
     settings.hidden = true;
-    settings.samples = 8;
 
     LLGL::Extent2D resolution;
     if (!Engine::Init(backend, settings, resolution)) return false;
