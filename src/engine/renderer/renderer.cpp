@@ -108,11 +108,11 @@ static LLGL::Shader* CreateShader(Renderer& renderer, ShaderType shader_type, co
     if (const LLGL::Report* report = shader->GetReport()) {
         if (*report->GetText() != '\0') {
             if (report->HasErrors()) {
-                SGE_LOG_ERROR("Failed to create a shader: %s", report->GetText());
+                SGE_LOG_ERROR("Failed to create a shader: {}", report->GetText());
                 return nullptr;
             }
 
-            SGE_LOG_INFO("%s", report->GetText());
+            SGE_LOG_INFO("{}", report->GetText());
         }
     }
 
@@ -323,7 +323,7 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
             }
 
             if (const LLGL::Report* report = pipeline->GetReport()) {
-                if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+                if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
             }
         }
     }
@@ -364,7 +364,7 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
             }
 
             if (const LLGL::Report* report = pipeline->GetReport()) {
-                if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+                if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
             }
         }
     }
@@ -493,7 +493,7 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
     }
 
     if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
-        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+        if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
     }
 
     return batchData;
@@ -614,7 +614,7 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
     }
 
     if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
-        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+        if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
     }
 
     return batchData;
@@ -734,7 +734,7 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
     }
 
     if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
-        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+        if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
     }
 
     return batchData;
@@ -851,7 +851,7 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     }
 
     if (const LLGL::Report* report = batchData.pipeline->GetReport()) {
-        if (report->HasErrors()) SGE_LOG_ERROR("%s", report->GetText());
+        if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
     }
 
     return batchData;
@@ -889,7 +889,7 @@ bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std
     }
 
     if (report.HasErrors()) {
-        SGE_LOG_ERROR("An error occured while loading render system: %s", report.GetText());
+        SGE_LOG_ERROR("An error occured while loading render system: {}", report.GetText());
         return false;
     }
 
@@ -925,14 +925,14 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const 
 
     const LLGL::RendererInfo& info = GetRendererInfo();
 
-    SGE_LOG_INFO("Renderer:             %s", info.rendererName.c_str());
-    SGE_LOG_INFO("Device:               %s", info.deviceName.c_str());
-    SGE_LOG_INFO("Vendor:               %s", info.vendorName.c_str());
-    SGE_LOG_INFO("Shading Language:     %s", info.shadingLanguageName.c_str());
+    SGE_LOG_INFO("Renderer:             {}", info.rendererName.c_str());
+    SGE_LOG_INFO("Device:               {}", info.deviceName.c_str());
+    SGE_LOG_INFO("Vendor:               {}", info.vendorName.c_str());
+    SGE_LOG_INFO("Shading Language:     {}", info.shadingLanguageName.c_str());
 
     SGE_LOG_INFO("Extensions:");
     for (const auto& extension : info.extensionNames) {
-        SGE_LOG_INFO("  %s", extension.c_str());
+        SGE_LOG_INFO("  {}", extension.c_str());
     }
 
     LLGL::CommandBufferDescriptor command_buffer_desc;
@@ -1100,7 +1100,7 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
 
         if (flush_data.texture.has_value() && prev_texture_id != flush_data.texture->id()) {
             const Texture& texture = flush_data.texture.value();
-            SGE_ASSERT(texture.is_valid(), "Texture must be valid");
+            SGE_ASSERT(texture.is_valid());
 
             commands->SetResource(1, texture);
             commands->SetResource(2, texture.sampler());
@@ -1669,7 +1669,7 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
     const std::string path = backend.AssetFolder() + shader_path.name + shader_type.FileExtension(backend);
 
     if (!FileExists(path.c_str())) {
-        SGE_LOG_ERROR("Failed to find shader '%s'", path.c_str());
+        SGE_LOG_ERROR("Failed to find shader '{}'", path.c_str());
         return nullptr;
     }
 
@@ -1728,11 +1728,11 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
     if (const LLGL::Report* report = shader->GetReport()) {
         if (*report->GetText() != '\0') {
             if (report->HasErrors()) {
-                SGE_LOG_ERROR("Failed to create a shader. File: %s\nError: %s", path.c_str(), report->GetText());
+                SGE_LOG_ERROR("Failed to create a shader. File: {}\nError: {}", path.c_str(), report->GetText());
                 return nullptr;
             }
 
-            SGE_LOG_INFO("%s", report->GetText());
+            SGE_LOG_INFO("{}", report->GetText());
         }
     }
 
@@ -1744,7 +1744,7 @@ void Renderer::PrintDebugInfo() {
     LLGL::FrameProfile profile;
     m_debugger->FlushProfile(&profile);
 
-    SGE_LOG_DEBUG("Draw commands count: %u", profile.commandBufferRecord.drawCommands);
+    SGE_LOG_DEBUG("Draw commands count: {}", profile.commandBufferRecord.drawCommands);
 }
 #endif
 

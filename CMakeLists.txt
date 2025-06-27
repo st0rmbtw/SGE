@@ -10,6 +10,7 @@ set(CMAKE_C_STANDARD 99)
 
 if(APPLE)
     enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
 endif()
 
 find_package(Python REQUIRED COMPONENTS Interpreter)
@@ -58,6 +59,7 @@ add_subdirectory(thirdparty/LLGL)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
 add_subdirectory(thirdparty/STB)
+add_subdirectory(thirdparty/fmt)
 add_subdirectory(thirdparty/freetype-2.13.2)
 add_subdirectory(thirdparty/tracy-0.11.1)
 
@@ -65,7 +67,7 @@ if(SGE_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-file(GLOB_RECURSE SGE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm")
+file(GLOB_RECURSE SGE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm")
 if (NOT APPLE)
     set_source_files_properties(${SGE_SRC} PROPERTIES COMPILE_FLAGS "-x c++")
 endif()
@@ -93,7 +95,7 @@ else()
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG=1)
 endif()
 
-target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw LLGL freetype TracyClient)
+target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw fmt LLGL freetype TracyClient)
 
 # ========================= Embed Shaders =========================
 

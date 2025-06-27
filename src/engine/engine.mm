@@ -54,7 +54,7 @@ static GLFWwindow* CreateWindow(LLGL::Extent2D size, const char* title, bool ful
 
     GLFWwindow *window = glfwCreateWindow(size.width, size.height, title, primary_monitor, nullptr);
     if (window == nullptr) {
-        SGE_LOG_ERROR("Couldn't create a window: %s", glfwGetErrorString());
+        SGE_LOG_ERROR("Couldn't create a window: {}", glfwGetErrorString());
         return nullptr;
     }
 
@@ -139,7 +139,7 @@ bool Engine::Init(sge::RenderBackend backend, sge::WindowSettings settings, LLGL
 #endif
 
     if (!glfwInit()) {
-        SGE_LOG_ERROR("Couldn't initialize GLFW: %s", glfwGetErrorString());
+        SGE_LOG_ERROR("Couldn't initialize GLFW: {}", glfwGetErrorString());
         return false;
     }
 
@@ -293,7 +293,7 @@ static void HandleWindowResizeEvents(GLFWwindow*, int width, int height) {
     state.window_width = width;
     state.window_height = height;
 
-    if (state.window_resize_callback != nullptr) {
+    if (state.window_resize_callback) {
         state.window_resize_callback(static_cast<uint32_t>(width), static_cast<uint32_t>(height), resolution.width, resolution.height);
     }
 

@@ -6,3 +6,6 @@
 	path = thirdparty/glfw
 	url = https://github.com/glfw/glfw.git
 	ignore = dirty
+[submodule "thirdparty/fmt"]
+	path = thirdparty/fmt
+	url = https://github.com/fmtlib/fmt.git

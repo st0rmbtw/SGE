@@ -4,17 +4,20 @@
 #pragma once
 
 #if SGE_DEBUG
-    #include <stdio.h>
-    #include <stdlib.h>
-    #define SGE_ASSERT(expression, message, ...)                                                    \
-        do {                                                                                    \
-            if (!(expression)) {                                                                \
-                fprintf(stderr, "[%s:%d] " message "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
-                abort();                                                                        \
-            }                                                                                   \
-        } while (0)
-        
-    #define SGE_UNREACHABLE() SGE_ASSERT(false, "Reached an unreachable point!")
+    #include <cstdlib>
+    #include <fmt/core.h>
+    #include <fmt/ostream.h>
+
+    #define SGE_ASSERT(expression)                                                                      \
+        if (!(expression)) {                                                                            \
+            fmt::println(stderr, "Assertion `" #expression "` failed at {}:{}", __FILE__, __LINE__);    \
+            std::abort();                                                                               \
+        }
+
+    #define SGE_UNREACHABLE() {                                                           \
+        fmt::println(stderr, "Reached unreachable code at {}:{}", __FILE__, __LINE__);    \
+        std::abort();                                                                     \
+    }
 #else
     #define SGE_ASSERT(expression, message, ...) ((void)0)
 
