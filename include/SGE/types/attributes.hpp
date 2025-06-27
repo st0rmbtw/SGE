@@ -57,8 +57,9 @@ private:
 class Attributes {
 public:
     Attributes(std::initializer_list<Attribute> items) : m_items(items) {}
+    Attributes(std::vector<Attribute> items) : m_items(std::move(items)) {}
 
-    std::vector<LLGL::VertexAttribute> ToLLGL(sge::RenderBackend backend, uint32_t start_location = 0);
+    std::vector<LLGL::VertexAttribute> ToLLGL(sge::RenderBackend backend, uint32_t start_location = 0) const;
 
 private:
     std::vector<Attribute> m_items;
