@@ -42,10 +42,11 @@ static void FixedUpdate() {
 }
 
 static void sync_time() {
-    std::time_t t = std::time(nullptr);
-    std::tm* now = std::localtime(&t);
-
-    g.t.time = Duration::Cast<Duration::Nanos>(std::chrono::seconds(t + now->tm_gmtoff));
+    const std::chrono::time_zone* local_tz = std::chrono::current_zone();
+    const std::chrono::time_point now = std::chrono::system_clock::now();
+    const std::chrono::sys_info info = local_tz->get_info(now);
+    
+    g.t.time = Duration::Cast<Duration::Nanos>(now.time_since_epoch() + info.offset);
 }
 
 static void Update() {

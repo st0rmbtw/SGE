@@ -40,9 +40,8 @@ public:
 
     [[nodiscard]]
     inline T* GetBufferAndAdvance() {
-        T* ptr = m_buffer_ptr++;
         m_count++;
-        return ptr;
+        return m_buffer_ptr++;
     }
 
     [[nodiscard]]
@@ -121,7 +120,7 @@ struct LineBatchData : public BatchData<LineInstance> {
     LLGL::PipelineState* pipeline = nullptr;
 
     void Destroy(const LLGL::RenderSystemPtr& context) {
-        BatchData<LineInstance>::Destroy(context);
+        BatchData::Destroy(context);
         SGE_RESOURCE_RELEASE(pipeline);
     }
 };

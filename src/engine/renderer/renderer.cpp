@@ -96,7 +96,6 @@ std::vector<LLGL::VertexAttribute> BatchData<T>::Init(const sge::Renderer& rende
 
     std::vector<LLGL::VertexAttribute> total_attributes = vertex_format.attributes;
     total_attributes.insert(total_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
-
     return total_attributes;
 }
 
@@ -219,14 +218,11 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
     std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-            BindingLayoutItem::Texture(3, "u_texture"),
-            BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler")
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 
@@ -424,14 +420,11 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
     std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-            BindingLayoutItem::Texture(3, "u_texture"),
-            BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler")
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 
@@ -524,14 +517,11 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
     std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-            BindingLayoutItem::Texture(3, "u_texture"),
-            BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler")
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 
@@ -625,12 +615,9 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
     std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 
@@ -721,12 +708,9 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 

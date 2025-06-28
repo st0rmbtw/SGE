@@ -49,7 +49,6 @@ private:
     LLGL::Format format = LLGL::Format::Undefined;
     LLGL::DataType data_type = LLGL::DataType::Undefined;
     uint32_t size = 0;
-    uint32_t offset = 0;
     uint32_t slot = 0;
     Type type = Type::PerVertex;
 };
@@ -59,6 +58,7 @@ public:
     Attributes(std::initializer_list<Attribute> items) : m_items(items) {}
     Attributes(std::vector<Attribute> items) : m_items(std::move(items)) {}
 
+    [[nodiscard]]
     std::vector<LLGL::VertexAttribute> ToLLGL(sge::RenderBackend backend, uint32_t start_location = 0) const;
 
 private:
