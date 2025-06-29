@@ -70,6 +70,46 @@ namespace ShapeFlags {
     };
 };
 
+template <typename T>
+std::vector<LLGL::VertexAttribute> BatchData<T>::Init(const sge::Renderer& renderer, uint32_t size, const sge::Attributes& vertex_attributes, const sge::Attributes& instance_attributes) {
+    const Vertex vertices[] = {
+        Vertex(0.0f, 0.0f),
+        Vertex(0.0f, 1.0f),
+        Vertex(1.0f, 0.0f),
+        Vertex(1.0f, 1.0f),
+    };
+
+    m_buffer = checked_alloc<T>(size);
+    m_buffer_ptr = m_buffer;
+
+    LLGL::VertexFormat vertex_format;
+    vertex_format.attributes = vertex_attributes.ToLLGL(renderer.Backend());
+
+    LLGL::VertexFormat instance_format;
+    instance_format.attributes = instance_attributes.ToLLGL(renderer.Backend(), vertex_format.attributes.size());
+
+    m_vertex_buffer = renderer.CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "SpriteBatch VertexBuffer");
+    m_instance_buffer = renderer.CreateVertexBuffer(size * sizeof(T), instance_format, "SpriteBatch InstanceBuffer");
+
+    LLGL::Buffer* buffers[] = { m_vertex_buffer, m_instance_buffer };
+    m_buffer_array = renderer.Context()->CreateBufferArray(2, buffers);
+
+    std::vector<LLGL::VertexAttribute> total_attributes = vertex_format.attributes;
+    total_attributes.insert(total_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
+    return total_attributes;
+}
+
+template <typename T>
+void BatchData<T>::Destroy(const LLGL::RenderSystemPtr& context) {
+    SGE_RESOURCE_RELEASE(m_vertex_buffer);
+    SGE_RESOURCE_RELEASE(m_instance_buffer);
+    SGE_RESOURCE_RELEASE(m_buffer_array);
+    free(m_buffer);
+
+    m_buffer = nullptr;
+    m_buffer_ptr = nullptr;
+}
+
 static LLGL::Shader* CreateShader(Renderer& renderer, ShaderType shader_type, const void* data, size_t length, const char* entry_point, std::vector<LLGL::VertexAttribute> vertex_attributes = {}) {
     const RenderBackend backend = renderer.Backend();
 
@@ -153,21 +193,11 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
     const RenderBackend backend = m_backend;
     const auto& context = m_context;
 
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    vertex_format.attributes = Attributes({
+    Attributes vertex_attributes = Attributes({
         Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
-    }).ToLLGL(backend);
+    });
 
-    instance_format.attributes = Attributes({
+    Attributes instance_attributes = Attributes({
         Attribute::Instance(LLGL::Format::RGB32Float, "i_position", "I_Position", 1),
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_rotation", "I_Rotation", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_size", "I_Size", 1),
@@ -177,33 +207,19 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_outline_color", "I_OutlineColor", 1),
         Attribute::Instance(LLGL::Format::R32Float, "i_outline_thickness", "I_OutlineThickness", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
-    }).ToLLGL(backend, vertex_format.attributes.size());
+    });
 
     SpriteBatchData batchData;
-
-    batchData.buffer = checked_alloc<SpriteInstance>(MAX_QUADS);
-    batchData.buffer_ptr = batchData.buffer;
-
-    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "SpriteBatch VertexBuffer");
-    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(SpriteInstance), instance_format, "SpriteBatch InstanceBuffer");
-
-    LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
-    batchData.buffer_array = context->CreateBufferArray(2, buffers);
+    std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-            BindingLayoutItem::Texture(3, "u_texture"),
-            BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler")
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
 
     const void* vsSource = nullptr;
     size_t vsSize = 0;
@@ -233,7 +249,7 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
     }
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", total_attributes);
     pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
     pipelineDesc.pipelineLayout = pipelineLayout;
     pipelineDesc.indexFormat = LLGL::Format::R16UInt;
@@ -378,21 +394,11 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
     const RenderBackend backend = m_backend;
     const auto& context = m_context;
 
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    vertex_format.attributes = Attributes({
+    Attributes vertex_attributes = Attributes({
         Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
-    }).ToLLGL(backend);
+    });
 
-    instance_format.attributes = Attributes({
+    Attributes instance_attributes = Attributes({
         Attribute::Instance(LLGL::Format::RG32Float, "i_position", "I_Position", 1),
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_rotation", "I_Rotation", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_size", "I_Size", 1),
@@ -403,35 +409,19 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_uv_offset_scale", "I_UvOffsetScale", 1),
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_color", "I_Color", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
-    }).ToLLGL(backend, vertex_format.attributes.size());
+    });
 
     NinePatchBatchData batchData;
-
-    batchData.buffer = checked_alloc<NinePatchInstance>(MAX_QUADS);
-    batchData.buffer_ptr = batchData.buffer;
-
-    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "NinePatchBatch VertexBuffer");
-    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(NinePatchInstance), instance_format, "NinePatchBatch InstanceBuffer");
-
-    {
-        LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
-        batchData.buffer_array = context->CreateBufferArray(2, buffers);
-    }
+    std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-            BindingLayoutItem::Texture(3, "u_texture"),
-            BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler")
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
 
     const void* vsSource = nullptr;
     size_t vsSize = 0;
@@ -462,7 +452,7 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.debugName = "NinePatchBatch Pipeline";
-    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", total_attributes);
     pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
     pipelineDesc.pipelineLayout = pipelineLayout;
     pipelineDesc.indexFormat = LLGL::Format::R16UInt;
@@ -505,54 +495,30 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
     const RenderBackend backend = m_backend;
     const auto& context = m_context;
 
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    vertex_format.attributes = Attributes({
+    Attributes vertex_attributes = Attributes({
         Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
-    }).ToLLGL(backend);
+    });
 
-    instance_format.attributes = Attributes({
+    Attributes instance_attributes = Attributes({
         Attribute::Instance(LLGL::Format::RGB32Float, "i_color", "I_Color", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_position", "I_Position", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_size", "I_Size", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_tex_size", "I_TexSize", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_uv", "I_UV", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
-    }).ToLLGL(backend, vertex_format.attributes.size());
+    });
 
     GlyphBatchData batchData;
-
-    batchData.buffer = checked_alloc<GlyphInstance>(MAX_QUADS);
-    batchData.buffer_ptr = batchData.buffer;
-
-    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "GlyphBatch VertexBuffer");
-    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(GlyphInstance), instance_format, "GlyphBatch InstanceBuffer");
-
-    LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
-    batchData.buffer_array = context->CreateBufferArray(2, buffers);
+    std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-            BindingLayoutItem::Texture(3, "u_texture"),
-            BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler")
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
 
     const void* vsSource = nullptr;
     size_t vsSize = 0;
@@ -583,7 +549,7 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.debugName = "GlyphBatch Pipeline";
-    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", total_attributes);
     pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
     pipelineDesc.pipelineLayout = pipelineLayout;
     pipelineDesc.indexFormat = LLGL::Format::R16UInt;
@@ -624,21 +590,11 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
     const RenderBackend backend = m_backend;
     const auto& context = m_context;
 
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
-
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    vertex_format.attributes = Attributes({
+    Attributes vertex_attributes = Attributes({
         Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
-    }).ToLLGL(backend);
+    });
 
-    instance_format.attributes = Attributes({
+    Attributes instance_attributes = Attributes({
         Attribute::Instance(LLGL::Format::RGB32Float, "i_position", "I_Position", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_size", "I_Size", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_offset", "I_Offset", 1),
@@ -648,31 +604,17 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
         Attribute::Instance(LLGL::Format::R32Float, "i_border_thickness", "I_BorderThickness", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_shape", "I_Shape", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1)
-    }).ToLLGL(backend, vertex_format.attributes.size());
+    });
 
     ShapeBatchData batchData;
-
-    batchData.buffer = checked_alloc<ShapeInstance>(MAX_QUADS);
-    batchData.buffer_ptr = batchData.buffer;
-
-    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "ShapeBatch VertexBuffer");
-    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(ShapeInstance), instance_format, "ShapeBatch InstanceBuffer");
-
-    LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
-    batchData.buffer_array = context->CreateBufferArray(2, buffers);
+    std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
 
     const void* vsSource = nullptr;
     size_t vsSize = 0;
@@ -703,7 +645,7 @@ ShapeBatchData Renderer::InitShapeBatchPipeline() {
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.debugName = "ShapeBatch Pipeline";
-    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", total_attributes);
     pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
     pipelineDesc.pipelineLayout = pipelineLayout;
     pipelineDesc.indexFormat = LLGL::Format::R16UInt;
@@ -744,52 +686,28 @@ LineBatchData Renderer::InitLineBatchPipeline() {
     const RenderBackend backend = m_backend;
     const auto& context = m_context;
 
-    LLGL::VertexFormat vertex_format;
-    LLGL::VertexFormat instance_format;
-
-    vertex_format.attributes = Attributes({
+    Attributes vertex_attributes = Attributes({
         Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
-    }).ToLLGL(backend);
+    });
 
-    instance_format.attributes = Attributes({
+    Attributes instance_attributes = Attributes({
         Attribute::Instance(LLGL::Format::RG32Float, "i_start", "I_Start", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "i_end", "I_End", 1),
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_color", "I_Color", 1),
         Attribute::Instance(LLGL::Format::RGBA32Float, "i_border_radius", "I_Border_Radius", 1),
         Attribute::Instance(LLGL::Format::R32Float, "i_thickness", "I_Thickness", 1),
         Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
-    }).ToLLGL(backend, vertex_format.attributes.size());
-
-    const Vertex vertices[] = {
-        Vertex(0.0f, 0.0f),
-        Vertex(0.0f, 1.0f),
-        Vertex(1.0f, 0.0f),
-        Vertex(1.0f, 1.0f),
-    };
+    });
 
     LineBatchData batchData;
-
-    batchData.buffer = checked_alloc<LineInstance>(MAX_QUADS);
-    batchData.buffer_ptr = batchData.buffer;
-
-    batchData.vertex_buffer = CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "LineBatch VertexBuffer");
-    batchData.instance_buffer = CreateVertexBuffer(MAX_QUADS * sizeof(ShapeInstance), instance_format, "LineBatch InstanceBuffer");
-
-    LLGL::Buffer* buffers[] = { batchData.vertex_buffer, batchData.instance_buffer };
-    batchData.buffer_array = context->CreateBufferArray(2, buffers);
+    std::vector<LLGL::VertexAttribute> total_attributes = batchData.Init(*this, MAX_QUADS, vertex_attributes, instance_attributes);
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = BindingLayout(
-        LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage,
-        {
-            BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer"),
-        }
-    );
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+    });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
-
-    std::vector<LLGL::VertexAttribute> vertex_attributes = vertex_format.attributes;
-    vertex_attributes.insert(vertex_attributes.end(), instance_format.attributes.begin(), instance_format.attributes.end());
 
     const void* vsSource = nullptr;
     size_t vsSize = 0;
@@ -820,7 +738,7 @@ LineBatchData Renderer::InitLineBatchPipeline() {
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.debugName = "LineBatch Pipeline";
-    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", vertex_attributes);
+    pipelineDesc.vertexShader = CreateShader(*this, ShaderType::Vertex, vsSource, vsSize, "VS", total_attributes);
     pipelineDesc.fragmentShader = CreateShader(*this, ShaderType::Fragment, psSource, psSize, "PS");
     pipelineDesc.pipelineLayout = pipelineLayout;
     pipelineDesc.indexFormat = LLGL::Format::R16UInt;
@@ -978,24 +896,13 @@ void Renderer::Begin(const Camera& camera) {
     m_command_buffer->Begin();
     m_command_buffer->UpdateBuffer(*m_constant_buffer, 0, &projections_uniform, sizeof(projections_uniform));
 
-    m_sprite_instance_size = 0;
-    m_glyph_instance_size = 0;
-    m_ninepatch_instance_size = 0;
-    m_shape_instance_size = 0;
-    m_line_instance_size = 0;
-
-    m_sprite_instance_count = 0;
-    m_glyph_instance_count = 0;
-    m_ninepatch_instance_count = 0;
-    m_shape_instance_count = 0;
-    m_line_instance_count = 0;
     m_batch_instance_count = 0;
 
-    m_sprite_batch_data.buffer_ptr = m_sprite_batch_data.buffer;
-    m_glyph_batch_data.buffer_ptr = m_glyph_batch_data.buffer;
-    m_ninepatch_batch_data.buffer_ptr = m_ninepatch_batch_data.buffer;
-    m_shape_batch_data.buffer_ptr = m_shape_batch_data.buffer;
-    m_line_batch_data.buffer_ptr = m_line_batch_data.buffer;
+    m_sprite_batch_data.Reset();
+    m_glyph_batch_data.Reset();
+    m_ninepatch_batch_data.Reset();
+    m_shape_batch_data.Reset();
+    m_line_batch_data.Reset();
 }
 
 void Renderer::BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport) {
@@ -1066,30 +973,30 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
         if (prev_flush_data_type != static_cast<int>(flush_data.type) || prev_blend_mode != flush_data.blend_mode) {
             switch (flush_data.type) {
             case FlushDataType::Sprite:
-                commands->SetVertexBufferArray(*m_sprite_batch_data.buffer_array);
+                commands->SetVertexBufferArray(*m_sprite_batch_data.GetBufferArray());
                 commands->SetPipelineState(*sprite_pipeline);
                 offset = batch.sprite_data().offset;
             break;
 
             case FlushDataType::Glyph:
-                commands->SetVertexBufferArray(*m_glyph_batch_data.buffer_array);
+                commands->SetVertexBufferArray(*m_glyph_batch_data.GetBufferArray());
                 commands->SetPipelineState(*m_glyph_batch_data.pipeline);
                 offset = batch.glyph_data().offset;
             break;
 
             case FlushDataType::NinePatch:
-                commands->SetVertexBufferArray(*m_ninepatch_batch_data.buffer_array);
+                commands->SetVertexBufferArray(*m_ninepatch_batch_data.GetBufferArray());
                 commands->SetPipelineState(*m_ninepatch_batch_data.pipeline);
                 offset = batch.ninepatch_data().offset;
             break;
 
             case FlushDataType::Shape:
-                commands->SetVertexBufferArray(*m_shape_batch_data.buffer_array);
+                commands->SetVertexBufferArray(*m_shape_batch_data.GetBufferArray());
                 commands->SetPipelineState(*m_shape_batch_data.pipeline);
                 offset = batch.shape_data().offset;
             break;
             case FlushDataType::Line:
-                commands->SetVertexBufferArray(*m_line_batch_data.buffer_array);
+                commands->SetVertexBufferArray(*m_line_batch_data.GetBufferArray());
                 commands->SetPipelineState(*m_line_batch_data.pipeline);
                 offset = batch.line_data().offset;
             break;
@@ -1240,16 +1147,16 @@ void Renderer::UpdateBatchBuffers(
             flags |= sprite_data.ignore_camera_zoom << SpriteFlags::IgnoreCameraZoom;
             flags |= batch.IsUi() << SpriteFlags::UI;
 
-            m_sprite_batch_data.buffer_ptr->position = sprite_data.position;
-            m_sprite_batch_data.buffer_ptr->rotation = sprite_data.rotation;
-            m_sprite_batch_data.buffer_ptr->size = sprite_data.size;
-            m_sprite_batch_data.buffer_ptr->offset = sprite_data.offset;
-            m_sprite_batch_data.buffer_ptr->uv_offset_scale = sprite_data.uv_offset_scale;
-            m_sprite_batch_data.buffer_ptr->color = sprite_data.color;
-            m_sprite_batch_data.buffer_ptr->outline_color = sprite_data.outline_color;
-            m_sprite_batch_data.buffer_ptr->outline_thickness = sprite_data.outline_thickness;
-            m_sprite_batch_data.buffer_ptr->flags = flags;
-            m_sprite_batch_data.buffer_ptr++;
+            SpriteInstance* buffer = m_sprite_batch_data.GetBufferAndAdvance();
+            buffer->position = sprite_data.position;
+            buffer->rotation = sprite_data.rotation;
+            buffer->size = sprite_data.size;
+            buffer->offset = sprite_data.offset;
+            buffer->uv_offset_scale = sprite_data.uv_offset_scale;
+            buffer->color = sprite_data.color;
+            buffer->outline_color = sprite_data.outline_color;
+            buffer->outline_thickness = sprite_data.outline_thickness;
+            buffer->flags = flags;
 
             ++sprite_count;
             ++sprite_total_count;
@@ -1298,13 +1205,13 @@ void Renderer::UpdateBatchBuffers(
             uint8_t flags = 0;
             flags |= batch.IsUi() << ShapeFlags::UI;
 
-            m_glyph_batch_data.buffer_ptr->color = glyph_data.color;
-            m_glyph_batch_data.buffer_ptr->pos = glyph_data.pos;
-            m_glyph_batch_data.buffer_ptr->size = glyph_data.size;
-            m_glyph_batch_data.buffer_ptr->tex_size = glyph_data.tex_size;
-            m_glyph_batch_data.buffer_ptr->uv = glyph_data.tex_uv;
-            m_glyph_batch_data.buffer_ptr->flags = flags;
-            m_glyph_batch_data.buffer_ptr++;
+            GlyphInstance* buffer = m_glyph_batch_data.GetBufferAndAdvance();
+            buffer->color = glyph_data.color;
+            buffer->pos = glyph_data.pos;
+            buffer->size = glyph_data.size;
+            buffer->tex_size = glyph_data.tex_size;
+            buffer->uv = glyph_data.tex_uv;
+            buffer->flags = flags;
 
             ++glyph_count;
             ++glyph_total_count;
@@ -1355,17 +1262,17 @@ void Renderer::UpdateBatchBuffers(
             uint8_t flags = 0;
             flags |= batch.IsUi() << ShapeFlags::UI;
 
-            m_ninepatch_batch_data.buffer_ptr->position = ninepatch_data.position;
-            m_ninepatch_batch_data.buffer_ptr->rotation = ninepatch_data.rotation;
-            m_ninepatch_batch_data.buffer_ptr->margin = ninepatch_data.margin;
-            m_ninepatch_batch_data.buffer_ptr->size = ninepatch_data.size;
-            m_ninepatch_batch_data.buffer_ptr->offset = ninepatch_data.offset;
-            m_ninepatch_batch_data.buffer_ptr->source_size = ninepatch_data.source_size;
-            m_ninepatch_batch_data.buffer_ptr->output_size = ninepatch_data.output_size;
-            m_ninepatch_batch_data.buffer_ptr->uv_offset_scale = ninepatch_data.uv_offset_scale;
-            m_ninepatch_batch_data.buffer_ptr->color = ninepatch_data.color;
-            m_ninepatch_batch_data.buffer_ptr->flags = flags;
-            m_ninepatch_batch_data.buffer_ptr++;
+            NinePatchInstance* buffer = m_ninepatch_batch_data.GetBufferAndAdvance();
+            buffer->position = ninepatch_data.position;
+            buffer->rotation = ninepatch_data.rotation;
+            buffer->margin = ninepatch_data.margin;
+            buffer->size = ninepatch_data.size;
+            buffer->offset = ninepatch_data.offset;
+            buffer->source_size = ninepatch_data.source_size;
+            buffer->output_size = ninepatch_data.output_size;
+            buffer->uv_offset_scale = ninepatch_data.uv_offset_scale;
+            buffer->color = ninepatch_data.color;
+            buffer->flags = flags;
 
             ++ninepatch_count;
             ++ninepatch_total_count;
@@ -1396,16 +1303,16 @@ void Renderer::UpdateBatchBuffers(
             uint8_t flags = 0;
             flags |= batch.IsUi() << ShapeFlags::UI;
 
-            m_shape_batch_data.buffer_ptr->position = glm::vec3(shape_data.position, 0.0f);
-            m_shape_batch_data.buffer_ptr->size = shape_data.size;
-            m_shape_batch_data.buffer_ptr->offset = shape_data.offset;
-            m_shape_batch_data.buffer_ptr->color = shape_data.color.to_vec4();
-            m_shape_batch_data.buffer_ptr->border_color = shape_data.border_color.to_vec4();
-            m_shape_batch_data.buffer_ptr->border_thickness = shape_data.border_thickness;
-            m_shape_batch_data.buffer_ptr->border_radius = shape_data.border_radius;
-            m_shape_batch_data.buffer_ptr->shape = shape_data.shape;
-            m_shape_batch_data.buffer_ptr->flags = flags;
-            m_shape_batch_data.buffer_ptr++;
+            ShapeInstance* buffer = m_shape_batch_data.GetBufferAndAdvance();
+            buffer->position = glm::vec3(shape_data.position, 0.0f);
+            buffer->size = shape_data.size;
+            buffer->offset = shape_data.offset;
+            buffer->color = shape_data.color.to_vec4();
+            buffer->border_color = shape_data.border_color.to_vec4();
+            buffer->border_thickness = shape_data.border_thickness;
+            buffer->border_radius = shape_data.border_radius;
+            buffer->shape = shape_data.shape;
+            buffer->flags = flags;
 
             ++shape_count;
             ++shape_total_count;
@@ -1434,13 +1341,13 @@ void Renderer::UpdateBatchBuffers(
             uint8_t flags = 0;
             flags |= batch.IsUi() << ShapeFlags::UI;
 
-            m_line_batch_data.buffer_ptr->start = line_data.start;
-            m_line_batch_data.buffer_ptr->end = line_data.end;
-            m_line_batch_data.buffer_ptr->color = line_data.color.to_vec4();
-            m_line_batch_data.buffer_ptr->border_radius = line_data.border_radius;
-            m_line_batch_data.buffer_ptr->thickness = line_data.thickness;
-            m_line_batch_data.buffer_ptr->flags = flags;
-            m_line_batch_data.buffer_ptr++;
+            LineInstance* buffer = m_line_batch_data.GetBufferAndAdvance();
+            buffer->start = line_data.start;
+            buffer->end = line_data.end;
+            buffer->color = line_data.color.to_vec4();
+            buffer->border_radius = line_data.border_radius;
+            buffer->thickness = line_data.thickness;
+            buffer->flags = flags;
 
             ++line_count;
             ++line_total_count;
@@ -1523,29 +1430,10 @@ void Renderer::UpdateBatchBuffers(
 
     batch.set_draw_commands_done(i);
 
-    const size_t sprite_size = sprite_total_count * sizeof(SpriteInstance);
-    m_sprite_instance_size += sprite_size;
-    m_sprite_instance_count += sprite_total_count;
     batch.sprite_data().count = sprite_remaining;
-
-    const size_t glyph_size = glyph_total_count * sizeof(GlyphInstance);
-    m_glyph_instance_size += glyph_size;
-    m_glyph_instance_count += glyph_total_count;
     batch.glyph_data().count = glyph_remaining;
-
-    const size_t ninepatch_size = ninepatch_total_count * sizeof(NinePatchInstance);
-    m_ninepatch_instance_size += ninepatch_size;
-    m_ninepatch_instance_count += ninepatch_total_count;
     batch.ninepatch_data().count = ninepatch_remaining;
-
-    const size_t shape_size = shape_total_count * sizeof(ShapeInstance);
-    m_shape_instance_size += shape_size;
-    m_shape_instance_count += shape_total_count;
     batch.shape_data().count = shape_remaining;
-
-    const size_t line_size = line_total_count * sizeof(LineInstance);
-    m_line_instance_size += line_size;
-    m_line_instance_count += line_total_count;
     batch.line_data().count = line_remaining;
 }
 
@@ -1553,35 +1441,35 @@ void Renderer::UpdateBatchBuffers(
 void Renderer::PrepareBatch(sge::Batch& batch) {
     if (batch.draw_commands().empty()) return;
 
-    batch.sprite_data().offset = m_sprite_instance_count;
-    batch.glyph_data().offset = m_glyph_instance_count;
-    batch.ninepatch_data().offset = m_ninepatch_instance_count;
-    batch.shape_data().offset = m_shape_instance_count;
-    batch.line_data().offset = m_line_instance_count;
+    batch.sprite_data().offset = m_sprite_batch_data.Count();
+    batch.glyph_data().offset = m_glyph_batch_data.Count();
+    batch.ninepatch_data().offset = m_ninepatch_batch_data.Count();
+    batch.shape_data().offset = m_shape_batch_data.Count();
+    batch.line_data().offset = m_line_batch_data.Count();
 
     SortBatchDrawCommands(batch);
     UpdateBatchBuffers(batch);
 }
 
 void Renderer::UploadBatchData() {
-    if (m_sprite_instance_size > 0) {
-        UpdateBuffer(m_sprite_batch_data.instance_buffer, m_sprite_batch_data.buffer, m_sprite_instance_size);
+    if (m_sprite_batch_data.Count() > 0) {
+        m_sprite_batch_data.Update(m_command_buffer);
     }
 
-    if (m_glyph_instance_size > 0) {
-        UpdateBuffer(m_glyph_batch_data.instance_buffer, m_glyph_batch_data.buffer, m_glyph_instance_size);
+    if (m_glyph_batch_data.Count() > 0) {
+        m_glyph_batch_data.Update(m_command_buffer);
     }
 
-    if (m_ninepatch_instance_size > 0) {
-        UpdateBuffer(m_ninepatch_batch_data.instance_buffer, m_ninepatch_batch_data.buffer, m_ninepatch_instance_size);
+    if (m_ninepatch_batch_data.Count() > 0) {
+        m_ninepatch_batch_data.Update(m_command_buffer);
     }
 
-    if (m_shape_instance_size > 0) {
-        UpdateBuffer(m_shape_batch_data.instance_buffer, m_shape_batch_data.buffer, m_shape_instance_size);
+    if (m_shape_batch_data.Count() > 0) {
+        m_shape_batch_data.Update(m_command_buffer);
     }
 
-    if (m_line_instance_size > 0) {
-        UpdateBuffer(m_line_batch_data.instance_buffer, m_line_batch_data.buffer, m_line_instance_size);
+    if (m_line_batch_data.Count() > 0) {
+        m_line_batch_data.Update(m_command_buffer);
     }
 }
 
@@ -1597,29 +1485,19 @@ void Renderer::RenderBatch(sge::Batch& batch) {
     while (batch.draw_commands_done() < draw_commands.size()) {
         m_batch_instance_count = 0;
 
-        m_sprite_instance_count = 0;
-        m_sprite_instance_size = 0;
-        m_sprite_batch_data.buffer_ptr = m_sprite_batch_data.buffer;
-        batch.sprite_data().offset = m_sprite_instance_count;
+        m_sprite_batch_data.Reset();
+        batch.sprite_data().offset = 0;
 
-        m_glyph_instance_count = 0;
-        m_glyph_instance_size = 0;
-        m_glyph_batch_data.buffer_ptr = m_glyph_batch_data.buffer;
-        batch.glyph_data().offset = m_glyph_instance_count;
+        m_glyph_batch_data.Reset();
+        batch.glyph_data().offset = 0;
 
-        m_ninepatch_instance_count = 0;
-        m_ninepatch_instance_size = 0;
-        m_ninepatch_batch_data.buffer_ptr = m_ninepatch_batch_data.buffer;
-        batch.ninepatch_data().offset = m_ninepatch_instance_count;
+        m_ninepatch_batch_data.Reset();
+        batch.ninepatch_data().offset = 0;
 
-        m_shape_instance_count = 0;
-        m_shape_instance_size = 0;
-        m_shape_batch_data.buffer_ptr = m_shape_batch_data.buffer;
-        batch.shape_data().offset = m_shape_instance_count;
+        m_shape_batch_data.Reset();
+        batch.shape_data().offset = 0;
 
-        m_line_instance_count = 0;
-        m_line_instance_size = 0;
-        m_line_batch_data.buffer_ptr = m_line_batch_data.buffer;
+        m_line_batch_data.Reset();
         batch.line_data().offset = 0;
 
         UpdateBatchBuffers(batch, batch.draw_commands_done());

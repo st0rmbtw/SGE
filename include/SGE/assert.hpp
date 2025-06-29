@@ -19,7 +19,7 @@
         std::abort();                                                                     \
     }
 #else
-    #define SGE_ASSERT(expression, message, ...) ((void)0)
+    #define SGE_ASSERT(expression) ((void)0)
 
     #if defined(__GNUC__) || defined(__clang__)
         #define SGE_UNREACHABLE() __builtin_unreachable()

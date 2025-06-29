@@ -1,7 +1,6 @@
 #ifndef _SGE_RENDERER_HPP_
 #define _SGE_RENDERER_HPP_
 
-#include "LLGL/RenderSystemFlags.h"
 #include <GLFW/glfw3.h>
 
 #include <LLGL/Shader.h>
@@ -10,12 +9,14 @@
 #include <LLGL/CommandBufferFlags.h>
 #include <LLGL/SamplerFlags.h>
 #include <LLGL/PipelineState.h>
+#include <LLGL/RenderSystemFlags.h>
 
 #include <SGE/types/backend.hpp>
 #include <SGE/types/texture.hpp>
 #include <SGE/types/shader_path.hpp>
 #include <SGE/types/shader_def.hpp>
 #include <SGE/types/window_settings.hpp>
+#include <SGE/types/attributes.hpp>
 #include <SGE/renderer/custom_surface.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
@@ -25,7 +26,49 @@
 
 _SGE_BEGIN
 
-struct SpriteBatchData {
+template <typename T>
+class BatchData {
+public:
+    std::vector<LLGL::VertexAttribute> Init(const sge::Renderer& renderer, uint32_t size, const sge::Attributes& vertex_attributes, const sge::Attributes& instance_attributes);
+    void Destroy(const LLGL::RenderSystemPtr& context);
+
+    inline void Update(LLGL::CommandBuffer* command_buffer) {
+        command_buffer->UpdateBuffer(*m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
+    }
+
+    inline void Reset() {
+        m_count = 0;
+        m_buffer_ptr = m_buffer;
+    }
+
+    [[nodiscard]]
+    inline T* GetBufferAndAdvance() {
+        m_count++;
+        return m_buffer_ptr++;
+    }
+
+    [[nodiscard]]
+    inline LLGL::BufferArray* GetBufferArray() const {
+        return m_buffer_array;
+    }
+
+    [[nodiscard]]
+    inline uint32_t Count() const {
+        return m_count;
+    }
+
+private:
+    T* m_buffer = nullptr;
+    T* m_buffer_ptr = nullptr;
+
+    LLGL::Buffer* m_vertex_buffer = nullptr;
+    LLGL::Buffer* m_instance_buffer = nullptr;
+    LLGL::BufferArray* m_buffer_array = nullptr;
+
+    uint32_t m_count = 0;
+};
+
+struct SpriteBatchData : public BatchData<SpriteInstance> {
     LLGL::PipelineState* pipeline_additive = nullptr;
     LLGL::PipelineState* pipeline_alpha_blend = nullptr;
     LLGL::PipelineState* pipeline_opaque = nullptr;
@@ -36,14 +79,8 @@ struct SpriteBatchData {
     LLGL::PipelineState* pipeline_depth_opaque = nullptr;
     LLGL::PipelineState* pipeline_depth_premultiplied_alpha = nullptr;
 
-    sge::SpriteInstance* buffer = nullptr;
-    sge::SpriteInstance* buffer_ptr = nullptr;
-
-    LLGL::Buffer* vertex_buffer = nullptr;
-    LLGL::Buffer* instance_buffer = nullptr;
-    LLGL::BufferArray* buffer_array = nullptr;
-
     void Destroy(const LLGL::RenderSystemPtr& context) {
+        BatchData::Destroy(context);
         SGE_RESOURCE_RELEASE(pipeline_additive);
         SGE_RESOURCE_RELEASE(pipeline_alpha_blend);
         SGE_RESOURCE_RELEASE(pipeline_opaque);
@@ -52,91 +89,42 @@ struct SpriteBatchData {
         SGE_RESOURCE_RELEASE(pipeline_depth_alpha_blend);
         SGE_RESOURCE_RELEASE(pipeline_depth_opaque);
         SGE_RESOURCE_RELEASE(pipeline_depth_premultiplied_alpha);
-        SGE_RESOURCE_RELEASE(vertex_buffer);
-        SGE_RESOURCE_RELEASE(instance_buffer);
-        SGE_RESOURCE_RELEASE(buffer_array);
-
-        free(buffer);
     }
 };
 
-struct GlyphBatchData {
+struct GlyphBatchData : public BatchData<GlyphInstance> {
     LLGL::PipelineState* pipeline = nullptr;
 
-    sge::GlyphInstance* buffer = nullptr;
-    sge::GlyphInstance* buffer_ptr = nullptr;
-
-    LLGL::Buffer* vertex_buffer = nullptr;
-    LLGL::Buffer* instance_buffer = nullptr;
-    LLGL::BufferArray* buffer_array = nullptr;
-
     void Destroy(const LLGL::RenderSystemPtr& context) {
+        BatchData::Destroy(context);
         SGE_RESOURCE_RELEASE(pipeline);
-        SGE_RESOURCE_RELEASE(vertex_buffer);
-        SGE_RESOURCE_RELEASE(instance_buffer);
-        SGE_RESOURCE_RELEASE(buffer_array);
-
-        free(buffer);
     }
 };
 
-struct NinePatchBatchData {
+struct NinePatchBatchData : public BatchData<NinePatchInstance> {
     LLGL::PipelineState* pipeline = nullptr;
 
-    sge::NinePatchInstance* buffer = nullptr;
-    sge::NinePatchInstance* buffer_ptr = nullptr;
-
-    LLGL::Buffer* vertex_buffer = nullptr;
-    LLGL::Buffer* instance_buffer = nullptr;
-    LLGL::BufferArray* buffer_array = nullptr;
-
     void Destroy(const LLGL::RenderSystemPtr& context) {
+        BatchData::Destroy(context);
         SGE_RESOURCE_RELEASE(pipeline);
-        SGE_RESOURCE_RELEASE(vertex_buffer);
-        SGE_RESOURCE_RELEASE(instance_buffer);
-        SGE_RESOURCE_RELEASE(buffer_array);
-
-        free(buffer);
     }
 };
 
-struct ShapeBatchData {
+struct ShapeBatchData : public BatchData<ShapeInstance> {
     LLGL::PipelineState* pipeline = nullptr;
 
-    sge::ShapeInstance* buffer = nullptr;
-    sge::ShapeInstance* buffer_ptr = nullptr;
-
-    LLGL::Buffer* vertex_buffer = nullptr;
-    LLGL::Buffer* instance_buffer = nullptr;
-    LLGL::BufferArray* buffer_array = nullptr;
-
     void Destroy(const LLGL::RenderSystemPtr& context) {
+        BatchData::Destroy(context);
         SGE_RESOURCE_RELEASE(pipeline);
-        SGE_RESOURCE_RELEASE(vertex_buffer);
-        SGE_RESOURCE_RELEASE(instance_buffer);
-        SGE_RESOURCE_RELEASE(buffer_array);
-
-        free(buffer);
     }
 };
 
-struct LineBatchData {
+struct LineBatchData : public BatchData<LineInstance> {
     LLGL::PipelineState* pipeline = nullptr;
 
-    sge::LineInstance* buffer = nullptr;
-    sge::LineInstance* buffer_ptr = nullptr;
-
-    LLGL::Buffer* vertex_buffer = nullptr;
-    LLGL::Buffer* instance_buffer = nullptr;
-    LLGL::BufferArray* buffer_array = nullptr;
-
     void Destroy(const LLGL::RenderSystemPtr& context) {
+        BatchData::Destroy(context);
         SGE_RESOURCE_RELEASE(pipeline);
-        SGE_RESOURCE_RELEASE(vertex_buffer);
-        SGE_RESOURCE_RELEASE(instance_buffer);
-        SGE_RESOURCE_RELEASE(buffer_array);
-
-        free(buffer);
     }
 };
 
@@ -226,21 +214,21 @@ public:
     #endif
 
     template <typename Container>
-    inline LLGL::Buffer* CreateVertexBuffer(const Container& vertices, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr)
+    inline LLGL::Buffer* CreateVertexBuffer(const Container& vertices, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) const
     {
         LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(GetArraySize(vertices), vertexFormat);
         bufferDesc.debugName = debug_name;
         return m_context->CreateBuffer(bufferDesc, &vertices[0]);
     }
 
-    inline LLGL::Buffer* CreateVertexBuffer(size_t size, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr)
+    inline LLGL::Buffer* CreateVertexBuffer(size_t size, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) const
     {
         LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(size, vertexFormat);
         bufferDesc.debugName = debug_name;
         return m_context->CreateBuffer(bufferDesc, nullptr);
     }
 
-    inline LLGL::Buffer* CreateVertexBufferInit(size_t size, const void* data, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr)
+    inline LLGL::Buffer* CreateVertexBufferInit(size_t size, const void* data, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) const
     {
         LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(size, vertexFormat);
         bufferDesc.debugName = debug_name;
@@ -248,14 +236,14 @@ public:
     }
 
     template <typename Container>
-    inline LLGL::Buffer* CreateIndexBuffer(const Container& indices, const LLGL::Format format, const char* debug_name = nullptr)
+    inline LLGL::Buffer* CreateIndexBuffer(const Container& indices, const LLGL::Format format, const char* debug_name = nullptr) const
     {
         LLGL::BufferDescriptor bufferDesc = LLGL::IndexBufferDesc(GetArraySize(indices), format);
         bufferDesc.debugName = debug_name;
         return m_context->CreateBuffer(bufferDesc, &indices[0]);
     }
 
-    inline LLGL::Buffer* CreateConstantBuffer(const size_t size, const char* debug_name = nullptr)
+    inline LLGL::Buffer* CreateConstantBuffer(const size_t size, const char* debug_name = nullptr) const
     {
         LLGL::BufferDescriptor bufferDesc = LLGL::ConstantBufferDesc(size);
         bufferDesc.debugName = debug_name;
@@ -291,11 +279,6 @@ private:
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
     void ApplyBatchDrawCommands(sge::Batch& batch);
 
-    inline void UpdateBuffer(LLGL::Buffer* buffer, void* data, uint64_t length, uint64_t offset = 0) {
-        const char* src = static_cast<char*>(data);
-        m_command_buffer->UpdateBuffer(*buffer, offset, src + offset, length);
-    }
-
 private:
     SpriteBatchData m_sprite_batch_data;
     GlyphBatchData m_glyph_batch_data;
@@ -322,18 +305,6 @@ private:
     uint32_t m_texture_index = 0;
 
     size_t m_batch_instance_count = 0;
-
-    size_t m_sprite_instance_size = 0;
-    size_t m_glyph_instance_size = 0;
-    size_t m_ninepatch_instance_size = 0;
-    size_t m_shape_instance_size = 0;
-    size_t m_line_instance_size = 0;
-
-    size_t m_sprite_instance_count = 0;
-    size_t m_glyph_instance_count = 0;
-    size_t m_ninepatch_instance_count = 0;
-    size_t m_shape_instance_count = 0;
-    size_t m_line_instance_count = 0;
 
     sge::RenderBackend m_backend;
 

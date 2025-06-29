@@ -89,11 +89,7 @@ if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE "/Zc:preprocessor")
 endif()
 
-if(RELEASE_BUILD)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG=0)
-else()
-    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG=1)
-endif()
+target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:Debug>:SGE_DEBUG>")
 
 target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw fmt LLGL freetype TracyClient)
 
