@@ -215,7 +215,7 @@ SpriteBatchData Renderer::InitSpriteBatchPipeline() {
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::FragmentStage),
         BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
     });
 
@@ -417,7 +417,7 @@ NinePatchBatchData Renderer::InitNinepatchBatchPipeline() {
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::FragmentStage),
         BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
     });
 
@@ -514,7 +514,7 @@ GlyphBatchData Renderer::InitGlyphBatchPipeline() {
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::FragmentStage),
         BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
     });
 

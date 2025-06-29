@@ -1,9 +1,10 @@
 #ifndef _SGE_TYPES_BINDING_LAYOUT_HPP_
 #define _SGE_TYPES_BINDING_LAYOUT_HPP_
 
-#include <SGE/defines.hpp>
-#include <LLGL/PipelineLayoutFlags.h>
 #include <initializer_list>
+
+#include <LLGL/PipelineLayoutFlags.h>
+#include <SGE/defines.hpp>
 
 _SGE_BEGIN
 
@@ -14,27 +15,27 @@ class BindingLayoutItem {
 
 public:
 
-    static BindingLayoutItem TextureStorage(int slot = -1, LLGL::StringLiteral name = {}, long stage = LLGL::StageFlags::VertexStage) {
+    static BindingLayoutItem TextureStorage(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
         return BindingLayoutItem(LLGL::ResourceType::Texture, LLGL::BindFlags::Storage, stage, slot, 0, name);
     }
 
-    static BindingLayoutItem Texture(int slot = -1, LLGL::StringLiteral name = {}, long stage = LLGL::StageFlags::VertexStage) {
+    static BindingLayoutItem Texture(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
         return BindingLayoutItem(LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, stage, slot, 0, name);
     }
 
-    static BindingLayoutItem StorageBuffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = LLGL::StageFlags::VertexStage) {
+    static BindingLayoutItem StorageBuffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
         return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::Storage, stage, slot, 0, name);
     }
 
-    static BindingLayoutItem Buffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = LLGL::StageFlags::VertexStage) {
+    static BindingLayoutItem Buffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
         return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::Sampled, stage, slot, 0, name);
     }
 
-    static BindingLayoutItem ConstantBuffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = LLGL::StageFlags::VertexStage) {
+    static BindingLayoutItem ConstantBuffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
         return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::ConstantBuffer, stage, slot, 0, name);
     }
 
-    static BindingLayoutItem Sampler(int slot = -1, LLGL::StringLiteral name = {}, long stage = LLGL::StageFlags::VertexStage) {
+    static BindingLayoutItem Sampler(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
         return BindingLayoutItem(LLGL::ResourceType::Sampler, 0, stage, slot, 0, name);
     }
 
@@ -50,7 +51,7 @@ private:
     LLGL::StringLiteral name;
     LLGL::ResourceType resource_type = LLGL::ResourceType::Undefined;
     long bind_flags = 0;
-    long stage = 0;
+    long stage = -1;
     int slot = -1;
     uint32_t array_size = 0;
 };
@@ -58,6 +59,9 @@ private:
 class BindingLayout {
 public:
     BindingLayout(std::initializer_list<BindingLayoutItem> items) : m_items(items) {}
+    BindingLayout(long stage, std::initializer_list<BindingLayoutItem> items) :
+        m_items(items),
+        m_stage(stage) {}
 
     inline void AddItem(BindingLayoutItem item) {
         m_items.push_back(item);
@@ -70,7 +74,9 @@ public:
         uint32_t last_index = 0;
         for (const BindingLayoutItem& item : m_items) {
             uint32_t index = item.slot >= 0 ? item.slot : last_index;
-            items.emplace_back(item.name, item.resource_type, item.bind_flags, item.stage, index, item.array_size);
+            long stage = item.stage >= 0 ? item.stage : m_stage;
+
+            items.emplace_back(item.name, item.resource_type, item.bind_flags, stage, index, item.array_size);
             last_index = index + 1;
         }
 
@@ -83,6 +89,7 @@ public:
 
 private:
     std::vector<BindingLayoutItem> m_items;
+    long m_stage = 0;
 };
 
 _SGE_END
