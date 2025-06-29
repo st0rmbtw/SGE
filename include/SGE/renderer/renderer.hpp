@@ -30,10 +30,13 @@ template <typename T>
 class BatchData {
 public:
     std::vector<LLGL::VertexAttribute> Init(const sge::Renderer& renderer, uint32_t size, const sge::Attributes& vertex_attributes, const sge::Attributes& instance_attributes);
-    void Update(const sge::Renderer& renderer);
     void Destroy(const LLGL::RenderSystemPtr& context);
 
-    void Reset() {
+    inline void Update(LLGL::CommandBuffer* command_buffer) {
+        command_buffer->UpdateBuffer(*m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
+    }
+
+    inline void Reset() {
         m_count = 0;
         m_buffer_ptr = m_buffer;
     }
@@ -245,11 +248,6 @@ public:
         LLGL::BufferDescriptor bufferDesc = LLGL::ConstantBufferDesc(size);
         bufferDesc.debugName = debug_name;
         return m_context->CreateBuffer(bufferDesc);
-    }
-
-    inline void UpdateBuffer(LLGL::Buffer* buffer, void* data, uint64_t length, uint64_t offset = 0) const {
-        const char* src = static_cast<char*>(data);
-        m_command_buffer->UpdateBuffer(*buffer, offset, src + offset, length);
     }
 
     [[nodiscard]] inline const LLGL::RenderSystemPtr& Context() const { return m_context; }

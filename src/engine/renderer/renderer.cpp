@@ -100,11 +100,6 @@ std::vector<LLGL::VertexAttribute> BatchData<T>::Init(const sge::Renderer& rende
 }
 
 template <typename T>
-void BatchData<T>::Update(const sge::Renderer& renderer) {
-    renderer.UpdateBuffer(m_instance_buffer, m_buffer, m_count * sizeof(T));
-}
-
-template <typename T>
 void BatchData<T>::Destroy(const LLGL::RenderSystemPtr& context) {
     SGE_RESOURCE_RELEASE(m_vertex_buffer);
     SGE_RESOURCE_RELEASE(m_instance_buffer);
@@ -1458,23 +1453,23 @@ void Renderer::PrepareBatch(sge::Batch& batch) {
 
 void Renderer::UploadBatchData() {
     if (m_sprite_batch_data.Count() > 0) {
-        m_sprite_batch_data.Update(*this);
+        m_sprite_batch_data.Update(m_command_buffer);
     }
 
     if (m_glyph_batch_data.Count() > 0) {
-        m_glyph_batch_data.Update(*this);
+        m_glyph_batch_data.Update(m_command_buffer);
     }
 
     if (m_ninepatch_batch_data.Count() > 0) {
-        m_ninepatch_batch_data.Update(*this);
+        m_ninepatch_batch_data.Update(m_command_buffer);
     }
 
     if (m_shape_batch_data.Count() > 0) {
-        m_shape_batch_data.Update(*this);
+        m_shape_batch_data.Update(m_command_buffer);
     }
 
     if (m_line_batch_data.Count() > 0) {
-        m_line_batch_data.Update(*this);
+        m_line_batch_data.Update(m_command_buffer);
     }
 }
 
