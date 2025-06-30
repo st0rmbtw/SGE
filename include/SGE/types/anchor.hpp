@@ -4,7 +4,10 @@
 #pragma once
 
 #include <stdint.h>
+
+#include <SGE/assert.hpp>
 #include <glm/vec2.hpp>
+
 #include "../defines.hpp"
 
 _SGE_BEGIN
@@ -44,6 +47,7 @@ public:
         case Anchor::BottomCenter: return {0.5f, 1.0f};
         case Anchor::CenterLeft:   return {0.0f, 0.5f};
         case Anchor::CenterRight:  return {1.0f, 0.5f};
+        default: SGE_UNREACHABLE();
         }
     }
 

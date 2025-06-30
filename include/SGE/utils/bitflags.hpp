@@ -14,13 +14,13 @@ public:
     BitFlags(UnderlyingT value) : m_data(value) {}
     BitFlags(T value) : m_data(underlying(value)) {}
 
-    BitFlags(const std::initializer_list<T> values) {
+    BitFlags(const std::initializer_list<T> values) noexcept {
         for (const T e : values) {
             m_data |= underlying(e);
         }
     }
 
-    inline constexpr void set(T e, bool set = true) {
+    inline constexpr void set(T e, bool set = true) noexcept {
         if (set)
             m_data |= underlying(e);
         else
@@ -32,14 +32,17 @@ public:
         return *this;
     }
 
+    [[nodiscard]]
     inline constexpr BitFlags operator&(const T e) const noexcept {
         return BitFlags(m_data & underlying(e));
     }
 
+    [[nodiscard]]
     inline constexpr BitFlags operator|(const T e) const noexcept {
         return BitFlags(m_data | underlying(e));
     }
 
+    [[nodiscard]]
     inline constexpr bool operator[](const T e) const noexcept {
         return (m_data & underlying(e)) == underlying(e);
     }
@@ -50,6 +53,7 @@ public:
     }
 
 private:
+    [[nodiscard]]
     static constexpr UnderlyingT underlying(T e) {
         return static_cast<UnderlyingT>(e);
     }
