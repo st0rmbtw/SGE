@@ -34,6 +34,7 @@ static struct EngineState {
     uint32_t frame_count = 0;
 
     uint8_t window_samples = 1;
+    bool window_iconified = false;
 } state;
 
 static void HandleKeyboardEvents(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -199,7 +200,7 @@ bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::
 }
 
 static inline bool IsDrawable() {
-    return state.window_size.width >= state.window_samples && state.window_size.height >= state.window_samples;
+    return !state.window_iconified && (state.window_size.width >= state.window_samples && state.window_size.height >= state.window_samples);
 }
 
 void Engine::Run() {
@@ -327,6 +328,5 @@ static void HandleWindowResizeEvents(GLFWwindow*, int width, int height) {
 }
 
 static void HandleWindowIconifyCallback(GLFWwindow*, int iconified) {
-    state.window_size.width = 0;
-    state.window_size.height = 0;
+    state.window_iconified = iconified == GLFW_TRUE;
 }
