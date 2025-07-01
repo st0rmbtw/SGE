@@ -8,9 +8,9 @@
 _SGE_BEGIN
 
 struct Order {
-    Order() = default;
+    constexpr Order() = default;
 
-    explicit Order(int order, bool advance = true) :
+    explicit constexpr Order(int order, bool advance = true) :
         value(order),
         advance(advance) {}
 

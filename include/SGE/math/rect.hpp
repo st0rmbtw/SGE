@@ -10,7 +10,7 @@
 
 _SGE_BEGIN
 
-template <class T> 
+template <class T>
 struct rect {
 private:
     using vec2 = glm::vec<2, T>;
@@ -44,7 +44,7 @@ public:
     inline constexpr static Self uninitialized() noexcept {
         return Self(vec2(std::numeric_limits<T>::max()), vec2(std::numeric_limits<T>::min()));
     }
-    
+
     [[nodiscard]]
     inline constexpr static Self from_corners(vec2 p1, vec2 p2) noexcept {
         return Self(glm::min(p1, p2), glm::max(p1, p2));
@@ -125,7 +125,7 @@ public:
     }
 
     [[nodiscard]]
-    inline bool intersects(const rect& other) const noexcept {
+    inline constexpr bool intersects(const rect& other) const noexcept {
         return (
             this->left() < other.right() &&
             this->right() > other.left() &&
@@ -135,60 +135,60 @@ public:
     }
 
     [[nodiscard]]
-    inline Self inset(const T l) const noexcept {
+    inline constexpr Self inset(const T l) const noexcept {
         return from_corners(this->min - l, this->max + l);
     }
 
-    inline Self operator/(const Self &rhs) const noexcept {
+    inline constexpr Self operator/(const Self &rhs) const noexcept {
         return from_corners(this->min * rhs.min, this->max * rhs.max);
     }
 
-    inline Self operator/(const T rhs) const noexcept {
+    inline constexpr Self operator/(const T rhs) const noexcept {
         return from_corners(this->min / rhs, this->max / rhs);
     }
 
-    inline Self operator*(const Self &rhs) const noexcept {
+    inline constexpr Self operator*(const Self &rhs) const noexcept {
         return from_corners(this->min * rhs, this->max * rhs);
     }
 
-    inline Self operator*(const T rhs) const noexcept {
+    inline constexpr Self operator*(const T rhs) const noexcept {
         return from_corners(this->min * rhs, this->max * rhs);
     }
 
-    inline Self operator+(const Self &rhs) const noexcept {
+    inline constexpr Self operator+(const Self &rhs) const noexcept {
         return from_corners(this->min + rhs.min, this->max + rhs.max);
     }
 
-    inline Self operator+(const T rhs) const noexcept {
+    inline constexpr Self operator+(const T rhs) const noexcept {
         return from_corners(this->min + rhs, this->max + rhs);
     }
 
-    inline Self operator-(const Self &rhs) const noexcept {
+    inline constexpr Self operator-(const Self &rhs) const noexcept {
         return from_corners(this->min - rhs.min, this->max - rhs.max);
     }
 
-    inline Self operator-(const T rhs) const noexcept {
+    inline constexpr Self operator-(const T rhs) const noexcept {
         return from_corners(this->min - rhs, this->max - rhs);
     }
 
-    inline Self operator-(const vec2& rhs) const noexcept {
+    inline constexpr Self operator-(const vec2& rhs) const noexcept {
         return from_corners(this->min - rhs, this->max - rhs);
     }
 
-    inline Self operator/(const vec2& rhs) const noexcept {
+    inline constexpr Self operator/(const vec2& rhs) const noexcept {
         return from_corners(this->min / rhs, this->max / rhs);
     }
 
-    inline Self operator*(const vec2& rhs) const noexcept {
+    inline constexpr Self operator*(const vec2& rhs) const noexcept {
         return from_corners(this->min * rhs, this->max * rhs);
     }
 
-    inline Self operator+(const vec2& rhs) const noexcept {
+    inline constexpr Self operator+(const vec2& rhs) const noexcept {
         return from_corners(this->min + rhs, this->max + rhs);
     }
 
-    inline bool operator==(const Self& rhs) const noexcept {
-        return this->min == rhs.min && this->max == rhs.max; 
+    inline constexpr bool operator==(const Self& rhs) const noexcept {
+        return this->min == rhs.min && this->max == rhs.max;
     }
 };
 

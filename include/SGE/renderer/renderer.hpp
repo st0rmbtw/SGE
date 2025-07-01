@@ -148,13 +148,13 @@ struct SGE_ALIGN(16) ProjectionsUniform {
 };
 
 template <typename Container>
-static inline std::size_t GetArraySize(const Container& container)
+static constexpr inline std::size_t GetArraySize(const Container& container)
 {
     return (container.size() * sizeof(typename Container::value_type));
 }
 
 template <typename T, std::size_t N>
-static inline std::size_t GetArraySize(const T (&)[N])
+static constexpr inline std::size_t GetArraySize(const T (&)[N])
 {
     return (N * sizeof(T));
 }

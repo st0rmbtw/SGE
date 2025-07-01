@@ -10,8 +10,8 @@ _SGE_BEGIN
 struct ShaderDef {
     std::string name;
     std::string value;
-    
-    ShaderDef(std::string name, std::string value) :
+
+    constexpr ShaderDef(std::string name, std::string value) noexcept :
         name(std::move(name)),
         value(std::move(value)) {}
 };

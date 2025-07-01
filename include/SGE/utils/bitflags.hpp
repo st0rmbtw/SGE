@@ -10,11 +10,11 @@ class BitFlags {
     using UnderlyingT = std::underlying_type_t<T>;
 
 public:
-    BitFlags() = default;
-    BitFlags(UnderlyingT value) : m_data(value) {}
-    BitFlags(T value) : m_data(underlying(value)) {}
+    constexpr BitFlags() = default;
+    constexpr BitFlags(UnderlyingT value) : m_data(value) {}
+    constexpr BitFlags(T value) : m_data(underlying(value)) {}
 
-    BitFlags(const std::initializer_list<T> values) noexcept {
+    constexpr BitFlags(const std::initializer_list<T> values) noexcept {
         for (const T e : values) {
             m_data |= underlying(e);
         }

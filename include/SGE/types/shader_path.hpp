@@ -8,7 +8,7 @@
 _SGE_BEGIN
 
 struct ShaderPath {
-    ShaderPath(ShaderType shader_type, std::string name, std::string func_name = {}) :
+    constexpr ShaderPath(ShaderType shader_type, std::string name, std::string func_name = {}) noexcept :
         shader_type(shader_type),
         name(std::move(name)),
         func_name(std::move(func_name)) {}

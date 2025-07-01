@@ -24,9 +24,9 @@ namespace TextureSampler {
 
 class Texture {
 public:
-    Texture() = default;
+    constexpr Texture() = default;
 
-    Texture(int id, Sampler sampler, glm::uvec2 size, LLGL::Texture* internal) :
+    constexpr Texture(int id, Sampler sampler, glm::uvec2 size, LLGL::Texture* internal) :
         m_sampler(sampler),
         m_size(size),
         m_internal(internal),

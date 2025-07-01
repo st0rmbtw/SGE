@@ -19,7 +19,7 @@ public:
         OpenGL
     };
 
-    RenderBackend() = default;
+    constexpr RenderBackend() = default;
     constexpr RenderBackend(Value backend) : m_value(backend) {}
 
     constexpr operator Value() const { return m_value; }
@@ -64,7 +64,7 @@ public:
     [[nodiscard]] inline constexpr bool IsD3D12() const { return m_value == Value::D3D12; }
     [[nodiscard]] inline constexpr bool IsMetal() const { return m_value == Value::Metal; }
     [[nodiscard]] inline constexpr bool IsOpenGL() const { return m_value == Value::OpenGL; }
-    
+
     [[nodiscard]] inline constexpr bool IsGLSL() const { return m_value == Value::OpenGL || m_value == Value::Vulkan; }
     [[nodiscard]] inline constexpr bool IsHLSL() const { return m_value == Value::D3D11 || m_value == Value::D3D12; }
 

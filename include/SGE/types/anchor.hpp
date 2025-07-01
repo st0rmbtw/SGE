@@ -14,7 +14,7 @@ _SGE_BEGIN
 
 class Anchor {
 public:
-    enum Value : uint8_t {
+    enum Type : uint8_t {
         Center = 0,
         TopLeft,
         TopRight,
@@ -26,10 +26,10 @@ public:
         CenterRight
     };
 
-    Anchor() = default;
-    constexpr Anchor(Value backend) : m_value(backend) {}
+    constexpr Anchor() = default;
+    constexpr Anchor(Type backend) : m_value(backend) {}
 
-    constexpr operator Value() const { return m_value; }
+    constexpr operator Type() const { return m_value; }
     explicit operator bool() const = delete;
 
     inline glm::vec2 operator*(const glm::vec2& vec) const noexcept {
@@ -52,7 +52,7 @@ public:
     }
 
 private:
-    Value m_value = Value::Center;
+    Type m_value = Type::Center;
 };
 
 _SGE_END

@@ -12,7 +12,7 @@ inline float rem_euclid(float lhs, float rhs) {
     return r < 0.0f ? r + std::abs(rhs) : r;
 }
 
-inline float approx_equals(float a, float b, float eps = 0.001f) {
+inline constexpr float approx_equals(float a, float b, float eps = 0.001f) {
     return std::abs(a-b) < eps;
 }
 
