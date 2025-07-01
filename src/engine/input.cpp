@@ -1,12 +1,32 @@
 #include <unordered_set>
 #include <SGE/input.hpp>
 
+struct KeyWithModifiers {
+    sge::Key key;
+    uint8_t modifiers;
+
+    constexpr KeyWithModifiers(sge::Key k, uint8_t mods = 0) : key(k), modifiers(mods) {}
+};
+
+constexpr inline bool operator==(const KeyWithModifiers a, const KeyWithModifiers b) {
+    return a.key == b.key && a.modifiers == b.modifiers;
+}
+
+template <>
+struct std::hash<KeyWithModifiers> {
+    std::size_t operator()(const KeyWithModifiers& key) const noexcept {
+        std::size_t h1 = std::hash<sge::Key>{}(key.key);
+        std::size_t h2 = std::hash<uint8_t>{}(key.modifiers);
+        return h1 ^ (h2 << 1);
+    }
+};
+
 _SGE_BEGIN
 
 static struct InputState {
-    std::unordered_set<Key> keyboard_pressed;
-    std::unordered_set<Key> keyboard_just_pressed;
-    std::unordered_set<Key> keyboard_just_released;
+    std::unordered_set<KeyWithModifiers> keyboard_pressed;
+    std::unordered_set<KeyWithModifiers> keyboard_just_pressed;
+    std::unordered_set<KeyWithModifiers> keyboard_just_released;
 
     std::unordered_set<uint8_t> mouse_pressed;
     std::unordered_set<uint8_t> mouse_just_pressed;
@@ -17,15 +37,17 @@ static struct InputState {
     bool mouse_over_ui = false;
 } input_state;
 
-void Input::Press(Key key) {
-    if (input_state.keyboard_pressed.insert(key).second) {
-        input_state.keyboard_just_pressed.insert(key);
+void Input::Press(Key key, uint8_t modifiers) {
+    const KeyWithModifiers value = KeyWithModifiers(key, modifiers);
+    if (input_state.keyboard_pressed.insert(value).second) {
+        input_state.keyboard_just_pressed.insert(value);
     }
 }
 
-void Input::Release(Key key) {
-    if (input_state.keyboard_pressed.erase(key) > 0) {
-        input_state.keyboard_just_released.insert(key);
+void Input::Release(Key key, uint8_t modifiers) {
+    const KeyWithModifiers value = KeyWithModifiers(key, modifiers);
+    if (input_state.keyboard_pressed.erase(value) > 0) {
+        input_state.keyboard_just_released.insert(value);
     }
 }
 
@@ -35,6 +57,18 @@ bool Input::Pressed(Key key) {
 
 bool Input::JustPressed(Key key) {
     return input_state.keyboard_just_pressed.find(key) != input_state.keyboard_just_pressed.end();
+}
+
+bool Input::Pressed(Key key, uint8_t modifiers) {
+    const auto entry = input_state.keyboard_pressed.find(key);
+    if (entry == input_state.keyboard_pressed.end()) return false;
+    return entry->modifiers == modifiers;
+}
+
+bool Input::JustPressed(Key key, uint8_t modifiers) {
+    const auto entry = input_state.keyboard_just_pressed.find(key);
+    if (entry == input_state.keyboard_just_pressed.end()) return false;
+    return entry->modifiers == modifiers;
 }
 
 void Input::Clear() {

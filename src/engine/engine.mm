@@ -276,11 +276,11 @@ void Engine::Destroy() {
 
 sge::Renderer& Engine::Renderer() { return state.renderer; }
 
-static void HandleKeyboardEvents(GLFWwindow*, int key, int, int action, int) {
+static void HandleKeyboardEvents(GLFWwindow*, int key, int, int action, int mods) {
     if (action == GLFW_PRESS) {
-        Input::Press(static_cast<Key>(key));
+        Input::Press(static_cast<Key>(key), mods);
     } else if (action == GLFW_RELEASE) {
-        Input::Release(static_cast<Key>(key));
+        Input::Release(static_cast<Key>(key), mods);
     }
 }
 

@@ -28,19 +28,11 @@ struct CurrentTime {
 };
 
 static struct GameState {
-    Batch batch;
     Camera camera = Camera(CameraOrigin::TopLeft);
-    bool paused = false;
+    Batch batch;
     CurrentTime t;
+    bool paused = false;
 } g;
-
-static void PreUpdate() {
-
-}
-
-static void FixedUpdate() {
-
-}
 
 static void sync_time() {
     const std::chrono::time_zone* local_tz = std::chrono::current_zone();
@@ -103,10 +95,6 @@ static void Update() {
     g.t.hours = mins / 60.0f;
     g.t.minutes = std::fmod(mins, 60.0f);
     g.t.seconds = std::fmod(secs, 60.0f);
-}
-
-static void PostUpdate() {
-
 }
 
 static void Render() {
@@ -280,10 +268,7 @@ static void WindowResized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
 }
 
 bool App::Init(RenderBackend backend, AppConfig config) {
-    Engine::SetPreUpdateCallback(PreUpdate);
     Engine::SetUpdateCallback(Update);
-    Engine::SetPostUpdateCallback(PostUpdate);
-    Engine::SetFixedUpdateCallback(FixedUpdate);
     Engine::SetRenderCallback(Render);
     Engine::SetPostRenderCallback(PostRender);
     Engine::SetWindowResizeCallback(WindowResized);

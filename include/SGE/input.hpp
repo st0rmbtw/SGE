@@ -11,6 +11,15 @@
 
 _SGE_BEGIN
 
+namespace Modifier {
+    enum : uint8_t {
+        Shift = GLFW_MOD_SHIFT,
+        Control = GLFW_MOD_CONTROL,
+        Alt = GLFW_MOD_ALT,
+        Super = GLFW_MOD_SUPER,
+    };
+};
+
 enum class MouseButton : uint8_t {
     Left = GLFW_MOUSE_BUTTON_LEFT,
     Middle = GLFW_MOUSE_BUTTON_MIDDLE,
@@ -55,7 +64,7 @@ enum class Key : uint16_t {
     Digit8 = GLFW_KEY_8,
     Digit9 = GLFW_KEY_9,
     Digit0 = GLFW_KEY_0,
-    
+
     LeftShift = GLFW_KEY_LEFT_SHIFT,
     LeftAlt = GLFW_KEY_LEFT_ALT,
     RightShift = GLFW_KEY_RIGHT_SHIFT,
@@ -71,11 +80,14 @@ enum class Key : uint16_t {
 };
 
 namespace Input {
-    void Press(Key key);
-    void Release(Key key);
+    void Press(Key key, uint8_t modifiers);
+    void Release(Key key, uint8_t modifiers);
 
     bool Pressed(Key key);
     bool JustPressed(Key key);
+
+    bool Pressed(Key key, uint8_t modifiers);
+    bool JustPressed(Key key, uint8_t modifiers);
 
     void Press(MouseButton button);
     void Release(MouseButton button);
