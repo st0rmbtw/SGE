@@ -44,11 +44,28 @@ namespace Engine {
     void SetWindowResizeCallback(WindowResizeCallback);
     void SetLoadAssetsCallback(LoadAssetsCallback);
 
-    void SetWindowMinSize(uint32_t min_width, uint32_t min_height);
+    /*!
+     *  @param[in] min_width The minimum width of the content
+     *  area of the primary window, or -1 for any.
+     *  @param[in] min_height The minimum height of the content
+     *  area of the primary window, or -1 for any.
+     */
+    void SetWindowMinSize(int min_width, int min_height);
+
+    /*!
+     *  @param[in] max_width The maximum width of the content
+     *  area of the primary window, or -1 for any.
+     *  @param[in] max_height The maximum height of the content
+     *  area of the primary window, or -1 for any.
+     */
+    void SetWindowMaxSize(int max_width, int max_height);
+
     void ShowWindow();
     void HideWindow();
 
     void SetCursorMode(CursorMode cursor_mode);
+
+    uint32_t GetFrameCount();
 
     void Run();
     void Destroy();

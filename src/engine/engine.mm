@@ -26,9 +26,14 @@ static struct EngineState {
     Engine::DestroyCallback destroy_callback = nullptr;
     Engine::LoadAssetsCallback load_assets_callback = nullptr;
     Engine::WindowResizeCallback window_resize_callback = nullptr;
-    uint32_t window_width;
-    uint32_t window_height;
-    bool minimized = false;
+
+    LLGL::Extent2D window_size;
+    glm::ivec2 window_min_size = glm::ivec2(-1, -1);
+    glm::ivec2 window_max_size = glm::ivec2(-1, -1);
+
+    uint32_t frame_count = 0;
+
+    uint8_t window_samples = 1;
 } state;
 
 static void HandleKeyboardEvents(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -116,8 +121,16 @@ void Engine::SetLoadAssetsCallback(LoadAssetsCallback callback) {
     state.load_assets_callback = callback;
 }
 
-void Engine::SetWindowMinSize(uint32_t min_width, uint32_t min_height) {
-    glfwSetWindowSizeLimits(state.window, min_width, min_height, GLFW_DONT_CARE, GLFW_DONT_CARE);
+void Engine::SetWindowMinSize(int min_width, int min_height) {
+    state.window_min_size.x = min_width;
+    state.window_min_size.y = min_height;
+    glfwSetWindowSizeLimits(state.window, min_width, min_height, state.window_max_size.x, state.window_max_size.y);
+}
+
+void Engine::SetWindowMaxSize(int max_width, int max_height) {
+    state.window_max_size.x = max_width;
+    state.window_max_size.y = max_height;
+    glfwSetWindowSizeLimits(state.window, state.window_min_size.x, state.window_min_size.y, max_width, max_height);
 }
 
 void Engine::ShowWindow() {
@@ -130,6 +143,10 @@ void Engine::HideWindow() {
 
 void Engine::SetCursorMode(CursorMode cursor_mode) {
     glfwSetInputMode(state.window, GLFW_CURSOR, static_cast<int>(cursor_mode));
+}
+
+uint32_t Engine::GetFrameCount() {
+    return state.frame_count;
 }
 
 bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::Extent2D& output_viewport) {
@@ -160,8 +177,7 @@ bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::
     if (window == nullptr) return false;
 
     state.window = window;
-    state.window_width = window_size.width;
-    state.window_height = window_size.height;
+    state.window_size = window_size;
 
     output_viewport.width = window_size.width;
     output_viewport.height = window_size.height;
@@ -171,6 +187,8 @@ bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::
     const LLGL::Extent2D resolution = get_scaled_resolution(window_size.width, window_size.height);
     if (!state.renderer.Init(window, resolution, config.window_settings)) return false;
 
+    state.window_samples = state.renderer.SwapChain()->GetSamples();
+
     if (state.load_assets_callback) {
         if (!state.load_assets_callback()) return false;
     }
@@ -178,6 +196,10 @@ bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::
     Time::SetFixedTimestepSeconds(1.0f / 60.0f);
 
     return true;
+}
+
+static inline bool IsDrawable() {
+    return state.window_size.width >= state.window_samples && state.window_size.height >= state.window_samples;
 }
 
 void Engine::Run() {
@@ -219,9 +241,11 @@ void Engine::Run() {
             if (state.post_update_callback)
                 state.post_update_callback();
 
-            if (!state.minimized) {
-                if (state.render_callback)
+            if (IsDrawable()) {
+                if (state.render_callback) {
                     state.render_callback();
+                    ++state.frame_count;
+                }
 
                 if (state.post_render_callback)
                     state.post_render_callback();
@@ -273,7 +297,7 @@ static void HandleMouseScrollEvents(GLFWwindow*, double, double yoffset) {
 }
 
 static void HandleCursorPosEvents(GLFWwindow*, double xpos, double ypos) {
-    const glm::uvec2 window_size = glm::uvec2(state.window_width, state.window_height);
+    const glm::uvec2 window_size = glm::uvec2(state.window_size.width, state.window_size.height);
 
     xpos = std::min(std::max(xpos, 0.0), static_cast<double>(window_size.x));
     ypos = std::min(std::max(ypos, 0.0), static_cast<double>(window_size.y));
@@ -283,18 +307,17 @@ static void HandleCursorPosEvents(GLFWwindow*, double xpos, double ypos) {
 
 static void HandleWindowResizeEvents(GLFWwindow*, int width, int height) {
     if (width <= 0 || height <= 0) {
-        state.minimized = true;
+        state.window_size.width = 0;
+        state.window_size.height = 0;
         return;
     }
-
-    state.minimized = false;
 
     const LLGL::Extent2D resolution = get_scaled_resolution(width, height);
 
     state.renderer.ResizeBuffers(LLGL::Extent2D(resolution.width, resolution.height));
 
-    state.window_width = width;
-    state.window_height = height;
+    state.window_size.width = width;
+    state.window_size.height = height;
 
     if (state.window_resize_callback) {
         state.window_resize_callback(static_cast<uint32_t>(width), static_cast<uint32_t>(height), resolution.width, resolution.height);
@@ -304,5 +327,6 @@ static void HandleWindowResizeEvents(GLFWwindow*, int width, int height) {
 }
 
 static void HandleWindowIconifyCallback(GLFWwindow*, int iconified) {
-    state.minimized = iconified;
+    state.window_size.width = 0;
+    state.window_size.height = 0;
 }
