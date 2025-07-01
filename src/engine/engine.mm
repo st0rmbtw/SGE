@@ -44,15 +44,16 @@ static inline const char* glfwGetErrorString() {
     return description;
 }
 
-static GLFWwindow* CreateWindow(LLGL::Extent2D size, const char* title, bool fullscreen, bool hidden, uint8_t samples) {
+static GLFWwindow* CreateWindow(const WindowSettings& window_settings) {
     glfwWindowHint(GLFW_FOCUSED, 1);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_VISIBLE, hidden ? GLFW_FALSE : GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, samples);
+    glfwWindowHint(GLFW_VISIBLE, window_settings.hidden ? GLFW_FALSE : GLFW_TRUE);
+    glfwWindowHint(GLFW_SAMPLES, window_settings.samples);
+    glfwWindowHint(GLFW_RESIZABLE, window_settings.resizable ? GLFW_TRUE : GLFW_FALSE);
 
-    GLFWmonitor* primary_monitor = fullscreen ? glfwGetPrimaryMonitor() : nullptr;
+    GLFWmonitor* primary_monitor = window_settings.fullscreen ? glfwGetPrimaryMonitor() : nullptr;
 
-    GLFWwindow *window = glfwCreateWindow(size.width, size.height, title, primary_monitor, nullptr);
+    GLFWwindow *window = glfwCreateWindow(window_settings.width, window_settings.height, window_settings.title, primary_monitor, nullptr);
     if (window == nullptr) {
         SGE_LOG_ERROR("Couldn't create a window: {}", glfwGetErrorString());
         return nullptr;
@@ -131,7 +132,7 @@ void Engine::SetCursorMode(CursorMode cursor_mode) {
     glfwSetInputMode(state.window, GLFW_CURSOR, static_cast<int>(cursor_mode));
 }
 
-bool Engine::Init(sge::RenderBackend backend, sge::WindowSettings settings, LLGL::Extent2D& output_viewport) {
+bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::Extent2D& output_viewport) {
     ZoneScopedN("Engine::Init");
 
 #if SGE_PLATFORM_LINUX
@@ -145,15 +146,17 @@ bool Engine::Init(sge::RenderBackend backend, sge::WindowSettings settings, LLGL
 
     LLGL::Log::RegisterCallbackStd();
 
-    if (!state.renderer.InitEngine(backend, false)) return false;
+    if (!state.renderer.InitEngine(backend, config.cache_pipelines, config.pipeline_cache_path)) return false;
 
-    LLGL::Extent2D window_size = LLGL::Extent2D(settings.width, settings.height);
-    if (settings.fullscreen) {
+    const WindowSettings& window_settings = config.window_settings;
+
+    LLGL::Extent2D window_size = LLGL::Extent2D(window_settings.width, window_settings.height);
+    if (window_settings.fullscreen) {
         const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
         window_size = LLGL::Extent2D(mode->width, mode->height);
     }
 
-    GLFWwindow *window = CreateWindow(window_size, settings.title, settings.fullscreen, settings.hidden, settings.samples);
+    GLFWwindow *window = CreateWindow(window_settings);
     if (window == nullptr) return false;
 
     state.window = window;
@@ -163,10 +166,10 @@ bool Engine::Init(sge::RenderBackend backend, sge::WindowSettings settings, LLGL
     output_viewport.width = window_size.width;
     output_viewport.height = window_size.height;
 
-    SetCursorMode(settings.cursor_mode);
+    SetCursorMode(window_settings.cursor_mode);
 
     const LLGL::Extent2D resolution = get_scaled_resolution(window_size.width, window_size.height);
-    if (!state.renderer.Init(window, resolution, settings)) return false;
+    if (!state.renderer.Init(window, resolution, config.window_settings)) return false;
 
     if (state.load_assets_callback) {
         if (!state.load_assets_callback()) return false;

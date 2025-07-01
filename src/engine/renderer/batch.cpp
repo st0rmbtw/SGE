@@ -1,9 +1,15 @@
 #include <SGE/renderer/batch.hpp>
+#include <SGE/renderer/renderer.hpp>
+
 #include <SGE/utils/utf8.hpp>
 
 #include <tracy/Tracy.hpp>
 
 using namespace sge;
+
+Batch::Batch(Renderer& renderer, LLGL::Shader* custom_glyph_shader) : Batch() {
+    m_glyph_pipeline = renderer.CreateGlyphBatchPipeline(custom_glyph_shader);
+}
 
 uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order custom_order) {
     const sge::Rect& rect = sprite.atlas().get_rect(sprite.index());

@@ -137,7 +137,7 @@ public:
 
     [[nodiscard]]
     inline auto get_view_matrix() const -> const glm::mat4x4& { return m_view_matrix; }
-    
+
     [[nodiscard]]
     inline auto get_transform_matrix() const -> const glm::mat4x4& { return m_transform_matrix; }
 
@@ -183,7 +183,7 @@ public:
 
         case CameraOrigin::TopLeft: {
             const glm::vec2 half = glm::vec2(viewport()) / 2.0f;
-        
+
             return glm::vec2(
                 half.x * m_right,
                 half.y * m_up
@@ -200,8 +200,10 @@ public:
 
 private:
     void compute_projection_and_view_matrix();
-    void compute_transform_matrix();
     void update_projection_area();
+    void compute_transform_matrix() {
+        m_transform_matrix = glm::translate(glm::mat4(1.0), glm::vec3(m_position, 0.));
+    }
 
     void set_coordinate_system(CoordinateSystem coordinate_system) {
         switch (coordinate_system.right) {
@@ -251,7 +253,7 @@ private:
 
     glm::uvec2 m_viewport;
     glm::vec2 m_position;
-    
+
     float m_zoom = 1.0f;
 
     CameraOrigin m_origin;

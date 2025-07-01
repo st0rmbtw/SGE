@@ -64,16 +64,10 @@ fragment float4 PS(
     texture2d<float> texture [[texture(3)]],
     sampler texture_sampler [[sampler(4)]]
 ) {
-    const float outline = 0.2;
-
     const float dist = texture.sample(texture_sampler, inp.uv).r;
     const float width = fwidth(dist);
-    const float alpha = smoothstep(GLYPH_CENTER - outline - width, GLYPH_CENTER - outline + width, abs(dist));
-    // float4 color = float4(inp.color, alpha);
-
-    const float mu = smoothstep(0.5-width, 0.5+width, abs(dist));
-    const float3 rgb = mix(float3(0.0, 0.0, 0.0), inp.color, mu);
-    const float4 color = float4(rgb, alpha);
+    const float alpha = smoothstep(GLYPH_CENTER - width, GLYPH_CENTER + width, abs(dist));
+    const float4 color = float4(inp.color, alpha);
 
     if (color.a < 0.05) discard_fragment();
 

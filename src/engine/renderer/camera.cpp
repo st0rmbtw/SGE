@@ -102,11 +102,7 @@ void Camera::compute_projection_and_view_matrix() {
     m_inv_view_proj_matrix = glm::inverse(m_projection_matrix * m_view_matrix);
 }
 
-void Camera::compute_transform_matrix() {
-    m_transform_matrix = glm::translate(glm::mat4(1.0), glm::vec3(m_position, 0.));
-}
-
-inline glm::vec2 project_point(const glm::mat4& mat, const glm::vec2& point) {
+static inline glm::vec2 project_point(const glm::mat4& mat, const glm::vec2& point) {
     glm::vec4 res = mat[0] * point.x;
     res = mat[1] * point.y + res;
     res = mat[3] + res;

@@ -11,6 +11,7 @@
 #include <SGE/types/blend_mode.hpp>
 #include <SGE/log.hpp>
 #include <SGE/time/stopwatch.hpp>
+#include <SGE/math/consts.hpp>
 
 #include <chrono>
 #include <glm/trigonometric.hpp>
@@ -45,7 +46,7 @@ static void sync_time() {
     const std::chrono::time_zone* local_tz = std::chrono::current_zone();
     const std::chrono::time_point now = std::chrono::system_clock::now();
     const std::chrono::sys_info info = local_tz->get_info(now);
-    
+
     g.t.time = Duration::Cast<Duration::Nanos>(now.time_since_epoch() + info.offset);
 }
 
@@ -165,8 +166,8 @@ static void Render() {
         g.batch.BeginOrderMode();
         for (int i = 0; i < 4; ++i) {
             float t = ((float)i) / 4.0f;
-            const float sin = glm::sin(t * 2.0f * glm::pi<float>());
-            const float cos = glm::cos(t * 2.0f * glm::pi<float>());
+            const float sin = glm::sin(t * 2.0f * consts::PI);
+            const float cos = glm::cos(t * 2.0f * consts::PI);
 
             const glm::vec2 dir = glm::vec2(cos, sin);
 
@@ -178,8 +179,8 @@ static void Render() {
 
         for (int i = 0; i < 12; ++i) {
             float t = ((float)i) / 12.0f;
-            const float sin = glm::sin(t * 2.0f * glm::pi<float>());
-            const float cos = glm::cos(t * 2.0f * glm::pi<float>());
+            const float sin = glm::sin(t * 2.0f * consts::PI);
+            const float cos = glm::cos(t * 2.0f * consts::PI);
 
             if (i % 3 == 0) continue;
 
@@ -205,16 +206,16 @@ static void Render() {
             .border_color = sge::LinearRgba::blue()
         });
 
-        const float wh = g.t.hours / 12.0f * (2.0 * glm::pi<float>());
-        const float wm = g.t.minutes / 60.0f * (2.0 * glm::pi<float>());
-        const float ws = g.t.seconds / 60.0f * (2.0 * glm::pi<float>());
+        const float wh = g.t.hours / 12.0f * (2.0f * consts::PI);
+        const float wm = g.t.minutes / 60.0f * (2.0f * consts::PI);
+        const float ws = g.t.seconds / 60.0f * (2.0f * consts::PI);
 
         float hand_length = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f + CLOCK_HAND_OFFSET * size.x;
 
         // Hour hand
         {
-            const float sin = glm::sin(wh - glm::pi<float>() * 0.5f);
-            const float cos = glm::cos(wh - glm::pi<float>() * 0.5f);
+            const float sin = glm::sin(wh - consts::PI * 0.5f);
+            const float cos = glm::cos(wh - consts::PI * 0.5f);
             const glm::vec2 line_dir = glm::vec2(cos, sin);
 
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
@@ -225,8 +226,8 @@ static void Render() {
 
         // Minute hand
         {
-            const float sin = glm::sin(wm - glm::pi<float>() * 0.5f);
-            const float cos = glm::cos(wm - glm::pi<float>() * 0.5f);
+            const float sin = glm::sin(wm - consts::PI * 0.5f);
+            const float cos = glm::cos(wm - consts::PI * 0.5f);
             const glm::vec2 line_dir = glm::vec2(cos, sin);
 
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
@@ -237,8 +238,8 @@ static void Render() {
 
         // Second hand
         {
-            const float sin = glm::sin(ws - glm::pi<float>() * 0.5f);
-            const float cos = glm::cos(ws - glm::pi<float>() * 0.5f);
+            const float sin = glm::sin(ws - consts::PI * 0.5f);
+            const float cos = glm::cos(ws - consts::PI * 0.5f);
             const glm::vec2 line_dir = glm::vec2(cos, sin);
 
             const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
@@ -287,18 +288,16 @@ bool App::Init(RenderBackend backend, AppConfig config) {
     Engine::SetPostRenderCallback(PostRender);
     Engine::SetWindowResizeCallback(WindowResized);
 
-    glm::uvec2 window_size = glm::uvec2(800, 800);
-
-    WindowSettings settings;
-    settings.width = window_size.x;
-    settings.height = window_size.y;
-    settings.fullscreen = config.fullscreen;
-    settings.vsync = config.vsync;
-    settings.samples = config.samples;
-    settings.hidden = true;
+    EngineConfig engine_config;
+    engine_config.window_settings.width = 800;
+    engine_config.window_settings.height = 800;
+    engine_config.window_settings.fullscreen = config.fullscreen;
+    engine_config.window_settings.vsync = config.vsync;
+    engine_config.window_settings.samples = config.samples;
+    engine_config.window_settings.hidden = true;
 
     LLGL::Extent2D resolution;
-    if (!Engine::Init(backend, settings, resolution)) return false;
+    if (!Engine::Init(backend, engine_config, resolution)) return false;
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -320,5 +319,6 @@ void App::Run() {
 }
 
 void App::Destroy() {
+    g.batch.Terminate(Engine::Renderer().Context());
     Engine::Destroy();
 }

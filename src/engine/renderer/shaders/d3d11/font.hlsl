@@ -13,7 +13,7 @@ cbuffer GlobalUniformBuffer : register( b2 )
 struct VSInput
 {
     float2 position : Position;
-    
+
     float3 i_color : I_Color;
     float2 i_position : I_Position;
     float2 i_size : I_Size;
@@ -58,16 +58,10 @@ static const float GLYPH_CENTER = 0.5;
 
 float4 PS(VSOutput inp) : SV_Target
 {
-    const float outline = 0.2;
-
     const float dist = Texture.Sample(Sampler, inp.uv).r;
     const float width = fwidth(dist);
-    const float alpha = smoothstep(GLYPH_CENTER - outline - width, GLYPH_CENTER - outline + width, abs(dist));
-    // float4 color = float4(inp.color, alpha);
-
-    const float mu = smoothstep(0.5-width, 0.5+width, abs(dist));
-    const float3 rgb = lerp(float3(0.0, 0.0, 0.0), inp.color, mu);
-    const float4 color = float4(rgb, alpha);
+    const float alpha = smoothstep(GLYPH_CENTER - width, GLYPH_CENTER + width, abs(dist));
+    const float4 color = float4(inp.color, alpha);
 
     clip(color.a - 0.05f);
 

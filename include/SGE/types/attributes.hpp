@@ -1,10 +1,13 @@
 #ifndef _SGE_TYPES_ATTRIBUTES_HPP_
 #define _SGE_TYPES_ATTRIBUTES_HPP_
 
-#include "LLGL/Format.h"
 #include <initializer_list>
 #include <vector>
+
+#include <LLGL/Format.h>
 #include <LLGL/VertexAttribute.h>
+#include <LLGL/Utils/VertexFormat.h>
+
 #include <SGE/types/backend.hpp>
 #include <SGE/defines.hpp>
 
@@ -55,14 +58,39 @@ private:
 
 class Attributes {
 public:
-    Attributes(std::initializer_list<Attribute> items) : m_items(items) {}
-    Attributes(std::vector<Attribute> items) : m_items(std::move(items)) {}
+    Attributes(sge::RenderBackend backend, uint32_t start_location, std::vector<Attribute> items) :
+        m_items(std::move(items)),
+        m_start_location(start_location)
+    {
+        for (Attribute& item : m_items) {
+            if (backend.IsHLSL()) {
+                item.name = item.semantic_name;
+            }
+        }
+    }
+
+    Attributes(sge::RenderBackend backend, uint32_t start_location, std::initializer_list<Attribute> items) : Attributes(backend, start_location, std::vector(items)) {}
+
+    Attributes(sge::RenderBackend backend, std::initializer_list<Attribute> items) : Attributes(backend, 0, items) {}
+    Attributes(sge::RenderBackend backend, std::vector<Attribute> items) : Attributes(backend, 0, items) {}
 
     [[nodiscard]]
-    std::vector<LLGL::VertexAttribute> ToLLGL(sge::RenderBackend backend, uint32_t start_location = 0) const;
+    inline constexpr size_t size() const noexcept {
+        return m_items.size();
+    }
+
+    [[nodiscard]]
+    std::vector<LLGL::VertexAttribute> ToLLGL() const;
+
+    operator LLGL::VertexFormat() const {
+        LLGL::VertexFormat vertex_format;
+        vertex_format.attributes = ToLLGL();
+        return vertex_format;
+    }
 
 private:
     std::vector<Attribute> m_items;
+    uint32_t m_start_location = 0;
 };
 
 _SGE_END

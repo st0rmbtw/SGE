@@ -10,7 +10,7 @@
     #define SGE_PLATFORM_APPLE 1
 
     #include <TargetConditionals.h>
-    
+
     #if TARGET_OS_OSX
         #define SGE_PLATFORM_MACOS 1
     #elif TARGET_OS_IOS
@@ -22,8 +22,6 @@
     #elif TARGET_OS_BRIDGE
         #define SGE_PLATFORM_BRIDGEOS 1
     #endif
-
-
 #elif defined(__linux__)
     #define SGE_PLATFORM_LINUX 1
 #else

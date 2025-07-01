@@ -17,7 +17,7 @@
 #include <SGE/types/shader_def.hpp>
 #include <SGE/types/window_settings.hpp>
 #include <SGE/types/attributes.hpp>
-#include <SGE/renderer/custom_surface.hpp>
+#include <SGE/renderer/glfw_surface.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/types.hpp>
@@ -29,7 +29,7 @@ _SGE_BEGIN
 template <typename T>
 class BatchData {
 public:
-    std::vector<LLGL::VertexAttribute> Init(const sge::Renderer& renderer, uint32_t size, const sge::Attributes& vertex_attributes, const sge::Attributes& instance_attributes);
+    void Init(const sge::Renderer& renderer, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
     void Destroy(const LLGL::RenderSystemPtr& context);
 
     inline void Update(LLGL::CommandBuffer* command_buffer) {
@@ -68,27 +68,35 @@ private:
     uint32_t m_count = 0;
 };
 
-struct SpriteBatchData : public BatchData<SpriteInstance> {
-    LLGL::PipelineState* pipeline_additive = nullptr;
-    LLGL::PipelineState* pipeline_alpha_blend = nullptr;
-    LLGL::PipelineState* pipeline_opaque = nullptr;
-    LLGL::PipelineState* pipeline_premultiplied_alpha = nullptr;
+struct SpriteBatchPipeline {
+    LLGL::PipelineState* additive = nullptr;
+    LLGL::PipelineState* alpha_blend = nullptr;
+    LLGL::PipelineState* opaque = nullptr;
+    LLGL::PipelineState* premultiplied_alpha = nullptr;
 
-    LLGL::PipelineState* pipeline_depth_additive = nullptr;
-    LLGL::PipelineState* pipeline_depth_alpha_blend = nullptr;
-    LLGL::PipelineState* pipeline_depth_opaque = nullptr;
-    LLGL::PipelineState* pipeline_depth_premultiplied_alpha = nullptr;
+    LLGL::PipelineState* depth_additive = nullptr;
+    LLGL::PipelineState* depth_alpha_blend = nullptr;
+    LLGL::PipelineState* depth_opaque = nullptr;
+    LLGL::PipelineState* depth_premultiplied_alpha = nullptr;
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        SGE_RESOURCE_RELEASE(additive);
+        SGE_RESOURCE_RELEASE(alpha_blend);
+        SGE_RESOURCE_RELEASE(opaque);
+        SGE_RESOURCE_RELEASE(premultiplied_alpha);
+        SGE_RESOURCE_RELEASE(depth_additive);
+        SGE_RESOURCE_RELEASE(depth_alpha_blend);
+        SGE_RESOURCE_RELEASE(depth_opaque);
+        SGE_RESOURCE_RELEASE(depth_premultiplied_alpha);
+    }
+};
+
+struct SpriteBatchData : public BatchData<SpriteInstance> {
+    SpriteBatchPipeline pipeline;
 
     void Destroy(const LLGL::RenderSystemPtr& context) {
         BatchData::Destroy(context);
-        SGE_RESOURCE_RELEASE(pipeline_additive);
-        SGE_RESOURCE_RELEASE(pipeline_alpha_blend);
-        SGE_RESOURCE_RELEASE(pipeline_opaque);
-        SGE_RESOURCE_RELEASE(pipeline_premultiplied_alpha);
-        SGE_RESOURCE_RELEASE(pipeline_depth_additive);
-        SGE_RESOURCE_RELEASE(pipeline_depth_alpha_blend);
-        SGE_RESOURCE_RELEASE(pipeline_depth_opaque);
-        SGE_RESOURCE_RELEASE(pipeline_depth_premultiplied_alpha);
+        pipeline.Destroy(context);
     }
 };
 
@@ -151,11 +159,11 @@ static inline std::size_t GetArraySize(const T (&)[N])
     return (N * sizeof(T));
 }
 
-inline constexpr const char* DEFAULT_CACHE_DIR = "./cache/pipeline/";
-
 class Renderer {
+    friend class Batch;
+
 public:
-    bool InitEngine(sge::RenderBackend backend, bool cache_pipelines = true, const std::string& cache_dir_path = DEFAULT_CACHE_DIR);
+    bool InitEngine(sge::RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path);
     bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const WindowSettings& settings);
 
     void Begin(const sge::Camera& camera);
@@ -254,7 +262,7 @@ public:
     [[nodiscard]] inline LLGL::SwapChain* SwapChain() const { return m_swap_chain; };
     [[nodiscard]] inline LLGL::CommandBuffer* CommandBuffer() const { return m_command_buffer; };
     [[nodiscard]] inline LLGL::CommandQueue* CommandQueue() const { return m_command_queue; };
-    [[nodiscard]] inline const std::shared_ptr<CustomSurface>& Surface() const { return m_surface; };
+    [[nodiscard]] inline const std::shared_ptr<GlfwSurface>& Surface() const { return m_surface; };
     [[nodiscard]] inline LLGL::Buffer* GlobalUniformBuffer() const { return m_constant_buffer; };
     [[nodiscard]] inline sge::RenderBackend Backend() const { return m_backend; };
 
@@ -266,11 +274,17 @@ public:
     [[nodiscard]] inline const LLGL::RenderingCapabilities& GetRenderingCaps() const { return m_context->GetRenderingCaps(); }
 
 private:
-    SpriteBatchData InitSpriteBatchPipeline();
-    NinePatchBatchData InitNinepatchBatchPipeline();
-    GlyphBatchData InitGlyphBatchPipeline();
-    ShapeBatchData InitShapeBatchPipeline();
-    LineBatchData InitLineBatchPipeline();
+    SpriteBatchPipeline CreateSpriteBatchPipeline(LLGL::Shader* fragment_shader);
+    LLGL::PipelineState* CreateNinepatchBatchPipeline();
+    LLGL::PipelineState* CreateGlyphBatchPipeline(LLGL::Shader* fragment_shader);
+    LLGL::PipelineState* CreateShapeBatchPipeline();
+    LLGL::PipelineState* CreateLineBatchPipeline();
+
+    SpriteBatchData InitSpriteBatchData();
+    NinePatchBatchData InitNinepatchBatchData();
+    GlyphBatchData InitGlyphBatchData();
+    ShapeBatchData InitShapeBatchData();
+    LineBatchData InitLineBatchData();
 
     LLGL::PipelineCache* ReadPipelineCache(const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::string& name, LLGL::PipelineCache* pipelineCache);
@@ -289,12 +303,16 @@ private:
     std::string m_cache_pipeline_dir;
 
     LLGL::RenderSystemPtr m_context = nullptr;
-    std::shared_ptr<CustomSurface> m_surface = nullptr;
+    std::shared_ptr<GlfwSurface> m_surface = nullptr;
 
     LLGL::SwapChain* m_swap_chain = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::Buffer* m_constant_buffer = nullptr;
+
+    LLGL::Shader* m_sprite_vertex_shader = nullptr;
+    LLGL::Shader* m_glyph_vertex_shader = nullptr;
+    LLGL::Shader* m_ninepatch_vertex_shader = nullptr;
 
 #if SGE_DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;

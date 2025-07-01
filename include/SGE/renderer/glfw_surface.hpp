@@ -21,11 +21,11 @@ _SGE_BEGIN
     #endif
 #endif
 
-class CustomSurface : public LLGL::Surface {
+class GlfwSurface : public LLGL::Surface {
 public:
-    CustomSurface(GLFWwindow* window, const LLGL::Extent2D& size);
-    CustomSurface(CustomSurface&& other) noexcept;
-    ~CustomSurface() override;
+    GlfwSurface(GLFWwindow* window, const LLGL::Extent2D& size);
+    GlfwSurface(GlfwSurface&& other) noexcept;
+    ~GlfwSurface() override;
 
     bool GetNativeHandle(void* nativeHandle, std::size_t nativeHandleSize) override;
     bool AdaptForVideoMode(LLGL::Extent2D* resolution, bool* fullscreen) override;

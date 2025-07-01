@@ -26,17 +26,17 @@ namespace Duration {
 class Stopwatch {
 public:
     using duration_t = Duration::Nanos;
-    
+
     Stopwatch() : m_elapsed(duration_t::zero()) {}
 
     [[nodiscard]] inline duration_t elapsed() const { return m_elapsed; }
     [[nodiscard]] inline bool paused() const { return m_paused; }
-    [[nodiscard]] inline float elapsed_secs() const { return Duration::Cast<Duration::SecondsFloat>(m_elapsed).count(); }
+    [[nodiscard]] inline float elapsed_secs() const { return Duration::Cast<Duration::Seconds>(m_elapsed).count(); }
 
     inline void reset() { m_elapsed = duration_t::zero(); }
     inline void pause() { m_paused = true; }
     inline void unpause() { m_paused = false; }
-    
+
     template <class Rep, class Period>
     inline void set_elapsed(const std::chrono::duration<Rep, Period>& elapsed) {
         m_elapsed = Duration::Cast<duration_t>(elapsed);

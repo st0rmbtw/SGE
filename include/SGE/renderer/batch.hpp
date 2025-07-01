@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include <LLGL/RenderSystem.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -85,7 +87,7 @@ struct DrawCommandShape {
     sge::LinearRgba border_color;
     glm::vec4 border_radius;
     float border_thickness;
-    uint32_t shape;
+    uint8_t shape;
 };
 
 struct DrawCommandLine {
@@ -218,31 +220,13 @@ public:
         m_flush_queue.reserve(100);
     };
 
+    Batch(Renderer& renderer, LLGL::Shader* custom_glyph_shader);
+
     Batch(const Batch&) = delete;
     Batch& operator=(const Batch&) = delete;
 
-    Batch& operator=(Batch&& other) {
-        m_draw_commands = std::move(other.m_draw_commands);
-        m_flush_queue = std::move(other.m_flush_queue);
-
-        m_sprite_data = other.m_sprite_data;
-        m_glyph_data = other.m_glyph_data;
-        m_ninepatch_data = other.m_ninepatch_data;
-        m_shape_data = other.m_shape_data;
-        m_line_data = other.m_line_data;
-
-        m_order = other.m_order;
-
-        m_draw_commands_done = other.m_draw_commands_done;
-
-        m_global_order = other.m_global_order;
-
-        m_order_mode = other.m_order_mode;
-        m_depth_enabled = other.m_depth_enabled;
-        m_is_ui = other.m_is_ui;
-
-        return *this;
-    }
+    Batch(Batch&&) = default;
+    Batch& operator=(Batch&&) = default;
 
     inline void SetDepthEnabled(bool depth_enabled) { m_depth_enabled = depth_enabled; }
     inline void SetIsUi(bool is_ui) { m_is_ui = is_ui; }
@@ -294,28 +278,28 @@ public:
         return AddNinePatchDrawCommand(ninepatch, uv_offset_scale, custom_order);
     }
 
-    inline uint32_t DrawCircle(glm::vec2 position, const ShapeCircle& circle) {
-        return DrawShape(sge::Shape::Circle, position, glm::vec2(circle.radius * 2.0f), circle.color, circle.border_color, circle.border_thickness, glm::vec4(0.0), circle.anchor);
-    }
-
     inline uint32_t DrawCircle(glm::vec2 position, sge::Order custom_order, const ShapeCircle& circle) {
         return DrawShape(sge::Shape::Circle, position, glm::vec2(circle.radius * 2.0f), circle.color, circle.border_color, circle.border_thickness, glm::vec4(0.0), circle.anchor, custom_order);
     }
 
-    inline uint32_t DrawRect(glm::vec2 position, const ShapeRect& rect) {
-        return DrawShape(sge::Shape::Rect, position, rect.size, rect.color, rect.border_color, rect.border_thickness, rect.border_radius, rect.anchor);
+    inline uint32_t DrawCircle(glm::vec2 position, const ShapeCircle& circle) {
+        return DrawCircle(position, sge::Order(), circle);
     }
 
     inline uint32_t DrawRect(glm::vec2 position, sge::Order custom_order, const ShapeRect& rect) {
         return DrawShape(sge::Shape::Rect, position, rect.size, rect.color, rect.border_color, rect.border_thickness, rect.border_radius, rect.anchor, custom_order);
     }
 
-    inline uint32_t DrawArc(glm::vec2 position, const ShapeArc& arc) {
-        return DrawShape(sge::Shape::Arc, position, glm::vec2(arc.outer_radius * 2.0f), arc.color, sge::LinearRgba(0.0f), arc.inner_radius, glm::vec4(arc.start_angle, arc.end_angle, 0.0f, 0.0f), arc.anchor);
+    inline uint32_t DrawRect(glm::vec2 position, const ShapeRect& rect) {
+        return DrawRect(position, sge::Order(), rect);
     }
 
     inline uint32_t DrawArc(glm::vec2 position, sge::Order custom_order, const ShapeArc& arc) {
         return DrawShape(sge::Shape::Arc, position, glm::vec2(arc.outer_radius * 2.0f), arc.color, sge::LinearRgba(0.0f), arc.inner_radius, glm::vec4(arc.start_angle, arc.end_angle, 0.0f, 0.0f), arc.anchor, custom_order);
+    }
+
+    inline uint32_t DrawArc(glm::vec2 position, const ShapeArc& arc) {
+        return DrawArc(position, sge::Order(), arc);
     }
 
     uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, const glm::vec4& border_radius = glm::vec4(0.0f), sge::Order custom_order = {});
@@ -349,7 +333,15 @@ public:
     [[nodiscard]] inline const Data& shape_data() const { return m_shape_data; }
     [[nodiscard]] inline const Data& line_data() const { return m_line_data; }
 
+    [[nodiscard]] inline LLGL::PipelineState* glyph_pipeline() const { return m_glyph_pipeline; }
+
     inline uint32_t GetNextOrder(Order custom_order = {});
+
+    void Terminate(const LLGL::RenderSystemPtr& context) {
+        if (m_glyph_pipeline) {
+            context->Release(*m_glyph_pipeline);
+        }
+    }
 
 private:
     uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius = glm::vec4(0.0f), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
@@ -398,6 +390,8 @@ private:
 
     sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
     sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
+
+    LLGL::PipelineState* m_glyph_pipeline = nullptr;
 };
 
 _SGE_END

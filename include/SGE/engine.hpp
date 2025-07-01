@@ -13,6 +13,14 @@
 
 _SGE_BEGIN
 
+inline constexpr const char* DEFAULT_CACHE_DIR = "./cache/pipeline/";
+
+struct EngineConfig {
+    sge::WindowSettings window_settings;
+    const char* pipeline_cache_path = DEFAULT_CACHE_DIR;
+    bool cache_pipelines = true;
+};
+
 namespace Engine {
     using PreUpdateCallback = void (*)(void);
     using UpdateCallback = void (*)(void);
@@ -24,7 +32,7 @@ namespace Engine {
     using LoadAssetsCallback = bool (*)(void);
     using WindowResizeCallback = void (*)(uint32_t width, uint32_t height, uint32_t scaled_width, uint32_t scaled_height);
 
-    bool Init(sge::RenderBackend backend, sge::WindowSettings settings, LLGL::Extent2D& viewport);
+    bool Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::Extent2D& viewport);
     void SetPreUpdateCallback(PreUpdateCallback);
     void SetUpdateCallback(UpdateCallback);
     void SetPostUpdateCallback(PostUpdateCallback);

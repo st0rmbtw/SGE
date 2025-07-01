@@ -320,18 +320,16 @@ bool App::Init(RenderBackend backend, AppConfig config) {
     Engine::SetWindowResizeCallback(WindowResized);
     Engine::SetDestroyCallback(Destroy);
 
-    glm::uvec2 window_size = glm::uvec2(1280, 720);
-
-    WindowSettings settings;
-    settings.width = window_size.x;
-    settings.height = window_size.y;
-    settings.fullscreen = config.fullscreen;
-    settings.vsync = config.vsync;
-    settings.samples = config.samples;
-    settings.hidden = true;
+    EngineConfig engine_config;
+    engine_config.window_settings.width = 1280;
+    engine_config.window_settings.height = 720;
+    engine_config.window_settings.fullscreen = config.fullscreen;
+    engine_config.window_settings.vsync = config.vsync;
+    engine_config.window_settings.samples = config.samples;
+    engine_config.window_settings.hidden = true;
 
     LLGL::Extent2D resolution;
-    if (!Engine::Init(backend, settings, resolution)) return false;
+    if (!Engine::Init(backend, engine_config, resolution)) return false;
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -359,5 +357,6 @@ void App::Run() {
 }
 
 void App::Destroy() {
+    g.batch.Terminate(Engine::Renderer().Context());
     Engine::Destroy();
 }
