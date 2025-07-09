@@ -9,15 +9,13 @@ struct KeyWithModifiers {
 };
 
 constexpr inline bool operator==(const KeyWithModifiers a, const KeyWithModifiers b) {
-    return a.key == b.key && a.modifiers == b.modifiers;
+    return a.key == b.key;
 }
 
 template <>
 struct std::hash<KeyWithModifiers> {
     std::size_t operator()(const KeyWithModifiers& key) const noexcept {
-        std::size_t h1 = std::hash<sge::Key>{}(key.key);
-        std::size_t h2 = std::hash<uint8_t>{}(key.modifiers);
-        return h1 ^ (h2 << 1);
+        return std::hash<sge::Key>{}(key.key);
     }
 };
 

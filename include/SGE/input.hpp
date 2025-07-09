@@ -54,6 +54,10 @@ enum class Key : uint16_t {
     N = GLFW_KEY_N,
     M = GLFW_KEY_M,
 
+    Comma = GLFW_KEY_COMMA,
+    Period = GLFW_KEY_PERIOD,
+    Apostrophe = GLFW_KEY_APOSTROPHE,
+
     Digit1 = GLFW_KEY_1,
     Digit2 = GLFW_KEY_2,
     Digit3 = GLFW_KEY_3,
@@ -67,16 +71,37 @@ enum class Key : uint16_t {
 
     LeftShift = GLFW_KEY_LEFT_SHIFT,
     LeftAlt = GLFW_KEY_LEFT_ALT,
+
     RightShift = GLFW_KEY_RIGHT_SHIFT,
     RightAlt = GLFW_KEY_RIGHT_ALT,
+
+    LeftCtrl = GLFW_KEY_LEFT_CONTROL,
+    RightCtrl = GLFW_KEY_RIGHT_CONTROL,
 
     Minus = GLFW_KEY_MINUS,
     Equals = GLFW_KEY_EQUAL,
     Space = GLFW_KEY_SPACE,
 
     Escape = GLFW_KEY_ESCAPE,
+    Tab = GLFW_KEY_TAB,
 
-    F10 = GLFW_KEY_F10
+    F1 = GLFW_KEY_F1,
+    F2 = GLFW_KEY_F2,
+    F3 = GLFW_KEY_F3,
+    F4 = GLFW_KEY_F4,
+    F5 = GLFW_KEY_F5,
+    F6 = GLFW_KEY_F6,
+    F7 = GLFW_KEY_F7,
+    F8 = GLFW_KEY_F8,
+    F9 = GLFW_KEY_F9,
+    F10 = GLFW_KEY_F10,
+    F11 = GLFW_KEY_F11,
+    F12 = GLFW_KEY_F12,
+
+    ArrowUp = GLFW_KEY_UP,
+    ArrowDown = GLFW_KEY_DOWN,
+    ArrowLeft = GLFW_KEY_LEFT,
+    ArrowRight = GLFW_KEY_RIGHT,
 };
 
 namespace Input {
