@@ -36,8 +36,8 @@ bool GlfwSurface::GetNativeHandle(void* nativeHandle, std::size_t) {
         handle->wayland.display = glfwGetWaylandDisplay();
         handle->type = LLGL::NativeType::Wayland;
     } else {
-        handle->window = glfwGetX11Window(m_wnd);
-        handle->display = glfwGetX11Display();
+        handle->x11.window = glfwGetX11Window(m_wnd);
+        handle->x11.display = glfwGetX11Display();
         handle->type = LLGL::NativeType::X11;
     }
 
@@ -49,10 +49,42 @@ LLGL::Extent2D GlfwSurface::GetContentSize() const {
     return m_size;
 }
 
-bool GlfwSurface::AdaptForVideoMode(LLGL::Extent2D* resolution, bool*) {
-    m_size = *resolution;
-    glfwSetWindowSize(m_wnd, m_size.width, m_size.height);
-    return true;
+bool GlfwSurface::AdaptForVideoMode(LLGL::Extent2D* resolution, bool* fullscreen) {
+    bool result = true;
+
+    if (resolution != nullptr) {
+        glfwSetWindowSize(m_wnd, resolution->width, resolution->height);
+
+        uint32_t width = 0;
+        uint32_t height = 0;
+
+        {
+            int w, h;
+            glfwGetWindowSize(m_wnd, &w, &h);
+            width = w;
+            height = h;
+        }
+
+        if (resolution->width != width || resolution->height != height) {
+            resolution->width = width;
+            resolution->height = height;
+            result = false;
+        }
+
+        m_size = *resolution;
+    }
+
+    if (fullscreen != nullptr) {
+        GLFWmonitor* monitor = *fullscreen ? glfwGetPrimaryMonitor() : nullptr;
+
+        glfwSetWindowMonitor(m_wnd, monitor, 0, 0, m_size.width, m_size.height, GLFW_DONT_CARE);
+
+        if (glfwGetWindowMonitor(m_wnd) != monitor) {
+            result = false;
+        }
+    }
+
+    return result;
 }
 
 LLGL::Display* GlfwSurface::FindResidentDisplay() const {

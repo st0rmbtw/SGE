@@ -108,8 +108,8 @@ static void Render() {
     static constexpr float CLOCK_FACE_PADDING = 20.0f / 400.0f;
     static constexpr float CLOCK_TICKS_LENGTH = 0.17f;
     static constexpr float CLOCK_HAND_OFFSET = 25.0f / 800.0f;
-    static constexpr float CLOCK_SECOND_HAND_OFFSET = 0.0f;
-    static constexpr float CLOCK_MINUTE_HAND_OFFSET = 0.05f;
+    static constexpr float CLOCK_SECOND_HAND_OFFSET = 0.02f;
+    static constexpr float CLOCK_MINUTE_HAND_OFFSET = 0.065f;
     static constexpr float CLOCK_HOUR_HAND_OFFSET = 0.15f;
     static constexpr float CLOCK_CIRCLE_RADIUS = 30.0f / 800.0f;
 
@@ -181,18 +181,18 @@ static void Render() {
         }
         g.batch.EndOrderMode();
 
-        g.batch.DrawCircle(center, {
-            .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f,
-            .color = sge::LinearRgba::transparent(),
-            .border_thickness = 2.0f,
-            .border_color = sge::LinearRgba(1.0f, 1.0f, 0.0f)
-        });
-        g.batch.DrawCircle(center, {
-            .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH),
-            .color = sge::LinearRgba::transparent(),
-            .border_thickness = 2.0f,
-            .border_color = sge::LinearRgba::blue()
-        });
+        // g.batch.DrawCircle(center, {
+        //     .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f,
+        //     .color = sge::LinearRgba::transparent(),
+        //     .border_thickness = 2.0f,
+        //     .border_color = sge::LinearRgba(1.0f, 1.0f, 0.0f)
+        // });
+        // g.batch.DrawCircle(center, {
+        //     .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH),
+        //     .color = sge::LinearRgba::transparent(),
+        //     .border_thickness = 2.0f,
+        //     .border_color = sge::LinearRgba::blue()
+        // });
 
         const float wh = g.t.hours / 12.0f * (2.0f * consts::PI);
         const float wm = g.t.minutes / 60.0f * (2.0f * consts::PI);

@@ -9,13 +9,6 @@ static struct TimeState {
     float fixed_elapsed_seconds;
 } state;
 
-const delta_time_t& Time::Delta(void) { return state.delta; }
-float Time::DeltaSeconds(void) { return state.delta.count(); }
-float Time::ElapsedSeconds(void) { return state.elapsed_seconds; }
-const delta_time_t Time::FixedDelta(void) { return state.fixed_delta; }
-float Time::FixedDeltaSeconds(void) { return state.fixed_delta.count(); }
-float Time::FixedElapsedSeconds(void) { return state.fixed_elapsed_seconds; }
-
 void Time::SetFixedTimestepSeconds(const float seconds) {
     state.fixed_delta = delta_time_t(seconds);
 }
@@ -27,4 +20,28 @@ void Time::AdvanceBy(const delta_time_t& delta) {
 
 void Time::AdvanceFixed() {
     state.fixed_elapsed_seconds += state.fixed_delta.count();
+}
+
+const delta_time_t& Time::Delta() {
+    return state.delta;
+}
+
+float Time::DeltaSeconds() {
+    return state.delta.count();
+}
+
+float Time::ElapsedSeconds() {
+    return state.elapsed_seconds;
+}
+
+const delta_time_t Time::FixedDelta() {
+    return state.fixed_delta;
+}
+
+float Time::FixedDeltaSeconds() {
+    return state.fixed_delta.count();
+}
+
+float Time::FixedElapsedSeconds() {
+    return state.fixed_elapsed_seconds;
 }
