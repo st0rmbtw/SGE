@@ -101,14 +101,16 @@ target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw fmt LLGL freetype)
 
 # ========================= Embed Shaders =========================
 
-file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders/*.*)
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders/*.*)
 
-foreach(shader ${SHADERS})
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
-        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDS ${shader}
-    )
-endforeach()
+    foreach(shader ${SHADERS})
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
+            COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
+            DEPENDS ${shader}
+        )
+    endforeach()
 
-add_custom_target(EmbedShaders ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp)
+    add_custom_target(EmbedShaders ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp)
+endif()
