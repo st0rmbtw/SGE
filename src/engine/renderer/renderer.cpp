@@ -1,15 +1,3 @@
-#include <SGE/renderer/renderer.hpp>
-#include <SGE/renderer/batch.hpp>
-#include <SGE/renderer/macros.hpp>
-#include <SGE/renderer/types.hpp>
-#include <SGE/log.hpp>
-#include <SGE/utils/alloc.hpp>
-#include <SGE/utils/io.hpp>
-#include <SGE/assert.hpp>
-#include <SGE/types/blend_mode.hpp>
-#include <SGE/types/binding_layout.hpp>
-#include <SGE/types/attributes.hpp>
-
 #include <cstddef>
 #include <fstream>
 #include <iostream>
@@ -19,7 +7,18 @@
 #include <utility>
 #include <filesystem>
 
-#include <tracy/Tracy.hpp>
+#include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/batch.hpp>
+#include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/types.hpp>
+#include <SGE/assert.hpp>
+#include <SGE/log.hpp>
+#include <SGE/profile.hpp>
+#include <SGE/utils/alloc.hpp>
+#include <SGE/utils/io.hpp>
+#include <SGE/types/blend_mode.hpp>
+#include <SGE/types/binding_layout.hpp>
+#include <SGE/types/attributes.hpp>
 
 #include <LLGL/PipelineLayoutFlags.h>
 #include <LLGL/PipelineStateFlags.h>

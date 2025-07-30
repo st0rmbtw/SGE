@@ -1,13 +1,12 @@
 #include <LLGL/Types.h>
 #include <LLGL/Log.h>
 #include <GLFW/glfw3.h>
-#include <tracy/Tracy.hpp>
-
-#include <SGE/time/time.hpp>
 
 #include <SGE/engine.hpp>
 #include <SGE/input.hpp>
 #include <SGE/log.hpp>
+#include <SGE/profile.hpp>
+#include <SGE/time/time.hpp>
 
 #include "defines.hpp"
 

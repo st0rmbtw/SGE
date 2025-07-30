@@ -1,9 +1,6 @@
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/renderer.hpp>
-
 #include <SGE/utils/utf8.hpp>
-
-#include <tracy/Tracy.hpp>
 
 using namespace sge;
 
