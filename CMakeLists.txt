@@ -73,6 +73,7 @@ endif()
 
 if(SGE_ENABLE_PROFILE)
     set(TRACY_ENABLE CACHE BOOL "" ON)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_PROFILE_ENABLED=1)
     target_link_libraries(${PROJECT_NAME} PUBLIC TracyClient)
 endif()
 
