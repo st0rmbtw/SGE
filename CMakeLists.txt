@@ -17,6 +17,7 @@ find_package(Python REQUIRED COMPONENTS Interpreter)
 
 option(SGE_BUILD_STATIC "Build SGE as static library" ON)
 option(SGE_BUILD_EXAMPLES "Build examples" OFF)
+option(SGE_ENABLE_PROFILE "Enable profiling via Tracy" OFF)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 
@@ -55,14 +56,6 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 
 set(LLGL_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
-add_subdirectory(thirdparty/LLGL)
-add_subdirectory(thirdparty/glm)
-add_subdirectory(thirdparty/glfw)
-add_subdirectory(thirdparty/STB)
-add_subdirectory(thirdparty/fmt)
-add_subdirectory(thirdparty/freetype-2.13.2)
-add_subdirectory(thirdparty/tracy-0.11.1)
-
 if(SGE_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
@@ -78,6 +71,19 @@ else()
     add_library(${PROJECT_NAME} SHARED)
 endif()
 
+if(SGE_ENABLE_PROFILE)
+    set(TRACY_ENABLE CACHE BOOL "" ON)
+    target_link_libraries(${PROJECT_NAME} PUBLIC TracyClient)
+endif()
+
+add_subdirectory(thirdparty/LLGL)
+add_subdirectory(thirdparty/glm)
+add_subdirectory(thirdparty/glfw)
+add_subdirectory(thirdparty/STB)
+add_subdirectory(thirdparty/fmt)
+add_subdirectory(thirdparty/freetype-2.13.2)
+add_subdirectory(thirdparty/tracy-0.11.1)
+
 target_sources(${PROJECT_NAME} PRIVATE ${SGE_SRC})
 target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/include")
 
@@ -91,7 +97,7 @@ endif()
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:Debug>:SGE_DEBUG>")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw fmt LLGL freetype TracyClient)
+target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw fmt LLGL freetype)
 
 # ========================= Embed Shaders =========================
 

@@ -20,6 +20,24 @@ namespace TextureSampler {
         Nearest,
         NearestMips,
     };
+
+    [[nodiscard]]
+    inline constexpr uint8_t DisableMips(uint8_t sampler) {
+        switch (sampler) {
+            case LinearMips: return Linear;
+            case NearestMips: return Nearest;
+            default: return sampler;
+        }
+    }
+
+    [[nodiscard]]
+    inline constexpr uint8_t EnableMips(uint8_t sampler) {
+        switch (sampler) {
+            case Linear: return LinearMips;
+            case Nearest: return NearestMips;
+            default: return sampler;
+        }
+    }
 };
 
 class Texture {
