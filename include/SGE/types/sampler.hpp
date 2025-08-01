@@ -12,14 +12,24 @@ class Sampler {
 public:
     Sampler() = default;
 
-    explicit Sampler(LLGL::Sampler* internal, LLGL::SamplerDescriptor descriptor) :
+    explicit Sampler(LLGL::Sampler* internal, LLGL::SamplerDescriptor descriptor) noexcept :
         m_internal(internal),
         m_descriptor(descriptor) {}
 
-    [[nodiscard]] inline const LLGL::SamplerDescriptor& descriptor() const { return m_descriptor; }
-    [[nodiscard]] inline LLGL::Sampler* internal() const { return m_internal; }
+    [[nodiscard]]
+    inline const LLGL::SamplerDescriptor& descriptor() const noexcept {
+        return m_descriptor;
+    }
 
-    inline operator LLGL::Sampler&() const { return *m_internal; }
+    [[nodiscard]]
+    inline LLGL::Sampler* internal() const noexcept {
+        return m_internal;
+    }
+
+    [[nodiscard]]
+    inline operator LLGL::Sampler&() const noexcept {
+        return *m_internal;
+    }
 
 private:
     LLGL::Sampler* m_internal = nullptr;

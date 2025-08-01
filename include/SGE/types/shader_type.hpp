@@ -29,85 +29,100 @@ public:
     explicit operator bool() const = delete;
 
     [[nodiscard]]
-    inline constexpr LLGL::ShaderType ToLLGLType() const {
+    inline constexpr LLGL::ShaderType ToLLGLType() const noexcept {
         switch (m_value) {
-            case Value::Vertex: return LLGL::ShaderType::Vertex; break;
-            case Value::Fragment: return LLGL::ShaderType::Fragment; break;
-            case Value::Geometry: return LLGL::ShaderType::Geometry; break;
-            case Value::Compute: return LLGL::ShaderType::Compute; break;
+            case Value::Vertex: return LLGL::ShaderType::Vertex;
+            case Value::Fragment: return LLGL::ShaderType::Fragment;
+            case Value::Geometry: return LLGL::ShaderType::Geometry;
+            case Value::Compute: return LLGL::ShaderType::Compute;
             default: SGE_UNREACHABLE();
         };
     }
 
     [[nodiscard]]
-    inline constexpr const char* EntryPoint(RenderBackend backend) const {
+    inline constexpr const char* EntryPoint(RenderBackend backend) const noexcept {
         if (backend.IsOpenGL() || backend.IsVulkan()) return nullptr;
 
         switch (m_value) {
-            case Value::Vertex: return "VS"; break;
-            case Value::Fragment: return "PS"; break;
-            case Value::Geometry: return "GS"; break;
+            case Value::Vertex: return "VS";
+            case Value::Fragment: return "PS";
+            case Value::Geometry: return "GS";
             default: return nullptr;
         };
     }
 
     [[nodiscard]]
-    inline constexpr const char* Profile(RenderBackend backend) const {
+    inline constexpr const char* Profile(RenderBackend backend) const noexcept {
         switch (backend) {
         case RenderBackend::OpenGL:
         case RenderBackend::Vulkan: return nullptr;
 
         case RenderBackend::D3D11: switch (m_value) {
-            case Value::Vertex: return "vs_5_0"; break;
-            case Value::Fragment: return "ps_5_0"; break;
-            case Value::Geometry: return "gs_5_0"; break;
-            case Value::Compute: return "cs_5_0"; break;
+            case Value::Vertex: return "vs_5_0";
+            case Value::Fragment: return "ps_5_0";
+            case Value::Geometry: return "gs_5_0";
+            case Value::Compute: return "cs_5_0";
             default: return nullptr;
         };
         break;
 
         case RenderBackend::D3D12: switch (m_value) {
-            case Value::Vertex: return "vs_5_0"; break;
-            case Value::Fragment: return "ps_5_0"; break;
-            case Value::Geometry: return "gs_5_0"; break;
-            case Value::Compute: return "cs_5_0"; break;
+            case Value::Vertex: return "vs_5_0";
+            case Value::Fragment: return "ps_5_0";
+            case Value::Geometry: return "gs_5_0";
+            case Value::Compute: return "cs_5_0";
             default: return nullptr;
         };
         break;
 
-        case RenderBackend::Metal: return "2.2"; break;
+        case RenderBackend::Metal: return "2.2";
         default: SGE_UNREACHABLE();
         }
     }
 
     [[nodiscard]]
-    inline constexpr const char* FileExtension(RenderBackend backend) const {
+    inline constexpr const char* FileExtension(RenderBackend backend) const noexcept {
         switch (backend) {
             case RenderBackend::D3D11:
-            case RenderBackend::D3D12: return ".hlsl"; break;
-            case RenderBackend::Metal: return ".metal"; break;
+            case RenderBackend::D3D12: return ".hlsl";
+            case RenderBackend::Metal: return ".metal";
             case RenderBackend::OpenGL: switch (m_value) {
-                case Value::Vertex:   return ".vert"; break;
-                case Value::Fragment: return ".frag"; break;
-                case Value::Geometry: return ".geom"; break;
-                case Value::Compute: return ".comp"; break;
+                case Value::Vertex:   return ".vert";
+                case Value::Fragment: return ".frag";
+                case Value::Geometry: return ".geom";
+                case Value::Compute: return ".comp";
                 default: return nullptr;
             };
             case RenderBackend::Vulkan: switch (m_value) {
-                case Value::Vertex:   return ".vert.spv"; break;
-                case Value::Fragment: return ".frag.spv"; break;
-                case Value::Geometry: return ".geom.spv"; break;
-                case Value::Compute: return ".comp.spv"; break;
+                case Value::Vertex:   return ".vert.spv";
+                case Value::Fragment: return ".frag.spv";
+                case Value::Geometry: return ".geom.spv";
+                case Value::Compute: return ".comp.spv";
                 default: return nullptr;
             };
             default: return nullptr;
         }
     }
 
-    [[nodiscard]] inline constexpr bool IsVertex() const { return m_value == Value::Vertex; }
-    [[nodiscard]] inline constexpr bool IsFragment() const { return m_value == Value::Fragment; }
-    [[nodiscard]] inline constexpr bool IsGeometry() const { return m_value == Value::Geometry; }
-    [[nodiscard]] inline constexpr bool IsCompute() const { return m_value == Value::Compute; }
+    [[nodiscard]]
+    inline constexpr bool IsVertex() const noexcept {
+        return m_value == Value::Vertex;
+    }
+
+    [[nodiscard]]
+    inline constexpr bool IsFragment() const noexcept {
+        return m_value == Value::Fragment;
+    }
+
+    [[nodiscard]]
+    inline constexpr bool IsGeometry() const noexcept {
+        return m_value == Value::Geometry;
+    }
+
+    [[nodiscard]]
+    inline constexpr bool IsCompute() const noexcept {
+        return m_value == Value::Compute;
+    }
 
 private:
     Value m_value = Value::Vertex;

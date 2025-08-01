@@ -77,51 +77,51 @@ struct LinearRgba {
 
     explicit constexpr LinearRgba(const glm::vec3& color, float t_a = 1.0f) : r(color.r), g(color.g), b(color.b), a(t_a) {}
 
-    static constexpr LinearRgba white() {
+    static constexpr LinearRgba white() noexcept {
         return LinearRgba(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
-    static constexpr LinearRgba black() {
+    static constexpr LinearRgba black() noexcept {
         return LinearRgba(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    static constexpr LinearRgba transparent() {
+    static constexpr LinearRgba transparent() noexcept {
         return LinearRgba(0.0f, 0.0f, 0.0f, 0.0f);
     }
 
-    static constexpr LinearRgba red() {
+    static constexpr LinearRgba red() noexcept {
         return LinearRgba(1.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    static constexpr LinearRgba green() {
+    static constexpr LinearRgba green() noexcept {
         return LinearRgba(0.0f, 1.0f, 0.0f, 1.0f);
     }
 
-    static constexpr LinearRgba blue() {
+    static constexpr LinearRgba blue() noexcept {
         return LinearRgba(0.0f, 0.0f, 1.0f, 1.0f);
     }
 
     [[nodiscard]]
-    float luminance() const {
+    float luminance() const noexcept {
         return r * 0.2126 + g * 0.7152 + b * 0.0722;
     }
 
     [[nodiscard]]
-    LinearRgba darker(float amount) const {
+    LinearRgba darker(float amount) const noexcept {
         LinearRgba result = *this;
         result.adjust_brightness(-amount);
         return result;
     }
 
     [[nodiscard]]
-    LinearRgba lighter(float amount) const {
+    LinearRgba lighter(float amount) const noexcept {
         LinearRgba result = *this;
         result.adjust_brightness(amount);
         return result;
     }
 
     [[nodiscard]]
-    LinearRgba lerp(const LinearRgba& other, float t) const {
+    LinearRgba lerp(const LinearRgba& other, float t) const noexcept {
         const float n_t = 1.0f - t;
         return LinearRgba(
             r * n_t + other.r * t,
@@ -143,39 +143,43 @@ struct LinearRgba {
         }
     }
 
-    [[nodiscard]] inline Hsla to_hsla() const;
-    [[nodiscard]] inline Srgba to_srgba() const;
+    [[nodiscard]]
+    inline Hsla to_hsla() const;
 
     [[nodiscard]]
-    glm::vec4 to_vec4() const {
+    inline Srgba to_srgba() const;
+
+    [[nodiscard]]
+    glm::vec4 to_vec4() const noexcept {
         return glm::vec4(r, g, b, a);
     }
+
     [[nodiscard]]
-    glm::vec3 to_vec3() const {
+    glm::vec3 to_vec3() const noexcept {
         return glm::vec3(r, g, b);
     }
 
-    LinearRgba operator*(const LinearRgba& c) const {
+    LinearRgba operator*(const LinearRgba& c) const noexcept {
         return LinearRgba(r * c.r, g * c.g, b * c.b, a * c.a);
     }
 
-    LinearRgba operator+(const LinearRgba& c) const {
+    LinearRgba operator+(const LinearRgba& c) const noexcept {
         return LinearRgba(r + c.r, g + c.g, b + c.b, a + c.a);
     }
 
-    LinearRgba operator-(const LinearRgba& c) const {
+    LinearRgba operator-(const LinearRgba& c) const noexcept {
         return LinearRgba(r - c.r, g - c.g, b - c.b, a - c.a);
     }
 
-    LinearRgba operator*(const float x) const {
+    LinearRgba operator*(const float x) const noexcept {
         return LinearRgba(r * x, g * x, b * x, a * x);
     }
 
-    LinearRgba operator+(const float x) const {
+    LinearRgba operator+(const float x) const noexcept {
         return LinearRgba(r + x, g + x, b + x, a + x);
     }
 
-    LinearRgba operator-(const float x) const {
+    LinearRgba operator-(const float x) const noexcept {
         return LinearRgba(r - x, g - x, b - x, a - x);
     }
 

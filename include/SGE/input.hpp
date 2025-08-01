@@ -120,14 +120,14 @@ namespace Input {
     bool Pressed(MouseButton button);
     bool JustPressed(MouseButton button);
 
-    void PushMouseScrollEvent(float y);
-    void SetMouseScreenPosition(const glm::vec2& position);
-    void SetMouseOverUi(bool mouse_over_ui);
+    void PushMouseScrollEvent(float y) noexcept;
+    void SetMouseScreenPosition(const glm::vec2& position) noexcept;
+    void SetMouseOverUi(bool mouse_over_ui) noexcept;
 
-    const std::vector<float>& ScrollEvents();
-    const glm::vec2& MouseScreenPosition();
-    glm::vec2 MouseDelta();
-    bool IsMouseOverUi();
+    const std::vector<float>& ScrollEvents() noexcept;
+    const glm::vec2& MouseScreenPosition() noexcept;
+    glm::vec2 MouseDelta() noexcept;
+    bool IsMouseOverUi() noexcept;
 
     void Clear();
 }

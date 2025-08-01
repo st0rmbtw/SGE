@@ -7,12 +7,14 @@
 
 _SGE_BEGIN
 
-inline float rem_euclid(float lhs, float rhs) {
+[[nodiscard]]
+inline float rem_euclid(float lhs, float rhs) noexcept {
     float r = fmodf(lhs, rhs);
     return r < 0.0f ? r + std::abs(rhs) : r;
 }
 
-inline constexpr float approx_equals(float a, float b, float eps = 0.001f) {
+[[nodiscard]]
+inline constexpr float approx_equals(float a, float b, float eps = 0.001f) noexcept {
     return std::abs(a-b) < eps;
 }
 

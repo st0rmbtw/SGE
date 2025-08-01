@@ -101,16 +101,33 @@ bool Input::JustPressed(MouseButton button) {
     return input_state.mouse_just_pressed.find(static_cast<uint8_t>(button)) != input_state.mouse_just_pressed.end();
 }
 
-void Input::PushMouseScrollEvent(float y) { input_state.mouse_scroll_events.push_back(y); }
-void Input::SetMouseScreenPosition(const glm::vec2& position) {
+void Input::PushMouseScrollEvent(float y) noexcept {
+    input_state.mouse_scroll_events.push_back(y);
+}
+
+void Input::SetMouseScreenPosition(const glm::vec2& position) noexcept {
     input_state.mouse_delta = position - input_state.mouse_screen_position;
     input_state.mouse_screen_position = position;
 }
-void Input::SetMouseOverUi(bool mouse_over_ui) { input_state.mouse_over_ui = mouse_over_ui; }
-glm::vec2 Input::MouseDelta() { return input_state.mouse_delta; }
 
-const std::vector<float>& Input::ScrollEvents() { return input_state.mouse_scroll_events; }
-const glm::vec2& Input::MouseScreenPosition() { return input_state.mouse_screen_position; }
-bool Input::IsMouseOverUi() { return input_state.mouse_over_ui; }
+void Input::SetMouseOverUi(bool mouse_over_ui) noexcept {
+    input_state.mouse_over_ui = mouse_over_ui;
+}
+
+glm::vec2 Input::MouseDelta() noexcept {
+    return input_state.mouse_delta;
+}
+
+const std::vector<float>& Input::ScrollEvents() noexcept {
+    return input_state.mouse_scroll_events;
+}
+
+const glm::vec2& Input::MouseScreenPosition() noexcept {
+    return input_state.mouse_screen_position;
+}
+
+bool Input::IsMouseOverUi() noexcept {
+    return input_state.mouse_over_ui;
+}
 
 _SGE_END

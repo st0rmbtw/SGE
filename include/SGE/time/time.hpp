@@ -27,8 +27,8 @@ namespace Time {
         SetFixedTimestepSeconds(d.count());
     }
     
-    void AdvanceBy(const delta_time_t& delta);
-    void AdvanceFixed();
+    void AdvanceBy(const delta_time_t& delta) noexcept;
+    void AdvanceFixed() noexcept;
 };
 
 _SGE_END

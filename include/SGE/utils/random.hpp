@@ -17,7 +17,8 @@ namespace random {
  * @param to Specifies the end of the range (inclusive)
  * @return Generated random integer
  */
-inline int rand_int(int from, int to) {
+[[nodiscard]]
+inline int rand_int(int from, int to) noexcept {
     SGE_ASSERT(from < to);
     return from + rand() % (to + 1 - from);
 }
@@ -29,7 +30,8 @@ inline int rand_int(int from, int to) {
  * @param to Specifies the end of the range (inclusive)
  * @return Generated random float
  */
-inline float rand_float(float from, float to) {
+[[nodiscard]]
+inline float rand_float(float from, float to) noexcept {
     SGE_ASSERT(from < to);
     const float scale = rand() / (float) RAND_MAX;
     return from + scale * (to - from);
@@ -41,7 +43,8 @@ inline float rand_float(float from, float to) {
  * @param probability The probability that the generated random boolean is true
  * @return Generated random boolean
  */
-inline bool rand_bool(float probability) {
+[[nodiscard]]
+inline bool rand_bool(float probability) noexcept {
     if (probability >= 1.0f) return true;
     if (probability <= 0.0f) return false;
 
@@ -53,7 +56,8 @@ inline bool rand_bool(float probability) {
  * 
  * @return Generated random boolean
  */
-inline bool rand_bool() {
+[[nodiscard]]
+inline bool rand_bool() noexcept {
     return rand() & 1;
 }
 

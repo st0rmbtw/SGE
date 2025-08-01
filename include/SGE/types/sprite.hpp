@@ -37,38 +37,131 @@ protected:
 
 public:
 
-    [[nodiscard]] inline const glm::vec2& position() const { return m_position; }
-    [[nodiscard]] inline const glm::quat& rotation() const { return m_rotation; }
-    [[nodiscard]] inline const glm::vec2& scale() const { return m_scale; }
-    [[nodiscard]] inline const sge::LinearRgba& color() const { return m_color; }
-    [[nodiscard]] inline const sge::LinearRgba& outline_color() const { return m_outline_color; }
-    [[nodiscard]] inline float outline_thickness() const { return m_outline_thickness; }
-    [[nodiscard]] inline float z() const { return m_z; }
+    [[nodiscard]]
+    inline const glm::vec2& position() const noexcept {
+        return m_position;
+    }
 
-    [[nodiscard]] inline Anchor anchor() const { return m_anchor; }
-    [[nodiscard]] inline bool flip_x() const { return m_flip_x; }
-    [[nodiscard]] inline bool flip_y() const { return m_flip_y; }
-    [[nodiscard]] inline bool ignore_camera_zoom() const { return m_ignore_camera_zoom; }
+    [[nodiscard]]
+    inline const glm::quat& rotation() const noexcept {
+        return m_rotation;
+    }
+
+    [[nodiscard]]
+    inline const glm::vec2& scale() const noexcept {
+        return m_scale;
+    }
+
+    [[nodiscard]]
+    inline const sge::LinearRgba& color() const noexcept {
+        return m_color;
+    }
+
+    [[nodiscard]]
+    inline const sge::LinearRgba& outline_color() const noexcept {
+        return m_outline_color;
+    }
+
+    [[nodiscard]]
+    inline float outline_thickness() const noexcept {
+        return m_outline_thickness;
+    }
+
+    [[nodiscard]]
+    inline float z() const noexcept {
+        return m_z;
+    }
+
+    [[nodiscard]]
+    inline Anchor anchor() const noexcept {
+        return m_anchor;
+    }
+
+    [[nodiscard]]
+    inline bool flip_x() const noexcept {
+        return m_flip_x;
+    }
+
+    [[nodiscard]]
+    inline bool flip_y() const noexcept {
+        return m_flip_y;
+    }
+
+    [[nodiscard]]
+    inline bool ignore_camera_zoom() const noexcept {
+        return m_ignore_camera_zoom;
+    }
 
     [[nodiscard]] virtual inline glm::vec2 size() const = 0;
 
-    [[nodiscard]] inline sge::Rect calculate_aabb() const {
+    [[nodiscard]] inline sge::Rect calculate_aabb() const noexcept {
         return sge::Rect::from_top_left(m_position - m_anchor.to_vec2() * size(), size());
     }
 
-    inline BaseSprite& set_position(const glm::vec2& position) { m_position = position; return *this; }
-    inline BaseSprite& set_rotation(const glm::quat& rotation) { m_rotation = rotation; return *this; }
-    inline BaseSprite& set_scale(const glm::vec2& scale) { m_scale = scale; return *this; }
-    inline BaseSprite& set_scale(const float scale) { m_scale = glm::vec2(scale); return *this; }
-    inline BaseSprite& set_custom_size(const std::optional<glm::vec2> size) { m_custom_size = size; return *this; }
-    inline BaseSprite& set_color(const sge::LinearRgba& color) { m_color = color; return *this; }
-    inline BaseSprite& set_outline_color(const sge::LinearRgba& color) { m_outline_color = color; return *this; }
-    inline BaseSprite& set_outline_thickness(const float thickness) { m_outline_thickness = thickness; return *this; }
-    inline BaseSprite& set_anchor(Anchor anchor) { m_anchor = anchor; return *this; }
-    inline BaseSprite& set_flip_x(bool flip_x) { m_flip_x = flip_x; return *this; }
-    inline BaseSprite& set_flip_y(bool flip_y) { m_flip_y = flip_y; return *this; }
-    inline BaseSprite& set_ignore_camera_zoom(bool ignore) { m_ignore_camera_zoom = ignore; return *this; }
-    inline BaseSprite& set_z(float z) { m_z = z; return *this; }
+    inline BaseSprite& set_position(const glm::vec2& position) noexcept {
+        m_position = position;
+        return *this;
+    }
+
+    inline BaseSprite& set_rotation(const glm::quat& rotation) noexcept {
+        m_rotation = rotation;
+        return *this;
+    }
+
+    inline BaseSprite& set_scale(const glm::vec2& scale) noexcept {
+        m_scale = scale;
+        return *this;
+    }
+
+    inline BaseSprite& set_scale(const float scale) noexcept {
+        m_scale = glm::vec2(scale);
+        return *this;
+    }
+
+    inline BaseSprite& set_custom_size(const std::optional<glm::vec2> size) noexcept {
+        m_custom_size = size;
+        return *this;
+    }
+
+    inline BaseSprite& set_color(const sge::LinearRgba& color) noexcept {
+        m_color = color;
+        return *this;
+    }
+
+    inline BaseSprite& set_outline_color(const sge::LinearRgba& color) noexcept {
+        m_outline_color = color;
+        return *this;
+    }
+
+    inline BaseSprite& set_outline_thickness(const float thickness) noexcept {
+        m_outline_thickness = thickness;
+        return *this;
+    }
+
+    inline BaseSprite& set_anchor(Anchor anchor) noexcept {
+        m_anchor = anchor;
+        return *this;
+    }
+
+    inline BaseSprite& set_flip_x(bool flip_x) noexcept {
+        m_flip_x = flip_x;
+        return *this;
+    }
+
+    inline BaseSprite& set_flip_y(bool flip_y) noexcept {
+        m_flip_y = flip_y;
+        return *this;
+    }
+
+    inline BaseSprite& set_ignore_camera_zoom(bool ignore) noexcept {
+        m_ignore_camera_zoom = ignore;
+        return *this;
+    }
+
+    inline BaseSprite& set_z(float z) noexcept {
+        m_z = z;
+        return *this;
+    }
 
 protected:
     glm::quat m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);

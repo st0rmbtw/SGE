@@ -25,11 +25,11 @@ private:
     };
 
 public:
-    static Attribute Vertex(LLGL::Format format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) {
+    static Attribute Vertex(LLGL::Format format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) noexcept {
         return Attribute(format, Type::PerVertex, name, semantic_name, slot);
     }
 
-    static Attribute Instance(LLGL::Format format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) {
+    static Attribute Instance(LLGL::Format format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) noexcept {
         return Attribute(format, Type::PerInstance, name, semantic_name, slot);
     }
 

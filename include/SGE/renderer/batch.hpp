@@ -228,37 +228,42 @@ public:
     Batch(Batch&&) = default;
     Batch& operator=(Batch&&) = default;
 
-    inline void SetDepthEnabled(bool depth_enabled) { m_depth_enabled = depth_enabled; }
-    inline void SetIsUi(bool is_ui) { m_is_ui = is_ui; }
+    inline void SetDepthEnabled(bool depth_enabled) noexcept {
+        m_depth_enabled = depth_enabled;
+    }
 
-    inline void SetBlendMode(sge::BlendMode blend_mode) {
+    inline void SetIsUi(bool is_ui) noexcept {
+        m_is_ui = is_ui;
+    }
+
+    inline void SetBlendMode(sge::BlendMode blend_mode) noexcept {
         m_blend_mode = blend_mode;
     }
 
-    inline void BeginBlendMode(sge::BlendMode blend_mode) {
+    inline void BeginBlendMode(sge::BlendMode blend_mode) noexcept {
         m_prev_blend_mode = m_blend_mode;
         m_blend_mode = blend_mode;
     }
 
-    inline void EndBlendMode() {
+    inline void EndBlendMode() noexcept {
         m_blend_mode = m_prev_blend_mode;
     }
 
-    inline void BeginOrderMode(int order, bool advance) {
+    inline void BeginOrderMode(int order, bool advance) noexcept {
         m_order_mode = true;
         m_global_order.value = order < 0 ? m_order : order;
         m_global_order.advance = advance;
     }
 
-    inline void BeginOrderMode(int order = -1) {
+    inline void BeginOrderMode(int order = -1) noexcept {
         BeginOrderMode(order, true);
     }
 
-    inline void BeginOrderMode(bool advance) {
+    inline void BeginOrderMode(bool advance) noexcept {
         BeginOrderMode(-1, advance);
     }
 
-    inline void EndOrderMode() {
+    inline void EndOrderMode() noexcept {
         m_order_mode = false;
         m_global_order.value = 0;
         m_global_order.advance = false;
@@ -319,21 +324,49 @@ public:
     }
 
     [[nodiscard]]
-    inline bool DepthEnabled() const { return m_depth_enabled; }
+    inline bool DepthEnabled() const noexcept {
+        return m_depth_enabled;
+    }
 
     [[nodiscard]]
-    inline bool IsUi() const { return m_is_ui; }
+    inline bool IsUi() const noexcept {
+        return m_is_ui;
+    }
 
     [[nodiscard]]
-    inline uint32_t order() const { return m_order; }
+    inline uint32_t order() const noexcept {
+        return m_order;
+    }
 
-    [[nodiscard]] inline const Data& sprite_data() const { return m_sprite_data; }
-    [[nodiscard]] inline const Data& glyph_data() const { return m_glyph_data; }
-    [[nodiscard]] inline const Data& ninepatch_data() const { return m_ninepatch_data; }
-    [[nodiscard]] inline const Data& shape_data() const { return m_shape_data; }
-    [[nodiscard]] inline const Data& line_data() const { return m_line_data; }
+    [[nodiscard]]
+    inline const Data& sprite_data() const noexcept {
+        return m_sprite_data;
+    }
 
-    [[nodiscard]] inline LLGL::PipelineState* glyph_pipeline() const { return m_glyph_pipeline; }
+    [[nodiscard]]
+    inline const Data& glyph_data() const noexcept {
+        return m_glyph_data;
+    }
+
+    [[nodiscard]]
+    inline const Data& ninepatch_data() const noexcept {
+        return m_ninepatch_data;
+    }
+
+    [[nodiscard]]
+    inline const Data& shape_data() const noexcept {
+        return m_shape_data;
+    }
+
+    [[nodiscard]]
+    inline const Data& line_data() const noexcept {
+        return m_line_data;
+    }
+
+    [[nodiscard]]
+    inline LLGL::PipelineState* glyph_pipeline() const noexcept {
+        return m_glyph_pipeline;
+    }
 
     inline uint32_t GetNextOrder(Order custom_order = {});
 
@@ -351,19 +384,55 @@ private:
 
     inline void set_draw_commands_done(size_t count) { m_draw_commands_done = count; }
 
-    [[nodiscard]] inline size_t draw_commands_done() const { return m_draw_commands_done; }
+    [[nodiscard]]
+    inline size_t draw_commands_done() const noexcept {
+        return m_draw_commands_done;
+    }
 
-    [[nodiscard]] inline const FlushQueue& flush_queue() const { return m_flush_queue; }
-    [[nodiscard]] inline FlushQueue& flush_queue() { return m_flush_queue; }
+    [[nodiscard]]
+    inline const FlushQueue& flush_queue() const noexcept {
+        return m_flush_queue;
+    }
 
-    [[nodiscard]] inline const DrawCommands& draw_commands() const { return m_draw_commands; }
-    [[nodiscard]] inline DrawCommands& draw_commands() { return m_draw_commands; }
+    [[nodiscard]]
+    inline FlushQueue& flush_queue() noexcept {
+        return m_flush_queue;
+    }
 
-    [[nodiscard]] inline Data& sprite_data() { return m_sprite_data; }
-    [[nodiscard]] inline Data& glyph_data() { return m_glyph_data; }
-    [[nodiscard]] inline Data& ninepatch_data() { return m_ninepatch_data; }
-    [[nodiscard]] inline Data& shape_data() { return m_shape_data; }
-    [[nodiscard]] inline Data& line_data() { return m_line_data; }
+    [[nodiscard]]
+    inline const DrawCommands& draw_commands() const noexcept {
+        return m_draw_commands;
+    }
+
+    [[nodiscard]]
+    inline DrawCommands& draw_commands() noexcept {
+        return m_draw_commands;
+    }
+
+    [[nodiscard]]
+    inline Data& sprite_data() noexcept {
+        return m_sprite_data;
+    }
+    
+    [[nodiscard]]
+    inline Data& glyph_data() noexcept {
+        return m_glyph_data;
+    }
+
+    [[nodiscard]]
+    inline Data& ninepatch_data() noexcept {
+        return m_ninepatch_data;
+    }
+
+    [[nodiscard]]
+    inline Data& shape_data() noexcept {
+        return m_shape_data;
+    }
+    
+    [[nodiscard]]
+    inline Data& line_data() noexcept {
+        return m_line_data;
+    }
 
 private:
     static constexpr size_t MAX_QUADS = 2500;

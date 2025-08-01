@@ -12,7 +12,7 @@ struct Vertex {
     float x;
     float y;
 
-    explicit Vertex(float x, float y) : x(x), y(y) {}
+    explicit Vertex(float x, float y) noexcept : x(x), y(y) {}
 };
 
 struct LineInstance {

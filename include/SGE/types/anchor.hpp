@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 #include <SGE/assert.hpp>
 #include <glm/vec2.hpp>
@@ -32,11 +32,13 @@ public:
     constexpr operator Type() const { return m_value; }
     explicit operator bool() const = delete;
 
+    [[nodiscard]]
     inline glm::vec2 operator*(const glm::vec2& vec) const noexcept {
         return to_vec2() * vec;
     }
 
-    [[nodiscard]] constexpr inline glm::vec2 to_vec2() const noexcept {
+    [[nodiscard]]
+    constexpr inline glm::vec2 to_vec2() const noexcept {
         switch (m_value) {
         case Anchor::Center:       return {0.5f, 0.5f};
         case Anchor::TopLeft:      return {0.0f, 0.0f};

@@ -10,7 +10,7 @@ _SGE_BEGIN
 struct Order {
     constexpr Order() = default;
 
-    explicit constexpr Order(int order, bool advance = true) :
+    explicit constexpr Order(int order, bool advance = true) noexcept :
         value(order),
         advance(advance) {}
 

@@ -27,15 +27,30 @@ class Stopwatch {
 public:
     using duration_t = Duration::Nanos;
 
-    Stopwatch() : m_elapsed(duration_t::zero()) {}
+    Stopwatch() noexcept :
+        m_elapsed(duration_t::zero()) {}
 
-    [[nodiscard]] inline duration_t elapsed() const { return m_elapsed; }
-    [[nodiscard]] inline bool paused() const { return m_paused; }
-    [[nodiscard]] inline float elapsed_secs() const { return Duration::Cast<Duration::Seconds>(m_elapsed).count(); }
+    [[nodiscard]] inline duration_t elapsed() const noexcept {
+        return m_elapsed;
+    }
+    
+    [[nodiscard]] inline bool paused() const noexcept {
+        return m_paused;
+    }
 
-    inline void reset() { m_elapsed = duration_t::zero(); }
-    inline void pause() { m_paused = true; }
-    inline void unpause() { m_paused = false; }
+    [[nodiscard]] inline float elapsed_secs() const noexcept {
+        return Duration::Cast<Duration::Seconds>(m_elapsed).count();
+    }
+
+    inline void reset() noexcept {
+        m_elapsed = duration_t::zero();
+    }
+    inline void pause() noexcept {
+        m_paused = true;
+    }
+    inline void unpause() noexcept {
+        m_paused = false;
+    }
 
     template <class Rep, class Period>
     inline void set_elapsed(const std::chrono::duration<Rep, Period>& elapsed) {

@@ -17,7 +17,7 @@
 _SGE_BEGIN
 
 struct RichTextSection {
-    RichTextSection(std::string_view text, float size = 14.0f, sge::LinearRgba color = sge::LinearRgba(1.0f)) :
+    RichTextSection(std::string_view text, float size = 14.0f, sge::LinearRgba color = sge::LinearRgba(1.0f)) noexcept :
         size(size),
         color(color),
         text(text) {}
@@ -35,8 +35,15 @@ public:
     explicit inline RichText(std::string_view text, float size, sge::LinearRgba color) :
         m_sections{RichTextSection(text, size, color)} {}
     
-    [[nodiscard]] inline const sections_t& sections() const { return m_sections; }
-    [[nodiscard]] constexpr inline size_t size() const { return 1; }
+    [[nodiscard]]
+    inline const sections_t& sections() const noexcept {
+        return m_sections;
+    }
+
+    [[nodiscard]]
+    constexpr inline size_t size() const noexcept {
+        return 1;
+    }
 
 private:
     sections_t m_sections;

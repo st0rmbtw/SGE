@@ -22,7 +22,7 @@ namespace TextureSampler {
     };
 
     [[nodiscard]]
-    inline constexpr uint8_t DisableMips(uint8_t sampler) {
+    inline constexpr uint8_t DisableMips(uint8_t sampler) noexcept {
         switch (sampler) {
             case LinearMips: return Linear;
             case NearestMips: return Nearest;
@@ -31,7 +31,7 @@ namespace TextureSampler {
     }
 
     [[nodiscard]]
-    inline constexpr uint8_t EnableMips(uint8_t sampler) {
+    inline constexpr uint8_t EnableMips(uint8_t sampler) noexcept {
         switch (sampler) {
             case Linear: return LinearMips;
             case Nearest: return NearestMips;

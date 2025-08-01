@@ -26,12 +26,33 @@ struct TextureAtlas {
 
     static TextureAtlas from_grid(const Texture& texture, const glm::uvec2& tile_size, uint32_t columns, uint32_t rows, const glm::uvec2& padding = glm::uvec2(0), const glm::uvec2& offset = glm::uvec2(0));
 
-    [[nodiscard]] inline const std::vector<sge::Rect>& rects() const { return m_rects; }
-    [[nodiscard]] inline const Texture& texture() const { return m_texture; }
-    [[nodiscard]] inline const glm::uvec2& size() const { return m_size; }
-    [[nodiscard]] inline uint32_t columns() const { return m_columns; }
-    [[nodiscard]] inline uint32_t rows() const { return m_rows; }
-    [[nodiscard]] const sge::Rect& get_rect(size_t index) const {
+    [[nodiscard]]
+    inline const std::vector<sge::Rect>& rects() const noexcept {
+        return m_rects;
+    }
+
+    [[nodiscard]]
+    inline const Texture& texture() const noexcept {
+        return m_texture;
+    }
+
+    [[nodiscard]]
+    inline const glm::uvec2& size() const noexcept {
+        return m_size;
+    }
+
+    [[nodiscard]]
+    inline uint32_t columns() const noexcept {
+        return m_columns;
+    }
+
+    [[nodiscard]]
+    inline uint32_t rows() const noexcept {
+        return m_rows;
+    }
+
+    [[nodiscard]]
+    const sge::Rect& get_rect(size_t index) const noexcept {
         SGE_ASSERT(index < m_rects.size());
         return m_rects[index];
     }
