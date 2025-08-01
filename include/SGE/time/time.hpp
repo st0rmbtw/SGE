@@ -12,14 +12,14 @@ _SGE_BEGIN
 using delta_time_t = std::chrono::duration<float>;
 
 namespace Time {
-    const delta_time_t& Delta();
-    const delta_time_t FixedDelta();
-    float DeltaSeconds();
-    float ElapsedSeconds();
-    float FixedDeltaSeconds();
-    float FixedElapsedSeconds();
+    const delta_time_t& Delta() noexcept;
+    const delta_time_t FixedDelta() noexcept;
+    float DeltaSeconds() noexcept;
+    float ElapsedSeconds() noexcept;
+    float FixedDeltaSeconds() noexcept;
+    float FixedElapsedSeconds() noexcept;
 
-    void SetFixedTimestepSeconds(const float seconds);
+    void SetFixedTimestepSeconds(const float seconds) noexcept;
 
     template <class Rep, class Period>
     void SetFixedTimestep(const std::chrono::duration<Rep, Period>& delta) {

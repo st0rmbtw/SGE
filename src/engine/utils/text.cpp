@@ -3,7 +3,7 @@
 #include <SGE/profile.hpp>
 
 glm::vec2 sge::calculate_text_bounds(const sge::Font& font, size_t length, const char* text, float size) {
-    ZoneScopedN("Utils::calculate_text_bounds");
+    ZoneScoped;
 
     auto bounds = glm::vec2(0.0f);
     float prev_x = 0.0f;

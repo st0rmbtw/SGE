@@ -78,12 +78,12 @@ public:
         }
     }
 
-    inline void set_position(const glm::vec2& position) {
+    inline void set_position(const glm::vec2& position) noexcept {
         m_changed = true;
         m_position = position;
     }
 
-    inline void set_zoom(float zoom) {
+    inline void set_zoom(float zoom) noexcept {
         m_changed = true;
         m_zoom = zoom;
         update_projection_area();
@@ -96,13 +96,13 @@ public:
         update_projection_area();
     }
 
-    inline void set_flip_horizontal(bool flip_horizontal) {
+    inline void set_flip_horizontal(bool flip_horizontal) noexcept {
         m_changed = true;
         m_flip_horizontal = flip_horizontal;
         update_projection_area();
     }
 
-    inline void set_flip_vertical(bool flip_vertical) {
+    inline void set_flip_vertical(bool flip_vertical) noexcept {
         m_changed = true;
         m_flip_vertical = flip_vertical;
         update_projection_area();
@@ -112,73 +112,117 @@ public:
     auto screen_to_world(const glm::vec2 &screen_pos) const -> glm::vec2;
 
     [[nodiscard]]
-    inline auto position() const -> const glm::vec2& { return m_position; }
+    inline const glm::vec2& position() const noexcept {
+        return m_position;
+    }
 
     [[nodiscard]]
-    inline auto viewport() const -> const glm::uvec2& { return m_viewport; }
+    inline const glm::uvec2& viewport() const noexcept {
+        return m_viewport;
+    }
 
     [[nodiscard]]
-    inline auto get_projection_matrix() const -> const glm::mat4x4& { return m_projection_matrix; }
+    inline const glm::mat4x4& get_projection_matrix() const noexcept {
+        return m_projection_matrix;
+    }
 
     [[nodiscard]]
-    inline auto get_inv_view_projection_matrix() const -> const glm::mat4x4& { return m_inv_view_proj_matrix; }
+    inline const glm::mat4x4& get_inv_view_projection_matrix() const noexcept {
+        return m_inv_view_proj_matrix;
+    }
 
     [[nodiscard]]
-    inline auto get_view_projection_matrix() const -> const glm::mat4x4& { return m_view_proj_matrix; }
+    inline const glm::mat4x4& get_view_projection_matrix() const noexcept {
+        return m_view_proj_matrix;
+    }
 
     [[nodiscard]]
-    inline auto get_screen_projection_matrix() const -> const glm::mat4x4& { return m_screen_projection_matrix; }
+    inline const glm::mat4x4& get_screen_projection_matrix() const noexcept {
+        return m_screen_projection_matrix;
+    }
 
     [[nodiscard]]
-    inline auto get_nonscale_projection_matrix() const -> const glm::mat4x4& { return m_nozoom_projection_matrix; }
+    inline const glm::mat4x4& get_nonscale_projection_matrix() const noexcept {
+        return m_nozoom_projection_matrix;
+    }
 
     [[nodiscard]]
-    inline auto get_nonscale_view_projection_matrix() const -> const glm::mat4x4& { return m_nozoom_view_proj_matrix; }
+    inline const glm::mat4x4& get_nonscale_view_projection_matrix() const noexcept {
+        return m_nozoom_view_proj_matrix;
+    }
 
     [[nodiscard]]
-    inline auto get_view_matrix() const -> const glm::mat4x4& { return m_view_matrix; }
+    inline const glm::mat4x4& get_view_matrix() const noexcept {
+        return m_view_matrix;
+    }
 
     [[nodiscard]]
-    inline auto get_transform_matrix() const -> const glm::mat4x4& { return m_transform_matrix; }
+    inline const glm::mat4x4& get_transform_matrix() const noexcept {
+        return m_transform_matrix;
+    }
 
     [[nodiscard]]
-    inline auto get_projection_area() const -> const sge::Rect& { return m_area; }
+    inline const sge::Rect& get_projection_area() const noexcept {
+        return m_area;
+    }
 
     [[nodiscard]]
-    inline auto get_nozoom_projection_area() const -> const sge::Rect& { return m_area_nozoom; }
+    inline const sge::Rect& get_nozoom_projection_area() const noexcept {
+        return m_area_nozoom;
+    }
 
     [[nodiscard]]
-    inline float zoom() const { return m_zoom; }
+    inline float zoom() const noexcept {
+        return m_zoom;
+    }
 
     [[nodiscard]]
-    inline bool changed() const { return m_changed; }
+    inline bool changed() const noexcept {
+        return m_changed;
+    }
 
     [[nodiscard]]
-    inline bool flip_horizontal() const { return m_flip_horizontal; }
+    inline bool flip_horizontal() const noexcept {
+        return m_flip_horizontal;
+    }
 
     [[nodiscard]]
-    inline bool flip_vertical() const { return m_flip_vertical; }
+    inline bool flip_vertical() const noexcept {
+        return m_flip_vertical;
+    }
 
     [[nodiscard]]
-    inline float right() const { return m_right; }
+    inline float right() const noexcept {
+        return m_right;
+    }
 
     [[nodiscard]]
-    inline float up() const { return m_up; }
+    inline float up() const noexcept {
+        return m_up;
+    }
 
     [[nodiscard]]
-    inline float forward() const { return m_forward; }
+    inline float forward() const noexcept {
+        return m_forward;
+    }
 
     [[nodiscard]]
-    inline float left() const { return -m_right; }
+    inline float left() const noexcept {
+        return -m_right;
+    }
 
     [[nodiscard]]
-    inline float down() const { return -m_up; }
+    inline float down() const noexcept {
+        return -m_up;
+    }
 
     [[nodiscard]]
-    inline float backward() const { return -m_forward; }
+    inline float backward() const noexcept {
+        return -m_forward;
+    }
 
     [[nodiscard]]
-    inline glm::vec2 screen_center() const {
+    inline glm::vec2 screen_center() const noexcept {
         switch (m_origin) {
 
         case CameraOrigin::TopLeft: {
@@ -200,12 +244,12 @@ public:
 
 private:
     void compute_projection_and_view_matrix();
-    void update_projection_area();
+    void update_projection_area() noexcept;
     void compute_transform_matrix() {
         m_transform_matrix = glm::translate(glm::mat4(1.0), glm::vec3(m_position, 0.));
     }
 
-    void set_coordinate_system(CoordinateSystem coordinate_system) {
+    void set_coordinate_system(CoordinateSystem coordinate_system) noexcept {
         switch (coordinate_system.right) {
         case CoordinateDirectionX::Positive:
             m_right = 1.0f;

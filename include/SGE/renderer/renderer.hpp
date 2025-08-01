@@ -148,13 +148,13 @@ struct SGE_ALIGN(16) ProjectionsUniform {
 };
 
 template <typename Container>
-static constexpr inline std::size_t GetArraySize(const Container& container)
+static constexpr inline std::size_t GetArraySize(const Container& container) noexcept
 {
     return (container.size() * sizeof(typename Container::value_type));
 }
 
 template <typename T, std::size_t N>
-static constexpr inline std::size_t GetArraySize(const T (&)[N])
+static constexpr inline std::size_t GetArraySize(const T (&)[N]) noexcept
 {
     return (N * sizeof(T));
 }
@@ -258,20 +258,56 @@ public:
         return m_context->CreateBuffer(bufferDesc);
     }
 
-    [[nodiscard]] inline const LLGL::RenderSystemPtr& Context() const { return m_context; }
-    [[nodiscard]] inline LLGL::SwapChain* SwapChain() const { return m_swap_chain; };
-    [[nodiscard]] inline LLGL::CommandBuffer* CommandBuffer() const { return m_command_buffer; };
-    [[nodiscard]] inline LLGL::CommandQueue* CommandQueue() const { return m_command_queue; };
-    [[nodiscard]] inline const std::shared_ptr<GlfwSurface>& Surface() const { return m_surface; };
-    [[nodiscard]] inline LLGL::Buffer* GlobalUniformBuffer() const { return m_constant_buffer; };
-    [[nodiscard]] inline sge::RenderBackend Backend() const { return m_backend; };
+    [[nodiscard]]
+    inline const LLGL::RenderSystemPtr& Context() const noexcept {
+        return m_context;
+    }
+
+    [[nodiscard]]
+    inline LLGL::SwapChain* SwapChain() const noexcept {
+        return m_swap_chain;
+    }
+
+    [[nodiscard]]
+    inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
+        return m_command_buffer;
+    }
+
+    [[nodiscard]]
+    inline LLGL::CommandQueue* CommandQueue() const noexcept {
+        return m_command_queue;
+    }
+
+    [[nodiscard]]
+    inline const std::shared_ptr<GlfwSurface>& Surface() const noexcept {
+        return m_surface;
+    }
+
+    [[nodiscard]]
+    inline LLGL::Buffer* GlobalUniformBuffer() const noexcept {
+        return m_constant_buffer;
+    }
+
+    [[nodiscard]]
+    inline sge::RenderBackend Backend() const noexcept {
+        return m_backend;
+    }
 
 #if SGE_DEBUG
-    [[nodiscard]] inline LLGL::RenderingDebugger* Debugger() const { return m_debugger; }
+    [[nodiscard]] inline LLGL::RenderingDebugger* Debugger() const noexcept {
+        return m_debugger;
+    }
 #endif
 
-    [[nodiscard]] inline const LLGL::RendererInfo& GetRendererInfo() const { return m_context->GetRendererInfo(); }
-    [[nodiscard]] inline const LLGL::RenderingCapabilities& GetRenderingCaps() const { return m_context->GetRenderingCaps(); }
+    [[nodiscard]]
+    inline const LLGL::RendererInfo& GetRendererInfo() const noexcept {
+        return m_context->GetRendererInfo();
+    }
+
+    [[nodiscard]]
+    inline const LLGL::RenderingCapabilities& GetRenderingCaps() const noexcept {
+        return m_context->GetRenderingCaps();
+    }
 
 private:
     SpriteBatchPipeline CreateSpriteBatchPipeline(LLGL::Shader* fragment_shader);

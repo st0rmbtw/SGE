@@ -663,7 +663,7 @@ LLGL::PipelineState* Renderer::CreateLineBatchPipeline() {
 
 
 SpriteBatchData Renderer::InitSpriteBatchData() {
-    ZoneScopedN("Renderer::InitSpriteBatchData");
+    ZoneScoped;
 
     BatchVertexFormats vertex_formats = SpriteBatchVertexFormats(m_backend);
 
@@ -677,7 +677,7 @@ SpriteBatchData Renderer::InitSpriteBatchData() {
 }
 
 NinePatchBatchData Renderer::InitNinepatchBatchData() {
-    ZoneScopedN("Renderer::InitNinepatchBatchData");
+    ZoneScoped;
 
     BatchVertexFormats vertex_formats = NinepatchBatchVertexFormats(m_backend);
 
@@ -688,7 +688,7 @@ NinePatchBatchData Renderer::InitNinepatchBatchData() {
 }
 
 GlyphBatchData Renderer::InitGlyphBatchData() {
-    ZoneScopedN("Renderer::InitGlyphBatchData");
+    ZoneScoped;
 
     BatchVertexFormats vertex_formats = GlyphBatchVertexFormats(m_backend);
 
@@ -720,7 +720,7 @@ LineBatchData Renderer::InitLineBatchData() {
 }
 
 bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path) {
-    ZoneScopedN("Renderer::InitEngine");
+    ZoneScoped;
 
     LLGL::Report report;
 
@@ -775,7 +775,7 @@ static SGE_FORCE_INLINE LLGL::Shader* CreateBatchVertexShader(const Renderer& re
 }
 
 bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const WindowSettings& settings) {
-    ZoneScopedN("Renderer::Init");
+    ZoneScoped;
 
     const LLGL::RenderSystemPtr& context = m_context;
 
@@ -830,7 +830,7 @@ void Renderer::ResizeBuffers(LLGL::Extent2D size) {
 }
 
 void Renderer::Begin(const Camera& camera) {
-    ZoneScopedN("Renderer::Begin");
+    ZoneScoped;
 
     m_viewport = camera.viewport();
 
@@ -863,7 +863,7 @@ void Renderer::BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Vie
 }
 
 void Renderer::End() {
-    ZoneScopedN("Renderer::End");
+    ZoneScoped;
 
     m_command_buffer->End();
     m_command_queue->Submit(*m_command_buffer);
@@ -892,7 +892,7 @@ static SGE_FORCE_INLINE LLGL::PipelineState* GetDepthPipelineByBlendMode(sge::Bl
 }
 
 void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
-    ZoneScopedN("Renderer::ApplyBatchDrawCommands");
+    ZoneScoped;
 
     sge::Batch::FlushQueue& flush_queue = batch.flush_queue();
 
@@ -981,7 +981,7 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
 }
 
 void Renderer::SortBatchDrawCommands(sge::Batch& batch) {
-    ZoneScopedN("Renderer::SortBatchDrawCommands");
+    ZoneScoped;
 
     sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
@@ -1017,7 +1017,7 @@ void Renderer::UpdateBatchBuffers(
     sge::Batch& batch,
     size_t begin
 ) {
-    ZoneScopedN("Renderer::UpdateBatchBuffers");
+    ZoneScoped;
 
     const sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
@@ -1430,7 +1430,7 @@ void Renderer::UploadBatchData() {
 }
 
 void Renderer::RenderBatch(sge::Batch& batch) {
-    ZoneScopedN("Renderer::RenderBatch");
+    ZoneScoped;
 
     const sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
@@ -1464,13 +1464,13 @@ void Renderer::RenderBatch(sge::Batch& batch) {
 }
 
 Sampler Renderer::CreateSampler(const LLGL::SamplerDescriptor& descriptor) {
-    ZoneScopedN("Renderer::CreateSampler");
+    ZoneScoped;
     LLGL::Sampler* sampler = m_context->CreateSampler(descriptor);
     return Sampler(sampler, descriptor);
 }
 
 Texture Renderer::CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const Sampler& sampler, const void* data, bool generate_mip_maps) {
-    ZoneScopedN("Renderer::CreateTexture");
+    ZoneScoped;
 
     LLGL::TextureDescriptor texture_desc;
     texture_desc.type = type;
@@ -1495,7 +1495,7 @@ Texture Renderer::CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_
 }
 
 LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
-    ZoneScopedN("Renderer::LoadShader");
+    ZoneScoped;
 
     const RenderBackend backend = m_backend;
     const ShaderType shader_type = shader_path.shader_type;

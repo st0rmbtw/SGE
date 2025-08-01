@@ -150,7 +150,7 @@ uint32_t Engine::GetFrameCount() {
 }
 
 bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::Extent2D& output_viewport) {
-    ZoneScopedN("Engine::Init");
+    ZoneScoped;
 
 #if SGE_PLATFORM_LINUX
     glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);

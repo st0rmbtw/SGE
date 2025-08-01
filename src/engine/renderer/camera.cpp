@@ -6,7 +6,7 @@
 
 using namespace sge;
 
-void Camera::update_projection_area() {
+void Camera::update_projection_area() noexcept {
     glm::vec2 viewport = glm::vec2(m_viewport);
 
     switch (m_origin) {
