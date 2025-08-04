@@ -58,8 +58,6 @@ endif()
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 
-set(LLGL_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
-
 if(SGE_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
