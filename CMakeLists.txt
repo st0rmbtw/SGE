@@ -18,6 +18,7 @@ find_package(Python REQUIRED COMPONENTS Interpreter)
 option(SGE_BUILD_STATIC "Build SGE as static library" ON)
 option(SGE_BUILD_EXAMPLES "Build examples" OFF)
 option(SGE_ENABLE_PROFILE "Enable profiling via Tracy" OFF)
+option(SGE_BACKEND_VULKAN "Enable the Vulkan backend" OFF)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 
@@ -39,8 +40,11 @@ if (APPLE)
     set(LLGL_BUILD_RENDERER_METAL ON CACHE BOOL "" FORCE)
 else()
     set(LLGL_BUILD_RENDERER_METAL OFF CACHE BOOL "" FORCE)
-    set(LLGL_BUILD_RENDERER_VULKAN ON CACHE BOOL "" FORCE)
     set(LLGL_VK_ENABLE_SPIRV_REFLECT ON CACHE BOOL "" FORCE)
+endif()
+
+if (SGE_BACKEND_VULKAN)
+    set(LLGL_BUILD_RENDERER_VULKAN ON CACHE BOOL "" FORCE)
 endif()
 
 if (WIN32)
