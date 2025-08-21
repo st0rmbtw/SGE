@@ -4,6 +4,10 @@
 #include <type_traits>
 #include <initializer_list>
 
+#include "../defines.hpp"
+
+_SGE_BEGIN
+
 template <typename T>
 class BitFlags {
     static_assert(std::is_enum_v<T>, "BitFlags can only be specialized for enum types");
@@ -30,6 +34,10 @@ public:
     inline constexpr BitFlags& operator|=(const T e) noexcept {
         m_data |= underlying(e);
         return *this;
+    }
+
+    inline constexpr void reset() noexcept {
+        m_data = static_cast<UnderlyingT>(0);
     }
 
     [[nodiscard]]
@@ -61,5 +69,7 @@ private:
 private:
     UnderlyingT m_data = static_cast<UnderlyingT>(0);
 };
+
+_SGE_END
 
 #endif

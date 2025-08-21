@@ -160,6 +160,7 @@ def main():
 
             ps = subprocess.Popen(
                 (f"glslang{ext}", "-V", "--enhanced-msgs", "-o", path, str(item)),
+                shell=True
             )
             ps.wait()
 
