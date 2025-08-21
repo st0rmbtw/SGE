@@ -1,57 +1,49 @@
-#include <metal_stdlib>
-
-using namespace metal;
-
-struct Constants
+[vk::binding(2)]
+cbuffer GlobalUniformBuffer : register( b2 )
 {
-    float4x4 screen_projection;
-    float4x4 view_projection;
-    float4x4 nozoom_view_projection;
-    float4x4 nozoom_projection;
-    float4x4 transform_matrix;
-    float4x4 inv_view_proj;
-    float2 camera_position;
-    float2 window_size;
+    float4x4 u_screen_projection;
+    float4x4 u_view_projection;
+    float4x4 u_transform_matrix;
+    float2 u_camera_position;
+    float2 u_window_size;
 };
 
-struct VertexIn
+struct VSInput
 {
-    float2 position [[attribute(0)]];
+    float2 position : Position;
 
-    float3 i_position [[attribute(1)]];
-    float2 i_size [[attribute(2)]];
-    float2 i_offset [[attribute(3)]];
-    float4 i_color [[attribute(4)]];
-    float4 i_border_color [[attribute(5)]];
-    float4 i_border_radius[[attribute(6)]];
-    float i_border_thickness [[attribute(7)]];
-    uint i_shape [[attribute(8)]];
-    uint i_flags [[attribute(9)]];
+    float3 i_position : I_Position;
+    float2 i_size : I_Size;
+    float2 i_offset : I_Offset;
+    float4 i_color : I_Color;
+    float4 i_border_color : I_BorderColor;
+    float4 i_border_radius: I_BorderRadius;
+    float i_border_thickness : I_BorderThickness;
+    uint i_shape : I_Shape;
+    uint i_flags : I_Flags;
 };
 
-struct VertexOut
+struct VSOutput
 {
-    float4 position [[position]];
-
-    float2 uv;
-    float2 p;
-    float2 size [[flat]];
-    float4 color [[flat]];
-    float4 border_color [[flat]];
-    float4 border_radius [[flat]];
-    float border_thickness [[flat]];
-    uint shape [[flat]];
+    float4 position : SV_Position;
+    float2 uv : UV;
+    float2 p  : Point;
+    nointerpolation float2 size : Size;
+    nointerpolation float4 color : Color;
+    nointerpolation float4 border_color : BorderColor;
+    nointerpolation float4 border_radius : BorderRadius;
+    nointerpolation float border_thickness : BorderThickness;
+    nointerpolation uint shape : Shape;
 };
 
-constant const uint FLAG_UI = 1 << 0;
+static const uint FLAG_UI = 1 << 0;
 
-constant const uint SHAPE_CIRCLE = 1;
-constant const uint SHAPE_ARC = 2;
+static const uint SHAPE_CIRCLE = 1;
+static const uint SHAPE_ARC = 2;
 
-vertex VertexOut VS(
-    VertexIn inp [[stage_in]],
-    constant Constants& constants [[buffer(2)]]
-) {
+[shader("vertex")]
+VSOutput VS(VSInput inp)
+{
     // const float qxx = inp.i_rotation.x * inp.i_rotation.x;
     // const float qyy = inp.i_rotation.y * inp.i_rotation.y;
     // const float qzz = inp.i_rotation.z * inp.i_rotation.z;
@@ -63,37 +55,47 @@ vertex VertexOut VS(
     // const float qwz = inp.i_rotation.w * inp.i_rotation.z;
 
     // const float4x4 rotation_matrix = float4x4(
-    //     float4(1.0 - 2.0 * (qyy + qzz), 2.0 * (qxy + qwz), 2.0 * (qxz - qwy), 0.0),
-    //     float4(2.0 * (qxy - qwz), 1.0 - 2.0 * (qxx +  qzz), 2.0 * (qyz + qwx), 0.0),
-    //     float4(2.0 * (qxz + qwy), 2.0 * (qyz - qwx), 1.0 - 2.0 * (qxx +  qyy), 0.0),
-    //     float4(0.0, 0.0, 0.0, 1.0)
+    //     float4(1.0 - 2.0 * (qyy + qzz), 2.0 * (qxy - qwz)      , 2.0 * (qxz + qwy)      , 0.0),
+    //     float4(2.0 * (qxy + qwz)      , 1.0 - 2.0 * (qxx + qzz), 2.0 * (qyz - qwx)      , 0.0),
+    //     float4(2.0 * (qxz - qwy)      , 2.0 * (qyz + qwx)      , 1.0 - 2.0 * (qxx + qyy), 0.0),
+    //     float4(0.0                    , 0.0                    , 0.0                    , 1.0)
     // );
 
     float4x4 transform = float4x4(
-        float4(1.0, 0.0, 0.0, 0.0),
-        float4(0.0, 1.0, 0.0, 0.0),
+        float4(1.0, 0.0, 0.0, inp.i_position.x),
+        float4(0.0, 1.0, 0.0, inp.i_position.y),
         float4(0.0, 0.0, 1.0, 0.0),
-        float4(inp.i_position.x, inp.i_position.y, 0.0, 1.0)
+        float4(0.0, 0.0, 0.0, 1.0)
     );
 
-    // transform = transform * rotation_matrix;
+    // transform = mul(transform, rotation_matrix);
 
     const float2 offset = -inp.i_offset * inp.i_size;
 
     // translate
-    transform[3] = transform[0] * offset[0] + transform[1] * offset[1] + transform[2] * 0.0 + transform[3];
+    transform[0][3] = transform[0][0] * offset[0] + transform[0][1] * offset[1] + transform[0][2] * 0.0 + transform[0][3];
+    transform[1][3] = transform[1][0] * offset[0] + transform[1][1] * offset[1] + transform[1][2] * 0.0 + transform[1][3];
+    transform[2][3] = transform[2][0] * offset[0] + transform[2][1] * offset[1] + transform[2][2] * 0.0 + transform[2][3];
+    transform[3][3] = transform[3][0] * offset[0] + transform[3][1] * offset[1] + transform[3][2] * 0.0 + transform[3][3];
 
-    // scale
-    transform[0] = transform[0] * inp.i_size[0];
-    transform[1] = transform[1] * inp.i_size[1];
+    //scale
+    transform[0][0] = transform[0][0] * inp.i_size[0];
+    transform[1][0] = transform[1][0] * inp.i_size[0];
+    transform[2][0] = transform[2][0] * inp.i_size[0];
+    transform[3][0] = transform[3][0] * inp.i_size[0];
+
+    transform[0][1] = transform[0][1] * inp.i_size[1];
+    transform[1][1] = transform[1][1] * inp.i_size[1];
+    transform[2][1] = transform[2][1] * inp.i_size[1];
+    transform[3][1] = transform[3][1] * inp.i_size[1];
 
     const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
 
-    const float4x4 mvp = (is_ui ? constants.screen_projection : constants.view_projection) * transform;
+    const float4x4 mvp = mul(is_ui ? u_screen_projection : u_view_projection, transform);
     const float2 position = inp.position;
 
-    VertexOut outp;
-    outp.position = mvp * float4(position, 0.0, 1.0);
+    VSOutput outp;
+    outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = inp.i_position.z;
     outp.uv = position;
     outp.p = (position - 0.5) * inp.i_size;
@@ -104,21 +106,21 @@ vertex VertexOut VS(
     outp.border_radius = inp.i_border_radius;
     outp.shape = inp.i_shape;
 
-    return outp;
+	return outp;
 }
 
 float sdf_circle(float2 p, float radius) {
     return length(p) - radius;
 }
 
-constant constexpr float PI = 3.1415926535;
-constant constexpr float TAU = 6.283185307179586;
+static const float PI = 3.1415926535;
+static const float TAU = 6.283185307179586;
 
 float mod(float x, float y) {
     return x - y * floor(x/y);
 }
 
-float arc_sdf(float2 p, float a0, float a1, float r )
+float arc_sdf(in float2 p, in float a0, in float a1, in float r )
 {
     float a = mod(atan2(p.y, p.x), TAU);
 
@@ -140,6 +142,7 @@ float arc_sdf(float2 p, float a0, float a1, float r )
 
     return abs(length(p) - r);
 }
+
 
 // The returned value is the shortest distance from the given point to the boundary of the rounded
 // box.
@@ -218,11 +221,9 @@ float antialias_circle(float d) {
     return 1.0 - smoothstep(0.0, afwidth, d);
 }
 
-fragment float4 PS(
-    VertexOut inp [[stage_in]],
-    texture2d<float> texture [[texture(3)]],
-    sampler texture_sampler [[sampler(4)]]
-) {
+[shader("fragment")]
+float4 PS(VSOutput inp) : SV_Target
+{
     float4 result = inp.color;
 
     if (inp.shape == SHAPE_CIRCLE) {
@@ -238,10 +239,10 @@ fragment float4 PS(
             float border_alpha = antialias_circle(border_distance);
 
             float4 color = float4(inp.color.rgb, min(inp.color.a, alpha));
-            float4 color_with_border = mix(color, inp.border_color, min(inp.border_color.a, min(border_alpha, alpha)));
+            float4 color_with_border = lerp(color, inp.border_color, min(inp.border_color.a, min(border_alpha, alpha)));
 
             result = internal_distance > 0.0 && border_alpha < 1.0
-                ? mix(float4(0.0, 0.0, 0.0, 0.0), inp.border_color, border_alpha)
+                ? lerp(float4(0.0, 0.0, 0.0, 0.0), inp.border_color, border_alpha)
                 : color_with_border;
         } else {
             result = float4(inp.color.rgb, min(inp.color.a, alpha));
@@ -255,41 +256,41 @@ fragment float4 PS(
         float2 p = ((float2(inp.uv.x, 1.0 - inp.uv.y) * 2.0 - 1.0) * inp.size) / inp.size.y;
 
         float d = arc_sdf(p, start_angle, end_angle, 1.0 - thickness);
-        float aa = length(float2(dfdx(d), dfdy(d)));
+        float aa = length(float2(ddx(d), ddy(d)));
 
         float alpha = 1.0 - smoothstep(thickness - aa, thickness, d);
 
-        result = float4(inp.color.rgb, min(inp.color.a, alpha));
+        return float4(inp.color.rgb, min(inp.color.a, alpha));
+    } else {
+        float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
+
+        if (radius > 0.0 || inp.border_thickness > 0.0) {
+            // Signed distance from the exterior boundary.
+            float external_distance = sd_rounded_box(inp.p, inp.size, inp.border_radius);
+
+            // Signed distance from the border's internal edge (the signed distance is negative if the point
+            // is inside the rect but not on the border).
+            // If the border size is set to zero, this is the same as the external distance.
+            float internal_distance = sd_inset_rounded_box(inp.p, inp.size, inp.border_radius, float4(inp.border_thickness, inp.border_thickness, inp.border_thickness, inp.border_thickness));
+
+            // Signed distance from the border (the intersection of the rect with its border).
+            // Points inside the border have negative signed distance. Any point outside the border, whether
+            // outside the outside edge, or inside the inner edge have positive signed distance.
+            float border_distance = max(external_distance, -internal_distance);
+
+            float border_alpha = antialias(border_distance);
+            float smoothed_alpha = antialias(external_distance);
+
+            float4 quad_color = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
+            float4 quad_color_with_border = lerp(quad_color, inp.border_color, min(inp.border_color.a, min(border_alpha, smoothed_alpha)));
+
+            result = internal_distance > 0.0 && border_alpha < 1.0
+                ? float4(inp.border_color.rgb, border_alpha)
+                : quad_color_with_border;
+        }
     }
 
-    float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
-
-    if (radius > 0.0 || inp.border_thickness > 0.0) {
-        // Signed distance from the exterior boundary.
-        float external_distance = sd_rounded_box(inp.p, inp.size, inp.border_radius);
-
-        // Signed distance from the border's internal edge (the signed distance is negative if the point
-        // is inside the rect but not on the border).
-        // If the border size is set to zero, this is the same as the external distance.
-        float internal_distance = sd_inset_rounded_box(inp.p, inp.size, inp.border_radius, float4(inp.border_thickness, inp.border_thickness, inp.border_thickness, inp.border_thickness));
-
-        // Signed distance from the border (the intersection of the rect with its border).
-        // Points inside the border have negative signed distance. Any point outside the border, whether
-        // outside the outside edge, or inside the inner edge have positive signed distance.
-        float border_distance = max(external_distance, -internal_distance);
-
-        float border_alpha = antialias(border_distance);
-        float smoothed_alpha = antialias(external_distance);
-
-        float4 quad_color = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
-        float4 quad_color_with_border = mix(quad_color, inp.border_color, min(inp.border_color.a, min(border_alpha, smoothed_alpha)));
-
-        result = internal_distance > 0.0 && border_alpha < 1.0
-            ? float4(inp.border_color.rgb, border_alpha)
-            : quad_color_with_border;
-    }
-
-    if (result.a < 0.01) discard_fragment();
+    if (result.a <= 0.01) discard;
 
     return result;
 }

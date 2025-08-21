@@ -20,16 +20,21 @@ def comment_remover(text):
             return s
     return re.sub(COMMENT_PATTERN, replacer, text)
 
-def write_constant(name, path):
+def write_constant(f, name):
     content = ""
-    with open(path, "r") as f:
-        for line in f.readlines():
-            l = comment_remover(line).strip(" \t")
-            if l == '\n': continue
-            content += l
-        # content = comment_remover(f.read())
-        size = len(content) + 1
-        return f"static const char {name}[{size}] = R\"({content})\";\n\n"
+    for line in f.readlines():
+        l = comment_remover(line).strip(" \t")
+        if l == '\n': continue
+        content += l
+    # content = comment_remover(f.read())
+    size = len(content) + 1
+    return f"static const char {name}[{size}] = R\"({content})\";\n\n"
+
+def write_bytes(f, name):
+    l = list(f.read())
+    content = ', '.join(str(x) for x in l)
+    size = len(l)
+    return f"static const unsigned char {name}[{size}] = {{{content}}};\n\n"
 
 def signed_byte(b):
     return b - 256 if b >= 128 else b
@@ -49,6 +54,148 @@ SHADER_SOURCE_STRUCTURE_CODE = """struct ShaderSourceCode {
 };
 """
 
+def compile_vulkan_shader(executable: str, item_path: Path):
+    basename = item_path.stem.upper()
+    var_name = f"VULKAN_{basename}"
+    flags = ("-target", "spirv", "-O3", "-line-directive-mode", "none")
+    
+    result = ""
+    
+    fd, path = tempfile.mkstemp(suffix=".spv")
+
+    ps = subprocess.Popen(
+        (executable, str(item_path), "-entry", "VS") + flags + ("-o", str(path)),
+    )
+    ps.wait()
+    
+    with os.fdopen(fd, "rb") as f:
+        result += write_bytes(f, f"{var_name}_VERT")
+    
+    fd, path = tempfile.mkstemp(suffix=".spv")
+    
+    ps = subprocess.Popen(
+        (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path)),
+    )
+    ps.wait()
+
+    with os.fdopen(fd, "rb") as f:
+        result += write_bytes(f, f"{var_name}_FRAG")
+        
+    return result
+
+def compile_d3d_shader(executable: str, item_path: Path):
+    basename = item_path.stem.upper()
+    var_name = f"D3D11_{basename}"
+    flags = ("-target", "hlsl", "-O3", "-g0", "-line-directive-mode", "none")
+    
+    result = ""
+
+    fd, path = tempfile.mkstemp(suffix=".hlsl")
+    
+    ps = subprocess.Popen(
+        (executable, str(item_path), "-entry", "VS") + flags + ("-o", str(path)),
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+    ps.wait()
+    
+    with os.fdopen(fd, "r") as f:
+        result += write_constant(f, f"{var_name}_VERT")
+    
+    fd, path = tempfile.mkstemp(suffix=".hlsl")
+    
+    ps = subprocess.Popen(
+        (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path)),
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+    ps.wait()
+
+    with os.fdopen(fd, "r") as f:
+        result += write_constant(f, f"{var_name}_FRAG")
+        
+    return result
+
+def compile_metal_shader(executable: str, item_path: Path):
+    basename = item_path.stem.upper()
+    var_name = f"METAL_{basename}"
+    flags = ("-target", "metal", "-O3", "-g0", "-line-directive-mode", "none")
+    
+    result = ""
+    
+    fd, path = tempfile.mkstemp(suffix=".metal")
+
+    ps = subprocess.Popen(
+        (executable, str(item_path), "-entry", "VS") + flags + ("-o", str(path)),
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+    ps.wait()
+    
+    with os.fdopen(fd, "r") as f:
+        result += write_constant(f, f"{var_name}_VERT")
+    
+    fd, path = tempfile.mkstemp(suffix=".metal")
+    
+    ps = subprocess.Popen(
+        (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path)),
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+    ps.wait()
+
+    with os.fdopen(fd, "r") as f:
+        result += write_constant(f, f"{var_name}_FRAG")
+        
+    return result
+
+def compile_opengl_shader(executable: str, item_path: Path):
+    basename = item_path.stem.upper()
+    var_name = f"GL_{basename}"
+    flags = ("-target", "spirv", "-O3", "-line-directive-mode", "none")
+    
+    result = ""
+    
+    _, path_spv = tempfile.mkstemp(suffix=".spv")
+    ps = subprocess.Popen(
+        (executable, str(item_path), "-entry", "VS") + flags + ("-o", str(path_spv)),
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+    ps.wait()
+    
+    fd, path_glsl = tempfile.mkstemp(suffix=".glsl")
+    ps = subprocess.Popen(
+        ("spirv-cross", str(path_spv), "--stage", "vert", "--version", "420", "--output", str(path_glsl)),
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+    ps.wait()
+    
+    with os.fdopen(fd, "r") as f:
+        result += write_constant(f, f"{var_name}_VERT")
+    
+    _, path_spv = tempfile.mkstemp(suffix=".spv")
+    ps = subprocess.Popen(
+        (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path_spv)),
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+    ps.wait()
+    
+    fd, path_glsl = tempfile.mkstemp(suffix=".glsl")
+    ps = subprocess.Popen(
+        ("spirv-cross", str(path_spv), "--stage", "frag", "--version", "420", "--output", str(path_glsl)),
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+    ps.wait()
+    
+    with os.fdopen(fd, "r") as f:
+        result += write_constant(f, f"{var_name}_FRAG")
+        
+    return result
+
 def generate_getter_function(name):
     upper = name.upper()
 
@@ -61,9 +208,9 @@ def generate_getter_function(name):
     code += ' ' * 8
     code += "case sge::RenderBackend::D3D11:\n"
     code += ' ' * 8
-    code += f"case sge::RenderBackend::D3D12: return ShaderSourceCode(D3D11_{upper}, sizeof(D3D11_{upper}), D3D11_{upper}, sizeof(D3D11_{upper}));\n"
+    code += f"case sge::RenderBackend::D3D12: return ShaderSourceCode(D3D11_{upper}_VERT, sizeof(D3D11_{upper}_VERT), D3D11_{upper}_FRAG, sizeof(D3D11_{upper}_FRAG));\n"
     code += ' ' * 8
-    code += f"case sge::RenderBackend::Metal: return ShaderSourceCode(METAL_{upper}, sizeof(METAL_{upper}), METAL_{upper}, sizeof(METAL_{upper}));\n"
+    code += f"case sge::RenderBackend::Metal: return ShaderSourceCode(METAL_{upper}_VERT, sizeof(METAL_{upper}_VERT), METAL_{upper}_FRAG, sizeof(METAL_{upper}_FRAG));\n"
     code += ' ' * 8
     code += f"case sge::RenderBackend::OpenGL: return ShaderSourceCode(GL_{upper}_VERT, sizeof(GL_{upper}_VERT), GL_{upper}_FRAG, sizeof(GL_{upper}_FRAG));\n"
     code += ' ' * 8
@@ -87,10 +234,6 @@ def main():
     shaders_hpp_file = Path(renderer_dir, "shaders.hpp")
 
     shaders_dir = Path(renderer_dir, "shaders")
-    d3d11_dir = Path(shaders_dir, "d3d11")
-    metal_dir = Path(shaders_dir, "metal")
-    opengl_dir = Path(shaders_dir, "opengl")
-    vulkan_dir = Path(shaders_dir, "vulkan")
 
     shaders_hpp_content = (
         "#ifndef _SGE_RENDERER_SHADERS_HPP_\n"
@@ -102,74 +245,20 @@ def main():
 
     shader_names = set()
 
-    if d3d11_dir.exists():
-        for item in sorted(d3d11_dir.iterdir()):
-            if not item.is_file(): continue
-
-            shader_names.add(item.stem)
-
-            basename = item.stem.upper()
-            var_name = f"D3D11_{basename}"
-            shaders_hpp_content += write_constant(var_name, item)
-
-    if metal_dir.exists():
-        for item in sorted(metal_dir.iterdir()):
-            if not item.is_file(): continue
-
-            shader_names.add(item.stem)
-
-            basename = item.stem.upper()
-            var_name = f"METAL_{basename}"
-            shaders_hpp_content += write_constant(var_name, item)
-
-    if opengl_dir.exists():
-        for item in sorted(opengl_dir.iterdir()):
-            if not item.is_file(): continue
-
-            shader_names.add(item.stem)
-
-            basename = item.stem.upper()
-            var_name = f"GL_{basename}"
-
-            if item.suffix == ".vert":
-                var_name += "_VERT"
-            elif item.suffix == ".frag":
-                var_name += "_FRAG"
-            elif item.suffix == ".comp":
-                var_name += "_COMP"
-
-            shaders_hpp_content += write_constant(var_name, item)
-
-    if vulkan_dir.exists():
-        for item in sorted(vulkan_dir.iterdir()):
-            if not item.is_file(): continue
-
-            shader_names.add(item.stem)
-
-            basename = item.stem.upper()
-            var_name = f"VULKAN_{basename}"
-
-            if item.suffix == ".vert":
-                var_name += "_VERT"
-            elif item.suffix == ".frag":
-                var_name += "_FRAG"
-            elif item.suffix == ".comp":
-                var_name += "_COMP"
-
-            fd, path = tempfile.mkstemp(suffix=".spv")
-
-            ps = subprocess.Popen(
-                (f"glslang{ext}", "-V", "--enhanced-msgs", "-o", path, str(item)),
-                shell=True
-            )
-            ps.wait()
-
-            with os.fdopen(fd, "rb") as f:
-                l = list(f.read())
-                content = ', '.join(str(x) for x in l)
-                size = len(l)
-                shaders_hpp_content += f"static const unsigned char {var_name}[{size}] = {{{content}}};\n\n"
-
+    for item in sorted(shaders_dir.iterdir()):
+        if not item.is_file(): continue
+        if item.stem in shader_names: continue
+        shader_names.add(item.stem)
+        
+        item_path = item.resolve()
+        
+        executable = f"slangc{ext}"
+        
+        shaders_hpp_content += compile_d3d_shader(executable, item_path)
+        shaders_hpp_content += compile_vulkan_shader(executable, item_path)
+        shaders_hpp_content += compile_metal_shader(executable, item_path)
+        shaders_hpp_content += compile_opengl_shader(executable, item_path)
+        
     shaders_hpp_content += SHADER_SOURCE_STRUCTURE_CODE
     shaders_hpp_content += '\n'
 

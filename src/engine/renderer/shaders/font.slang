@@ -1,3 +1,4 @@
+[vk::binding(2)]
 cbuffer GlobalUniformBuffer : register( b2 )
 {
     float4x4 u_screen_projection;
@@ -32,6 +33,7 @@ struct VSOutput
 
 static const uint FLAG_UI = 1 << 0;
 
+[shader("vertex")]
 VSOutput VS(VSInput inp)
 {
     const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
@@ -51,11 +53,15 @@ VSOutput VS(VSInput inp)
 	return outp;
 }
 
+[vk::binding(3)]
 Texture2D Texture : register(t3);
+
+[vk::binding(4)]
 SamplerState Sampler : register(s4);
 
 static const float GLYPH_CENTER = 0.5;
 
+[shader("fragment")]
 float4 PS(VSOutput inp) : SV_Target
 {
     const float dist = Texture.Sample(Sampler, inp.uv).r;
@@ -63,7 +69,7 @@ float4 PS(VSOutput inp) : SV_Target
     const float alpha = smoothstep(GLYPH_CENTER - width, GLYPH_CENTER + width, abs(dist));
     const float4 color = float4(inp.color, alpha);
 
-    clip(color.a - 0.05f);
+    if (color.a <= 0.05f) discard;
 
     return color;
 };

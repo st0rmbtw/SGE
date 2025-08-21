@@ -1,3 +1,4 @@
+[vk::binding(2)]
 cbuffer GlobalUniformBuffer : register( b2 )
 {
     float4x4 u_screen_projection;
@@ -38,6 +39,7 @@ struct VSOutput
 
 static const uint FLAG_UI = 1 << 0;
 
+[shader("vertex")]
 VSOutput VS(VSInput inp)
 {
     const float qxx = inp.i_rotation.x * inp.i_rotation.x;
@@ -102,7 +104,10 @@ VSOutput VS(VSInput inp)
 	return outp;
 }
 
+[vk::binding(3)]
 Texture2D Texture : register(t3);
+
+[vk::binding(4)]
 SamplerState Sampler : register(s4);
 
 float map(float value, float in_min, float in_max, float out_min, float out_max) {
@@ -119,6 +124,7 @@ float process_axis(float coord, float2 source_margin, float2 out_margin) {
     return map(coord, 1.0f - out_margin.y, 1.0f, 1.0f - source_margin.y, 1.0f);
 }
 
+[shader("fragment")]
 float4 PS(VSOutput inp) : SV_Target
 {
     const float2 horizontal_margin = inp.margin.xy;
@@ -137,7 +143,7 @@ float4 PS(VSOutput inp) : SV_Target
 
     const float4 color = Texture.Sample(Sampler, new_uv) * inp.color;
 
-    clip(color.a - 0.5);
+    if (color.a <= 0.5) discard;
 
     return color;
 };
