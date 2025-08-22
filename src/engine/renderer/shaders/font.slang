@@ -25,8 +25,10 @@ struct VSInput
 
 struct VSOutput
 {
-    float2 uv : UV;
     float4 position : SV_Position;
+
+    float2 uv : UV;
+    nointerpolation float3 color : Color;
 };
 
 static const uint FLAG_UI = 1 << 0;
@@ -44,7 +46,6 @@ VSOutput VS(VSInput inp)
     VSOutput outp;
     outp.color = inp.i_color;
     outp.uv = uv;
-    outp.tex_size = inp.i_tex_size;
     outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = 1.0f;
 
