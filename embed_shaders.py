@@ -11,6 +11,8 @@ COMMENT_PATTERN = re.compile(
     re.DOTALL | re.MULTILINE
 )
 
+SLANG_FLAGS = ("-matrix-layout-column-major", "-O2", "-line-directive-mode", "none", "-g0")
+
 def comment_remover(text):
     def replacer(match):
         s = match.group(0)
@@ -36,9 +38,6 @@ def write_bytes(f, name):
     size = len(l)
     return f"static const unsigned char {name}[{size}] = {{{content}}};\n\n"
 
-def signed_byte(b):
-    return b - 256 if b >= 128 else b
-
 SHADER_SOURCE_STRUCTURE_CODE = """struct ShaderSourceCode {
     ShaderSourceCode(const void* v, size_t vs, const void* f, size_t fs) :
         vs_source(v),
@@ -57,7 +56,7 @@ SHADER_SOURCE_STRUCTURE_CODE = """struct ShaderSourceCode {
 def compile_vulkan_shader(executable: str, item_path: Path):
     basename = item_path.stem.upper()
     var_name = f"VULKAN_{basename}"
-    flags = ("-target", "spirv", "-O3", "-line-directive-mode", "none")
+    flags = ("-target", "spirv") + SLANG_FLAGS
     
     result = ""
     
@@ -86,7 +85,7 @@ def compile_vulkan_shader(executable: str, item_path: Path):
 def compile_d3d_shader(executable: str, item_path: Path):
     basename = item_path.stem.upper()
     var_name = f"D3D11_{basename}"
-    flags = ("-target", "hlsl", "-O3", "-g0", "-line-directive-mode", "none")
+    flags = ("-target", "hlsl") + SLANG_FLAGS
     
     result = ""
 
@@ -119,7 +118,7 @@ def compile_d3d_shader(executable: str, item_path: Path):
 def compile_metal_shader(executable: str, item_path: Path):
     basename = item_path.stem.upper()
     var_name = f"METAL_{basename}"
-    flags = ("-target", "metal", "-O3", "-g0", "-line-directive-mode", "none")
+    flags = ("-target", "metal") + SLANG_FLAGS
     
     result = ""
     
@@ -152,7 +151,7 @@ def compile_metal_shader(executable: str, item_path: Path):
 def compile_opengl_shader(executable: str, item_path: Path):
     basename = item_path.stem.upper()
     var_name = f"GL_{basename}"
-    flags = ("-target", "spirv", "-O3", "-line-directive-mode", "none")
+    flags = ("-target", "spirv") + SLANG_FLAGS
     
     result = ""
     

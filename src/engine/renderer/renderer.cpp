@@ -15,7 +15,6 @@
 #include <SGE/log.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/utils/alloc.hpp>
-#include <SGE/utils/io.hpp>
 #include <SGE/types/blend_mode.hpp>
 #include <SGE/types/binding_layout.hpp>
 #include <SGE/types/attributes.hpp>
@@ -1500,9 +1499,13 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
     const RenderBackend backend = m_backend;
     const ShaderType shader_type = shader_path.shader_type;
 
-    const std::string path = backend.AssetFolder() + shader_path.name + shader_type.FileExtension(backend);
+    const std::string name = shader_type.IsCompute()
+        ? std::format("{}.{}{}", shader_path.func_name, shader_path.name, shader_type.FileExtension(backend))
+        : std::format("{}{}", shader_path.name, shader_type.FileExtension(backend));
 
-    if (!FileExists(path.c_str())) {
+    const fs::path path = fs::path(backend.AssetFolder()) / name;
+
+    if (!fs::exists(path)) {
         SGE_LOG_ERROR("Failed to find shader '{}'", path.c_str());
         return nullptr;
     }
