@@ -25,10 +25,8 @@ struct VSInput
 
 struct VSOutput
 {
-    float4 position : SV_Position;
-    nointerpolation float3 color : Color;
-    nointerpolation float2 tex_size : TexSize;
     float2 uv : UV;
+    float4 position : SV_Position;
 };
 
 static const uint FLAG_UI = 1 << 0;
