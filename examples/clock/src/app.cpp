@@ -305,5 +305,4 @@ void App::Run() {
 
 void App::Destroy() {
     g.batch.Terminate(Engine::Renderer().Context());
-    Engine::Destroy();
 }
