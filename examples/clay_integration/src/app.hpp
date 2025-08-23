@@ -1,18 +1,14 @@
-#ifndef GAME_HPP
-#define GAME_HPP
+#ifndef APP_HPP_
+#define APP_HPP_
 
 #pragma once
 
 #include <SGE/types/backend.hpp>
 
-struct AppConfig {
-    bool vsync = false;
-    bool fullscreen = false;
-    uint8_t samples = 4;
-};
+#include "../../common.hpp"
 
 namespace App {
-    bool Init(sge::RenderBackend backend, AppConfig config);
+    bool Init(const ExampleConfig& config);
     void Run();
     void Destroy();
 };

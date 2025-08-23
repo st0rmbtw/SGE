@@ -207,7 +207,7 @@ return _S2;
 }
 )";
 
-static const char GL_FONT_VERT[2972] = R"(#version 420
+static const char GL_FONT_VERT[2972] = R"(#version 430
 struct _MatrixStorage_float4x4_ColMajorstd140
 {
 vec4 data[4];
@@ -251,8 +251,8 @@ entryPointParam_VS_color = inp_i_color;
 }
 )";
 
-static const char GL_FONT_FRAG[490] = R"(#version 420
-uniform sampler2D SPIRV_Cross_CombinedTextureSampler;
+static const char GL_FONT_FRAG[510] = R"(#version 430
+layout(binding = 3) uniform sampler2D SPIRV_Cross_CombinedTextureSampler;
 layout(location = 0) in vec2 inp_uv;
 layout(location = 1) flat in vec3 inp_color;
 layout(location = 0) out vec4 entryPointParam_PS;
@@ -565,7 +565,7 @@ return _S6;
 }
 )";
 
-static const char GL_LINE_VERT[3776] = R"(#version 420
+static const char GL_LINE_VERT[3776] = R"(#version 430
 #ifdef GL_ARB_shader_draw_parameters
 #extension GL_ARB_shader_draw_parameters : enable
 #endif
@@ -628,7 +628,7 @@ entryPointParam_VS_uv = inp_position;
 }
 )";
 
-static const char GL_LINE_FRAG[913] = R"(#version 420
+static const char GL_LINE_FRAG[913] = R"(#version 430
 layout(location = 0) flat in vec4 inp_color;
 layout(location = 1) flat in vec4 inp_border_radius;
 layout(location = 2) flat in vec2 inp_size;
@@ -1005,7 +1005,7 @@ return _S16;
 }
 )";
 
-static const char GL_NINEPATCH_VERT[5153] = R"(#version 420
+static const char GL_NINEPATCH_VERT[5153] = R"(#version 430
 struct _MatrixStorage_float4x4_ColMajorstd140
 {
 vec4 data[4];
@@ -1093,8 +1093,8 @@ entryPointParam_VS_uv = (inp_position * inp_i_uv_offset_scale.zw) + inp_i_uv_off
 }
 )";
 
-static const char GL_NINEPATCH_FRAG[1472] = R"(#version 420
-uniform sampler2D SPIRV_Cross_CombinedTextureSampler;
+static const char GL_NINEPATCH_FRAG[1492] = R"(#version 430
+layout(binding = 3) uniform sampler2D SPIRV_Cross_CombinedTextureSampler;
 layout(location = 0) flat in vec4 inp_color;
 layout(location = 1) flat in uvec4 inp_margin;
 layout(location = 2) flat in vec2 inp_source_size;
@@ -1786,7 +1786,7 @@ return _S36;
 }
 )";
 
-static const char GL_SHAPE_VERT[4046] = R"(#version 420
+static const char GL_SHAPE_VERT[4046] = R"(#version 430
 struct _MatrixStorage_float4x4_ColMajorstd140
 {
 vec4 data[4];
@@ -1856,7 +1856,7 @@ entryPointParam_VS_shape = inp_i_shape;
 }
 )";
 
-static const char GL_SHAPE_FRAG[4260] = R"(#version 420
+static const char GL_SHAPE_FRAG[4260] = R"(#version 430
 layout(location = 0) in vec2 inp_uv;
 layout(location = 1) in vec2 inp_p;
 layout(location = 2) flat in vec2 inp_size;
@@ -2364,7 +2364,7 @@ return _S3;
 }
 )";
 
-static const char GL_SPRITE_VERT[6053] = R"(#version 420
+static const char GL_SPRITE_VERT[6053] = R"(#version 430
 struct _MatrixStorage_float4x4_ColMajorstd140
 {
 vec4 data[4];
@@ -2458,8 +2458,8 @@ entryPointParam_VS_outline_thickness = inp_i_outline_thickness;
 }
 )";
 
-static const char GL_SPRITE_FRAG[1354] = R"(#version 420
-uniform sampler2D SPIRV_Cross_CombinedTextureSampler;
+static const char GL_SPRITE_FRAG[1374] = R"(#version 430
+layout(binding = 3) uniform sampler2D SPIRV_Cross_CombinedTextureSampler;
 layout(location = 0) flat in vec4 inp_color;
 layout(location = 1) flat in vec4 inp_outline_color;
 layout(location = 2) in vec2 inp_uv;

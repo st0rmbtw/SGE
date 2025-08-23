@@ -12,6 +12,7 @@ COMMENT_PATTERN = re.compile(
 )
 
 SLANG_FLAGS = ("-matrix-layout-column-major", "-O2", "-line-directive-mode", "none", "-g0")
+SPIRV_CROSS_FLAGS = ("--no-es", "--remove-unused-variables", "--combined-samplers-inherit-bindings", "--version", "430")
 
 def comment_remover(text):
     def replacer(match):
@@ -165,7 +166,7 @@ def compile_opengl_shader(executable: str, item_path: Path):
     
     fd, path_glsl = tempfile.mkstemp(suffix=".glsl")
     ps = subprocess.Popen(
-        ("spirv-cross", str(path_spv), "--stage", "vert", "--version", "420", "--output", str(path_glsl)),
+        ("spirv-cross", str(path_spv), "--stage", "vert") + SPIRV_CROSS_FLAGS + ("--output", str(path_glsl)),
         stdout=sys.stdout,
         stderr=sys.stderr
     )
@@ -184,7 +185,7 @@ def compile_opengl_shader(executable: str, item_path: Path):
     
     fd, path_glsl = tempfile.mkstemp(suffix=".glsl")
     ps = subprocess.Popen(
-        ("spirv-cross", str(path_spv), "--stage", "frag", "--version", "420", "--output", str(path_glsl)),
+        ("spirv-cross", str(path_spv), "--stage", "frag") + SPIRV_CROSS_FLAGS + ("--output", str(path_glsl)),
         stdout=sys.stdout,
         stderr=sys.stderr
     )

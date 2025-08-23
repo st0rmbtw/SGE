@@ -309,7 +309,7 @@ static void HandleClayErrors(Clay_ErrorData errorData) {
     printf("%s", errorData.errorText.chars);
 }
 
-bool App::Init(RenderBackend backend, AppConfig config) {
+bool App::Init(const ExampleConfig& config) {
     Engine::SetLoadAssetsCallback(LoadAssets);
     Engine::SetPreUpdateCallback(PreUpdate);
     Engine::SetUpdateCallback(Update);
@@ -329,7 +329,7 @@ bool App::Init(RenderBackend backend, AppConfig config) {
     engine_config.window_settings.hidden = true;
 
     LLGL::Extent2D resolution;
-    if (!Engine::Init(backend, engine_config, resolution)) return false;
+    if (!Engine::Init(config.backend, engine_config, resolution)) return false;
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
