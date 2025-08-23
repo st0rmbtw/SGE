@@ -784,6 +784,7 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const 
     swapChainDesc.resolution = resolution;
     swapChainDesc.fullscreen = settings.fullscreen;
     swapChainDesc.samples = settings.samples;
+    swapChainDesc.colorBits = settings.transparent ? 32 : 24;
 
     m_swap_chain = context->CreateSwapChain(swapChainDesc, m_surface);
     m_swap_chain->SetVsyncInterval(settings.vsync ? 1 : 0);

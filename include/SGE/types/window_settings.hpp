@@ -18,6 +18,7 @@ struct WindowSettings {
     bool fullscreen = false;
     bool hidden = false;
     bool vsync = false;
+    bool transparent = false;
 };
 
 _SGE_END
