@@ -12,7 +12,7 @@ struct GradientKey {
 };
 
 template <size_t SIZE>
-LinearRgba GradientEvaluate(const GradientKey (&keys)[SIZE], float position) {
+inline LinearRgba GradientEvaluate(const GradientKey (&keys)[SIZE], float position) {
     if (SIZE == 0)
         return LinearRgba::black();
 
