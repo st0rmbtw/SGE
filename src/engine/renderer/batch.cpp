@@ -31,7 +31,7 @@ uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order c
     return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.atlas().texture(), custom_order);
 }
 
-inline uint32_t Batch::GetNextOrder(Order custom_order) {
+inline uint32_t Batch::GetOrder(Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);
@@ -49,7 +49,7 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
     float x = position.x;
     float y = position.y;
 
-    uint32_t order = GetNextOrder(custom_order);
+    const uint32_t order = GetOrder(custom_order);
 
     for (size_t i = 0; i < size; ++i) {
         const RichTextSection section = sections[i];
@@ -89,7 +89,7 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
                 .tex_uv = ch.texture_coords,
             };
 
-            m_draw_commands.emplace_back(command, m_glyph_data.count, m_order, m_blend_mode);
+            m_draw_commands.emplace_back(command, m_glyph_data.count, order, m_blend_mode);
 
             ++m_glyph_data.count;
 
@@ -115,9 +115,9 @@ uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& 
         .depth_enabled = false
     };
 
-    uint32_t order = GetNextOrder(custom_order);
+    uint32_t order = GetOrder(custom_order);
 
-    m_draw_commands.emplace_back(draw_command, m_sprite_data.count, m_order, m_blend_mode);
+    m_draw_commands.emplace_back(draw_command, m_sprite_data.count, order, m_blend_mode);
 
     ++m_sprite_data.count;
 
@@ -138,9 +138,9 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
         .output_size = ninepatch.size(),
     };
 
-    uint32_t order = GetNextOrder(custom_order);
+    uint32_t order = GetOrder(custom_order);
 
-    m_draw_commands.emplace_back(draw_command, m_ninepatch_data.count, m_order, m_blend_mode);
+    m_draw_commands.emplace_back(draw_command, m_ninepatch_data.count, order, m_blend_mode);
 
     ++m_ninepatch_data.count;
 
@@ -148,7 +148,7 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
 }
 
 uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius, Anchor anchor, struct Order custom_order) {
-    internal::DrawCommandShape command = {
+    const internal::DrawCommandShape command = {
         .position = position,
         .size = size,
         .offset = anchor.to_vec2(),
@@ -159,9 +159,9 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
         .shape = shape,
     };
 
-    uint32_t order = GetNextOrder(custom_order);
+    uint32_t order = GetOrder(custom_order);
 
-    m_draw_commands.emplace_back(command, m_shape_data.count, m_order, m_blend_mode);
+    m_draw_commands.emplace_back(command, m_shape_data.count, order, m_blend_mode);
 
     ++m_shape_data.count;
 
@@ -169,7 +169,7 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
 }
 
 uint32_t Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, const glm::vec4& border_radius, sge::Order custom_order) {
-    internal::DrawCommandLine command = {
+    const internal::DrawCommandLine command = {
         .start = start,
         .end = end,
         .color = color,
@@ -177,9 +177,9 @@ uint32_t Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const 
         .thickness = thickness
     };
 
-    const uint32_t order = GetNextOrder(custom_order);
+    const uint32_t order = GetOrder(custom_order);
 
-    m_draw_commands.emplace_back(command, m_shape_data.count, m_order, m_blend_mode);
+    m_draw_commands.emplace_back(command, m_shape_data.count, order, m_blend_mode);
 
     ++m_line_data.count;
 

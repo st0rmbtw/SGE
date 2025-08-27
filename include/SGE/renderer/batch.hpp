@@ -368,7 +368,7 @@ public:
         return m_glyph_pipeline;
     }
 
-    inline uint32_t GetNextOrder(Order custom_order = {});
+    inline uint32_t GetOrder(Order custom_order = {});
 
     void Terminate(const LLGL::RenderSystemPtr& context) {
         if (m_glyph_pipeline) {

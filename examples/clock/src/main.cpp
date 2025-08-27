@@ -6,7 +6,7 @@
 int main(int argc, char** argv) {
     ExampleConfig config;
 
-    if (ParseCommandLineArguments(argc, argv, config)) {
+    if (!ParseCommandLineArguments(argc, argv, config)) {
         return 1;
     }
 
