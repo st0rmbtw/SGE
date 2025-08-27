@@ -1500,14 +1500,17 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
     const RenderBackend backend = m_backend;
     const ShaderType shader_type = shader_path.shader_type;
 
-    const std::string name = shader_type.IsCompute()
-        ? std::format("{}.{}{}", shader_path.func_name, shader_path.name, shader_type.FileExtension(backend))
-        : std::format("{}{}", shader_path.name, shader_type.FileExtension(backend));
+    const std::string filename = backend.IsMetal()
+        ? std::format("{}{}", shader_path.name, shader_type.FileExtension(backend))
+        : shader_type.IsCompute()
+            ? std::format("{}.{}.{}{}", shader_path.func_name, shader_path.name, shader_type.Stage(), shader_type.FileExtension(backend))
+            : std::format("{}.{}{}", shader_path.name, shader_type.Stage(), shader_type.FileExtension(backend));
 
-    const fs::path path = fs::path(backend.AssetFolder()) / name;
+    const fs::path path = fs::path(backend.AssetFolder()) / filename;
+    const std::string path_str = path.string().c_str();
 
     if (!fs::exists(path)) {
-        SGE_LOG_ERROR("Failed to find shader '{}'", path.c_str());
+        SGE_LOG_ERROR("Failed to find shader '{}'", path_str.c_str());
         return nullptr;
     }
 
@@ -1547,7 +1550,7 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
     }
 
     if (backend.IsVulkan()) {
-        shader_desc.source = path.c_str();
+        shader_desc.source = path_str.c_str();
         shader_desc.sourceType = LLGL::ShaderSourceType::BinaryFile;
     } else {
         shader_desc.entryPoint = shader_type.IsCompute() ? shader_path.func_name.c_str() : shader_type.EntryPoint(backend);
@@ -1566,7 +1569,7 @@ LLGL::Shader* Renderer::LoadShader(const ShaderPath& shader_path, const std::vec
     if (const LLGL::Report* report = shader->GetReport()) {
         if (*report->GetText() != '\0') {
             if (report->HasErrors()) {
-                SGE_LOG_ERROR("Failed to create a shader. File: {}\nError: {}", path.c_str(), report->GetText());
+                SGE_LOG_ERROR("Failed to create a shader. File: {}\nError: {}", path_str.c_str(), report->GetText());
                 return nullptr;
             }
 

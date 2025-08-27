@@ -81,23 +81,28 @@ public:
     }
 
     [[nodiscard]]
+    inline constexpr const char* Stage() const noexcept {
+        switch (m_value) {
+            case Value::Vertex:   return "vert";
+            case Value::Fragment: return "frag";
+            case Value::Geometry: return "geom";
+            case Value::Compute:  return "comp";
+            default: return nullptr;
+        };
+    }
+
+    [[nodiscard]]
     inline constexpr const char* FileExtension(RenderBackend backend) const noexcept {
         switch (backend) {
             case RenderBackend::D3D11:
             case RenderBackend::D3D12: return ".hlsl";
             case RenderBackend::Metal: return ".metal";
+            case RenderBackend::Vulkan: return ".spv";
             case RenderBackend::OpenGL: switch (m_value) {
                 case Value::Vertex:   return ".vert";
                 case Value::Fragment: return ".frag";
                 case Value::Geometry: return ".geom";
-                case Value::Compute: return ".comp";
-                default: return nullptr;
-            };
-            case RenderBackend::Vulkan: switch (m_value) {
-                case Value::Vertex:   return ".vert.spv";
-                case Value::Fragment: return ".frag.spv";
-                case Value::Geometry: return ".geom.spv";
-                case Value::Compute: return ".comp.spv";
+                case Value::Compute:  return ".comp";
                 default: return nullptr;
             };
             default: return nullptr;

@@ -11,7 +11,7 @@ COMMENT_PATTERN = re.compile(
     re.DOTALL | re.MULTILINE
 )
 
-SLANG_FLAGS = ("-matrix-layout-column-major", "-O2", "-line-directive-mode", "none", "-g0")
+SLANG_FLAGS = ("-matrix-layout-column-major", "-O3", "-line-directive-mode", "none", "-g0")
 SPIRV_CROSS_FLAGS = ("--no-es", "--remove-unused-variables", "--combined-samplers-inherit-bindings", "--version", "430")
 
 def comment_remover(text):
