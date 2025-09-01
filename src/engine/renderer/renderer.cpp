@@ -510,8 +510,11 @@ LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(LLGL::Shader* fragment_s
     pipelineLayoutDesc.bindings = BindingLayout({
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
         BindingLayoutItem::Texture(3, "Texture", LLGL::StageFlags::FragmentStage),
-        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "Texture", LLGL::StageFlags::FragmentStage)
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "Sampler", LLGL::StageFlags::FragmentStage)
     });
+    pipelineLayoutDesc.combinedTextureSamplers = {
+        LLGL::CombinedTextureSamplerDescriptor{ "Texture", "Texture", "Sampler", 3 }
+    };
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 
