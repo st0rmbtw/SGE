@@ -728,8 +728,6 @@ bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std
 
     if (backend.IsOpenGL()) {
         LLGL::RendererConfigurationOpenGL* config = new LLGL::RendererConfigurationOpenGL();
-        config->majorVersion = 4;
-        config->minorVersion = 1;
         config->contextProfile = LLGL::OpenGLContextProfile::CoreProfile;
 
         rendererDesc.rendererConfig = config;
