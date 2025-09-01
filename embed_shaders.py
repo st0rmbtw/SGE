@@ -12,7 +12,7 @@ COMMENT_PATTERN = re.compile(
 )
 
 SLANG_FLAGS = ("-matrix-layout-column-major", "-O3", "-line-directive-mode", "none", "-g0")
-SPIRV_CROSS_FLAGS = ("--no-es", "--remove-unused-variables", "--combined-samplers-inherit-bindings", "--version", "430")
+SPIRV_CROSS_FLAGS = ("--no-es", "--remove-unused-variables", "--no-420pack-extension", "--version", "410")
 
 def comment_remover(text):
     def replacer(match):
@@ -27,6 +27,7 @@ def write_constant(f, name):
     content = ""
     for line in f.readlines():
         l = comment_remover(line).strip(" \t")
+        l = l.replace('SPIRV_Cross_Combined', '').replace('SLANG_ParameterGroup_', '')
         if l == '\n': continue
         content += l
     # content = comment_remover(f.read())

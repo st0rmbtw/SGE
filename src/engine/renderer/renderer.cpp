@@ -82,18 +82,18 @@ struct BatchVertexFormats {
 
 static BatchVertexFormats SpriteBatchVertexFormats(const RenderBackend backend) {
     LLGL::VertexFormat vertex_format = Attributes(backend, {
-        Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
+        Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
     });
     LLGL::VertexFormat instance_format = Attributes(backend, vertex_format.attributes.size(), {
-        Attribute::Instance(LLGL::Format::RGB32Float, "i_position", "I_Position", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_rotation", "I_Rotation", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_size", "I_Size", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_offset", "I_Offset", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_uv_offset_scale", "I_UvOffsetScale", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_color", "I_Color", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_outline_color", "I_OutlineColor", 1),
-        Attribute::Instance(LLGL::Format::R32Float, "i_outline_thickness", "I_OutlineThickness", 1),
-        Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
+        Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_position", "I_Position", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_rotation", "I_Rotation", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_outline_color", "I_OutlineColor", 1),
+        Attribute::Instance(LLGL::Format::R32Float, "inp_i_outline_thickness", "I_OutlineThickness", 1),
+        Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
     });
 
     return BatchVertexFormats {
@@ -104,19 +104,19 @@ static BatchVertexFormats SpriteBatchVertexFormats(const RenderBackend backend) 
 
 static BatchVertexFormats NinepatchBatchVertexFormats(const RenderBackend backend) {
     LLGL::VertexFormat vertex_format = Attributes(backend, {
-        Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
+        Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
     });
     LLGL::VertexFormat instance_format = Attributes(backend, vertex_format.attributes.size(), {
-        Attribute::Instance(LLGL::Format::RG32Float, "i_position", "I_Position", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_rotation", "I_Rotation", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_size", "I_Size", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_offset", "I_Offset", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_source_size", "I_SourceSize", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_output_size", "I_OutputSize", 1),
-        Attribute::Instance(LLGL::Format::RGBA32UInt, "i_margin", "I_Margin", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_uv_offset_scale", "I_UvOffsetScale", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_color", "I_Color", 1),
-        Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_position", "I_Position", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_rotation", "I_Rotation", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_source_size", "I_SourceSize", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_output_size", "I_OutputSize", 1),
+        Attribute::Instance(LLGL::Format::RGBA32UInt, "inp_i_margin", "I_Margin", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
+        Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
     });
 
     return {
@@ -127,15 +127,15 @@ static BatchVertexFormats NinepatchBatchVertexFormats(const RenderBackend backen
 
 static BatchVertexFormats GlyphBatchVertexFormats(const RenderBackend backend) {
     LLGL::VertexFormat vertex_format = Attributes(backend, {
-        Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
+        Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
     });
     LLGL::VertexFormat instance_format = Attributes(backend, vertex_format.attributes.size(), {
-        Attribute::Instance(LLGL::Format::RGB32Float, "i_color", "I_Color", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_position", "I_Position", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_size", "I_Size", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_tex_size", "I_TexSize", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_uv", "I_UV", 1),
-        Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
+        Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_color", "I_Color", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_position", "I_Position", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_tex_size", "I_TexSize", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_uv", "I_UV", 1),
+        Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
     });
 
     return BatchVertexFormats {
@@ -146,18 +146,18 @@ static BatchVertexFormats GlyphBatchVertexFormats(const RenderBackend backend) {
 
 static BatchVertexFormats ShapeBatchVertexFormats(const RenderBackend backend) {
     LLGL::VertexFormat vertex_format = Attributes(backend, {
-        Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
+        Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
     });
     LLGL::VertexFormat instance_format = Attributes(backend, vertex_format.attributes.size(), {
-        Attribute::Instance(LLGL::Format::RGB32Float, "i_position", "I_Position", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_size", "I_Size", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_offset", "I_Offset", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_color", "I_Color", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_border_color", "I_BorderColor", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_border_radius", "I_BorderRadius", 1),
-        Attribute::Instance(LLGL::Format::R32Float, "i_border_thickness", "I_BorderThickness", 1),
-        Attribute::Instance(LLGL::Format::R8UInt, "i_shape", "I_Shape", 1),
-        Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1)
+        Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_position", "I_Position", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_border_color", "I_BorderColor", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_border_radius", "I_BorderRadius", 1),
+        Attribute::Instance(LLGL::Format::R32Float, "inp_i_border_thickness", "I_BorderThickness", 1),
+        Attribute::Instance(LLGL::Format::R8UInt, "inp_i_shape", "I_Shape", 1),
+        Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1)
     });
 
     return BatchVertexFormats {
@@ -168,15 +168,15 @@ static BatchVertexFormats ShapeBatchVertexFormats(const RenderBackend backend) {
 
 static BatchVertexFormats LineBatchVertexFormats(const RenderBackend backend) {
     LLGL::VertexFormat vertex_format = Attributes(backend, {
-        Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
+        Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
     });
     LLGL::VertexFormat instance_format = Attributes(backend, vertex_format.attributes.size(), {
-        Attribute::Instance(LLGL::Format::RG32Float, "i_start", "I_Start", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "i_end", "I_End", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_color", "I_Color", 1),
-        Attribute::Instance(LLGL::Format::RGBA32Float, "i_border_radius", "I_Border_Radius", 1),
-        Attribute::Instance(LLGL::Format::R32Float, "i_thickness", "I_Thickness", 1),
-        Attribute::Instance(LLGL::Format::R8UInt, "i_flags", "I_Flags", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_start", "I_Start", 1),
+        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_end", "I_End", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
+        Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_border_radius", "I_Border_Radius", 1),
+        Attribute::Instance(LLGL::Format::R32Float, "inp_i_thickness", "I_Thickness", 1),
+        Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
     });
 
     return BatchVertexFormats {
@@ -298,9 +298,9 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(LLGL::Shader* fragment_s
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
-        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::FragmentStage),
-        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "TextureSampler", LLGL::StageFlags::FragmentStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "TextureSampler", LLGL::StageFlags::FragmentStage)
     });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
@@ -453,9 +453,9 @@ LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline() {
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
-        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::FragmentStage),
-        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "TextureSampler", LLGL::StageFlags::FragmentStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "TextureSampler", LLGL::StageFlags::FragmentStage)
     });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
@@ -508,9 +508,9 @@ LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(LLGL::Shader* fragment_s
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
-        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Texture(3, "u_texture", LLGL::StageFlags::FragmentStage),
-        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "u_sampler", LLGL::StageFlags::FragmentStage)
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Texture(3, "TextureSampler", LLGL::StageFlags::FragmentStage),
+        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "TextureSampler", LLGL::StageFlags::FragmentStage)
     });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
@@ -560,7 +560,7 @@ LLGL::PipelineState* Renderer::CreateShapeBatchPipeline() {
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
-        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
     });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
@@ -613,7 +613,7 @@ LLGL::PipelineState* Renderer::CreateLineBatchPipeline() {
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
-        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
     });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
@@ -729,7 +729,7 @@ bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std
     if (backend.IsOpenGL()) {
         LLGL::RendererConfigurationOpenGL* config = new LLGL::RendererConfigurationOpenGL();
         config->majorVersion = 4;
-        config->minorVersion = 3;
+        config->minorVersion = 1;
         config->contextProfile = LLGL::OpenGLContextProfile::CoreProfile;
 
         rendererDesc.rendererConfig = config;
