@@ -251,14 +251,14 @@ entryPointParam_VS_color = inp_i_color;
 }
 )";
 
-static const char GL_FONT_FRAG[450] = R"(#version 410
-uniform sampler2D TextureSampler;
+static const char GL_FONT_FRAG[436] = R"(#version 410
+uniform sampler2D Texture;
 layout(location = 0) in vec2 inp_uv;
 layout(location = 1) flat in vec3 inp_color;
 layout(location = 0) out vec4 entryPointParam_PS;
 void main()
 {
-vec4 sampled = texture(TextureSampler, inp_uv);
+vec4 sampled = texture(Texture, inp_uv);
 float dist = sampled.x;
 float _34 = fwidth(dist);
 float _38 = smoothstep(0.5 - _34, 0.5 + _34, abs(dist));
@@ -1093,8 +1093,8 @@ entryPointParam_VS_uv = (inp_position * inp_i_uv_offset_scale.zw) + inp_i_uv_off
 }
 )";
 
-static const char GL_NINEPATCH_FRAG[1432] = R"(#version 410
-uniform sampler2D TextureSampler;
+static const char GL_NINEPATCH_FRAG[1418] = R"(#version 410
+uniform sampler2D Texture;
 layout(location = 0) flat in vec4 inp_color;
 layout(location = 1) flat in uvec4 inp_margin;
 layout(location = 2) flat in vec2 inp_source_size;
@@ -1151,7 +1151,7 @@ float _96 = _82.y;
 _114 = (((inp_uv.y - _92) / _91) * _96) + (1.0 - _96);
 break;
 } while(false);
-vec4 sampled = texture(TextureSampler, vec2(_79, _114));
+vec4 sampled = texture(Texture, vec2(_79, _114));
 vec4 color = sampled * inp_color;
 if (color.w <= 0.5)
 {
@@ -2458,8 +2458,8 @@ entryPointParam_VS_outline_thickness = inp_i_outline_thickness;
 }
 )";
 
-static const char GL_SPRITE_FRAG[1134] = R"(#version 410
-uniform sampler2D TextureSampler;
+static const char GL_SPRITE_FRAG[1057] = R"(#version 410
+uniform sampler2D Texture;
 layout(location = 0) flat in vec4 inp_color;
 layout(location = 1) flat in vec4 inp_outline_color;
 layout(location = 2) in vec2 inp_uv;
@@ -2471,11 +2471,11 @@ vec4 _113;
 if (inp_outline_thickness > 0.0)
 {
 float _72 = -inp_outline_thickness;
-_113 = mix(texture(TextureSampler, inp_uv), inp_outline_color, vec4(min(((((((texture(TextureSampler, inp_uv + vec2(inp_outline_thickness, 0.0)).w + texture(TextureSampler, inp_uv + vec2(_72, 0.0)).w) + texture(TextureSampler, inp_uv + vec2(0.0, inp_outline_thickness)).w) + texture(TextureSampler, inp_uv + vec2(0.0, _72)).w) + texture(TextureSampler, inp_uv + vec2(inp_outline_thickness, _72)).w) + texture(TextureSampler, inp_uv + vec2(_72, inp_outline_thickness)).w) + texture(TextureSampler, inp_uv + vec2(inp_outline_thickness)).w) + texture(TextureSampler, inp_uv + vec2(_72)).w, 1.0)));
+_113 = mix(texture(Texture, inp_uv), inp_outline_color, vec4(min(((((((texture(Texture, inp_uv + vec2(inp_outline_thickness, 0.0)).w + texture(Texture, inp_uv + vec2(_72, 0.0)).w) + texture(Texture, inp_uv + vec2(0.0, inp_outline_thickness)).w) + texture(Texture, inp_uv + vec2(0.0, _72)).w) + texture(Texture, inp_uv + vec2(inp_outline_thickness, _72)).w) + texture(Texture, inp_uv + vec2(_72, inp_outline_thickness)).w) + texture(Texture, inp_uv + vec2(inp_outline_thickness)).w) + texture(Texture, inp_uv + vec2(_72)).w, 1.0)));
 }
 else
 {
-_113 = texture(TextureSampler, inp_uv) * inp_color;
+_113 = texture(Texture, inp_uv) * inp_color;
 }
 if (_113.w <= 0.02500000037252902984619140625)
 {

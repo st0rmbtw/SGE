@@ -11,6 +11,10 @@ COMMENT_PATTERN = re.compile(
     re.DOTALL | re.MULTILINE
 )
 
+COMBINED_SAMPLER_PATTERN = re.compile(
+    r'SPIRV_Cross_Combined(?P<name>[a-zA-Z]+)Sampler'
+)
+
 SLANG_FLAGS = ("-matrix-layout-column-major", "-O3", "-line-directive-mode", "none", "-g0")
 SPIRV_CROSS_FLAGS = ("--no-es", "--remove-unused-variables", "--no-420pack-extension", "--version", "410")
 
@@ -26,8 +30,9 @@ def comment_remover(text):
 def write_constant(f, name):
     content = ""
     for line in f.readlines():
-        l = comment_remover(line).strip(" \t")
-        l = l.replace('SPIRV_Cross_Combined', '').replace('SLANG_ParameterGroup_', '')
+        l = comment_remover(line).strip(" \t")    
+        l = re.sub(COMBINED_SAMPLER_PATTERN, "\g<name>", l)
+        l = l.replace('SLANG_ParameterGroup_', '')
         if l == '\n': continue
         content += l
     # content = comment_remover(f.read())
