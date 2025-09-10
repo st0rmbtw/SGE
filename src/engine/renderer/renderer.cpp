@@ -293,14 +293,15 @@ void Renderer::SavePipelineCache(const std::string& name, LLGL::PipelineCache* p
 }
 
 SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(LLGL::Shader* fragment_shader) {
+    static uint32_t count = 0;
+
     auto& context = Context();
-    const RenderBackend backend = Backend();
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Texture(3, "TextureSampler", LLGL::StageFlags::FragmentStage),
-        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "TextureSampler", LLGL::StageFlags::FragmentStage)
+        BindingLayoutItem::Texture(3, "Texture", LLGL::StageFlags::FragmentStage),
+        BindingLayoutItem::Sampler(4, "Sampler", LLGL::StageFlags::FragmentStage)
     });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
@@ -384,17 +385,19 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(LLGL::Shader* fragment_s
             },
         };
 
-        for (const auto& [blend_mode, pointer, name, index] : pipelines) {
-            pipelineDesc.debugName = name;
+        for (const auto& [blend_mode, pointer, pipelineName, index] : pipelines) {
+            const std::string name = std::format("{}_{}", pipelineName, count);
+            pipelineDesc.debugName = name.c_str();
+            
             bool hasInitialCache = false;
-            LLGL::PipelineCache* pipelineCache = ReadPipelineCache(pipelineDesc.debugName, hasInitialCache);
+            LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
             pipelineDesc.blend = blend_modes[index];
             LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
             *pointer = pipeline;
 
             if (!hasInitialCache) {
-                SavePipelineCache(pipelineDesc.debugName, pipelineCache);
+                SavePipelineCache(name, pipelineCache);
             }
 
             if (const LLGL::Report* report = pipeline->GetReport()) {
@@ -425,8 +428,9 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(LLGL::Shader* fragment_s
             .compareOp = LLGL::CompareOp::GreaterEqual,
         };
 
-        for (const auto& [blend_mode, pointer, name, index] : pipelines) {
-            depthPipelineDesc.debugName = name;
+        for (const auto& [blend_mode, pointer, pipelineName, index] : pipelines) {
+            const std::string name = std::format("{}_{}", pipelineName, count);
+            depthPipelineDesc.debugName = name.c_str();
 
             bool hasInitialCache = false;
             LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
@@ -444,6 +448,8 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(LLGL::Shader* fragment_s
         }
     }
 
+    ++count;
+
     return pipeline;
 }
 
@@ -454,8 +460,8 @@ LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline() {
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Texture(3, "TextureSampler", LLGL::StageFlags::FragmentStage),
-        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "TextureSampler", LLGL::StageFlags::FragmentStage)
+        BindingLayoutItem::Texture(3, "Texture", LLGL::StageFlags::FragmentStage),
+        BindingLayoutItem::Sampler(4, "Sampler", LLGL::StageFlags::FragmentStage)
     });
 
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
@@ -503,14 +509,15 @@ LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline() {
 }
 
 LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(LLGL::Shader* fragment_shader) {
+    static uint32_t count = 0;
+
     auto& context = m_context;
-    const RenderBackend backend = m_backend;
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
         BindingLayoutItem::Texture(3, "Texture", LLGL::StageFlags::FragmentStage),
-        BindingLayoutItem::Sampler(backend.IsOpenGL() ? 3 : 4, "Sampler", LLGL::StageFlags::FragmentStage)
+        BindingLayoutItem::Sampler(4, "Sampler", LLGL::StageFlags::FragmentStage)
     });
     pipelineLayoutDesc.combinedTextureSamplers = {
         LLGL::CombinedTextureSamplerDescriptor{ "Texture", "Texture", "Sampler", 3 }
@@ -541,18 +548,22 @@ LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(LLGL::Shader* fragment_s
         }
     };
 
+    const std::string name = std::format("GlyphBatchPipeline_{}", count);
+
     bool hasInitialCache = false;
-    LLGL::PipelineCache* pipelineCache = ReadPipelineCache("GlyphBatchPipeline", hasInitialCache);
+    LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
     LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
 
     if (m_cache_pipelines && !hasInitialCache) {
-        SavePipelineCache("GlyphBatchPipeline", pipelineCache);
+        SavePipelineCache(name, pipelineCache);
     }
 
     if (const LLGL::Report* report = pipeline->GetReport()) {
         if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
     }
+
+    ++count;
 
     return pipeline;
 }

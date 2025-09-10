@@ -27,12 +27,13 @@ def comment_remover(text):
             return s
     return re.sub(COMMENT_PATTERN, replacer, text)
 
-def write_constant(f, name):
+def write_constant(f, name, unmangle=False):
     content = ""
     for line in f.readlines():
-        l = comment_remover(line).strip(" \t")    
+        l = comment_remover(line).strip(" \t")
         l = re.sub(COMBINED_SAMPLER_PATTERN, "\g<name>", l)
-        l = l.replace('SLANG_ParameterGroup_', '')
+        if unmangle:
+            l = l.replace('SLANG_ParameterGroup_', '')
         if l == '\n': continue
         content += l
     # content = comment_remover(f.read())
@@ -179,7 +180,7 @@ def compile_opengl_shader(executable: str, item_path: Path):
     ps.wait()
     
     with os.fdopen(fd, "r") as f:
-        result += write_constant(f, f"{var_name}_VERT")
+        result += write_constant(f, f"{var_name}_VERT", True)
     
     _, path_spv = tempfile.mkstemp(suffix=".spv")
     ps = subprocess.Popen(
@@ -198,7 +199,7 @@ def compile_opengl_shader(executable: str, item_path: Path):
     ps.wait()
     
     with os.fdopen(fd, "r") as f:
-        result += write_constant(f, f"{var_name}_FRAG")
+        result += write_constant(f, f"{var_name}_FRAG", True)
         
     return result
 
