@@ -106,28 +106,25 @@ enum class Key : uint16_t {
 
 namespace Input {
     void Press(Key key, uint8_t modifiers);
+    void Press(MouseButton button);
     void Release(Key key, uint8_t modifiers);
+    void Release(MouseButton button);
 
     bool Pressed(Key key);
-    bool JustPressed(Key key);
-
     bool Pressed(Key key, uint8_t modifiers);
+    bool JustPressed(Key key);
     bool JustPressed(Key key, uint8_t modifiers);
-
-    void Press(MouseButton button);
-    void Release(MouseButton button);
 
     bool Pressed(MouseButton button);
     bool JustPressed(MouseButton button);
+    bool JustReleased(MouseButton button);
 
     void PushMouseScrollEvent(float y) noexcept;
     void SetMouseScreenPosition(const glm::vec2& position) noexcept;
-    void SetMouseOverUi(bool mouse_over_ui) noexcept;
 
     const std::vector<float>& ScrollEvents() noexcept;
     const glm::vec2& MouseScreenPosition() noexcept;
     glm::vec2 MouseDelta() noexcept;
-    bool IsMouseOverUi() noexcept;
 
     void Clear();
 }

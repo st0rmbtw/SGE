@@ -32,7 +32,6 @@ static struct InputState {
     std::vector<float> mouse_scroll_events;
     glm::vec2 mouse_screen_position;
     glm::vec2 mouse_delta;
-    bool mouse_over_ui = false;
 } input_state;
 
 void Input::Press(Key key, uint8_t modifiers) {
@@ -76,7 +75,6 @@ void Input::Clear() {
     input_state.mouse_just_pressed.clear();
     input_state.mouse_just_released.clear();
     input_state.mouse_scroll_events.clear();
-    input_state.mouse_over_ui = false;
     input_state.mouse_delta = glm::vec2(0.0f);
 }
 
@@ -101,6 +99,10 @@ bool Input::JustPressed(MouseButton button) {
     return input_state.mouse_just_pressed.find(static_cast<uint8_t>(button)) != input_state.mouse_just_pressed.end();
 }
 
+bool Input::JustReleased(MouseButton button) {
+    return input_state.mouse_just_released.find(static_cast<uint8_t>(button)) != input_state.mouse_just_released.end();
+}
+
 void Input::PushMouseScrollEvent(float y) noexcept {
     input_state.mouse_scroll_events.push_back(y);
 }
@@ -108,10 +110,6 @@ void Input::PushMouseScrollEvent(float y) noexcept {
 void Input::SetMouseScreenPosition(const glm::vec2& position) noexcept {
     input_state.mouse_delta = position - input_state.mouse_screen_position;
     input_state.mouse_screen_position = position;
-}
-
-void Input::SetMouseOverUi(bool mouse_over_ui) noexcept {
-    input_state.mouse_over_ui = mouse_over_ui;
 }
 
 glm::vec2 Input::MouseDelta() noexcept {
@@ -124,10 +122,6 @@ const std::vector<float>& Input::ScrollEvents() noexcept {
 
 const glm::vec2& Input::MouseScreenPosition() noexcept {
     return input_state.mouse_screen_position;
-}
-
-bool Input::IsMouseOverUi() noexcept {
-    return input_state.mouse_over_ui;
 }
 
 _SGE_END

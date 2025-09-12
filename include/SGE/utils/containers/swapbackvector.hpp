@@ -45,6 +45,18 @@ public:
         m_vector.pop_back();
     }
 
+    inline void clear() noexcept {
+        m_vector.clear();
+    }
+
+    inline void pop_back() noexcept {
+        m_vector.pop_back();
+    }
+
+    inline void pop_front() {
+        erase(0);
+    }
+
     [[nodiscard]]
     size_type size() const noexcept {
         return m_vector.size();
@@ -68,6 +80,16 @@ public:
     [[nodiscard]]
     reference back() noexcept {
         return m_vector.back();
+    }
+
+    [[nodiscard]]
+    const_reference front() const noexcept {
+        return m_vector.front();
+    }
+
+    [[nodiscard]]
+    reference front() noexcept {
+        return m_vector.front();
     }
 
     [[nodiscard]]
