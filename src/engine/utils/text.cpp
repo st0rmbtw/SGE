@@ -10,6 +10,8 @@ glm::vec2 sge::calculate_text_bounds(const sge::Font& font, size_t length, const
 
     const float scale = size / font.font_size;
 
+    bounds.y += size;
+
     for (size_t i = 0; i < length;) {
         const uint32_t ch = sge::next_utf8_codepoint(text, i);
 

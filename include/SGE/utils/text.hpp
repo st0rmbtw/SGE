@@ -11,6 +11,10 @@ _SGE_BEGIN
 
 glm::vec2 calculate_text_bounds(const Font& font, size_t length, const char* text, float size);
 
+inline glm::vec2 calculate_text_bounds(const Font& font, float size, std::string_view string) {
+    return calculate_text_bounds(font, string.size(), string.data(), size);
+}
+
 template <size_t SIZE>
 inline glm::vec2 calculate_text_bounds(const Font& font, const RichText<SIZE> text) {
     glm::vec2 bounds = glm::vec2(0.0f);
