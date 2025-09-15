@@ -9,3 +9,6 @@
 [submodule "thirdparty/fmt"]
 	path = thirdparty/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "thirdparty/tracy"]
+	path = thirdparty/tracy
+	url = https://github.com/wolfpld/tracy.git

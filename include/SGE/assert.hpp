@@ -8,16 +8,17 @@
     #include <fmt/core.h>
     #include <fmt/ostream.h>
 
-    #define SGE_ASSERT(expression)                                                                      \
+    #define SGE_ASSERT(expression) do {                                                                 \
         if (!(expression)) {                                                                            \
             fmt::println(stderr, "Assertion `" #expression "` failed at {}:{}", __FILE__, __LINE__);    \
             std::abort();                                                                               \
-        }
+        }                                                                                               \
+    } while (0)
 
-    #define SGE_UNREACHABLE() {                                                           \
+    #define SGE_UNREACHABLE() do {                                                        \
         fmt::println(stderr, "Reached unreachable code at {}:{}", __FILE__, __LINE__);    \
         std::abort();                                                                     \
-    }
+    } while (0)
 #else
     #define SGE_ASSERT(expression) ((void)0)
 
@@ -28,7 +29,6 @@
     #else
         #error "Unknown compiler; can't define SGE_UNREACHABLE"
     #endif
-
 #endif
 
 
