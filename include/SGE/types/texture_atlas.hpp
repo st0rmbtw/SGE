@@ -10,9 +10,8 @@
 
 #include "../math/rect.hpp"
 #include "../assert.hpp"
-#include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 struct TextureAtlas {
     TextureAtlas() = default;
@@ -65,6 +64,6 @@ private:
     uint32_t m_rows;
 };
 
-_SGE_END
+}
 
 #endif

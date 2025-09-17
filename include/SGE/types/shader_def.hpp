@@ -3,9 +3,7 @@
 
 #include <string>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 struct ShaderDef {
     std::string name;
@@ -16,6 +14,6 @@ struct ShaderDef {
         value(std::move(value)) {}
 };
 
-_SGE_END
+}
 
 #endif

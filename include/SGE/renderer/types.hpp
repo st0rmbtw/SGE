@@ -9,7 +9,7 @@
 
 #include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 struct Vertex {
     float x;
@@ -96,6 +96,6 @@ struct SpriteBatchPipeline {
     }
 };
 
-_SGE_END
+}
 
 #endif

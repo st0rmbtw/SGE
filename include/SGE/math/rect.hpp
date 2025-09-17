@@ -6,9 +6,7 @@
 #include <glm/glm.hpp>
 #include <limits>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 template <class T>
 struct rect {
@@ -196,6 +194,6 @@ using Rect = rect<glm::float32>;
 using URect = rect<glm::uint32>;
 using IRect = rect<glm::int32>;
 
-_SGE_END
+}
 
 #endif

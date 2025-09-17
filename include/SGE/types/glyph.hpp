@@ -5,9 +5,7 @@
 
 #include <glm/vec2.hpp>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 struct Glyph {
     glm::ivec2 size;
@@ -17,6 +15,6 @@ struct Glyph {
     glm::vec2 texture_coords;
 };
 
-_SGE_END
+}
 
 #endif

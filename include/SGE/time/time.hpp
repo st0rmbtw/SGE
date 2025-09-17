@@ -5,9 +5,7 @@
 
 #include <chrono>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 using delta_time_t = std::chrono::duration<float>;
 
@@ -31,6 +29,6 @@ namespace Time {
     void AdvanceFixed() noexcept;
 };
 
-_SGE_END
+}
 
 #endif

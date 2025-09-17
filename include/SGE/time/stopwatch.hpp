@@ -5,9 +5,7 @@
 
 #include <chrono>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 namespace Duration {
     using Nanos = std::chrono::duration<uint64_t, std::nano>;
@@ -70,6 +68,6 @@ private:
     bool m_paused = false;
 };
 
-_SGE_END
+}
 
 #endif

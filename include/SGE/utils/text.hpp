@@ -1,13 +1,12 @@
 #ifndef _SGE_UTILS_TEXT_HPP_
 #define _SGE_UTILS_TEXT_HPP_
 
-#include "SGE/defines.hpp"
 #include <glm/vec2.hpp>
 
 #include <SGE/types/font.hpp>
 #include <SGE/types/rich_text.hpp>
 
-_SGE_BEGIN
+namespace sge {
 
 glm::vec2 calculate_text_bounds(const Font& font, size_t length, const char* text, float size);
 
@@ -34,6 +33,6 @@ inline glm::vec2 calculate_text_bounds(const Font& font, const RichText<_Size> t
     return calculate_text_bounds(font, text.data(), text.size());
 }
 
-_SGE_END
+}
 
 #endif

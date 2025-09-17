@@ -4,11 +4,11 @@
 #define _SGE_TYPES_FONT_HPP_
 
 #include <unordered_map>
+
 #include "texture.hpp"
 #include "glyph.hpp"
-#include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 struct Font {
     std::unordered_map<uint32_t, Glyph> glyphs;
@@ -19,6 +19,6 @@ struct Font {
     int16_t ascender;
 };
 
-_SGE_END
+}
 
 #endif

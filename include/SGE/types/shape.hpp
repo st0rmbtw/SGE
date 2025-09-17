@@ -8,12 +8,10 @@
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
-#include "../defines.hpp"
-
 #include "color.hpp"
 #include "anchor.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 namespace Shape {
     using Type = uint8_t;
@@ -58,6 +56,6 @@ struct ShapeLine {
 
 };
 
-_SGE_END
+}
 
 #endif

@@ -6,9 +6,7 @@
 #include <LLGL/Shader.h>
 #include <LLGL/RenderSystem.h>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 struct ShaderPipeline {
     LLGL::Shader* vs = nullptr; // Vertex shader
@@ -28,6 +26,6 @@ struct ShaderPipeline {
     }
 };
 
-_SGE_END
+}
 
 #endif

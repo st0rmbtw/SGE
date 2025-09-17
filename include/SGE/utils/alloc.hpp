@@ -4,10 +4,9 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include <SGE/defines.hpp>
 #include <SGE/log.hpp>
 
-_SGE_BEGIN
+namespace sge {
 
 template <typename T>
 T* checked_alloc(size_t count) {
@@ -19,6 +18,6 @@ T* checked_alloc(size_t count) {
     return _ptr;
 }
 
-_SGE_END
+}
 
 #endif

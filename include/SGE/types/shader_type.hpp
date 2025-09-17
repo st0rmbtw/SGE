@@ -9,9 +9,8 @@
 #include "backend.hpp"
 
 #include "../assert.hpp"
-#include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 class ShaderType {
 public:
@@ -127,6 +126,6 @@ private:
     Value m_value = Value::Vertex;
 };
 
-_SGE_END
+}
 
 #endif

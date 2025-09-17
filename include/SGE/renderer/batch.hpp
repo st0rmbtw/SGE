@@ -21,7 +21,7 @@
 #include <SGE/defines.hpp>
 #include <SGE/renderer/types.hpp>
 
-_SGE_BEGIN
+namespace sge {
 
 class Renderer;
 
@@ -548,6 +548,6 @@ private:
     sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
 };
 
-_SGE_END
+}
 
 #endif

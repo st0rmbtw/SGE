@@ -4,9 +4,8 @@
 #include <initializer_list>
 
 #include <LLGL/PipelineLayoutFlags.h>
-#include <SGE/defines.hpp>
 
-_SGE_BEGIN
+namespace sge {
 
 class BindingLayout;
 
@@ -92,6 +91,6 @@ private:
     long m_stage = 0;
 };
 
-_SGE_END
+}
 
 #endif

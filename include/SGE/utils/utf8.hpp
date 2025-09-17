@@ -3,12 +3,10 @@
 
 #include <cstdint>
 
-#include <SGE/defines.hpp>
+namespace sge {
 
-_SGE_BEGIN
+uint32_t next_utf8_codepoint(const char* text, std::size_t& index);
 
-uint32_t next_utf8_codepoint(const char* text, size_t& index);
-
-_SGE_END
+}
 
 #endif

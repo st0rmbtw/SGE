@@ -5,9 +5,8 @@
 
 #include <cstdint>
 #include "../assert.hpp"
-#include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 class RenderBackend {
 public:
@@ -88,6 +87,6 @@ private:
     Value m_value = Value::Vulkan;
 };
 
-_SGE_END
+}
 
 #endif

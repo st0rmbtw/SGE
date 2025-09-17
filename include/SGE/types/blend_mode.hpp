@@ -4,9 +4,8 @@
 #pragma once
 
 #include <cstdint>
-#include <SGE/defines.hpp>
 
-_SGE_BEGIN
+namespace sge {
 
 enum class BlendMode : uint8_t {
     AlphaBlend,
@@ -15,6 +14,6 @@ enum class BlendMode : uint8_t {
     PremultipliedAlpha
 };
 
-_SGE_END
+}
 
 #endif

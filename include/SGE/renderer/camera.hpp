@@ -10,7 +10,7 @@
 #include <SGE/math/rect.hpp>
 #include <SGE/defines.hpp>
 
-_SGE_BEGIN
+namespace sge {
 
 enum class CameraOrigin : uint8_t {
     TopLeft = 0,
@@ -307,6 +307,6 @@ private:
     bool m_changed = false;
 };
 
-_SGE_END
+}
 
 #endif

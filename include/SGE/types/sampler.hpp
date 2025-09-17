@@ -4,9 +4,7 @@
 #include <LLGL/Sampler.h>
 #include <LLGL/SamplerFlags.h>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 class Sampler {
 public:
@@ -36,6 +34,6 @@ private:
     LLGL::SamplerDescriptor m_descriptor;
 };
 
-_SGE_END
+}
 
 #endif

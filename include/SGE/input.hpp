@@ -7,9 +7,8 @@
 #include <glm/glm.hpp>
 #include <stdint.h>
 #include <vector>
-#include "defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 namespace Modifier {
     enum : uint8_t {
@@ -129,6 +128,6 @@ namespace Input {
     void Clear();
 }
 
-_SGE_END
+}
 
 #endif

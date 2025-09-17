@@ -4,9 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include <SGE/defines.hpp>
-
-_SGE_BEGIN
+namespace sge {
 
 /// A wrapper around std::vector that makes removing elements to be O(1) at the cost of not preserving the order.
 template <typename T, typename Alloc = std::allocator<T>>
@@ -134,6 +132,6 @@ private:
     std::vector<T, Alloc> m_vector;
 };
 
-_SGE_END
+}
 
 #endif

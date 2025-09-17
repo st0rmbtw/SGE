@@ -9,9 +9,8 @@
 #include "types/window_settings.hpp"
 #include "types/cursor_mode.hpp"
 #include "renderer/renderer.hpp"
-#include "defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 inline constexpr const char* DEFAULT_CACHE_DIR = "./cache/pipeline/";
 
@@ -74,6 +73,6 @@ namespace Engine {
     sge::Renderer& Renderer();
 };
 
-_SGE_END
+}
 
 #endif

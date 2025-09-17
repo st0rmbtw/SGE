@@ -25,7 +25,7 @@
 #include <SGE/defines.hpp>
 #include <memory>
 
-_SGE_BEGIN
+namespace sge {
 
 template <typename T>
 class BatchData {
@@ -305,6 +305,6 @@ private:
     bool m_cache_pipelines = true;
 };
 
-_SGE_END
+}
 
 #endif

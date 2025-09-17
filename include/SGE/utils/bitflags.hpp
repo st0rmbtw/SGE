@@ -4,9 +4,7 @@
 #include <type_traits>
 #include <initializer_list>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 template <typename T>
 class BitFlags {
@@ -70,6 +68,6 @@ private:
     UnderlyingT m_data = static_cast<UnderlyingT>(0);
 };
 
-_SGE_END
+}
 
 #endif

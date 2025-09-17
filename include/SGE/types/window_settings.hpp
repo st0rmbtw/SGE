@@ -4,9 +4,8 @@
 #include <stdint.h>
 
 #include <SGE/types/cursor_mode.hpp>
-#include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 struct WindowSettings {
     const char* title = "App";
@@ -21,6 +20,6 @@ struct WindowSettings {
     bool transparent = false;
 };
 
-_SGE_END
+}
 
 #endif

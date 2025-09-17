@@ -3,12 +3,9 @@
 
 #include <cstdlib>
 
-#include <SGE/defines.hpp>
 #include <SGE/assert.hpp>
 
-_SGE_BEGIN
-
-namespace random {
+namespace sge::random {
 
 /**
  * @brief Generates a random integer within a given range
@@ -63,6 +60,6 @@ inline bool rand_bool() noexcept {
 
 }
 
-_SGE_END
+
 
 #endif

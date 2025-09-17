@@ -1,9 +1,6 @@
 #ifndef _SGE_DEFINES_HPP_
 #define _SGE_DEFINES_HPP_
 
-#define _SGE_BEGIN namespace sge {
-#define _SGE_END }
-
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(__NT__)
     #define SGE_PLATFORM_WINDOWS 1
 #elif defined(__APPLE__)

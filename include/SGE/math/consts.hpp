@@ -3,11 +3,7 @@
 
 #include <numbers>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
-
-namespace consts {
+namespace sge::consts {
     inline constexpr float E = std::numbers::e_v<float>;
     inline constexpr float LOG2_E = std::numbers::log2e_v<float>;
     inline constexpr float LOG10_E = std::numbers::log10e_v<float>;
@@ -23,6 +19,6 @@ namespace consts {
     inline constexpr float PHI = std::numbers::phi_v<float>;
 }
 
-_SGE_END
+
 
 #endif

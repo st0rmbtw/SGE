@@ -3,9 +3,7 @@
 
 #include "shader_type.hpp"
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 struct ShaderPath {
     ShaderPath(ShaderType shader_type, std::string name, std::string func_name = {}) noexcept :
@@ -18,6 +16,6 @@ struct ShaderPath {
     std::string func_name;
 };
 
-_SGE_END
+}
 
 #endif

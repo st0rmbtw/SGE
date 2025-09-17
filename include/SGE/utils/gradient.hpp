@@ -1,10 +1,9 @@
 #ifndef _SGE_UTILS_GRADIENT_HPP_
 #define _SGE_UTILS_GRADIENT_HPP_
 
-#include <SGE/defines.hpp>
 #include <SGE/types/color.hpp>
 
-_SGE_BEGIN
+namespace sge {
 
 struct GradientKey {
     LinearRgba color;
@@ -32,6 +31,6 @@ inline LinearRgba GradientEvaluate(const GradientKey (&keys)[SIZE], float positi
     return LinearRgba::black();
 }
 
-_SGE_END
+}
 
 #endif

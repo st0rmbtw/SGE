@@ -14,9 +14,7 @@
 #include "texture_atlas.hpp"
 #include "color.hpp"
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 class BaseSprite {
 protected:
@@ -226,6 +224,6 @@ private:
     uint32_t m_index = 0;
 };
 
-_SGE_END
+}
 
 #endif

@@ -8,7 +8,7 @@
 
 #include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 #if SGE_PLATFORM_WINDOWS
     #define GLFW_EXPOSE_NATIVE_WIN32
@@ -39,6 +39,6 @@ private:
     GLFWwindow* m_wnd = nullptr;
 };
 
-_SGE_END
+}
 
 #endif

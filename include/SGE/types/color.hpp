@@ -10,9 +10,8 @@
 #include <glm/vec3.hpp>
 
 #include "../math/math.hpp"
-#include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 struct LinearRgba;
 struct Hsla;
@@ -475,6 +474,6 @@ inline Srgba detail::linear_rgba_to_srgba(const LinearRgba& rgba) {
     );
 }
 
-_SGE_END
+}
 
 #endif

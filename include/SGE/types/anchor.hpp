@@ -8,9 +8,7 @@
 #include <SGE/assert.hpp>
 #include <glm/vec2.hpp>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 class Anchor {
 public:
@@ -57,6 +55,6 @@ private:
     Type m_value = Type::Center;
 };
 
-_SGE_END
+}
 
 #endif

@@ -9,9 +9,7 @@
 #include <cstdint>
 #include "stopwatch.hpp"
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 enum class TimerMode : uint8_t {
     Once = 0,
@@ -118,6 +116,6 @@ private:
     bool m_finished = false;
 };
 
-_SGE_END
+}
 
 #endif

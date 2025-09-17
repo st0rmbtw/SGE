@@ -9,9 +9,8 @@
 #include <LLGL/Utils/VertexFormat.h>
 
 #include <SGE/types/backend.hpp>
-#include <SGE/defines.hpp>
 
-_SGE_BEGIN
+namespace sge {
 
 class Attributes;
 
@@ -93,6 +92,6 @@ private:
     uint32_t m_start_location = 0;
 };
 
-_SGE_END
+}
 
 #endif

@@ -3,9 +3,7 @@
 #ifndef _SGE_TYPES_ORDER_HPP_
 #define _SGE_TYPES_ORDER_HPP_
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 struct Order {
     constexpr Order() = default;
@@ -18,6 +16,6 @@ struct Order {
     bool advance = true;
 };
 
-_SGE_END
+}
 
 #endif

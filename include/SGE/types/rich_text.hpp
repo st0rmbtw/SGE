@@ -9,9 +9,7 @@
 
 #include "color.hpp"
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 struct RichTextSection {
     std::string_view text;
@@ -46,6 +44,6 @@ inline RichText<1> rich_text(const char* text, float size, sge::LinearRgba color
     return RichText<1>{{ {text, color, size} }};
 }
 
-_SGE_END
+}
 
 #endif

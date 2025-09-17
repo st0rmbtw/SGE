@@ -19,7 +19,7 @@ struct std::hash<KeyWithModifiers> {
     }
 };
 
-_SGE_BEGIN
+namespace sge {
 
 static struct InputState {
     std::unordered_set<KeyWithModifiers> keyboard_pressed;
@@ -124,4 +124,4 @@ const glm::vec2& Input::MouseScreenPosition() noexcept {
     return input_state.mouse_screen_position;
 }
 
-_SGE_END
+}

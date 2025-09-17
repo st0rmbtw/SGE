@@ -9,9 +9,7 @@
 
 #include "../types/sampler.hpp"
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 namespace TextureSampler {
     enum : uint8_t {
@@ -71,6 +69,6 @@ private:
     int m_id = -1;
 };
 
-_SGE_END
+}
 
 #endif

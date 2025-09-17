@@ -10,9 +10,8 @@
 #include "color.hpp"
 
 #include "../math/rect.hpp"
-#include "../defines.hpp"
 
-_SGE_BEGIN
+namespace sge {
 
 class NinePatch {
 public:
@@ -141,6 +140,6 @@ private:
     Anchor m_anchor = Anchor::Center;
 };
 
-_SGE_END
+}
 
 #endif

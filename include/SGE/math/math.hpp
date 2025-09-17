@@ -3,9 +3,7 @@
 
 #include <cmath>
 
-#include "../defines.hpp"
-
-_SGE_BEGIN
+namespace sge {
 
 [[nodiscard]]
 inline float rem_euclid(float lhs, float rhs) noexcept {
@@ -18,6 +16,6 @@ inline constexpr float approx_equals(float a, float b, float eps = 0.001f) noexc
     return std::abs(a-b) < eps;
 }
 
-_SGE_END
+}
 
 #endif
