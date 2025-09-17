@@ -242,6 +242,8 @@ public:
     using DrawCommands = std::vector<internal::DrawCommand>;
     using FlushQueue = std::vector<internal::FlushData>;
 
+    Batch(Renderer& renderer, const BatchDesc& desc);
+
     Batch(const Batch&) = delete;
     Batch& operator=(const Batch&) = delete;
 
@@ -452,8 +454,6 @@ public:
     }
 
 private:
-    Batch(Renderer& renderer, const BatchDesc& desc);
-
     uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius = glm::vec4(0.0f), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
 
     uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, sge::Order custom_order);

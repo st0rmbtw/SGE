@@ -23,6 +23,7 @@
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/defines.hpp>
+#include <memory>
 
 _SGE_BEGIN
 
@@ -242,7 +243,7 @@ public:
     }
 
     inline std::unique_ptr<sge::Batch> CreateBatch(const sge::BatchDesc& desc = {}) {
-        return std::unique_ptr<sge::Batch>(new sge::Batch(*this, desc));
+        return std::make_unique<sge::Batch>(*this, desc);
     }
 
 private:
