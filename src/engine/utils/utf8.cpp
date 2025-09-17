@@ -1,6 +1,6 @@
 #include <SGE/utils/utf8.hpp>
 
-uint32_t sge::next_utf8_codepoint(const char* text, size_t& index) {
+uint32_t sge::next_utf8_codepoint(const char* text, std::size_t& index) {
     uint32_t c = (uint8_t) text[index];
 
     int cplen = 1;
