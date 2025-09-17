@@ -28,7 +28,7 @@ namespace Engine {
     using FixedUpdateCallback = void (*)(void);
     using RenderCallback = void (*)(void);
     using PostRenderCallback = void (*)(void);
-    using DestroyCallback = void (*)(void);
+    using CleanupCallback = void (*)(void);
     using LoadAssetsCallback = bool (*)(void);
     using WindowResizeCallback = void (*)(uint32_t width, uint32_t height, uint32_t scaled_width, uint32_t scaled_height);
 
@@ -40,7 +40,7 @@ namespace Engine {
     void SetFixedPostUpdateCallback(FixedUpdateCallback);
     void SetRenderCallback(RenderCallback);
     void SetPostRenderCallback(PostRenderCallback);
-    void SetDestroyCallback(DestroyCallback);
+    void SetCleanupCallback(CleanupCallback);
     void SetWindowResizeCallback(WindowResizeCallback);
     void SetLoadAssetsCallback(LoadAssetsCallback);
 
@@ -68,6 +68,7 @@ namespace Engine {
     uint32_t GetFrameCount();
 
     void Run();
+    void Stop();
     void Destroy();
 
     sge::Renderer& Renderer();

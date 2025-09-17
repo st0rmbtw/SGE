@@ -14,6 +14,8 @@ struct Font {
     std::unordered_map<uint32_t, Glyph> glyphs;
     Texture texture;
     float font_size;
+    float max_ascent;
+    float max_descent;
     int16_t ascender;
 };
 

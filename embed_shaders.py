@@ -61,10 +61,10 @@ SHADER_SOURCE_STRUCTURE_CODE = """struct ShaderSourceCode {
 };
 """
 
-def compile_vulkan_shader(executable: str, item_path: Path):
+def compile_vulkan_shader(executable: str, item_path: Path, flags: tuple[str]):
     basename = item_path.stem.upper()
     var_name = f"VULKAN_{basename}"
-    flags = ("-target", "spirv") + SLANG_FLAGS
+    flags = ("-target", "spirv") + flags
     
     result = ""
     
@@ -90,10 +90,10 @@ def compile_vulkan_shader(executable: str, item_path: Path):
         
     return result
 
-def compile_d3d_shader(executable: str, item_path: Path):
+def compile_d3d_shader(executable: str, item_path: Path, flags: tuple[str]):
     basename = item_path.stem.upper()
     var_name = f"D3D11_{basename}"
-    flags = ("-target", "hlsl") + SLANG_FLAGS
+    flags = ("-target", "hlsl") + flags
     
     result = ""
 
@@ -123,10 +123,10 @@ def compile_d3d_shader(executable: str, item_path: Path):
         
     return result
 
-def compile_metal_shader(executable: str, item_path: Path):
+def compile_metal_shader(executable: str, item_path: Path, flags: tuple[str]):
     basename = item_path.stem.upper()
     var_name = f"METAL_{basename}"
-    flags = ("-target", "metal") + SLANG_FLAGS
+    flags = ("-target", "metal") + flags
     
     result = ""
     
@@ -156,10 +156,10 @@ def compile_metal_shader(executable: str, item_path: Path):
         
     return result
 
-def compile_opengl_shader(executable: str, item_path: Path):
+def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]):
     basename = item_path.stem.upper()
     var_name = f"GL_{basename}"
-    flags = ("-target", "spirv") + SLANG_FLAGS
+    flags = ("-target", "spirv") + flags
     
     result = ""
     
@@ -254,6 +254,7 @@ def main():
 
     for item in sorted(shaders_dir.iterdir()):
         if not item.is_file(): continue
+        if item.name == "common.slang": continue
         if item.stem in shader_names: continue
         shader_names.add(item.stem)
         
@@ -261,10 +262,12 @@ def main():
         
         executable = f"slangc{ext}"
         
-        shaders_hpp_content += compile_d3d_shader(executable, item_path)
-        shaders_hpp_content += compile_vulkan_shader(executable, item_path)
-        shaders_hpp_content += compile_metal_shader(executable, item_path)
-        shaders_hpp_content += compile_opengl_shader(executable, item_path)
+        slang_flags = SLANG_FLAGS + ("-I", str(shaders_dir))
+        
+        shaders_hpp_content += compile_d3d_shader(executable, item_path, slang_flags)
+        shaders_hpp_content += compile_vulkan_shader(executable, item_path, slang_flags)
+        shaders_hpp_content += compile_metal_shader(executable, item_path, slang_flags)
+        shaders_hpp_content += compile_opengl_shader(executable, item_path, slang_flags)
         
     shaders_hpp_content += SHADER_SOURCE_STRUCTURE_CODE
     shaders_hpp_content += '\n'

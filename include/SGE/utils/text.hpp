@@ -15,15 +15,23 @@ inline glm::vec2 calculate_text_bounds(const Font& font, float size, std::string
     return calculate_text_bounds(font, string.size(), string.data(), size);
 }
 
-template <size_t SIZE>
-inline glm::vec2 calculate_text_bounds(const Font& font, const RichText<SIZE> text) {
+inline glm::vec2 calculate_text_bounds(const Font& font, const RichTextSection* sections, const size_t size) {
     glm::vec2 bounds = glm::vec2(0.0f);
 
-    for (const RichTextSection& section : text.sections()) {
+    for (size_t i = 0; i < size; ++i) {
+        const RichTextSection& section = sections[i];
+        if (section.text.ends_with('\n')) {
+            bounds.y += section.size;
+        }
         bounds = glm::max(bounds, calculate_text_bounds(font, section.text.size(), section.text.data(), section.size));
     }
 
     return bounds;
+}
+
+template <size_t _Size>
+inline glm::vec2 calculate_text_bounds(const Font& font, const RichText<_Size> text) {
+    return calculate_text_bounds(font, text.data(), text.size());
 }
 
 _SGE_END

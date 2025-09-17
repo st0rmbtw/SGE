@@ -1,14 +1,9 @@
+#include "common.slang"
+
 [vk::binding(2)]
 cbuffer GlobalUniformBuffer : register( b2 )
 {
-    float4x4 u_screen_projection;
-    float4x4 u_view_projection;
-    float4x4 u_nonscale_view_projection;
-    float4x4 u_nonscale_projection;
-    float4x4 u_transform_matrix;
-    float4x4 u_inv_view_proj;
-    float2 u_camera_position;
-    float2 u_window_size;
+    GlobalUniforms uniforms;
 };
 
 struct VSInput
@@ -41,7 +36,7 @@ VSOutput VS(VSInput inp)
 {
     const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
 
-    const float4x4 mvp = is_ui ? u_screen_projection : u_view_projection;
+    const float4x4 mvp = is_ui ? uniforms.screen_projection : uniforms.view_projection;
 
     const float2 d = inp.i_end - inp.i_start;
     const float len = length(d);

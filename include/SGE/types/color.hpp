@@ -53,7 +53,7 @@ namespace detail {
 struct LinearRgba {
     LinearRgba() = default;
 
-    explicit constexpr LinearRgba(const glm::vec4& color) : r(color.r), g(color.g), b(color.b), a(color.a) {}
+    explicit constexpr LinearRgba(glm::vec4 color) : r(color.r), g(color.g), b(color.b), a(color.a) {}
 
     explicit constexpr LinearRgba(float x) : r(x), g(x), b(x), a(x) {}
     explicit constexpr LinearRgba(float x, float alpha) : r(x), g(x), b(x), a(alpha) {}
@@ -75,7 +75,7 @@ struct LinearRgba {
         b(t_b / 255.0f),
         a(t_a) {}
 
-    explicit constexpr LinearRgba(const glm::vec3& color, float t_a = 1.0f) : r(color.r), g(color.g), b(color.b), a(t_a) {}
+    explicit constexpr LinearRgba(glm::vec3 color, float t_a = 1.0f) : r(color.r), g(color.g), b(color.b), a(t_a) {}
 
     static constexpr LinearRgba white() noexcept {
         return LinearRgba(1.0f, 1.0f, 1.0f, 1.0f);
@@ -159,27 +159,27 @@ struct LinearRgba {
         return glm::vec3(r, g, b);
     }
 
-    LinearRgba operator*(const LinearRgba& c) const noexcept {
+    constexpr LinearRgba operator*(const LinearRgba c) const noexcept {
         return LinearRgba(r * c.r, g * c.g, b * c.b, a * c.a);
     }
 
-    LinearRgba operator+(const LinearRgba& c) const noexcept {
+    constexpr LinearRgba operator+(const LinearRgba c) const noexcept {
         return LinearRgba(r + c.r, g + c.g, b + c.b, a + c.a);
     }
 
-    LinearRgba operator-(const LinearRgba& c) const noexcept {
+    constexpr LinearRgba operator-(const LinearRgba c) const noexcept {
         return LinearRgba(r - c.r, g - c.g, b - c.b, a - c.a);
     }
 
-    LinearRgba operator*(const float x) const noexcept {
+    constexpr LinearRgba operator*(const float x) const noexcept {
         return LinearRgba(r * x, g * x, b * x, a * x);
     }
 
-    LinearRgba operator+(const float x) const noexcept {
+    constexpr LinearRgba operator+(const float x) const noexcept {
         return LinearRgba(r + x, g + x, b + x, a + x);
     }
 
-    LinearRgba operator-(const float x) const noexcept {
+    constexpr LinearRgba operator-(const float x) const noexcept {
         return LinearRgba(r - x, g - x, b - x, a - x);
     }
 
@@ -294,30 +294,43 @@ struct Srgba {
 
     inline operator LinearRgba() const { return to_linear_rgba(); }
 
-    [[nodiscard]] glm::vec4 to_vec4() const { return glm::vec4(red, green, blue, alpha); }
-    [[nodiscard]] glm::vec3 to_vec3() const { return glm::vec3(red, green, blue); }
+    [[nodiscard]]
+    glm::vec4 to_vec4() const {
+        return glm::vec4(red, green, blue, alpha);
+    }
+    
+    [[nodiscard]]
+    glm::vec3 to_vec3() const {
+        return glm::vec3(red, green, blue);
+    }
 
-    Srgba operator*(const Srgba& c) const {
+    [[nodiscard]]
+    constexpr Srgba operator*(const Srgba c) const {
         return Srgba(red * c.red, green * c.green, blue * c.blue, alpha * c.alpha);
     }
 
-    Srgba operator+(const Srgba& c) const {
+    [[nodiscard]]
+    constexpr Srgba operator+(const Srgba c) const {
         return Srgba(red + c.red, green + c.green, blue + c.blue, alpha + c.alpha);
     }
 
-    Srgba operator-(const Srgba& c) const {
+    [[nodiscard]]
+    constexpr Srgba operator-(const Srgba c) const {
         return Srgba(red - c.red, green - c.green, blue - c.blue, alpha - c.alpha);
     }
 
-    Srgba operator*(const float x) const {
+    [[nodiscard]]
+    constexpr Srgba operator*(const float x) const {
         return Srgba(red * x, green * x, blue * x, alpha * x);
     }
 
-    Srgba operator+(const float x) const {
+    [[nodiscard]]
+    constexpr Srgba operator+(const float x) const {
         return Srgba(red + x, green + x, blue + x, alpha + x);
     }
 
-    Srgba operator-(const float x) const {
+    [[nodiscard]]
+    constexpr Srgba operator-(const float x) const {
         return Srgba(red - x, green - x, blue - x, alpha - x);
     }
 

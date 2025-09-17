@@ -75,8 +75,8 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
                 continue;
             }
 
-            const float xpos = x + ch.bearing.x * scale; // ⌄ Make the origin at the top left corner
-            const float ypos = y - ch.bearing.y * scale + section.size - font.ascender * scale;
+            const float xpos = x + ch.bearing.x * scale;
+            const float ypos = y + (font.max_ascent - ch.bearing.y) * scale;
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 

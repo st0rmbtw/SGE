@@ -301,7 +301,7 @@ static void WindowResized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
     Render();
 }
 
-static void DestroyCallback() {
+static void CleanupCallback() {
     Renderer& renderer = Engine::Renderer();
     g.batch.Terminate(renderer.Context());
 }
@@ -319,7 +319,7 @@ bool App::Init(const ExampleConfig& config) {
     Engine::SetRenderCallback(Render);
     Engine::SetPostRenderCallback(PostRender);
     Engine::SetWindowResizeCallback(WindowResized);
-    Engine::SetDestroyCallback(DestroyCallback);
+    Engine::SetCleanupCallback(CleanupCallback);
 
     EngineConfig engine_config;
     engine_config.window_settings.width = 1280;

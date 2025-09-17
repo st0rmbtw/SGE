@@ -1,14 +1,9 @@
+#include "common.slang"
+
 [vk::binding(2)]
 cbuffer GlobalUniformBuffer : register( b2 )
 {
-    float4x4 u_screen_projection;
-    float4x4 u_view_projection;
-    float4x4 u_nozoom_view_projection;
-    float4x4 u_nozoom_projection;
-    float4x4 u_transform_matrix;
-    float4x4 u_inv_view_proj;
-    float2 u_camera_position;
-    float2 u_window_size;
+    GlobalUniforms uniforms;
 };
 
 struct VSInput
@@ -36,7 +31,7 @@ struct VSOutput
 };
 
 static const uint FLAG_UI = 1 << 0;
-static const int FLAG_IGNORE_CAMERA_ZOOM = 1 << 1;
+static const uint FLAG_IGNORE_CAMERA_ZOOM = 1 << 1;
 
 [shader("vertex")]
 VSOutput VS(VSInput inp)
@@ -90,7 +85,7 @@ VSOutput VS(VSInput inp)
     const bool ignore_camera_zoom = (flags & FLAG_IGNORE_CAMERA_ZOOM) == FLAG_IGNORE_CAMERA_ZOOM;
     const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
 
-    const float4x4 mvp = mul(is_ui ? u_screen_projection : ignore_camera_zoom ? u_nozoom_view_projection : u_view_projection, transform);
+    const float4x4 mvp = mul(is_ui ? uniforms.screen_projection : ignore_camera_zoom ? uniforms.nonscale_view_projection : uniforms.view_projection, transform);
     const float4 uv_offset_scale = inp.i_uv_offset_scale;
 
     VSOutput outp;

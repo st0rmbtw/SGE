@@ -1228,7 +1228,7 @@ void Renderer::UpdateBatchBuffers(
             }
 
             uint8_t flags = 0;
-            flags |= batch.IsUi() << ShapeFlags::UI;
+            flags |= batch.IsUi() << SpriteFlags::UI;
 
             NinePatchInstance* buffer = m_ninepatch_batch_data.GetBufferAndAdvance();
             buffer->position = ninepatch_data.position;

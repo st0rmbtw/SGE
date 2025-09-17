@@ -22,7 +22,7 @@ static struct EngineState {
     Engine::FixedUpdateCallback fixed_post_update_callback = nullptr;
     Engine::RenderCallback render_callback = nullptr;
     Engine::PostRenderCallback post_render_callback = nullptr;
-    Engine::DestroyCallback destroy_callback = nullptr;
+    Engine::CleanupCallback cleanup_callback = nullptr;
     Engine::LoadAssetsCallback load_assets_callback = nullptr;
     Engine::WindowResizeCallback window_resize_callback = nullptr;
 
@@ -34,14 +34,16 @@ static struct EngineState {
 
     uint8_t window_samples = 1;
     bool window_iconified = false;
+    bool running = false;
 } state;
 
 static void HandleKeyboardEvents(GLFWwindow* window, int key, int scancode, int action, int mods);
 static void HandleMouseButtonEvents(GLFWwindow* window, int button, int action, int mods);
 static void HandleMouseScrollEvents(GLFWwindow* window, double xoffset, double yoffset);
 static void HandleCursorPosEvents(GLFWwindow* window, double xpos, double ypos);
-static void HandleWindowResizeEvents(GLFWwindow* window, int width, int height);
-static void HandleWindowIconifyCallback(GLFWwindow* window, int iconified);
+static void HandleWindowResize(GLFWwindow* window, int width, int height);
+static void HandleFramebufferResize(GLFWwindow* window, int width, int height);
+static void HandleWindowIconify(GLFWwindow* window, int iconified);
 
 static inline const char* glfwGetErrorString() {
     const char* description = nullptr;
@@ -68,8 +70,9 @@ static GLFWwindow* CreateWindow(const WindowSettings& window_settings) {
     glfwSetMouseButtonCallback(window, HandleMouseButtonEvents);
     glfwSetScrollCallback(window, HandleMouseScrollEvents);
     glfwSetCursorPosCallback(window, HandleCursorPosEvents);
-    glfwSetWindowSizeCallback(window, HandleWindowResizeEvents);
-    glfwSetWindowIconifyCallback(window, HandleWindowIconifyCallback);
+    glfwSetWindowSizeCallback(window, HandleWindowResize);
+    glfwSetWindowIconifyCallback(window, HandleWindowIconify);
+    glfwSetFramebufferSizeCallback(window, HandleFramebufferResize);
 
     return window;
 }
@@ -109,8 +112,8 @@ void Engine::SetPostRenderCallback(PostRenderCallback callback) {
     state.post_render_callback = callback;
 }
 
-void Engine::SetDestroyCallback(PostRenderCallback callback) {
-    state.destroy_callback = callback;
+void Engine::SetCleanupCallback(CleanupCallback callback) {
+    state.cleanup_callback = callback;
 }
 
 void Engine::SetWindowResizeCallback(WindowResizeCallback callback) {
@@ -207,7 +210,13 @@ void Engine::Run() {
 
     double fixed_timer = 0;
 
-    while (state.renderer.Surface()->ProcessEvents()) {
+    state.running = true;
+
+    while (state.running) {
+        if (!state.renderer.Surface()->ProcessEvents()) {
+            break;
+        }
+
         MACOS_AUTORELEASEPOOL_OPEN
             const double current_tick = glfwGetTime();
             const double delta_time = (current_tick - prev_tick);
@@ -256,6 +265,12 @@ void Engine::Run() {
 
         FrameMark;
     }
+
+    state.running = false;
+}
+
+void Engine::Stop() {
+    state.running = false;
 }
 
 void Engine::Destroy() {
@@ -263,8 +278,8 @@ void Engine::Destroy() {
         state.renderer.CommandQueue()->WaitIdle();
     }
 
-    if (state.destroy_callback != nullptr) {
-        state.destroy_callback();
+    if (state.cleanup_callback != nullptr) {
+        state.cleanup_callback();
     }
 
     if (state.renderer.Context()) {
@@ -305,27 +320,32 @@ static void HandleCursorPosEvents(GLFWwindow*, double xpos, double ypos) {
     Input::SetMouseScreenPosition(glm::vec2(xpos, ypos));
 }
 
-static void HandleWindowResizeEvents(GLFWwindow*, int width, int height) {
+static void HandleFramebufferResize(GLFWwindow*, int width, int height) {
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+
+    state.renderer.ResizeBuffers(LLGL::Extent2D(width, height));
+}
+
+static void HandleWindowResize(GLFWwindow*, int width, int height) {
     if (width <= 0 || height <= 0) {
         state.window_size.width = 0;
         state.window_size.height = 0;
         return;
     }
 
-    const LLGL::Extent2D resolution = get_scaled_resolution(width, height);
-
-    state.renderer.ResizeBuffers(LLGL::Extent2D(resolution.width, resolution.height));
-
     state.window_size.width = width;
     state.window_size.height = height;
 
     if (state.window_resize_callback) {
+        const LLGL::Extent2D resolution = get_scaled_resolution(width, height);
         state.window_resize_callback(static_cast<uint32_t>(width), static_cast<uint32_t>(height), resolution.width, resolution.height);
     }
 
     state.render_callback();
 }
 
-static void HandleWindowIconifyCallback(GLFWwindow*, int iconified) {
+static void HandleWindowIconify(GLFWwindow*, int iconified) {
     state.window_iconified = iconified == GLFW_TRUE;
 }
