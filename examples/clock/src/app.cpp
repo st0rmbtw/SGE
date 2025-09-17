@@ -29,7 +29,7 @@ struct CurrentTime {
 
 static struct GameState {
     Camera camera = Camera(CameraOrigin::TopLeft);
-    Batch batch;
+    std::unique_ptr<Batch> batch;
     CurrentTime t;
     bool paused = false;
 } g;
@@ -122,7 +122,7 @@ static void Render() {
 
     const float radius = background_size.y * 0.2f;
 
-    g.batch.DrawRect(center, {
+    g.batch->DrawRect(center, {
         .size = background_size,
         .color = sge::LinearRgba(0.0f, 0.0f, 0.0f),
         .border_thickness = CLOCK_BORDER_WIDTH * background_size.x / 2.0f,
@@ -136,13 +136,13 @@ static void Render() {
         const float aspect = size.x / size.y;
         size.y *= aspect;
 
-        g.batch.DrawRect(center, {
+        g.batch->DrawRect(center, {
             .size = size,
             .color = sge::LinearRgba(0x05, 0x0C, 0x0B),
             .border_radius = glm::vec4(radius - padding)
         });
 
-        g.batch.DrawCircle(center, {
+        g.batch->DrawCircle(center, {
             .radius = CLOCK_CIRCLE_RADIUS * size.x / 2.0f,
             .color = sge::LinearRgba::white(),
         });
@@ -151,7 +151,7 @@ static void Render() {
         float hand_thickness = CLOCK_HAND_THICKNESS * size.x;
 
 
-        g.batch.BeginOrderMode();
+        g.batch->BeginOrderMode();
         for (int i = 0; i < 4; ++i) {
             float t = ((float)i) / 4.0f;
             const float sin = glm::sin(t * 2.0f * consts::PI);
@@ -162,7 +162,7 @@ static void Render() {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f - (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH - (size * CLOCK_TICKS_LENGTH) * 0.2f);
 
-            g.batch.DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), glm::vec4(tick_thickness / 2.0f));
+            g.batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), glm::vec4(tick_thickness / 2.0f));
         }
 
         for (int i = 0; i < 12; ++i) {
@@ -177,17 +177,17 @@ static void Render() {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f + (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH);
 
-            g.batch.DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), glm::vec4(tick_thickness / 2.0f));
+            g.batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), glm::vec4(tick_thickness / 2.0f));
         }
-        g.batch.EndOrderMode();
+        g.batch->EndOrderMode();
 
-        // g.batch.DrawCircle(center, {
+        // g.batch->DrawCircle(center, {
         //     .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f,
         //     .color = sge::LinearRgba::transparent(),
         //     .border_thickness = 2.0f,
         //     .border_color = sge::LinearRgba(1.0f, 1.0f, 0.0f)
         // });
-        // g.batch.DrawCircle(center, {
+        // g.batch->DrawCircle(center, {
         //     .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH),
         //     .color = sge::LinearRgba::transparent(),
         //     .border_thickness = 2.0f,
@@ -209,7 +209,7 @@ static void Render() {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
 
-            g.batch.DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), glm::vec4(hand_thickness / 2.0f));
+            g.batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), glm::vec4(hand_thickness / 2.0f));
         }
 
         // Minute hand
@@ -221,7 +221,7 @@ static void Render() {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
 
-            g.batch.DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), glm::vec4(hand_thickness / 2.0f));
+            g.batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), glm::vec4(hand_thickness / 2.0f));
         }
 
         // Second hand
@@ -233,7 +233,7 @@ static void Render() {
             const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
             const float length = hand_length - CLOCK_SECOND_HAND_OFFSET * size.x;
 
-            g.batch.DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), glm::vec4(hand_thickness / 2.0f));
+            g.batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), glm::vec4(hand_thickness / 2.0f));
         }
     }
 
@@ -243,11 +243,11 @@ static void Render() {
         float blue = ((float)0xD3) / 255.0f;
         renderer.Clear(LLGL::ClearValue(red, green, blue, 1.0f));
 
-        renderer.PrepareBatch(g.batch);
+        renderer.PrepareBatch(*g.batch);
         renderer.UploadBatchData();
-        renderer.RenderBatch(g.batch);
+        renderer.RenderBatch(*g.batch);
 
-        g.batch.Reset();
+        g.batch->Reset();
     renderer.EndPass();
 
     renderer.End();
@@ -269,7 +269,7 @@ static void WindowResized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
 
 static void CleanupCallback() {
     Renderer& renderer = Engine::Renderer();
-    g.batch.Terminate(renderer.Context());
+    g.batch->Destroy(renderer.Context());
 }
 
 bool App::Init(const ExampleConfig& config) {
@@ -297,8 +297,9 @@ bool App::Init(const ExampleConfig& config) {
 
     Engine::ShowWindow();
 
-    g.batch.SetIsUi(true);
-    g.batch.BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
+    g.batch = sge::Engine::Renderer().CreateBatch();
+    g.batch->SetIsUi(true);
+    g.batch->BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
     sync_time();
 

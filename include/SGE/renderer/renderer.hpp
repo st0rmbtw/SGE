@@ -68,74 +68,6 @@ private:
     uint32_t m_count = 0;
 };
 
-struct SpriteBatchPipeline {
-    LLGL::PipelineState* additive = nullptr;
-    LLGL::PipelineState* alpha_blend = nullptr;
-    LLGL::PipelineState* opaque = nullptr;
-    LLGL::PipelineState* premultiplied_alpha = nullptr;
-
-    LLGL::PipelineState* depth_additive = nullptr;
-    LLGL::PipelineState* depth_alpha_blend = nullptr;
-    LLGL::PipelineState* depth_opaque = nullptr;
-    LLGL::PipelineState* depth_premultiplied_alpha = nullptr;
-
-    void Destroy(const LLGL::RenderSystemPtr& context) {
-        SGE_RESOURCE_RELEASE(additive);
-        SGE_RESOURCE_RELEASE(alpha_blend);
-        SGE_RESOURCE_RELEASE(opaque);
-        SGE_RESOURCE_RELEASE(premultiplied_alpha);
-        SGE_RESOURCE_RELEASE(depth_additive);
-        SGE_RESOURCE_RELEASE(depth_alpha_blend);
-        SGE_RESOURCE_RELEASE(depth_opaque);
-        SGE_RESOURCE_RELEASE(depth_premultiplied_alpha);
-    }
-};
-
-struct SpriteBatchData : public BatchData<SpriteInstance> {
-    SpriteBatchPipeline pipeline;
-
-    void Destroy(const LLGL::RenderSystemPtr& context) {
-        BatchData::Destroy(context);
-        pipeline.Destroy(context);
-    }
-};
-
-struct GlyphBatchData : public BatchData<GlyphInstance> {
-    LLGL::PipelineState* pipeline = nullptr;
-
-    void Destroy(const LLGL::RenderSystemPtr& context) {
-        BatchData::Destroy(context);
-        SGE_RESOURCE_RELEASE(pipeline);
-    }
-};
-
-struct NinePatchBatchData : public BatchData<NinePatchInstance> {
-    LLGL::PipelineState* pipeline = nullptr;
-
-    void Destroy(const LLGL::RenderSystemPtr& context) {
-        BatchData::Destroy(context);
-        SGE_RESOURCE_RELEASE(pipeline);
-    }
-};
-
-struct ShapeBatchData : public BatchData<ShapeInstance> {
-    LLGL::PipelineState* pipeline = nullptr;
-
-    void Destroy(const LLGL::RenderSystemPtr& context) {
-        BatchData::Destroy(context);
-        SGE_RESOURCE_RELEASE(pipeline);
-    }
-};
-
-struct LineBatchData : public BatchData<LineInstance> {
-    LLGL::PipelineState* pipeline = nullptr;
-
-    void Destroy(const LLGL::RenderSystemPtr& context) {
-        BatchData::Destroy(context);
-        SGE_RESOURCE_RELEASE(pipeline);
-    }
-};
-
 struct SGE_ALIGN(16) ProjectionsUniform {
     glm::mat4 screen_projection_matrix;
     glm::mat4 view_projection_matrix;
@@ -309,18 +241,22 @@ public:
         return m_context->GetRenderingCaps();
     }
 
-private:
-    SpriteBatchPipeline CreateSpriteBatchPipeline(LLGL::Shader* fragment_shader);
-    LLGL::PipelineState* CreateNinepatchBatchPipeline();
-    LLGL::PipelineState* CreateGlyphBatchPipeline(LLGL::Shader* fragment_shader);
-    LLGL::PipelineState* CreateShapeBatchPipeline();
-    LLGL::PipelineState* CreateLineBatchPipeline();
+    inline std::unique_ptr<sge::Batch> CreateBatch(const sge::BatchDesc& desc = {}) {
+        return std::unique_ptr<sge::Batch>(new sge::Batch(*this, desc));
+    }
 
-    SpriteBatchData InitSpriteBatchData();
-    NinePatchBatchData InitNinepatchBatchData();
-    GlyphBatchData InitGlyphBatchData();
-    ShapeBatchData InitShapeBatchData();
-    LineBatchData InitLineBatchData();
+private:
+    SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
+    LLGL::PipelineState* CreateNinepatchBatchPipeline(bool enable_scissor);
+    LLGL::PipelineState* CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
+    LLGL::PipelineState* CreateShapeBatchPipeline(bool enable_scissor);
+    LLGL::PipelineState* CreateLineBatchPipeline(bool enable_scissor);
+
+    BatchData<SpriteInstance> InitSpriteBatchData();
+    BatchData<NinePatchInstance> InitNinepatchBatchData();
+    BatchData<GlyphInstance> InitGlyphBatchData();
+    BatchData<ShapeInstance> InitShapeBatchData();
+    BatchData<LineInstance> InitLineBatchData();
 
     LLGL::PipelineCache* ReadPipelineCache(const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::string& name, LLGL::PipelineCache* pipelineCache);
@@ -330,11 +266,11 @@ private:
     void ApplyBatchDrawCommands(sge::Batch& batch);
 
 private:
-    SpriteBatchData m_sprite_batch_data;
-    GlyphBatchData m_glyph_batch_data;
-    NinePatchBatchData m_ninepatch_batch_data;
-    ShapeBatchData m_shape_batch_data;
-    LineBatchData m_line_batch_data;
+    BatchData<SpriteInstance> m_sprite_batch_data;
+    BatchData<GlyphInstance> m_glyph_batch_data;
+    BatchData<NinePatchInstance> m_ninepatch_batch_data;
+    BatchData<ShapeInstance> m_shape_batch_data;
+    BatchData<LineInstance> m_line_batch_data;
 
     std::string m_cache_pipeline_dir;
 
@@ -349,6 +285,9 @@ private:
     LLGL::Shader* m_sprite_vertex_shader = nullptr;
     LLGL::Shader* m_glyph_vertex_shader = nullptr;
     LLGL::Shader* m_ninepatch_vertex_shader = nullptr;
+
+    LLGL::Shader* m_sprite_default_fragment_shader = nullptr;
+    LLGL::Shader* m_glyph_default_fragment_shader = nullptr;
 
 #if SGE_DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;

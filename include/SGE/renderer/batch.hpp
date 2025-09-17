@@ -8,17 +8,18 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "../types/texture.hpp"
-#include "../types/sprite.hpp"
-#include "../types/nine_patch.hpp"
-#include "../types/rich_text.hpp"
-#include "../types/order.hpp"
-#include "../types/font.hpp"
-#include "../types/shape.hpp"
-#include "../types/color.hpp"
-#include "../types/blend_mode.hpp"
-
-#include "../defines.hpp"
+#include <SGE/math/rect.hpp>
+#include <SGE/types/texture.hpp>
+#include <SGE/types/sprite.hpp>
+#include <SGE/types/nine_patch.hpp>
+#include <SGE/types/rich_text.hpp>
+#include <SGE/types/order.hpp>
+#include <SGE/types/font.hpp>
+#include <SGE/types/shape.hpp>
+#include <SGE/types/color.hpp>
+#include <SGE/types/blend_mode.hpp>
+#include <SGE/defines.hpp>
+#include <SGE/renderer/types.hpp>
 
 _SGE_BEGIN
 
@@ -36,6 +37,7 @@ enum class FlushDataType : uint8_t {
 
 struct FlushData {
     std::optional<sge::Texture> texture;
+    sge::IRect scissor;
     uint32_t offset;
     uint32_t count;
     uint32_t order;
@@ -108,36 +110,41 @@ public:
         DrawLine
     };
 
-    DrawCommand(DrawCommandSprite sprite_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandSprite sprite_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_sprite_data(sprite_data),
+        m_scissor(scissor),
         m_id(id),
         m_order(order),
         m_type(Type::DrawSprite),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandGlyph glyph_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandGlyph glyph_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_glyph_data(glyph_data),
+        m_scissor(scissor),
         m_id(id),
         m_order(order),
         m_type(Type::DrawGlyph),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandNinePatch ninepatch_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandNinePatch ninepatch_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_ninepatch_data(ninepatch_data),
+        m_scissor(scissor),
         m_id(id),
         m_order(order),
         m_type(Type::DrawNinePatch),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandShape shape_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandShape shape_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_shape_data(shape_data),
+        m_scissor(scissor),
         m_id(id),
         m_order(order),
         m_type(Type::DrawShape),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandLine line_data, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandLine line_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
         m_line_data(line_data),
+        m_scissor(scissor),
         m_id(id),
         m_order(order),
         m_type(Type::DrawLine),
@@ -148,6 +155,8 @@ public:
 
     [[nodiscard]] inline uint32_t order() const { return m_order; }
     [[nodiscard]] inline sge::BlendMode blend_mode() const { return m_blend_mode; }
+
+    [[nodiscard]] inline sge::IRect scissor() const { return m_scissor; }
 
     [[nodiscard]] inline const sge::Texture* texture() const {
         switch (m_type) {
@@ -172,6 +181,8 @@ private:
         DrawCommandShape m_shape_data;
         DrawCommandLine m_line_data;
     };
+
+    sge::IRect m_scissor;
 
     uint32_t m_id;
     uint32_t m_order;
@@ -198,6 +209,22 @@ inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
 
 };
 
+struct BatchDesc {
+    /**
+     * @brief Custom sprite fragment shader
+     * 
+     * @note If null, the default sprite fragment shader is used
+     */
+    LLGL::Shader* sprite_shader = nullptr;
+    /**
+     * @brief Custom font fragment shader
+     * 
+     * @note If null, the default font fragment shader is used
+     */
+    LLGL::Shader* font_shader = nullptr;
+    bool enable_scissor = false;
+};
+
 class Batch {
     friend class sge::Renderer;
 
@@ -214,13 +241,6 @@ public:
 
     using DrawCommands = std::vector<internal::DrawCommand>;
     using FlushQueue = std::vector<internal::FlushData>;
-
-    Batch() {
-        m_draw_commands.reserve(500);
-        m_flush_queue.reserve(100);
-    };
-
-    Batch(Renderer& renderer, LLGL::Shader* custom_glyph_shader);
 
     Batch(const Batch&) = delete;
     Batch& operator=(const Batch&) = delete;
@@ -269,6 +289,15 @@ public:
         m_global_order.advance = false;
     }
 
+    inline void BeginScissorMode(sge::Rect area) noexcept {
+        m_scissors.emplace_back(area);
+    }
+
+    inline void EndScissorMode() noexcept {
+        if (m_scissors.empty()) return;
+        m_scissors.pop_back();
+    }
+
     uint32_t DrawText(const sge::RichTextSection* sections, size_t size, const glm::vec2& position, const sge::Font& font, sge::Order order = {});
 
     uint32_t DrawAtlasSprite(const sge::TextureAtlasSprite& sprite, sge::Order order = {});
@@ -312,13 +341,16 @@ public:
     inline void Reset() {
         m_draw_commands.clear();
         m_flush_queue.clear();
+        m_scissors.clear();
         m_order = 0;
-
+        
         m_sprite_data.Reset();
         m_glyph_data.Reset();
         m_ninepatch_data.Reset();
         m_shape_data.Reset();
         m_line_data.Reset();
+        
+        m_order_mode = false;
 
         m_draw_commands_done = 0;
     }
@@ -332,51 +364,96 @@ public:
     inline bool IsUi() const noexcept {
         return m_is_ui;
     }
+    
+    [[nodiscard]]
+    inline bool ScissorEnabled() const noexcept {
+        return m_scissor_enabled;
+    }
 
     [[nodiscard]]
-    inline uint32_t order() const noexcept {
+    inline uint32_t Order() const noexcept {
         return m_order;
     }
 
     [[nodiscard]]
-    inline const Data& sprite_data() const noexcept {
+    inline const Data& SpriteData() const noexcept {
         return m_sprite_data;
     }
 
     [[nodiscard]]
-    inline const Data& glyph_data() const noexcept {
+    inline const Data& GlyphData() const noexcept {
         return m_glyph_data;
     }
 
     [[nodiscard]]
-    inline const Data& ninepatch_data() const noexcept {
+    inline const Data& NinepatchData() const noexcept {
         return m_ninepatch_data;
     }
 
     [[nodiscard]]
-    inline const Data& shape_data() const noexcept {
+    inline const Data& ShapeData() const noexcept {
         return m_shape_data;
     }
 
     [[nodiscard]]
-    inline const Data& line_data() const noexcept {
+    inline const Data& LineData() const noexcept {
         return m_line_data;
     }
 
     [[nodiscard]]
-    inline LLGL::PipelineState* glyph_pipeline() const noexcept {
+    inline const SpriteBatchPipeline& SpritePipeline() const noexcept {
+        return m_sprite_pipeline;
+    }
+    
+    [[nodiscard]]
+    inline LLGL::PipelineState* NinepatchPipeline() const noexcept {
+        return m_ninepatch_pipeline;
+    }
+
+    [[nodiscard]]
+    inline LLGL::PipelineState* GlyphPipeline() const noexcept {
         return m_glyph_pipeline;
     }
 
-    inline uint32_t GetOrder(Order custom_order = {});
+    [[nodiscard]]
+    inline LLGL::PipelineState* ShapePipeline() const noexcept {
+        return m_shape_pipeline;
+    }
 
-    void Terminate(const LLGL::RenderSystemPtr& context) {
+    [[nodiscard]]
+    inline LLGL::PipelineState* LinePipeline() const noexcept {
+        return m_line_pipeline;
+    }
+
+    inline uint32_t GetOrder(sge::Order custom_order = {});
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        m_sprite_pipeline.Destroy(context);
+        
+        if (m_ninepatch_pipeline) {
+            context->Release(*m_ninepatch_pipeline);
+            m_ninepatch_pipeline = nullptr;
+        }
+
         if (m_glyph_pipeline) {
             context->Release(*m_glyph_pipeline);
+            m_glyph_pipeline = nullptr;
+        }
+
+        if (m_shape_pipeline) {
+            context->Release(*m_shape_pipeline);
+            m_shape_pipeline = nullptr;
+        }
+
+        if (m_line_pipeline) {
+            context->Release(*m_line_pipeline);
+            m_line_pipeline = nullptr;
         }
     }
 
 private:
+    Batch(Renderer& renderer, const BatchDesc& desc);
+
     uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius = glm::vec4(0.0f), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
 
     uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, sge::Order custom_order);
@@ -438,14 +515,23 @@ private:
     static constexpr size_t MAX_QUADS = 2500;
     static constexpr size_t MAX_GLYPHS = 2500;
 
+    SpriteBatchPipeline m_sprite_pipeline{};
+
     DrawCommands m_draw_commands;
     FlushQueue m_flush_queue;
+
+    std::vector<sge::IRect> m_scissors;
 
     Data m_sprite_data;
     Data m_glyph_data;
     Data m_ninepatch_data;
     Data m_shape_data;
     Data m_line_data;
+
+    LLGL::PipelineState* m_ninepatch_pipeline = nullptr;
+    LLGL::PipelineState* m_glyph_pipeline = nullptr;
+    LLGL::PipelineState* m_shape_pipeline = nullptr;
+    LLGL::PipelineState* m_line_pipeline = nullptr;
 
     uint32_t m_order = 0;
 
@@ -456,11 +542,10 @@ private:
     bool m_order_mode = false;
     bool m_depth_enabled = false;
     bool m_is_ui = false;
+    bool m_scissor_enabled = false;
 
     sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
     sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
-
-    LLGL::PipelineState* m_glyph_pipeline = nullptr;
 };
 
 _SGE_END

@@ -4,6 +4,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <LLGL/LLGL.h>
+#include <SGE/renderer/macros.hpp>
+
 #include "../defines.hpp"
 
 _SGE_BEGIN
@@ -68,6 +71,29 @@ struct ShapeInstance {
     float border_thickness;
     uint8_t shape;
     uint8_t flags;
+};
+
+struct SpriteBatchPipeline {
+    LLGL::PipelineState* additive = nullptr;
+    LLGL::PipelineState* alpha_blend = nullptr;
+    LLGL::PipelineState* opaque = nullptr;
+    LLGL::PipelineState* premultiplied_alpha = nullptr;
+
+    LLGL::PipelineState* depth_additive = nullptr;
+    LLGL::PipelineState* depth_alpha_blend = nullptr;
+    LLGL::PipelineState* depth_opaque = nullptr;
+    LLGL::PipelineState* depth_premultiplied_alpha = nullptr;
+
+    void Destroy(const LLGL::RenderSystemPtr& context) {
+        SGE_RESOURCE_RELEASE(additive);
+        SGE_RESOURCE_RELEASE(alpha_blend);
+        SGE_RESOURCE_RELEASE(opaque);
+        SGE_RESOURCE_RELEASE(premultiplied_alpha);
+        SGE_RESOURCE_RELEASE(depth_additive);
+        SGE_RESOURCE_RELEASE(depth_alpha_blend);
+        SGE_RESOURCE_RELEASE(depth_opaque);
+        SGE_RESOURCE_RELEASE(depth_premultiplied_alpha);
+    }
 };
 
 _SGE_END

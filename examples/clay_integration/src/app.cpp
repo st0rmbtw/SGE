@@ -20,7 +20,7 @@ static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 using namespace sge;
 
 static struct GameState {
-    Batch batch;
+    std::unique_ptr<Batch> batch;
     Camera camera = Camera(CameraOrigin::TopLeft);
 } g;
 
@@ -124,7 +124,7 @@ static void Render() {
             const LinearRgba color = LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
             const glm::vec4 cornerRadius = glm::vec4(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
-            g.batch.DrawRect(position, {
+            g.batch->DrawRect(position, {
                 .size = size,
                 .color = color,
                 .border_thickness = 0.0f,
@@ -145,7 +145,7 @@ static void Render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y + config->cornerRadius.topLeft);
                 const glm::vec2 size = glm::vec2(config->width.left, boundingBox.height - config->cornerRadius.topLeft - config->cornerRadius.bottomLeft);
 
-                g.batch.DrawRect(position, {
+                g.batch->DrawRect(position, {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
@@ -159,7 +159,7 @@ static void Render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->width.right, boundingBox.y + config->cornerRadius.topRight);
                 const glm::vec2 size = glm::vec2(config->width.right, boundingBox.height - config->cornerRadius.topRight - config->cornerRadius.bottomRight);
 
-                g.batch.DrawRect(position, {
+                g.batch->DrawRect(position, {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
@@ -173,7 +173,7 @@ static void Render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.topLeft - config->cornerRadius.topRight, config->width.top);
 
-                g.batch.DrawRect(position, {
+                g.batch->DrawRect(position, {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
@@ -188,7 +188,7 @@ static void Render() {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->width.bottom);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.bottomLeft - config->cornerRadius.bottomRight, config->width.bottom);
 
-                g.batch.DrawRect(position, {
+                g.batch->DrawRect(position, {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
@@ -200,7 +200,7 @@ static void Render() {
 
             if (config->cornerRadius.topLeft > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y + config->cornerRadius.topLeft);
-                g.batch.DrawArc(position, {
+                g.batch->DrawArc(position, {
                     .outer_radius = config->cornerRadius.topLeft,
                     .inner_radius = config->cornerRadius.topLeft - config->width.top,
                     .start_angle = glm::radians(90.0f),
@@ -212,7 +212,7 @@ static void Render() {
 
             if (config->cornerRadius.topRight > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->cornerRadius.topRight, boundingBox.y + config->cornerRadius.topRight);
-                g.batch.DrawArc(position, {
+                g.batch->DrawArc(position, {
                     .outer_radius = config->cornerRadius.topRight,
                     .inner_radius = config->cornerRadius.topRight - config->width.top,
                     .start_angle = glm::radians(0.0f),
@@ -224,7 +224,7 @@ static void Render() {
 
             if (config->cornerRadius.bottomLeft > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->cornerRadius.bottomLeft);
-                g.batch.DrawArc(position, {
+                g.batch->DrawArc(position, {
                     .outer_radius = config->cornerRadius.bottomLeft,
                     .inner_radius = config->cornerRadius.bottomLeft - config->width.bottom,
                     .start_angle = glm::radians(180.0f),
@@ -236,7 +236,7 @@ static void Render() {
 
             if (config->cornerRadius.bottomRight > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->cornerRadius.bottomRight, boundingBox.y + boundingBox.height - config->cornerRadius.bottomRight);
-                g.batch.DrawArc(position, {
+                g.batch->DrawArc(position, {
                     .outer_radius = config->cornerRadius.bottomRight,
                     .inner_radius = config->cornerRadius.bottomRight - config->width.bottom,
                     .start_angle = glm::radians(270.0f),
@@ -258,9 +258,9 @@ static void Render() {
     }
 
     const glm::vec2 center = g.camera.screen_center();
-    g.batch.DrawLine(center, center + glm::vec2(100.0), 2.0, sge::LinearRgba::blue());
+    g.batch->DrawLine(center, center + glm::vec2(100.0), 2.0, sge::LinearRgba::blue());
 
-    g.batch.DrawRect(center, {
+    g.batch->DrawRect(center, {
         .size = glm::vec2(250.0f),
         .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
         .border_thickness = 2.0f,
@@ -271,11 +271,11 @@ static void Render() {
     renderer.BeginMainPass();
         renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
 
-        renderer.PrepareBatch(g.batch);
+        renderer.PrepareBatch(*g.batch);
         renderer.UploadBatchData();
-        renderer.RenderBatch(g.batch);
+        renderer.RenderBatch(*g.batch);
 
-        g.batch.Reset();
+        g.batch->Reset();
     renderer.EndPass();
 
     renderer.End();
@@ -303,7 +303,7 @@ static void WindowResized(uint32_t width, uint32_t height, uint32_t, uint32_t) {
 
 static void CleanupCallback() {
     Renderer& renderer = Engine::Renderer();
-    g.batch.Terminate(renderer.Context());
+    g.batch->Destroy(renderer.Context());
 }
 
 static void HandleClayErrors(Clay_ErrorData errorData) {
@@ -347,8 +347,9 @@ bool App::Init(const ExampleConfig& config) {
         Clay_ErrorHandler{ .errorHandlerFunction = HandleClayErrors, .userData = NULL }
     );
 
-    g.batch.SetIsUi(true);
-    g.batch.BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
+    g.batch = sge::Engine::Renderer().CreateBatch();
+    g.batch->SetIsUi(true);
+    g.batch->BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
     return true;
 }

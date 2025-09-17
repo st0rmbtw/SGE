@@ -4,8 +4,15 @@
 
 using namespace sge;
 
-Batch::Batch(Renderer& renderer, LLGL::Shader* custom_glyph_shader) : Batch() {
-    m_glyph_pipeline = renderer.CreateGlyphBatchPipeline(custom_glyph_shader);
+Batch::Batch(Renderer& renderer, const BatchDesc& desc) : m_scissor_enabled(desc.enable_scissor) {
+    m_draw_commands.reserve(500);
+    m_flush_queue.reserve(100);
+
+    m_sprite_pipeline = renderer.CreateSpriteBatchPipeline(desc.enable_scissor, desc.sprite_shader);
+    m_ninepatch_pipeline = renderer.CreateNinepatchBatchPipeline(desc.enable_scissor);
+    m_glyph_pipeline = renderer.CreateGlyphBatchPipeline(desc.enable_scissor, desc.font_shader);
+    m_shape_pipeline = renderer.CreateShapeBatchPipeline(desc.enable_scissor);
+    m_line_pipeline = renderer.CreateLineBatchPipeline(desc.enable_scissor);
 }
 
 uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order custom_order) {
@@ -31,7 +38,7 @@ uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order c
     return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.atlas().texture(), custom_order);
 }
 
-inline uint32_t Batch::GetOrder(Order custom_order) {
+inline uint32_t Batch::GetOrder(sge::Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);
@@ -50,6 +57,7 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
     float y = position.y;
 
     const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
 
     for (size_t i = 0; i < size; ++i) {
         const RichTextSection section = sections[i];
@@ -89,7 +97,7 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
                 .tex_uv = ch.texture_coords,
             };
 
-            m_draw_commands.emplace_back(command, m_glyph_data.count, order, m_blend_mode);
+            m_draw_commands.emplace_back(command, scissor, m_glyph_data.count, order, m_blend_mode);
 
             ++m_glyph_data.count;
 
@@ -115,9 +123,10 @@ uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& 
         .depth_enabled = false
     };
 
-    uint32_t order = GetOrder(custom_order);
+    const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
 
-    m_draw_commands.emplace_back(draw_command, m_sprite_data.count, order, m_blend_mode);
+    m_draw_commands.emplace_back(draw_command, scissor, m_sprite_data.count, order, m_blend_mode);
 
     ++m_sprite_data.count;
 
@@ -138,9 +147,10 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
         .output_size = ninepatch.size(),
     };
 
-    uint32_t order = GetOrder(custom_order);
+    const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
 
-    m_draw_commands.emplace_back(draw_command, m_ninepatch_data.count, order, m_blend_mode);
+    m_draw_commands.emplace_back(draw_command, scissor, m_ninepatch_data.count, order, m_blend_mode);
 
     ++m_ninepatch_data.count;
 
@@ -159,9 +169,10 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
         .shape = shape,
     };
 
-    uint32_t order = GetOrder(custom_order);
+    const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
 
-    m_draw_commands.emplace_back(command, m_shape_data.count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, scissor, m_shape_data.count, order, m_blend_mode);
 
     ++m_shape_data.count;
 
@@ -178,8 +189,9 @@ uint32_t Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const 
     };
 
     const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
 
-    m_draw_commands.emplace_back(command, m_shape_data.count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, scissor, m_shape_data.count, order, m_blend_mode);
 
     ++m_line_data.count;
 

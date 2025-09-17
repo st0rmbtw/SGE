@@ -292,7 +292,11 @@ void Renderer::SavePipelineCache(const std::string& name, LLGL::PipelineCache* p
     }
 }
 
-SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(LLGL::Shader* fragment_shader) {
+SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader) {
+    if (fragment_shader == nullptr) {
+        fragment_shader = m_sprite_default_fragment_shader;
+    }
+
     static uint32_t count = 0;
 
     auto& context = Context();
@@ -315,6 +319,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(LLGL::Shader* fragment_s
     pipelineDesc.renderPass = SwapChain()->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
     pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
+    pipelineDesc.rasterizer.scissorTestEnabled = enable_scissor;
 
     LLGL::BlendDescriptor blend_modes[4] = {
         // AlphaBlend
@@ -453,9 +458,11 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(LLGL::Shader* fragment_s
     return pipeline;
 }
 
-LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline() {
+LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline(bool enable_scissor) {
     auto& context = m_context;
     const RenderBackend backend = m_backend;
+
+    static uint32_t count = 0;
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
@@ -479,6 +486,7 @@ LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline() {
     pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
     pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
+    pipelineDesc.rasterizer.scissorTestEnabled = enable_scissor;
     pipelineDesc.blend = LLGL::BlendDescriptor {
         .targets = {
             LLGL::BlendTargetDescriptor {
@@ -493,22 +501,31 @@ LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline() {
     };
 
     bool hasInitialCache = false;
-    LLGL::PipelineCache* pipelineCache = ReadPipelineCache("NinePatchBatchPipeline", hasInitialCache);
+
+    const std::string name = std::format("NinePatchBatchPipeline{}", count);
+
+    LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
     LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
 
     if (m_cache_pipelines && !hasInitialCache) {
-        SavePipelineCache("NinePatchBatchPipeline", pipelineCache);
+        SavePipelineCache(name, pipelineCache);
     }
 
     if (const LLGL::Report* report = pipeline->GetReport()) {
         if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
     }
 
+    count++;
+
     return pipeline;
 }
 
-LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(LLGL::Shader* fragment_shader) {
+LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader) {
+    if (fragment_shader == nullptr) {
+        fragment_shader = m_glyph_default_fragment_shader;
+    }
+
     static uint32_t count = 0;
 
     auto& context = m_context;
@@ -535,6 +552,7 @@ LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(LLGL::Shader* fragment_s
     pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
     pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
+    pipelineDesc.rasterizer.scissorTestEnabled = enable_scissor;
     pipelineDesc.blend = LLGL::BlendDescriptor {
         .targets = {
             LLGL::BlendTargetDescriptor {
@@ -568,9 +586,11 @@ LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(LLGL::Shader* fragment_s
     return pipeline;
 }
 
-LLGL::PipelineState* Renderer::CreateShapeBatchPipeline() {
+LLGL::PipelineState* Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
     auto& context = m_context;
     const RenderBackend backend = m_backend;
+
+    static uint32_t count = 0;
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
@@ -592,6 +612,7 @@ LLGL::PipelineState* Renderer::CreateShapeBatchPipeline() {
     pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
     pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
+    pipelineDesc.rasterizer.scissorTestEnabled = enable_scissor;
     pipelineDesc.blend = LLGL::BlendDescriptor {
         .targets = {
             LLGL::BlendTargetDescriptor {
@@ -605,25 +626,31 @@ LLGL::PipelineState* Renderer::CreateShapeBatchPipeline() {
         }
     };
 
+    const std::string name = std::format("ShapeBatchPipeline{}", count);
+    
     bool hasInitialCache = false;
-    LLGL::PipelineCache* pipelineCache = ReadPipelineCache("ShapeBatchPipeline", hasInitialCache);
+    LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
     LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
 
     if (m_cache_pipelines && !hasInitialCache) {
-        SavePipelineCache("ShapeBatchPipeline", pipelineCache);
+        SavePipelineCache(name, pipelineCache);
     }
 
     if (const LLGL::Report* report = pipeline->GetReport()) {
         if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
     }
 
+    count++;
+
     return pipeline;
 }
 
-LLGL::PipelineState* Renderer::CreateLineBatchPipeline() {
+LLGL::PipelineState* Renderer::CreateLineBatchPipeline(bool enable_scissor) {
     auto& context = m_context;
     const RenderBackend backend = m_backend;
+    
+    static uint32_t count = 0;
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
@@ -645,6 +672,7 @@ LLGL::PipelineState* Renderer::CreateLineBatchPipeline() {
     pipelineDesc.renderPass = m_swap_chain->GetRenderPass();
     pipelineDesc.rasterizer.frontCCW = true;
     pipelineDesc.rasterizer.multiSampleEnabled = m_swap_chain->GetSamples() > 1;
+    pipelineDesc.rasterizer.scissorTestEnabled = enable_scissor;
     pipelineDesc.blend = LLGL::BlendDescriptor {
         .targets = {
             LLGL::BlendTargetDescriptor {
@@ -658,77 +686,74 @@ LLGL::PipelineState* Renderer::CreateLineBatchPipeline() {
         }
     };
 
+    const std::string name = std::format("LineBatchPipeline{}", count);
+
     bool hasInitialCache = false;
-    LLGL::PipelineCache* pipelineCache = ReadPipelineCache("LineBatchPipeline", hasInitialCache);
+    LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
     LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
 
     if (m_cache_pipelines && !hasInitialCache) {
-        SavePipelineCache("LineBatchPipeline", pipelineCache);
+        SavePipelineCache(name, pipelineCache);
     }
 
     if (const LLGL::Report* report = pipeline->GetReport()) {
         if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
     }
 
+    count++;
+
     return pipeline;
 }
 
 
-SpriteBatchData Renderer::InitSpriteBatchData() {
+BatchData<SpriteInstance> Renderer::InitSpriteBatchData() {
     ZoneScoped;
 
     BatchVertexFormats vertex_formats = SpriteBatchVertexFormats(m_backend);
 
-    ShaderSourceCode shader = GetSpriteShaderSourceCode(m_backend);
-    LLGL::Shader* fragment_shader = CreateShader(*this, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
-
-    SpriteBatchData batchData;
+    BatchData<SpriteInstance> batchData;
     batchData.Init(*this, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
-    batchData.pipeline = CreateSpriteBatchPipeline(fragment_shader);
     return batchData;
 }
 
-NinePatchBatchData Renderer::InitNinepatchBatchData() {
+BatchData<NinePatchInstance> Renderer::InitNinepatchBatchData() {
     ZoneScoped;
 
     BatchVertexFormats vertex_formats = NinepatchBatchVertexFormats(m_backend);
 
-    NinePatchBatchData batchData;
+    BatchData<NinePatchInstance> batchData;
     batchData.Init(*this, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
-    batchData.pipeline = CreateNinepatchBatchPipeline();
     return batchData;
 }
 
-GlyphBatchData Renderer::InitGlyphBatchData() {
+BatchData<GlyphInstance> Renderer::InitGlyphBatchData() {
     ZoneScoped;
 
     BatchVertexFormats vertex_formats = GlyphBatchVertexFormats(m_backend);
 
-    ShaderSourceCode shader = GetFontShaderSourceCode(m_backend);
-    LLGL::Shader* fragment_shader = CreateShader(*this, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
-
-    GlyphBatchData batchData;
+    BatchData<GlyphInstance> batchData;
     batchData.Init(*this, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
-    batchData.pipeline = CreateGlyphBatchPipeline(fragment_shader);
     return batchData;
 }
 
-ShapeBatchData Renderer::InitShapeBatchData() {
+BatchData<ShapeInstance> Renderer::InitShapeBatchData() {
+    ZoneScoped;
+
     BatchVertexFormats vertex_formats = ShapeBatchVertexFormats(m_backend);
 
-    ShapeBatchData batchData;
+    BatchData<ShapeInstance> batchData;
     batchData.Init(*this, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
-    batchData.pipeline = CreateShapeBatchPipeline();
     return batchData;
 }
 
-LineBatchData Renderer::InitLineBatchData() {
+BatchData<LineInstance> Renderer::InitLineBatchData() {
+    ZoneScoped;
+
     BatchVertexFormats vertex_formats = LineBatchVertexFormats(m_backend);
 
-    LineBatchData batchData;
+    BatchData<LineInstance> batchData;
     batchData.Init(*this, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
-    batchData.pipeline = CreateLineBatchPipeline();
     return batchData;
 }
 
@@ -831,6 +856,17 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const 
     m_shape_batch_data = InitShapeBatchData();
     m_line_batch_data = InitLineBatchData();
 
+
+    {
+        ShaderSourceCode shader = GetSpriteShaderSourceCode(m_backend);
+        m_sprite_default_fragment_shader = CreateShader(*this, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
+    }
+
+    {
+        ShaderSourceCode shader = GetFontShaderSourceCode(m_backend);
+        m_glyph_default_fragment_shader = CreateShader(*this, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
+    }
+
     ResizeBuffers(resolution);
 
     return true;
@@ -918,23 +954,19 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
     sge::BlendMode prev_blend_mode = flush_queue[0].blend_mode;
 
     if (batch.DepthEnabled()) {
-        sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, m_sprite_batch_data.pipeline);
+        sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
     } else {
-        sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, m_sprite_batch_data.pipeline);
+        sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
     }
-
-    LLGL::PipelineState* glyph_pipeline = batch.glyph_pipeline() != nullptr
-        ? batch.glyph_pipeline()
-        : m_glyph_batch_data.pipeline;
 
     size_t offset = 0;
 
     for (FlushData& flush_data : flush_queue) {
         if (prev_blend_mode != flush_data.blend_mode) {
             if (batch.DepthEnabled()) {
-                sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, m_sprite_batch_data.pipeline);
+                sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
             } else {
-                sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, m_sprite_batch_data.pipeline);
+                sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
             }
         }
 
@@ -948,29 +980,40 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
 
             case FlushDataType::Glyph:
                 commands->SetVertexBufferArray(*m_glyph_batch_data.GetBufferArray());
-                commands->SetPipelineState(*glyph_pipeline);
+                commands->SetPipelineState(*batch.GlyphPipeline());
                 offset = batch.glyph_data().offset;
             break;
 
             case FlushDataType::NinePatch:
                 commands->SetVertexBufferArray(*m_ninepatch_batch_data.GetBufferArray());
-                commands->SetPipelineState(*m_ninepatch_batch_data.pipeline);
+                commands->SetPipelineState(*batch.NinepatchPipeline());
                 offset = batch.ninepatch_data().offset;
             break;
 
             case FlushDataType::Shape:
                 commands->SetVertexBufferArray(*m_shape_batch_data.GetBufferArray());
-                commands->SetPipelineState(*m_shape_batch_data.pipeline);
+                commands->SetPipelineState(*batch.ShapePipeline());
                 offset = batch.shape_data().offset;
             break;
             case FlushDataType::Line:
                 commands->SetVertexBufferArray(*m_line_batch_data.GetBufferArray());
-                commands->SetPipelineState(*m_line_batch_data.pipeline);
+                commands->SetPipelineState(*batch.LinePipeline());
                 offset = batch.line_data().offset;
             break;
             }
 
             commands->SetResource(0, *m_constant_buffer);
+        }
+
+        if (flush_data.scissor.width() > 0 && flush_data.scissor.height() > 0) {
+            commands->SetScissor(LLGL::Scissor(
+                flush_data.scissor.min.x,
+                flush_data.scissor.min.y,
+                flush_data.scissor.width(),
+                flush_data.scissor.height()
+            ));
+        } else {
+            commands->SetScissor(LLGL::Scissor(0, 0, m_viewport.x, m_viewport.y));
         }
 
         if (flush_data.texture.has_value() && prev_texture_id != flush_data.texture->id()) {
@@ -1006,6 +1049,12 @@ void Renderer::SortBatchDrawCommands(sge::Batch& batch) {
 
             if (a_order < b_order) return true;
             if (a_order > b_order) return false;
+
+            if (a.scissor().width() + a.scissor().height() < b.scissor().width() + b.scissor().height())
+                return true;
+
+            if (a.scissor().width() + a.scissor().height() > b.scissor().width() + b.scissor().height())
+                return false;
 
             const Texture* a_texture = a.texture();
             const Texture* b_texture = b.texture();
@@ -1066,8 +1115,10 @@ void Renderer::UpdateBatchBuffers(
     uint32_t line_vertex_offset = 0;
     uint32_t line_remaining = batch.line_data().count;
 
-    size_t i = 0;
-    for (i = begin; i < draw_commands.size(); ++i) {
+    sge::IRect prev_scissor = draw_commands[begin].scissor();
+
+    size_t i = begin;
+    for (; i < draw_commands.size(); ++i) {
         if (m_batch_instance_count >= MAX_QUADS) {
             break;
         }
@@ -1098,9 +1149,12 @@ void Renderer::UpdateBatchBuffers(
 
             const uint32_t current_order = draw_command.order();
 
-            if (sprite_count > 0 && (prev_texture_id != curr_texture_id || sprite_prev_blend_mode != curr_blend_mode)) {
+            const bool flush = (prev_texture_id != curr_texture_id || sprite_prev_blend_mode != curr_blend_mode || prev_scissor != draw_command.scissor());
+
+            if (sprite_count > 0 && flush) {
                 flush_queue.push_back(FlushData {
                     .texture = sprite_prev_texture,
+                    .scissor = prev_scissor,
                     .offset = sprite_vertex_offset,
                     .count = sprite_count,
                     .order = current_order,
@@ -1133,6 +1187,7 @@ void Renderer::UpdateBatchBuffers(
             if (sprite_remaining == 0 || current_order != next_order) {
                 flush_queue.push_back(FlushData {
                     .texture = sprite_data.texture,
+                    .scissor = draw_command.scissor(),
                     .offset = sprite_vertex_offset,
                     .count = sprite_count,
                     .order = draw_command.order(),
@@ -1157,9 +1212,12 @@ void Renderer::UpdateBatchBuffers(
 
             const uint32_t current_order = draw_command.order();
 
-            if (glyph_count > 0 && glyph_prev_texture.id() != glyph_data.texture.id()) {
+            const bool flush = (glyph_prev_texture.id() != glyph_data.texture.id() || prev_scissor != draw_command.scissor());
+
+            if (glyph_count > 0 && flush) {
                 flush_queue.push_back(FlushData {
                     .texture = glyph_prev_texture,
+                    .scissor = prev_scissor,
                     .offset = glyph_vertex_offset,
                     .count = glyph_count,
                     .order = current_order,
@@ -1188,6 +1246,7 @@ void Renderer::UpdateBatchBuffers(
             if (glyph_remaining == 0 || current_order != next_order) {
                 flush_queue.push_back(FlushData {
                     .texture = glyph_data.texture,
+                    .scissor = draw_command.scissor(),
                     .offset = glyph_vertex_offset,
                     .count = glyph_count,
                     .order = draw_command.order(),
@@ -1214,9 +1273,12 @@ void Renderer::UpdateBatchBuffers(
 
             const uint32_t current_order = draw_command.order();
 
-            if (ninepatch_count > 0 && prev_texture_id != curr_texture_id) {
+            const bool flush = (prev_texture_id != curr_texture_id || prev_scissor != draw_command.scissor());
+
+            if (ninepatch_count > 0 && flush) {
                 flush_queue.push_back(FlushData {
                     .texture = ninepatch_prev_texture,
+                    .scissor = prev_scissor,
                     .offset = ninepatch_vertex_offset,
                     .count = ninepatch_count,
                     .order = current_order,
@@ -1249,6 +1311,7 @@ void Renderer::UpdateBatchBuffers(
             if (ninepatch_remaining == 0 || current_order != next_order) {
                 flush_queue.push_back(FlushData {
                     .texture = ninepatch_data.texture,
+                    .scissor = draw_command.scissor(),
                     .offset = ninepatch_vertex_offset,
                     .count = ninepatch_count,
                     .order = draw_command.order(),
@@ -1286,9 +1349,12 @@ void Renderer::UpdateBatchBuffers(
             ++shape_total_count;
             --shape_remaining;
 
-            if (shape_remaining == 0 || current_order != next_order) {
+            const bool flush = (current_order != next_order || prev_scissor != draw_command.scissor());
+
+            if (shape_remaining == 0 || flush) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
+                    .scissor = prev_scissor,
                     .offset = shape_vertex_offset,
                     .count = shape_count,
                     .order = draw_command.order(),
@@ -1321,9 +1387,12 @@ void Renderer::UpdateBatchBuffers(
             ++line_total_count;
             --line_remaining;
 
-            if (line_remaining == 0 || current_order != next_order) {
+            const bool flush = (current_order != next_order || prev_scissor != draw_command.scissor());
+
+            if (line_remaining == 0 || flush) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
+                    .scissor = draw_command.scissor(),
                     .offset = line_vertex_offset,
                     .count = line_count,
                     .order = draw_command.order(),
@@ -1340,6 +1409,7 @@ void Renderer::UpdateBatchBuffers(
             if (sprite_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = sprite_prev_texture,
+                    .scissor = prev_scissor,
                     .offset = sprite_vertex_offset,
                     .count = sprite_count,
                     .order = draw_command.order(),
@@ -1351,6 +1421,7 @@ void Renderer::UpdateBatchBuffers(
             if (glyph_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = glyph_prev_texture,
+                    .scissor = prev_scissor,
                     .offset = glyph_vertex_offset,
                     .count = glyph_count,
                     .order = draw_command.order(),
@@ -1362,6 +1433,7 @@ void Renderer::UpdateBatchBuffers(
             if (ninepatch_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = ninepatch_prev_texture,
+                    .scissor = prev_scissor,
                     .offset = ninepatch_vertex_offset,
                     .count = ninepatch_count,
                     .order = draw_command.order(),
@@ -1373,6 +1445,7 @@ void Renderer::UpdateBatchBuffers(
             if (shape_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
+                    .scissor = prev_scissor,
                     .offset = shape_vertex_offset,
                     .count = shape_count,
                     .order = draw_command.order(),
@@ -1384,6 +1457,7 @@ void Renderer::UpdateBatchBuffers(
             if (line_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
+                    .scissor = prev_scissor,
                     .offset = line_vertex_offset,
                     .count = line_count,
                     .order = draw_command.order(),
@@ -1392,6 +1466,8 @@ void Renderer::UpdateBatchBuffers(
                 });
             }
         }
+
+        prev_scissor = draw_command.scissor();
 
         ++m_batch_instance_count;
     }
