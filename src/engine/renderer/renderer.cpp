@@ -1050,17 +1050,21 @@ void Renderer::SortBatchDrawCommands(sge::Batch& batch) {
             if (a_order < b_order) return true;
             if (a_order > b_order) return false;
 
-            if (a.scissor().width() + a.scissor().height() < b.scissor().width() + b.scissor().height())
+            const int a_scissor_size = a.scissor().width() + a.scissor().height();
+            const int b_scissor_size = b.scissor().width() + b.scissor().height();
+
+            if (a_scissor_size < b_scissor_size)
                 return true;
 
-            if (a.scissor().width() + a.scissor().height() > b.scissor().width() + b.scissor().height())
+            if (a_scissor_size > b_scissor_size)
                 return false;
 
             const Texture* a_texture = a.texture();
             const Texture* b_texture = b.texture();
 
             if (a_texture != nullptr && b_texture != nullptr) {
-                return a_texture->id() < b.texture()->id();
+                if (a_texture->id() < b.texture()->id()) return true;
+                if (a_texture->id() > b.texture()->id()) return false;
             }
 
             uint8_t a_bm = static_cast<uint8_t>(a.blend_mode());
@@ -1068,6 +1072,9 @@ void Renderer::SortBatchDrawCommands(sge::Batch& batch) {
 
             if (a_bm < b_bm) return true;
             if (a_bm > b_bm) return false;
+
+            if (a.id() < b.id()) return true;
+            if (a.id() > b.id()) return false;
 
             return false;
         }
