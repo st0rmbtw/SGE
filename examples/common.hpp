@@ -4,6 +4,9 @@
 #define EXAMPLES_COMMON_
 
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <string>
 #include <SGE/types/backend.hpp>
 
 inline constexpr sge::RenderBackend GetDefaultBackend() {

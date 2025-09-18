@@ -1,7 +1,7 @@
 #ifndef _SGE_UTILS_UTF8_HPP_
 #define _SGE_UTILS_UTF8_HPP_
 
-#include <cstdint>
+#include <cstddef>
 
 namespace sge {
 

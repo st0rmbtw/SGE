@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <SGE/utils/utf8.hpp>
 
 uint32_t sge::next_utf8_codepoint(const char* text, std::size_t& index) {
