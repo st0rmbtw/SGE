@@ -18,6 +18,7 @@
 #include <SGE/types/blend_mode.hpp>
 #include <SGE/types/binding_layout.hpp>
 #include <SGE/types/attributes.hpp>
+#include <SGE/math/rect.hpp>
 
 #include <LLGL/PipelineLayoutFlags.h>
 #include <LLGL/PipelineStateFlags.h>
@@ -1063,8 +1064,8 @@ void Renderer::SortBatchDrawCommands(sge::Batch& batch) {
             const Texture* b_texture = b.texture();
 
             if (a_texture != nullptr && b_texture != nullptr) {
-                if (a_texture->id() < b.texture()->id()) return true;
-                if (a_texture->id() > b.texture()->id()) return false;
+                if (a_texture->id() < b_texture->id()) return true;
+                if (a_texture->id() > b_texture->id()) return false;
             }
 
             uint8_t a_bm = static_cast<uint8_t>(a.blend_mode());
@@ -1123,6 +1124,7 @@ void Renderer::UpdateBatchBuffers(
     uint32_t line_remaining = batch.line_data().count;
 
     sge::IRect prev_scissor = draw_commands[begin].scissor();
+    uint32_t prev_order = draw_commands[begin].order();
 
     size_t i = begin;
     for (; i < draw_commands.size(); ++i) {
@@ -1130,13 +1132,79 @@ void Renderer::UpdateBatchBuffers(
             break;
         }
 
-        uint32_t next_order = draw_commands[i].order();
-
-        if (i < draw_commands.size() - 1) {
-            next_order = draw_commands[i + 1].order();
-        }
-
         const DrawCommand& draw_command = draw_commands[i];
+
+        if (prev_order != draw_command.order() || prev_scissor != draw_command.scissor()) {
+            if (sprite_count > 0) {
+                flush_queue.push_back(FlushData {
+                    .texture = sprite_prev_texture,
+                    .scissor = prev_scissor,
+                    .offset = sprite_vertex_offset,
+                    .count = sprite_count,
+                    .order = prev_order,
+                    .type = FlushDataType::Sprite,
+                    .blend_mode = sprite_prev_blend_mode
+                });
+                sprite_count = 0;
+                sprite_vertex_offset = sprite_total_count;
+            }
+
+            if (glyph_count > 0) {
+                flush_queue.push_back(FlushData {
+                    .texture = glyph_prev_texture,
+                    .scissor = prev_scissor,
+                    .offset = glyph_vertex_offset,
+                    .count = glyph_count,
+                    .order = prev_order,
+                    .type = FlushDataType::Glyph,
+                    .blend_mode = draw_command.blend_mode()
+                });
+                glyph_count = 0;
+                glyph_vertex_offset = glyph_total_count;
+            }
+
+            if (ninepatch_count > 0) {
+                flush_queue.push_back(FlushData {
+                    .texture = ninepatch_prev_texture,
+                    .scissor = prev_scissor,
+                    .offset = ninepatch_vertex_offset,
+                    .count = ninepatch_count,
+                    .order = prev_order,
+                    .type = FlushDataType::NinePatch,
+                    .blend_mode = draw_command.blend_mode()
+                });
+                ninepatch_count = 0;
+                ninepatch_vertex_offset = ninepatch_total_count;
+            }
+
+            if (shape_count > 0) {
+                flush_queue.push_back(FlushData {
+                    .texture = std::nullopt,
+                    .scissor = prev_scissor,
+                    .offset = shape_vertex_offset,
+                    .count = shape_count,
+                    .order = prev_order,
+                    .type = FlushDataType::Shape,
+                    .blend_mode = draw_command.blend_mode()
+                });
+                shape_count = 0;
+                shape_vertex_offset = shape_total_count;
+            }
+
+            if (line_count > 0) {
+                flush_queue.push_back(FlushData {
+                    .texture = std::nullopt,
+                    .scissor = prev_scissor,
+                    .offset = line_vertex_offset,
+                    .count = line_count,
+                    .order = prev_order,
+                    .type = FlushDataType::Line,
+                    .blend_mode = draw_command.blend_mode()
+                });
+                line_count = 0;
+                line_vertex_offset = line_total_count;
+            }
+        }
 
         switch (draw_command.type()) {
         case DrawCommand::DrawSprite: {
@@ -1154,17 +1222,15 @@ void Renderer::UpdateBatchBuffers(
 
             const sge::BlendMode curr_blend_mode = draw_command.blend_mode();
 
-            const uint32_t current_order = draw_command.order();
-
-            const bool flush = (prev_texture_id != curr_texture_id || sprite_prev_blend_mode != curr_blend_mode || prev_scissor != draw_command.scissor());
+            const bool flush = (prev_texture_id != curr_texture_id || sprite_prev_blend_mode != curr_blend_mode);
 
             if (sprite_count > 0 && flush) {
                 flush_queue.push_back(FlushData {
                     .texture = sprite_prev_texture,
-                    .scissor = prev_scissor,
+                    .scissor = draw_command.scissor(),
                     .offset = sprite_vertex_offset,
                     .count = sprite_count,
-                    .order = current_order,
+                    .order = draw_command.order(),
                     .type = FlushDataType::Sprite,
                     .blend_mode = sprite_prev_blend_mode
                 });
@@ -1191,7 +1257,7 @@ void Renderer::UpdateBatchBuffers(
             ++sprite_total_count;
             --sprite_remaining;
 
-            if (sprite_remaining == 0 || current_order != next_order) {
+            if (sprite_remaining == 0) {
                 flush_queue.push_back(FlushData {
                     .texture = sprite_data.texture,
                     .scissor = draw_command.scissor(),
@@ -1217,17 +1283,15 @@ void Renderer::UpdateBatchBuffers(
                 glyph_prev_texture = glyph_data.texture;
             }
 
-            const uint32_t current_order = draw_command.order();
-
-            const bool flush = (glyph_prev_texture.id() != glyph_data.texture.id() || prev_scissor != draw_command.scissor());
+            const bool flush = (glyph_prev_texture.id() != glyph_data.texture.id());
 
             if (glyph_count > 0 && flush) {
                 flush_queue.push_back(FlushData {
                     .texture = glyph_prev_texture,
-                    .scissor = prev_scissor,
+                    .scissor = draw_command.scissor(),
                     .offset = glyph_vertex_offset,
                     .count = glyph_count,
-                    .order = current_order,
+                    .order = draw_command.order(),
                     .type = FlushDataType::Glyph,
                     .blend_mode = draw_command.blend_mode()
                 });
@@ -1250,7 +1314,7 @@ void Renderer::UpdateBatchBuffers(
             ++glyph_total_count;
             --glyph_remaining;
 
-            if (glyph_remaining == 0 || current_order != next_order) {
+            if (glyph_remaining == 0) {
                 flush_queue.push_back(FlushData {
                     .texture = glyph_data.texture,
                     .scissor = draw_command.scissor(),
@@ -1278,17 +1342,15 @@ void Renderer::UpdateBatchBuffers(
             const uint32_t prev_texture_id = ninepatch_prev_texture.id();
             const uint32_t curr_texture_id = ninepatch_data.texture.id();
 
-            const uint32_t current_order = draw_command.order();
-
-            const bool flush = (prev_texture_id != curr_texture_id || prev_scissor != draw_command.scissor());
+            const bool flush = (prev_texture_id != curr_texture_id);
 
             if (ninepatch_count > 0 && flush) {
                 flush_queue.push_back(FlushData {
                     .texture = ninepatch_prev_texture,
-                    .scissor = prev_scissor,
+                    .scissor = draw_command.scissor(),
                     .offset = ninepatch_vertex_offset,
                     .count = ninepatch_count,
-                    .order = current_order,
+                    .order = draw_command.order(),
                     .type = FlushDataType::NinePatch,
                     .blend_mode = draw_command.blend_mode()
                 });
@@ -1315,7 +1377,7 @@ void Renderer::UpdateBatchBuffers(
             ++ninepatch_total_count;
             --ninepatch_remaining;
 
-            if (ninepatch_remaining == 0 || current_order != next_order) {
+            if (ninepatch_remaining == 0) {
                 flush_queue.push_back(FlushData {
                     .texture = ninepatch_data.texture,
                     .scissor = draw_command.scissor(),
@@ -1336,8 +1398,6 @@ void Renderer::UpdateBatchBuffers(
 
             const DrawCommandShape& shape_data = draw_command.shape_data();
 
-            const uint32_t current_order = draw_command.order();
-
             uint8_t flags = 0;
             flags |= batch.IsUi() << ShapeFlags::UI;
 
@@ -1356,12 +1416,12 @@ void Renderer::UpdateBatchBuffers(
             ++shape_total_count;
             --shape_remaining;
 
-            const bool flush = (current_order != next_order || prev_scissor != draw_command.scissor());
+            const sge::IRect current_scissor = draw_command.scissor();
 
-            if (shape_remaining == 0 || flush) {
+            if (shape_remaining == 0) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
-                    .scissor = prev_scissor,
+                    .scissor = current_scissor,
                     .offset = shape_vertex_offset,
                     .count = shape_count,
                     .order = draw_command.order(),
@@ -1377,8 +1437,6 @@ void Renderer::UpdateBatchBuffers(
 
             const DrawCommandLine& line_data = draw_command.line_data();
 
-            const uint32_t current_order = draw_command.order();
-
             uint8_t flags = 0;
             flags |= batch.IsUi() << ShapeFlags::UI;
 
@@ -1393,10 +1451,8 @@ void Renderer::UpdateBatchBuffers(
             ++line_count;
             ++line_total_count;
             --line_remaining;
-
-            const bool flush = (current_order != next_order || prev_scissor != draw_command.scissor());
-
-            if (line_remaining == 0 || flush) {
+            
+            if (line_remaining == 0) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
                     .scissor = draw_command.scissor(),
@@ -1416,7 +1472,7 @@ void Renderer::UpdateBatchBuffers(
             if (sprite_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = sprite_prev_texture,
-                    .scissor = prev_scissor,
+                    .scissor = draw_command.scissor(),
                     .offset = sprite_vertex_offset,
                     .count = sprite_count,
                     .order = draw_command.order(),
@@ -1428,7 +1484,7 @@ void Renderer::UpdateBatchBuffers(
             if (glyph_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = glyph_prev_texture,
-                    .scissor = prev_scissor,
+                    .scissor = draw_command.scissor(),
                     .offset = glyph_vertex_offset,
                     .count = glyph_count,
                     .order = draw_command.order(),
@@ -1440,7 +1496,7 @@ void Renderer::UpdateBatchBuffers(
             if (ninepatch_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = ninepatch_prev_texture,
-                    .scissor = prev_scissor,
+                    .scissor = draw_command.scissor(),
                     .offset = ninepatch_vertex_offset,
                     .count = ninepatch_count,
                     .order = draw_command.order(),
@@ -1452,7 +1508,7 @@ void Renderer::UpdateBatchBuffers(
             if (shape_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
-                    .scissor = prev_scissor,
+                    .scissor = draw_command.scissor(),
                     .offset = shape_vertex_offset,
                     .count = shape_count,
                     .order = draw_command.order(),
@@ -1464,7 +1520,7 @@ void Renderer::UpdateBatchBuffers(
             if (line_count > 0) {
                 flush_queue.push_back(FlushData {
                     .texture = std::nullopt,
-                    .scissor = prev_scissor,
+                    .scissor = draw_command.scissor(),
                     .offset = line_vertex_offset,
                     .count = line_count,
                     .order = draw_command.order(),
@@ -1475,6 +1531,7 @@ void Renderer::UpdateBatchBuffers(
         }
 
         prev_scissor = draw_command.scissor();
+        prev_order = draw_command.order();
 
         ++m_batch_instance_count;
     }

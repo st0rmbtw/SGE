@@ -20,6 +20,7 @@
 #include <SGE/types/blend_mode.hpp>
 #include <SGE/defines.hpp>
 #include <SGE/renderer/types.hpp>
+#include <SGE/renderer/macros.hpp>
 
 namespace sge {
 
@@ -432,25 +433,10 @@ public:
     void Destroy(const LLGL::RenderSystemPtr& context) {
         m_sprite_pipeline.Destroy(context);
         
-        if (m_ninepatch_pipeline) {
-            context->Release(*m_ninepatch_pipeline);
-            m_ninepatch_pipeline = nullptr;
-        }
-
-        if (m_glyph_pipeline) {
-            context->Release(*m_glyph_pipeline);
-            m_glyph_pipeline = nullptr;
-        }
-
-        if (m_shape_pipeline) {
-            context->Release(*m_shape_pipeline);
-            m_shape_pipeline = nullptr;
-        }
-
-        if (m_line_pipeline) {
-            context->Release(*m_line_pipeline);
-            m_line_pipeline = nullptr;
-        }
+        SGE_RESOURCE_RELEASE(m_ninepatch_pipeline);
+        SGE_RESOURCE_RELEASE(m_glyph_pipeline);
+        SGE_RESOURCE_RELEASE(m_shape_pipeline);
+        SGE_RESOURCE_RELEASE(m_line_pipeline);
     }
 
 private:

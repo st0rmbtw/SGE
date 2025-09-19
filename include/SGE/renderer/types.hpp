@@ -7,8 +7,6 @@
 #include <LLGL/LLGL.h>
 #include <SGE/renderer/macros.hpp>
 
-#include "../defines.hpp"
-
 namespace sge {
 
 struct Vertex {
