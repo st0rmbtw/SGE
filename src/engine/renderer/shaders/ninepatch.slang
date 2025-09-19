@@ -141,7 +141,7 @@ float4 PS(VSOutput inp) : SV_Target
 
     const float4 color = Texture.Sample(Sampler, new_uv) * inp.color;
 
-    if (color.a <= 0.5) discard;
+    if (color.a <= 0.05f) discard;
 
     return color;
 };

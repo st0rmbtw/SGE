@@ -288,7 +288,7 @@ float4 PS(VSOutput inp) : SV_Target
         }
     }
 
-    if (result.a <= 0.01) discard;
+    if (result.a <= 0.01f) discard;
 
     return result;
 }

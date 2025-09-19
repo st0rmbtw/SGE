@@ -104,6 +104,7 @@ enum class Key : uint16_t {
 };
 
 namespace Input {
+    void AddCodePoint(uint32_t codepoint);
     void Press(Key key, uint8_t modifiers);
     void Press(MouseButton button);
     void Release(Key key, uint8_t modifiers);
@@ -123,6 +124,7 @@ namespace Input {
 
     const std::vector<float>& ScrollEvents() noexcept;
     const glm::vec2& MouseScreenPosition() noexcept;
+    const std::vector<uint32_t>& CodePoints() noexcept;
     glm::vec2 MouseDelta() noexcept;
 
     void Clear();

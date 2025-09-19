@@ -30,6 +30,7 @@ static struct InputState {
     std::unordered_set<uint8_t> mouse_just_pressed;
     std::unordered_set<uint8_t> mouse_just_released;
     std::vector<float> mouse_scroll_events;
+    std::vector<uint32_t> codepoint_queue;
     glm::vec2 mouse_screen_position;
     glm::vec2 mouse_delta;
 } input_state;
@@ -76,8 +77,13 @@ void Input::Clear() {
     input_state.mouse_just_released.clear();
     input_state.mouse_scroll_events.clear();
     input_state.mouse_delta = glm::vec2(0.0f);
+
+    input_state.codepoint_queue.clear();
 }
 
+void Input::AddCodePoint(uint32_t codepoint) {
+    input_state.codepoint_queue.push_back(codepoint);
+}
 
 void Input::Press(MouseButton button) {
     if (input_state.mouse_pressed.insert(static_cast<uint8_t>(button)).second) {
@@ -122,6 +128,10 @@ const std::vector<float>& Input::ScrollEvents() noexcept {
 
 const glm::vec2& Input::MouseScreenPosition() noexcept {
     return input_state.mouse_screen_position;
+}
+
+const std::vector<uint32_t>& Input::CodePoints() noexcept {
+    return input_state.codepoint_queue;
 }
 
 }

@@ -67,18 +67,19 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
 
         const glm::vec3 color = section.color.to_vec3();
 
+        uint32_t codepoint = 0;
         for (size_t i = 0; i < length;) {
-            const uint32_t c = next_utf8_codepoint(str, i);
+            i += utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(str) + i, codepoint);
 
-            if (c == '\n') {
+            if (codepoint == '\n') {
                 y += section.size;
                 x = position.x;
                 continue;
             }
 
-            const Glyph& ch = font.glyphs.find(c)->second;
+            const Glyph& ch = font.glyphs.find(codepoint)->second;
 
-            if (c == ' ') {
+            if (codepoint == ' ') {
                 x += (ch.advance >> 6) * scale;
                 continue;
             }

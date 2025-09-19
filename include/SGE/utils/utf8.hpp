@@ -1,12 +1,98 @@
 #ifndef _SGE_UTILS_UTF8_HPP_
 #define _SGE_UTILS_UTF8_HPP_
 
-#include <cstddef>
+#include <cstdint>
 
 namespace sge {
 
-uint32_t next_utf8_codepoint(const char* text, std::size_t& index);
+/**
+ * @brief Reads a UTF-8 codepoint from the buffer and converts it to a UTF-32 codepoint.
+ * 
+ * @param buffer The UTF-8 codepoint buffer.
+ * @param codepoint The resulting UTF-32 codepoint.
+ * @return The length of the read UTF-8 codepoint in bytes.
+ */
+inline uint8_t utf8_codepoint_to_utf32(const uint8_t* buffer, uint32_t& codepoint) {
+    codepoint = (uint8_t) buffer[0];
 
+    uint8_t cplen = 1;
+    if ((buffer[0] & 0xf8) == 0xf0) {
+        cplen = 4;
+
+        const uint8_t b1 = (uint8_t) buffer[cplen - 1];
+        const uint8_t b2 = (uint8_t) buffer[cplen - 2];
+        const uint8_t b3 = (uint8_t) buffer[cplen - 3];
+        const uint8_t b4 = (uint8_t) buffer[cplen - 4];
+
+        const uint8_t x = (b2 & 0b00111100) >> 2;
+        const uint8_t y = ((b1 & 0b00110000) >> 4) | (b2 & 0b00000011) << 2;
+        const uint8_t z = b1 & 0b00001111;
+        const uint8_t w = b3 & 0b00001111;
+        const uint8_t v = ((b3 & 0b00110000) >> 4) | (b4 & 0b00000011);
+        const uint8_t u = b4 & 0b00000100;
+
+        codepoint = (u << 18) | (v << 16) | (w << 12) | (x << 8) | (y << 4) | z;
+    } else if ((buffer[0] & 0xf0) == 0xe0) {
+        cplen = 3;
+
+        const uint8_t b1 = (uint8_t) buffer[cplen - 1];
+        const uint8_t b2 = (uint8_t) buffer[cplen - 2];
+        const uint8_t b3 = (uint8_t) buffer[cplen - 3];
+
+        const uint8_t x = (b2 & 0b00111100) >> 2;
+        const uint8_t y = ((b1 & 0b00110000) >> 4) | (b2 & 0b00000011) << 2;
+        const uint8_t z = b1 & 0b00001111;
+        const uint8_t w = b3 & 0b00001111;
+
+        codepoint = (w << 12) | (x << 8) | (y << 4) | z;
+    } else if ((buffer[0] & 0xe0) == 0xc0) {
+        cplen = 2;
+
+        const uint8_t b1 = (uint8_t) buffer[cplen - 1];
+        const uint8_t b2 = (uint8_t) buffer[cplen - 2];
+
+        const uint8_t x = (b2 & 0b00011100) >> 2;
+        const uint8_t y = ((b1 & 0b00110000) >> 4) | (b2 & 0b00000011) << 2;
+        const uint8_t z = b1 & 0b00001111;
+
+        codepoint = (x << 8) | (y << 4) | z;
+    }
+
+    return cplen;
+}
+
+/**
+ * @brief Converts a UTF-32 codepoint to a UTF-8 codepoint.
+ * 
+ * @param codepoint The UTF-32 codepoint.
+ * @param buffer The buffer that UTF-8 codepoints are written to.
+ * @return The total number of UTF-8 codepoints written into the buffer.
+ */
+inline uint8_t utf32_codepoint_to_ut8(const uint32_t codepoint, uint8_t* buffer) {
+    if (codepoint <= 0x7F) {
+        buffer[0] = codepoint & 0xFF;
+        return 1;
+    }
+    if (codepoint <= 0x7FF) {
+        buffer[0] = 0xC0 | (codepoint >> 6);            /* 110xxxxx */
+        buffer[1] = 0x80 | (codepoint & 0x3F);          /* 10xxxxxx */
+        return 2;
+    }
+    if (codepoint <= 0xFFFF) {
+        buffer[0] = 0xE0 | (codepoint >> 12);           /* 1110xxxx */
+        buffer[1] = 0x80 | ((codepoint >> 6) & 0x3F);   /* 10xxxxxx */
+        buffer[2] = 0x80 | (codepoint & 0x3F);          /* 10xxxxxx */
+        return 3;
+    }
+    if (codepoint <= 0x10FFFF) {
+        buffer[0] = 0xF0 | (codepoint >> 18);           /* 11110xxx */
+        buffer[1] = 0x80 | ((codepoint >> 12) & 0x3F);  /* 10xxxxxx */
+        buffer[2] = 0x80 | ((codepoint >> 6) & 0x3F);   /* 10xxxxxx */
+        buffer[3] = 0x80 | (codepoint & 0x3F);          /* 10xxxxxx */
+        return 4;
+    }
+    return 0;
+}
 }
 
 #endif

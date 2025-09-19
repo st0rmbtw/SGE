@@ -112,7 +112,7 @@ float4 PS(VSOutput inp) : SV_Target
         result = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));
     }
 
-    if (result.a <= 0.05) discard;
+    if (result.a <= 0.05f) discard;
 
     return result;
 }

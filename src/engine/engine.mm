@@ -44,6 +44,7 @@ static void HandleCursorPosEvents(GLFWwindow* window, double xpos, double ypos);
 static void HandleWindowResize(GLFWwindow* window, int width, int height);
 static void HandleFramebufferResize(GLFWwindow* window, int width, int height);
 static void HandleWindowIconify(GLFWwindow* window, int iconified);
+static void HandleCharacterCallback(GLFWwindow* window, uint32_t codepoint);
 
 static inline const char* glfwGetErrorString() {
     const char* description = nullptr;
@@ -73,6 +74,7 @@ static GLFWwindow* CreateWindow(const WindowSettings& window_settings) {
     glfwSetWindowSizeCallback(window, HandleWindowResize);
     glfwSetWindowIconifyCallback(window, HandleWindowIconify);
     glfwSetFramebufferSizeCallback(window, HandleFramebufferResize);
+    glfwSetCharCallback(window, HandleCharacterCallback);
 
     return window;
 }
@@ -348,4 +350,8 @@ static void HandleWindowResize(GLFWwindow*, int width, int height) {
 
 static void HandleWindowIconify(GLFWwindow*, int iconified) {
     state.window_iconified = iconified == GLFW_TRUE;
+}
+
+static void HandleCharacterCallback(GLFWwindow* window, uint32_t codepoint) {
+    Input::AddCodePoint(codepoint);
 }
