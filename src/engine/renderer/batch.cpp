@@ -77,7 +77,12 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
                 continue;
             }
 
-            const Glyph& ch = font.glyphs.find(codepoint)->second;
+            auto it = font.glyphs.find(codepoint);
+            if (it == font.glyphs.end()) {
+                it = font.glyphs.find(0);
+            }
+            
+            const sge::Glyph& ch = it->second;
 
             if (codepoint == ' ') {
                 x += (ch.advance >> 6) * scale;

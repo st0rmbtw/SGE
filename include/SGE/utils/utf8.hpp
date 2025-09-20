@@ -12,7 +12,7 @@ namespace sge {
  * @param codepoint The resulting UTF-32 codepoint.
  * @return The length of the read UTF-8 codepoint in bytes.
  */
-inline uint8_t utf8_codepoint_to_utf32(const uint8_t* buffer, uint32_t& codepoint) {
+inline uint8_t utf8_codepoint_to_utf32(const uint8_t* buffer, uint32_t& codepoint) noexcept {
     codepoint = (uint8_t) buffer[0];
 
     uint8_t cplen = 1;
@@ -68,7 +68,7 @@ inline uint8_t utf8_codepoint_to_utf32(const uint8_t* buffer, uint32_t& codepoin
  * @param buffer The buffer that UTF-8 codepoints are written to.
  * @return The total number of UTF-8 codepoints written into the buffer.
  */
-inline uint8_t utf32_codepoint_to_ut8(const uint32_t codepoint, uint8_t* buffer) {
+inline uint8_t utf32_codepoint_to_ut8(const uint32_t codepoint, uint8_t* buffer) noexcept {
     if (codepoint <= 0x7F) {
         buffer[0] = codepoint & 0xFF;
         return 1;
@@ -93,6 +93,7 @@ inline uint8_t utf32_codepoint_to_ut8(const uint32_t codepoint, uint8_t* buffer)
     }
     return 0;
 }
+
 }
 
 #endif

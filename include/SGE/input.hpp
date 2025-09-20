@@ -83,6 +83,7 @@ enum class Key : uint16_t {
 
     Escape = GLFW_KEY_ESCAPE,
     Tab = GLFW_KEY_TAB,
+    Backspace = GLFW_KEY_BACKSPACE,
 
     F1 = GLFW_KEY_F1,
     F2 = GLFW_KEY_F2,

@@ -22,7 +22,13 @@ glm::vec2 sge::calculate_text_bounds(const sge::Font& font, size_t length, const
             continue;
         }
 
-        const sge::Glyph& glyph = font.glyphs.find(codepoint)->second;
+        auto it = font.glyphs.find(codepoint);
+        if (it == font.glyphs.end()) {
+            it = font.glyphs.find(0);
+        }
+        
+        const sge::Glyph& glyph = it->second;
+
         x += (glyph.advance >> 6) * scale;
         bounds.x = std::max(bounds.x, x);
         // bounds.y = std::max(bounds.y, (glyph.size.y + (glyph.size.y - glyph.bearing.y)) * scale);
