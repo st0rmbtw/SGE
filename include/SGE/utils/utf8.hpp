@@ -2,6 +2,7 @@
 #define _SGE_UTILS_UTF8_HPP_
 
 #include <cstdint>
+#include <cstddef>
 
 namespace sge {
 
@@ -92,6 +93,21 @@ inline uint8_t utf32_codepoint_to_ut8(const uint32_t codepoint, uint8_t* buffer)
         return 4;
     }
     return 0;
+}
+
+/**
+ * @brief Counts how many bytes a UTF-8 codepoint takes starting from the end of the buffer.
+ * 
+ * @param buffer The UTF-8 codepoint buffer.
+ * @param length The length of the buffer.
+ * @return The length of the UTF-8 codepoint in bytes.
+ */
+inline uint8_t count_utf8_char_bytes_from_end(const void* buffer, size_t length) {
+    uint8_t count = 0;
+    const uint8_t* data = static_cast<const uint8_t*>(buffer);
+    // Moving to the left until we encounter trailing character
+    while(++count < length && (data[length - count] & 0xC0u) == 0x80u);
+    return count;
 }
 
 }
