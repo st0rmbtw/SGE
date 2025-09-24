@@ -67,23 +67,27 @@ enum class Key : uint16_t {
     Digit8 = GLFW_KEY_8,
     Digit9 = GLFW_KEY_9,
     Digit0 = GLFW_KEY_0,
+    Minus = GLFW_KEY_MINUS,
+    Equals = GLFW_KEY_EQUAL,
+    Backspace = GLFW_KEY_BACKSPACE,
 
     LeftShift = GLFW_KEY_LEFT_SHIFT,
-    LeftAlt = GLFW_KEY_LEFT_ALT,
-
     RightShift = GLFW_KEY_RIGHT_SHIFT,
+
+    LeftAlt = GLFW_KEY_LEFT_ALT,
     RightAlt = GLFW_KEY_RIGHT_ALT,
 
     LeftCtrl = GLFW_KEY_LEFT_CONTROL,
     RightCtrl = GLFW_KEY_RIGHT_CONTROL,
 
-    Minus = GLFW_KEY_MINUS,
-    Equals = GLFW_KEY_EQUAL,
+    LeftSuper = GLFW_KEY_LEFT_SUPER,
+    RightSuper = GLFW_KEY_RIGHT_SUPER,
+
     Space = GLFW_KEY_SPACE,
 
     Escape = GLFW_KEY_ESCAPE,
     Tab = GLFW_KEY_TAB,
-    Backspace = GLFW_KEY_BACKSPACE,
+    CapsLock = GLFW_KEY_CAPS_LOCK,
 
     F1 = GLFW_KEY_F1,
     F2 = GLFW_KEY_F2,
@@ -98,10 +102,21 @@ enum class Key : uint16_t {
     F11 = GLFW_KEY_F11,
     F12 = GLFW_KEY_F12,
 
+    PrintScreen = GLFW_KEY_PRINT_SCREEN,
+    ScrollLock = GLFW_KEY_SCROLL_LOCK,
+    Pause = GLFW_KEY_PAUSE,
+
     ArrowUp = GLFW_KEY_UP,
     ArrowDown = GLFW_KEY_DOWN,
     ArrowLeft = GLFW_KEY_LEFT,
     ArrowRight = GLFW_KEY_RIGHT,
+
+    End = GLFW_KEY_END,
+    Home = GLFW_KEY_HOME,
+    Insert = GLFW_KEY_INSERT,
+    Delete = GLFW_KEY_DELETE,
+    PageUp = GLFW_KEY_PAGE_UP,
+    PageDown = GLFW_KEY_PAGE_DOWN
 };
 
 namespace Input {

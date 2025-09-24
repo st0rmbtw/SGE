@@ -110,6 +110,23 @@ inline uint8_t count_utf8_char_bytes_from_end(const void* buffer, size_t length)
     return count;
 }
 
+/**
+ * @brief Counts how many bytes a UTF-8 codepoint takes.
+ * 
+ * @param c The UTF-8 codepoint.
+ * @return The length of the UTF-8 codepoint in bytes.
+ */
+constexpr inline uint8_t count_utf8_char_bytes(uint8_t c) {
+   // if the most significant bit with a zero in it is in position
+   // 8-N then there are N bytes in this UTF-8 sequence:
+   uint8_t mask = 0x80u;
+   uint8_t result = 0;
+   while (c & mask) {
+        ++result;
+        mask >>= 1;
+   }
+   return (result == 0) ? 1 : ((result > 4) ? 4 : result);
+}
 }
 
 #endif

@@ -37,18 +37,21 @@ glm::vec2 sge::calculate_text_bounds(const sge::Font& font, float size, const ch
     return bounds;
 }
 
-uint32_t sge::chars_fit_in_line_from_start(const sge::Font& font, float size, const char* text, size_t length, float line_width) noexcept {
+sge::FitResult sge::chars_fit_in_line_from_start(const sge::Font& font, float size, const char* text, size_t length, float line_width) noexcept {
     ZoneScoped;
 
     uint32_t count = 0;
+    size_t total_bytes = 0;
 
     float width = 0.0f;
     const float scale = size / font.font_size;
 
     float x = 0.0f;
     uint32_t codepoint = 0;
-    for (size_t i = 0; i < length;) {
-        i += sge::utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(text) + i, codepoint);
+    size_t i = 0;
+    while (i < length) {
+        const uint8_t bytes = sge::utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(text) + i, codepoint);
+        i += bytes;
 
         if (codepoint == '\n') {
             x = 0.0f;
@@ -70,23 +73,27 @@ uint32_t sge::chars_fit_in_line_from_start(const sge::Font& font, float size, co
         }
 
         count++;
+        total_bytes += bytes;
     }
 
-    return count;
+    return sge::FitResult{ .bytes = total_bytes, .char_count = count };
 }
 
-uint32_t sge::chars_fit_in_line_from_end(const Font& font, float size, const char* text, size_t length, float line_width) noexcept {
+sge::FitResult sge::chars_fit_in_line_from_end(const Font& font, float size, const char* text, size_t length, float line_width) noexcept {
     ZoneScoped;
 
     uint32_t count = 0;
+    size_t total_bytes = 0;
 
     float width = 0.0f;
     const float scale = size / font.font_size;
 
     float x = 0.0f;
     uint32_t codepoint = 0;
-    for (int i = length; i > 0;) {
-        i -= count_utf8_char_bytes_from_end(text, i);
+    int i = length;
+    while (i > 0) {
+        const uint8_t bytes = count_utf8_char_bytes_from_end(text, i);
+        i -= bytes;
         sge::utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(text) + i, codepoint);
 
         if (codepoint == '\n') {
@@ -109,7 +116,8 @@ uint32_t sge::chars_fit_in_line_from_end(const Font& font, float size, const cha
         }
 
         count++;
+        total_bytes += bytes;
     }
 
-    return count;
+    return sge::FitResult{ .bytes = total_bytes, .char_count = count };
 }

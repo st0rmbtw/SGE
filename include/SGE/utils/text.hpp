@@ -10,6 +10,11 @@
 
 namespace sge {
 
+struct FitResult {
+    size_t bytes;
+    uint32_t char_count;
+};
+
 inline float calculate_text_height(const Font& font, float size, const char* text, size_t length) noexcept {
     ZoneScoped;
     
@@ -36,13 +41,13 @@ inline glm::vec2 calculate_text_bounds(const Font& font, float size, std::string
     return calculate_text_bounds(font, size, string.data(), string.size());
 }
 
-uint32_t chars_fit_in_line_from_start(const Font& font, float size, const char* text, size_t length, float line_width) noexcept;
-inline uint32_t chars_fit_in_line_from_start(const Font& font, float size, std::string_view string, float line_width) noexcept {
+FitResult chars_fit_in_line_from_start(const Font& font, float size, const char* text, size_t length, float line_width) noexcept;
+inline FitResult chars_fit_in_line_from_start(const Font& font, float size, std::string_view string, float line_width) noexcept {
     return chars_fit_in_line_from_start(font, size, string.data(), string.size(), line_width);
 }
 
-uint32_t chars_fit_in_line_from_end(const Font& font, float size, const char* text, size_t length, float line_width) noexcept;
-inline uint32_t chars_fit_in_line_from_end(const Font& font, float size, std::string_view string, float line_width) noexcept {
+FitResult chars_fit_in_line_from_end(const Font& font, float size, const char* text, size_t length, float line_width) noexcept;
+inline FitResult chars_fit_in_line_from_end(const Font& font, float size, std::string_view string, float line_width) noexcept {
     return chars_fit_in_line_from_end(font, size, string.data(), string.size(), line_width);
 }
 
