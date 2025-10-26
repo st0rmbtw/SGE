@@ -265,7 +265,7 @@ static LLGL::Shader* CreateShader(const Renderer& renderer, ShaderType shader_ty
     return shader;
 }
 
-LLGL::PipelineCache* Renderer::ReadPipelineCache(const std::string& name, bool& hasInitialCache) {
+LLGLResource<LLGL::PipelineCache> Renderer::ReadPipelineCache(const std::string& name, bool& hasInitialCache) {
     // Try to read PSO cache from file
     const std::string cacheFilename = name + '.' + std::string(m_backend.ToString()) + ".cache";
     const fs::path cachePath = fs::path(m_cache_pipeline_dir) / cacheFilename;
@@ -278,8 +278,8 @@ LLGL::PipelineCache* Renderer::ReadPipelineCache(const std::string& name, bool& 
     return m_context->CreatePipelineCache(pipelineCacheBlob);
 }
 
-void Renderer::SavePipelineCache(const std::string& name, LLGL::PipelineCache* pipelineCache) {
-    if (LLGL::Blob psoCache = pipelineCache->GetBlob())
+void Renderer::SavePipelineCache(const std::string& name, LLGL::PipelineCache& pipelineCache) {
+    if (LLGL::Blob psoCache = pipelineCache.GetBlob())
     {
         const std::string cacheFilename = name + '.' + std::string(m_backend.ToString()) + ".cache";
         const fs::path cachePath = fs::path(m_cache_pipeline_dir) / cacheFilename;
@@ -295,7 +295,7 @@ void Renderer::SavePipelineCache(const std::string& name, LLGL::PipelineCache* p
 
 SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader) {
     if (fragment_shader == nullptr) {
-        fragment_shader = m_sprite_default_fragment_shader;
+        fragment_shader = m_sprite_default_fragment_shader.get();
     }
 
     static uint32_t count = 0;
@@ -312,7 +312,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.vertexShader = m_sprite_vertex_shader;
+    pipelineDesc.vertexShader = m_sprite_vertex_shader.get();
     pipelineDesc.fragmentShader = fragment_shader;
     pipelineDesc.pipelineLayout = pipelineLayout;
     pipelineDesc.indexFormat = LLGL::Format::R16UInt;
@@ -376,7 +376,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
     SpriteBatchPipeline pipeline;
 
     {
-        std::tuple<sge::BlendMode, LLGL::PipelineState**, const char*, int> pipelines[4] = {
+        std::tuple<sge::BlendMode, LLGLResource<LLGL::PipelineState>*, const char*, int> pipelines[4] = {
             {
                 sge::BlendMode::AlphaBlend, &pipeline.alpha_blend, "SpriteBatchPipelineAlphaBlend", 0
             },
@@ -396,14 +396,14 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
             pipelineDesc.debugName = name.c_str();
             
             bool hasInitialCache = false;
-            LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
+            auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
             pipelineDesc.blend = blend_modes[index];
-            LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+            LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache.get());
             *pointer = pipeline;
 
             if (!hasInitialCache) {
-                SavePipelineCache(name, pipelineCache);
+                SavePipelineCache(name, *pipelineCache);
             }
 
             if (const LLGL::Report* report = pipeline->GetReport()) {
@@ -412,7 +412,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
         }
     }
     {
-        std::tuple<sge::BlendMode, LLGL::PipelineState**, const char*, int> pipelines[4] = {
+        std::tuple<sge::BlendMode, LLGLResource<LLGL::PipelineState>*, const char*, int> pipelines[4] = {
             {
                 sge::BlendMode::AlphaBlend, &pipeline.depth_alpha_blend, "SpriteBatchPipelineAlphaBlendDepth", 0
             },
@@ -439,13 +439,13 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
             depthPipelineDesc.debugName = name.c_str();
 
             bool hasInitialCache = false;
-            LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
+            auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
-            LLGL::PipelineState* pipeline = context->CreatePipelineState(depthPipelineDesc, pipelineCache);
+            LLGL::PipelineState* pipeline = context->CreatePipelineState(depthPipelineDesc, pipelineCache.get());
             *pointer = pipeline;
 
             if (m_cache_pipelines && !hasInitialCache) {
-                SavePipelineCache(name, pipelineCache);
+                SavePipelineCache(name, *pipelineCache);
             }
 
             if (const LLGL::Report* report = pipeline->GetReport()) {
@@ -459,7 +459,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
     return pipeline;
 }
 
-LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline(bool enable_scissor) {
+LLGLResource<LLGL::PipelineState> Renderer::CreateNinepatchBatchPipeline(bool enable_scissor) {
     auto& context = m_context;
     const RenderBackend backend = m_backend;
 
@@ -479,7 +479,7 @@ LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline(bool enable_scissor)
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.debugName = "NinePatchBatch Pipeline";
-    pipelineDesc.vertexShader = m_ninepatch_vertex_shader;
+    pipelineDesc.vertexShader = m_ninepatch_vertex_shader.get();
     pipelineDesc.fragmentShader = fragment_shader;
     pipelineDesc.pipelineLayout = pipelineLayout;
     pipelineDesc.indexFormat = LLGL::Format::R16UInt;
@@ -505,12 +505,12 @@ LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline(bool enable_scissor)
 
     const std::string name = std::format("NinePatchBatchPipeline{}", count);
 
-    LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
+    auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
-    LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+    LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache.get());
 
     if (m_cache_pipelines && !hasInitialCache) {
-        SavePipelineCache(name, pipelineCache);
+        SavePipelineCache(name, *pipelineCache);
     }
 
     if (const LLGL::Report* report = pipeline->GetReport()) {
@@ -522,9 +522,9 @@ LLGL::PipelineState* Renderer::CreateNinepatchBatchPipeline(bool enable_scissor)
     return pipeline;
 }
 
-LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader) {
+LLGLResource<LLGL::PipelineState> Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader) {
     if (fragment_shader == nullptr) {
-        fragment_shader = m_glyph_default_fragment_shader;
+        fragment_shader = m_glyph_default_fragment_shader.get();
     }
 
     static uint32_t count = 0;
@@ -545,7 +545,7 @@ LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLG
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.debugName = "GlyphBatch Pipeline";
-    pipelineDesc.vertexShader = m_glyph_vertex_shader;
+    pipelineDesc.vertexShader = m_glyph_vertex_shader.get();
     pipelineDesc.fragmentShader = fragment_shader;
     pipelineDesc.pipelineLayout = pipelineLayout;
     pipelineDesc.indexFormat = LLGL::Format::R16UInt;
@@ -570,12 +570,12 @@ LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLG
     const std::string name = std::format("GlyphBatchPipeline_{}", count);
 
     bool hasInitialCache = false;
-    LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
+    auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
-    LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+    auto pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache.get());
 
     if (m_cache_pipelines && !hasInitialCache) {
-        SavePipelineCache(name, pipelineCache);
+        SavePipelineCache(name, *pipelineCache);
     }
 
     if (const LLGL::Report* report = pipeline->GetReport()) {
@@ -587,7 +587,7 @@ LLGL::PipelineState* Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLG
     return pipeline;
 }
 
-LLGL::PipelineState* Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
+LLGLResource<LLGL::PipelineState> Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
     auto& context = m_context;
     const RenderBackend backend = m_backend;
 
@@ -630,12 +630,12 @@ LLGL::PipelineState* Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
     const std::string name = std::format("ShapeBatchPipeline{}", count);
     
     bool hasInitialCache = false;
-    LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
+    auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
-    LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+    LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache.get());
 
     if (m_cache_pipelines && !hasInitialCache) {
-        SavePipelineCache(name, pipelineCache);
+        SavePipelineCache(name, *pipelineCache);
     }
 
     if (const LLGL::Report* report = pipeline->GetReport()) {
@@ -647,7 +647,7 @@ LLGL::PipelineState* Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
     return pipeline;
 }
 
-LLGL::PipelineState* Renderer::CreateLineBatchPipeline(bool enable_scissor) {
+LLGLResource<LLGL::PipelineState> Renderer::CreateLineBatchPipeline(bool enable_scissor) {
     auto& context = m_context;
     const RenderBackend backend = m_backend;
     
@@ -690,12 +690,12 @@ LLGL::PipelineState* Renderer::CreateLineBatchPipeline(bool enable_scissor) {
     const std::string name = std::format("LineBatchPipeline{}", count);
 
     bool hasInitialCache = false;
-    LLGL::PipelineCache* pipelineCache = ReadPipelineCache(name, hasInitialCache);
+    auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
-    LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache);
+    LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache.get());
 
     if (m_cache_pipelines && !hasInitialCache) {
-        SavePipelineCache(name, pipelineCache);
+        SavePipelineCache(name, *pipelineCache);
     }
 
     if (const LLGL::Report* report = pipeline->GetReport()) {
@@ -920,7 +920,7 @@ void Renderer::End() {
     m_swap_chain->Present();
 }
 
-static SGE_FORCE_INLINE LLGL::PipelineState* GetPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
+static SGE_FORCE_INLINE const LLGLResource<LLGL::PipelineState>& GetPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
     switch (blend_mode) {
     case BlendMode::AlphaBlend: return pipeline.alpha_blend;
     case BlendMode::Additive: return pipeline.additive;
@@ -930,7 +930,7 @@ static SGE_FORCE_INLINE LLGL::PipelineState* GetPipelineByBlendMode(sge::BlendMo
     }
 }
 
-static SGE_FORCE_INLINE LLGL::PipelineState* GetDepthPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
+static SGE_FORCE_INLINE const LLGLResource<LLGL::PipelineState>& GetDepthPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
     switch (blend_mode) {
     case BlendMode::AlphaBlend: return pipeline.depth_alpha_blend;
     case BlendMode::Additive: return pipeline.depth_additive;
@@ -945,7 +945,7 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
 
     sge::Batch::FlushQueue& flush_queue = batch.flush_queue();
 
-    auto* const commands = m_command_buffer;
+    auto* const commands = m_command_buffer.get();
 
     int prev_flush_data_type = -1;
     int prev_texture_id = -1;
@@ -955,9 +955,9 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
     sge::BlendMode prev_blend_mode = flush_queue[0].blend_mode;
 
     if (batch.DepthEnabled()) {
-        sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
+        sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline()).get();
     } else {
-        sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
+        sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline()).get();
     }
 
     size_t offset = 0;
@@ -965,9 +965,9 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
     for (FlushData& flush_data : flush_queue) {
         if (prev_blend_mode != flush_data.blend_mode) {
             if (batch.DepthEnabled()) {
-                sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
+                sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline()).get();
             } else {
-                sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
+                sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline()).get();
             }
         }
 
@@ -981,24 +981,24 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
 
             case FlushDataType::Glyph:
                 commands->SetVertexBufferArray(*m_glyph_batch_data.GetBufferArray());
-                commands->SetPipelineState(*batch.GlyphPipeline());
+                commands->SetPipelineState(batch.GlyphPipeline());
                 offset = batch.glyph_data().offset;
             break;
 
             case FlushDataType::NinePatch:
                 commands->SetVertexBufferArray(*m_ninepatch_batch_data.GetBufferArray());
-                commands->SetPipelineState(*batch.NinepatchPipeline());
+                commands->SetPipelineState(batch.NinepatchPipeline());
                 offset = batch.ninepatch_data().offset;
             break;
 
             case FlushDataType::Shape:
                 commands->SetVertexBufferArray(*m_shape_batch_data.GetBufferArray());
-                commands->SetPipelineState(*batch.ShapePipeline());
+                commands->SetPipelineState(batch.ShapePipeline());
                 offset = batch.shape_data().offset;
             break;
             case FlushDataType::Line:
                 commands->SetVertexBufferArray(*m_line_batch_data.GetBufferArray());
-                commands->SetPipelineState(*batch.LinePipeline());
+                commands->SetPipelineState(batch.LinePipeline());
                 offset = batch.line_data().offset;
             break;
             }
@@ -1561,23 +1561,23 @@ void Renderer::PrepareBatch(sge::Batch& batch) {
 
 void Renderer::UploadBatchData() {
     if (m_sprite_batch_data.Count() > 0) {
-        m_sprite_batch_data.Update(m_command_buffer);
+        m_sprite_batch_data.Update(*m_command_buffer);
     }
 
     if (m_glyph_batch_data.Count() > 0) {
-        m_glyph_batch_data.Update(m_command_buffer);
+        m_glyph_batch_data.Update(*m_command_buffer);
     }
 
     if (m_ninepatch_batch_data.Count() > 0) {
-        m_ninepatch_batch_data.Update(m_command_buffer);
+        m_ninepatch_batch_data.Update(*m_command_buffer);
     }
 
     if (m_shape_batch_data.Count() > 0) {
-        m_shape_batch_data.Update(m_command_buffer);
+        m_shape_batch_data.Update(*m_command_buffer);
     }
 
     if (m_line_batch_data.Count() > 0) {
-        m_line_batch_data.Update(m_command_buffer);
+        m_line_batch_data.Update(*m_command_buffer);
     }
 }
 

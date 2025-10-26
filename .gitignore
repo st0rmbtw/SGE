@@ -5,6 +5,7 @@ out/
 out_release/
 build/
 build_release/
+cache/
 .cache/
 glslang.exe
 glslang

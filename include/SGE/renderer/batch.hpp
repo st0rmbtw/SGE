@@ -409,23 +409,23 @@ public:
     }
     
     [[nodiscard]]
-    inline LLGL::PipelineState* NinepatchPipeline() const noexcept {
-        return m_ninepatch_pipeline;
+    inline LLGL::PipelineState& NinepatchPipeline() const noexcept {
+        return *m_ninepatch_pipeline;
     }
 
     [[nodiscard]]
-    inline LLGL::PipelineState* GlyphPipeline() const noexcept {
-        return m_glyph_pipeline;
+    inline LLGL::PipelineState& GlyphPipeline() const noexcept {
+        return *m_glyph_pipeline;
     }
 
     [[nodiscard]]
-    inline LLGL::PipelineState* ShapePipeline() const noexcept {
-        return m_shape_pipeline;
+    inline LLGL::PipelineState& ShapePipeline() const noexcept {
+        return *m_shape_pipeline;
     }
 
     [[nodiscard]]
-    inline LLGL::PipelineState* LinePipeline() const noexcept {
-        return m_line_pipeline;
+    inline LLGL::PipelineState& LinePipeline() const noexcept {
+        return *m_line_pipeline;
     }
 
     inline uint32_t GetOrder(sge::Order custom_order = {});
@@ -514,10 +514,10 @@ private:
     Data m_shape_data;
     Data m_line_data;
 
-    LLGL::PipelineState* m_ninepatch_pipeline = nullptr;
-    LLGL::PipelineState* m_glyph_pipeline = nullptr;
-    LLGL::PipelineState* m_shape_pipeline = nullptr;
-    LLGL::PipelineState* m_line_pipeline = nullptr;
+    LLGLResource<LLGL::PipelineState> m_ninepatch_pipeline = nullptr;
+    LLGLResource<LLGL::PipelineState> m_glyph_pipeline = nullptr;
+    LLGLResource<LLGL::PipelineState> m_shape_pipeline = nullptr;
+    LLGLResource<LLGL::PipelineState> m_line_pipeline = nullptr;
 
     uint32_t m_order = 0;
 

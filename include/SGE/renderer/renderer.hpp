@@ -23,6 +23,7 @@
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/defines.hpp>
+#include <SGE/utils/llgl.hpp>
 #include <memory>
 
 namespace sge {
@@ -33,8 +34,8 @@ public:
     void Init(const sge::Renderer& renderer, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
     void Destroy(const LLGL::RenderSystemPtr& context);
 
-    inline void Update(LLGL::CommandBuffer* command_buffer) {
-        command_buffer->UpdateBuffer(*m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
+    inline void Update(LLGL::CommandBuffer& command_buffer) {
+        command_buffer.UpdateBuffer(*m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
     }
 
     inline void Reset() {
@@ -198,17 +199,17 @@ public:
 
     [[nodiscard]]
     inline LLGL::SwapChain* SwapChain() const noexcept {
-        return m_swap_chain;
+        return m_swap_chain.get();
     }
 
     [[nodiscard]]
     inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
-        return m_command_buffer;
+        return m_command_buffer.get();
     }
 
     [[nodiscard]]
     inline LLGL::CommandQueue* CommandQueue() const noexcept {
-        return m_command_queue;
+        return m_command_queue.get();
     }
 
     [[nodiscard]]
@@ -218,7 +219,7 @@ public:
 
     [[nodiscard]]
     inline LLGL::Buffer* GlobalUniformBuffer() const noexcept {
-        return m_constant_buffer;
+        return m_constant_buffer.get();
     }
 
     [[nodiscard]]
@@ -248,10 +249,10 @@ public:
 
 private:
     SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
-    LLGL::PipelineState* CreateNinepatchBatchPipeline(bool enable_scissor);
-    LLGL::PipelineState* CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
-    LLGL::PipelineState* CreateShapeBatchPipeline(bool enable_scissor);
-    LLGL::PipelineState* CreateLineBatchPipeline(bool enable_scissor);
+    LLGLResource<LLGL::PipelineState> CreateNinepatchBatchPipeline(bool enable_scissor);
+    LLGLResource<LLGL::PipelineState> CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
+    LLGLResource<LLGL::PipelineState> CreateShapeBatchPipeline(bool enable_scissor);
+    LLGLResource<LLGL::PipelineState> CreateLineBatchPipeline(bool enable_scissor);
 
     BatchData<SpriteInstance> InitSpriteBatchData();
     BatchData<NinePatchInstance> InitNinepatchBatchData();
@@ -259,8 +260,8 @@ private:
     BatchData<ShapeInstance> InitShapeBatchData();
     BatchData<LineInstance> InitLineBatchData();
 
-    LLGL::PipelineCache* ReadPipelineCache(const std::string& name, bool& hasInitialCache);
-    void SavePipelineCache(const std::string& name, LLGL::PipelineCache* pipelineCache);
+    LLGLResource<LLGL::PipelineCache> ReadPipelineCache(const std::string& name, bool& hasInitialCache);
+    void SavePipelineCache(const std::string& name, LLGL::PipelineCache& pipelineCache);
 
     void SortBatchDrawCommands(sge::Batch& batch);
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
@@ -278,17 +279,17 @@ private:
     LLGL::RenderSystemPtr m_context = nullptr;
     std::shared_ptr<GlfwSurface> m_surface = nullptr;
 
-    LLGL::SwapChain* m_swap_chain = nullptr;
-    LLGL::CommandBuffer* m_command_buffer = nullptr;
-    LLGL::CommandQueue* m_command_queue = nullptr;
-    LLGL::Buffer* m_constant_buffer = nullptr;
+    LLGLResource<LLGL::SwapChain> m_swap_chain = nullptr;
+    LLGLResource<LLGL::CommandBuffer> m_command_buffer = nullptr;
+    LLGLResource<LLGL::CommandQueue> m_command_queue = nullptr;
+    LLGLResource<LLGL::Buffer> m_constant_buffer = nullptr;
 
-    LLGL::Shader* m_sprite_vertex_shader = nullptr;
-    LLGL::Shader* m_glyph_vertex_shader = nullptr;
-    LLGL::Shader* m_ninepatch_vertex_shader = nullptr;
+    LLGLResource<LLGL::Shader> m_sprite_vertex_shader = nullptr;
+    LLGLResource<LLGL::Shader> m_glyph_vertex_shader = nullptr;
+    LLGLResource<LLGL::Shader> m_ninepatch_vertex_shader = nullptr;
 
-    LLGL::Shader* m_sprite_default_fragment_shader = nullptr;
-    LLGL::Shader* m_glyph_default_fragment_shader = nullptr;
+    LLGLResource<LLGL::Shader> m_sprite_default_fragment_shader = nullptr;
+    LLGLResource<LLGL::Shader> m_glyph_default_fragment_shader = nullptr;
 
 #if SGE_DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;

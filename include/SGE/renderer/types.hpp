@@ -6,6 +6,7 @@
 
 #include <LLGL/LLGL.h>
 #include <SGE/renderer/macros.hpp>
+#include <SGE/utils/llgl.hpp>
 
 namespace sge {
 
@@ -72,15 +73,15 @@ struct ShapeInstance {
 };
 
 struct SpriteBatchPipeline {
-    LLGL::PipelineState* additive = nullptr;
-    LLGL::PipelineState* alpha_blend = nullptr;
-    LLGL::PipelineState* opaque = nullptr;
-    LLGL::PipelineState* premultiplied_alpha = nullptr;
+    LLGLResource<LLGL::PipelineState> additive = nullptr;
+    LLGLResource<LLGL::PipelineState> alpha_blend = nullptr;
+    LLGLResource<LLGL::PipelineState> opaque = nullptr;
+    LLGLResource<LLGL::PipelineState> premultiplied_alpha = nullptr;
 
-    LLGL::PipelineState* depth_additive = nullptr;
-    LLGL::PipelineState* depth_alpha_blend = nullptr;
-    LLGL::PipelineState* depth_opaque = nullptr;
-    LLGL::PipelineState* depth_premultiplied_alpha = nullptr;
+    LLGLResource<LLGL::PipelineState> depth_additive = nullptr;
+    LLGLResource<LLGL::PipelineState> depth_alpha_blend = nullptr;
+    LLGLResource<LLGL::PipelineState> depth_opaque = nullptr;
+    LLGLResource<LLGL::PipelineState> depth_premultiplied_alpha = nullptr;
 
     void Destroy(const LLGL::RenderSystemPtr& context) {
         SGE_RESOURCE_RELEASE(additive);

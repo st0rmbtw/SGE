@@ -352,6 +352,6 @@ static void HandleWindowIconify(GLFWwindow*, int iconified) {
     state.window_iconified = iconified == GLFW_TRUE;
 }
 
-static void HandleCharacterCallback(GLFWwindow* window, uint32_t codepoint) {
+static void HandleCharacterCallback(GLFWwindow*, uint32_t codepoint) {
     Input::AddCodePoint(codepoint);
 }
