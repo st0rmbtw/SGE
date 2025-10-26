@@ -201,7 +201,7 @@ void BatchData<T>::Init(const sge::Renderer& renderer, uint32_t size, const LLGL
     m_vertex_buffer = renderer.CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "SpriteBatch VertexBuffer");
     m_instance_buffer = renderer.CreateVertexBuffer(size * sizeof(T), instance_format, "SpriteBatch InstanceBuffer");
 
-    LLGL::Buffer* buffers[] = { m_vertex_buffer, m_instance_buffer };
+    LLGL::Buffer* buffers[] = { m_vertex_buffer.get(), m_instance_buffer.get() };
     m_buffer_array = renderer.Context()->CreateBufferArray(2, buffers);
 }
 
@@ -845,7 +845,7 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const 
     m_command_buffer = context->CreateCommandBuffer(command_buffer_desc);
     m_command_queue = context->GetCommandQueue();
 
-    m_constant_buffer = CreateConstantBuffer(sizeof(ProjectionsUniform), "ConstantBuffer");
+    m_constant_buffer = CreateConstantBuffer(sizeof(GlobalUniforms), "ConstantBuffer");
 
     m_sprite_vertex_shader = CreateBatchVertexShader(*this, GetSpriteShaderSourceCode(m_backend), SpriteBatchVertexFormats(m_backend));
     m_glyph_vertex_shader = CreateBatchVertexShader(*this, GetFontShaderSourceCode(m_backend), GlyphBatchVertexFormats(m_backend));
@@ -883,7 +883,7 @@ void Renderer::Begin(const Camera& camera) {
 
     m_viewport = camera.viewport();
 
-    auto projections_uniform = ProjectionsUniform {
+    auto global_uniforms = GlobalUniforms {
         .screen_projection_matrix = camera.get_screen_projection_matrix(),
         .view_projection_matrix = camera.get_view_projection_matrix(),
         .nonscale_view_projection_matrix = camera.get_nonscale_view_projection_matrix(),
@@ -895,7 +895,7 @@ void Renderer::Begin(const Camera& camera) {
     };
 
     m_command_buffer->Begin();
-    m_command_buffer->UpdateBuffer(*m_constant_buffer, 0, &projections_uniform, sizeof(projections_uniform));
+    m_command_buffer->UpdateBuffer(*m_constant_buffer, 0, &global_uniforms, sizeof(global_uniforms));
 
     m_batch_instance_count = 0;
 
@@ -920,22 +920,22 @@ void Renderer::End() {
     m_swap_chain->Present();
 }
 
-static SGE_FORCE_INLINE const LLGLResource<LLGL::PipelineState>& GetPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
+static SGE_FORCE_INLINE LLGL::PipelineState* GetPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
     switch (blend_mode) {
-    case BlendMode::AlphaBlend: return pipeline.alpha_blend;
-    case BlendMode::Additive: return pipeline.additive;
-    case BlendMode::Opaque: return pipeline.opaque;
-    case BlendMode::PremultipliedAlpha: return pipeline.premultiplied_alpha;
+    case BlendMode::AlphaBlend: return pipeline.alpha_blend.get();
+    case BlendMode::Additive: return pipeline.additive.get();
+    case BlendMode::Opaque: return pipeline.opaque.get();
+    case BlendMode::PremultipliedAlpha: return pipeline.premultiplied_alpha.get();
     default: SGE_UNREACHABLE();
     }
 }
 
-static SGE_FORCE_INLINE const LLGLResource<LLGL::PipelineState>& GetDepthPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
+static SGE_FORCE_INLINE LLGL::PipelineState* GetDepthPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
     switch (blend_mode) {
-    case BlendMode::AlphaBlend: return pipeline.depth_alpha_blend;
-    case BlendMode::Additive: return pipeline.depth_additive;
-    case BlendMode::Opaque: return pipeline.depth_opaque;
-    case BlendMode::PremultipliedAlpha: return pipeline.depth_premultiplied_alpha;
+    case BlendMode::AlphaBlend: return pipeline.depth_alpha_blend.get();
+    case BlendMode::Additive: return pipeline.depth_additive.get();
+    case BlendMode::Opaque: return pipeline.depth_opaque.get();
+    case BlendMode::PremultipliedAlpha: return pipeline.depth_premultiplied_alpha.get();
     default: SGE_UNREACHABLE();
     }
 }
@@ -955,9 +955,9 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
     sge::BlendMode prev_blend_mode = flush_queue[0].blend_mode;
 
     if (batch.DepthEnabled()) {
-        sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline()).get();
+        sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
     } else {
-        sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline()).get();
+        sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
     }
 
     size_t offset = 0;
@@ -965,39 +965,39 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
     for (FlushData& flush_data : flush_queue) {
         if (prev_blend_mode != flush_data.blend_mode) {
             if (batch.DepthEnabled()) {
-                sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline()).get();
+                sprite_pipeline = GetDepthPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
             } else {
-                sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline()).get();
+                sprite_pipeline = GetPipelineByBlendMode(prev_blend_mode, batch.SpritePipeline());
             }
         }
 
         if (prev_flush_data_type != static_cast<int>(flush_data.type) || prev_blend_mode != flush_data.blend_mode) {
             switch (flush_data.type) {
             case FlushDataType::Sprite:
-                commands->SetVertexBufferArray(*m_sprite_batch_data.GetBufferArray());
+                commands->SetVertexBufferArray(m_sprite_batch_data.GetBufferArray());
                 commands->SetPipelineState(*sprite_pipeline);
                 offset = batch.sprite_data().offset;
             break;
 
             case FlushDataType::Glyph:
-                commands->SetVertexBufferArray(*m_glyph_batch_data.GetBufferArray());
+                commands->SetVertexBufferArray(m_glyph_batch_data.GetBufferArray());
                 commands->SetPipelineState(batch.GlyphPipeline());
                 offset = batch.glyph_data().offset;
             break;
 
             case FlushDataType::NinePatch:
-                commands->SetVertexBufferArray(*m_ninepatch_batch_data.GetBufferArray());
+                commands->SetVertexBufferArray(m_ninepatch_batch_data.GetBufferArray());
                 commands->SetPipelineState(batch.NinepatchPipeline());
                 offset = batch.ninepatch_data().offset;
             break;
 
             case FlushDataType::Shape:
-                commands->SetVertexBufferArray(*m_shape_batch_data.GetBufferArray());
+                commands->SetVertexBufferArray(m_shape_batch_data.GetBufferArray());
                 commands->SetPipelineState(batch.ShapePipeline());
                 offset = batch.shape_data().offset;
             break;
             case FlushDataType::Line:
-                commands->SetVertexBufferArray(*m_line_batch_data.GetBufferArray());
+                commands->SetVertexBufferArray(m_line_batch_data.GetBufferArray());
                 commands->SetPipelineState(batch.LinePipeline());
                 offset = batch.line_data().offset;
             break;

@@ -50,8 +50,8 @@ public:
     }
 
     [[nodiscard]]
-    inline LLGL::BufferArray* GetBufferArray() const {
-        return m_buffer_array;
+    inline LLGL::BufferArray& GetBufferArray() const {
+        return *m_buffer_array;
     }
 
     [[nodiscard]]
@@ -63,14 +63,14 @@ private:
     T* m_buffer = nullptr;
     T* m_buffer_ptr = nullptr;
 
-    LLGL::Buffer* m_vertex_buffer = nullptr;
-    LLGL::Buffer* m_instance_buffer = nullptr;
-    LLGL::BufferArray* m_buffer_array = nullptr;
+    LLGLResource<LLGL::Buffer> m_vertex_buffer = nullptr;
+    LLGLResource<LLGL::Buffer> m_instance_buffer = nullptr;
+    LLGLResource<LLGL::BufferArray> m_buffer_array = nullptr;
 
     uint32_t m_count = 0;
 };
 
-struct SGE_ALIGN(16) ProjectionsUniform {
+struct SGE_ALIGN(16) GlobalUniforms {
     glm::mat4 screen_projection_matrix;
     glm::mat4 view_projection_matrix;
     glm::mat4 nonscale_view_projection_matrix;
