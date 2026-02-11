@@ -3,10 +3,10 @@
 using namespace sge;
 
 static struct TimeState {
-    delta_time_t delta;
-    delta_time_t fixed_delta;
-    float elapsed_seconds;
-    float fixed_elapsed_seconds;
+    delta_time_t delta = delta_time_t(0.0);
+    delta_time_t fixed_delta = delta_time_t(1.0 / 60.0);
+    float elapsed_seconds = 0.0;
+    float fixed_elapsed_seconds = 0.0;
 } state;
 
 void Time::SetFixedTimestepSeconds(const float seconds) noexcept {

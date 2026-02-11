@@ -127,6 +127,22 @@ constexpr inline uint8_t count_utf8_char_bytes(uint8_t c) {
    }
    return (result == 0) ? 1 : ((result > 4) ? 4 : result);
 }
+
+/**
+ * @brief Counts UTF-8 codepoints in the \param buffer.
+ * 
+ * @param buffer A buffer.
+ * @param length Length of the buffer.
+ * @return Number of UTF-8 codepoints in the buffer.
+ */
+inline size_t count_utf8_codepoints(const void* buffer, size_t length) {
+    size_t count = 0;
+    size_t i = 0;
+    const uint8_t* data = static_cast<const uint8_t*>(buffer);
+    while (i++ < length) count += count_utf8_char_bytes(data[i]);
+    return count;
+}
+
 }
 
 #endif
