@@ -1,34 +1,47 @@
-#ifndef APP_HPP_
-#define APP_HPP_
-
-#pragma once
+#ifndef APP_HPP
+#define APP_HPP
 
 #include <SGE/engine.hpp>
-#include <SGE/types/backend.hpp>
+#include <SGE/renderer/renderer.hpp>
+#include <SGE/time/stopwatch.hpp>
 
 #include "../../common.hpp"
+
+struct CurrentTime {
+    sge::Duration::Nanos time;
+    float seconds;
+    float minutes;
+    float hours;
+};
 
 class App : public sge::IEngine {
 public:
     App(const ExampleConfig& config);
     ~App();
-
 protected:
     void OnUpdate() override;
     void OnRender(const std::shared_ptr<sge::GlfwWindow> &window) override;
     void OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) override;
     void OnWindowResized(const std::shared_ptr<sge::GlfwWindow> &window, int width, int height) override;
-    
+
     void OnWindowDestroy(sge::GlfwWindow &window) override {
+        m_renderer.UnregisterWindow(window);
+
         if (window.GetID() == m_primary_window_id) {
             Stop();
         }
     }
+
 private:
-    sge::Renderer m_renderer;
-    std::unique_ptr<sge::Batch> m_batch;
+    void sync_time();
+
+private:
+    class sge::Renderer m_renderer;
     sge::Camera m_camera = sge::Camera(sge::CameraOrigin::TopLeft);
+    std::unique_ptr<sge::Batch> m_batch;
+    CurrentTime m_t;
     uint32_t m_primary_window_id = 0;
+    bool m_paused = false;
 };
 
 #endif

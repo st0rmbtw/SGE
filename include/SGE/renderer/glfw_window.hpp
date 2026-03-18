@@ -12,8 +12,6 @@
 #include <glm/vec2.hpp>
 #include "../defines.hpp"
 
-#include <expected>
-
 namespace sge {
 
 #if SGE_PLATFORM_WINDOWS
@@ -31,25 +29,37 @@ class GlfwWindow : public LLGL::Surface {
 public:
     class EventListener {
     public:
-        virtual void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) {};
-        virtual void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) {};
-        virtual void OnMouseButtonEvent(GLFWwindow* window, int button, int action, int mods) {};
-        virtual void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) {};
-        virtual void OnWindowIconifyEvent(GLFWwindow* window, int iconified) {};
-        virtual void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) {};
-        virtual void OnWindowResizeEvent(GLFWwindow* window, int width, int height) {};
+        virtual void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) {}
+        virtual void OnCharacterEvent(GLFWwindow* window, uint32_t codepoint) {}
+        virtual void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) {}
+        virtual void OnMouseButtonEvent(GLFWwindow* window, int button, int action, int mods) {}
+        virtual void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) {}
+        virtual void OnWindowIconifyEvent(GLFWwindow* window, int iconified) {}
+        virtual void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) {}
+        virtual void OnWindowResizeEvent(GLFWwindow* window, int width, int height) {}
     };
 
     friend class IEngine;
 
 public:
-    GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size) : m_size(size), m_wnd(wnd) {}
+    GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size, uint8_t samples) :
+        m_size(size),
+        m_wnd(wnd),
+        m_id(s_id++),
+        m_samples(samples)
+    {}
 
-    GlfwWindow(GlfwWindow&& other) noexcept : m_size(other.m_size), m_wnd(other.m_wnd) {
+    GlfwWindow(GlfwWindow&& other) noexcept {
+        m_size = other.m_size;
+        m_wnd = other.m_wnd;
+        m_id = other.m_id;
         other.m_wnd = nullptr;
     }
+
     ~GlfwWindow() override {
-        if (m_wnd) glfwDestroyWindow(m_wnd);
+        if (m_wnd) {
+            glfwDestroyWindow(m_wnd);
+        }
     }
 
     bool GetNativeHandle(void* nativeHandle, std::size_t nativeHandleSize) override;
@@ -76,18 +86,23 @@ public:
     }
 
     [[nodiscard]]
-    LLGL::Extent2D GetSize() const {
+    LLGL::Extent2D GetSize() const noexcept {
         return m_size;
+    }
+
+    [[nodiscard]]
+    uint32_t GetWidth() const noexcept {
+        return m_size.width;
+    }
+
+    [[nodiscard]]
+    uint32_t GetHeight() const noexcept {
+        return m_size.height;
     }
 
     [[nodiscard]]
     LLGL::Display* FindResidentDisplay() const override {
         return LLGL::Display::GetPrimary();
-    }
-
-    bool ProcessEvents() {
-        glfwPollEvents();
-        return !glfwWindowShouldClose(m_wnd);
     }
 
     /*!
@@ -127,8 +142,23 @@ public:
     }
 
     [[nodiscard]]
-    bool IsMinimized() const {
+    bool IsMinimized() const noexcept {
         return m_minimized;
+    }
+
+    [[nodiscard]]
+    uint8_t GetSamples() const noexcept {
+        return m_samples;
+    }
+
+    [[nodiscard]]
+    uint32_t GetID() const noexcept {
+        return m_id;
+    }
+
+    [[nodiscard]]
+    bool ShouldBeClosed() const noexcept {
+        return glfwWindowShouldClose(m_wnd);
     }
 private:
     static void HandleKeyboardEvents(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -159,21 +189,13 @@ private:
         EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));
         if (listener == nullptr)
             return;
+        listener->OnCharacterEvent(window, codepoint);
     }
     static void HandleWindowResize(GLFWwindow* window, int width, int height) {
         EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));
         if (listener == nullptr)
             return;
         listener->OnWindowResizeEvent(window, width, height);
-
-        // if (width <= 0 || height <= 0) {
-        //     wnd->m_size.width = 0;
-        //     wnd->m_size.height = 0;
-        //     return;
-        // }        
-
-        // wnd->m_size.width = width;
-        // wnd->m_size.height = height;
     }
     static void HandleFramebufferResize(GLFWwindow* window, int width, int height) {
         EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));
@@ -185,7 +207,7 @@ private:
         EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));
         if (listener == nullptr)
             return;
-        // wnd->m_minimized = iconified == GLFW_TRUE;
+        listener->OnWindowIconifyEvent(window, iconified);
     }
 
 private:
@@ -193,7 +215,11 @@ private:
     GLFWwindow* m_wnd = nullptr;
     glm::ivec2 m_min_size = glm::ivec2(0, 0);
     glm::ivec2 m_max_size = glm::ivec2(INT_MAX, INT_MAX);
+    uint32_t m_id = 0;
+    uint8_t m_samples = 1;
     bool m_minimized = false;
+
+    static std::atomic<uint32_t> s_id;
 };
 
 }

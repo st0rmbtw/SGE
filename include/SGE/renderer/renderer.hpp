@@ -1,6 +1,7 @@
 #ifndef _SGE_RENDERER_HPP_
 #define _SGE_RENDERER_HPP_
 
+#include "LLGL/PipelineStateFlags.h"
 #include <GLFW/glfw3.h>
 
 #include <LLGL/Shader.h>
@@ -17,7 +18,7 @@
 #include <SGE/types/shader_def.hpp>
 #include <SGE/types/window_settings.hpp>
 #include <SGE/types/attributes.hpp>
-#include <SGE/renderer/glfw_surface.hpp>
+#include <SGE/renderer/glfw_window.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/types.hpp>
@@ -25,6 +26,24 @@
 #include <SGE/defines.hpp>
 #include <SGE/utils/llgl.hpp>
 #include <memory>
+
+struct PipelineConfigKey {
+    uint32_t config_id;
+    LLGL::RenderTarget* render_target;
+};
+
+inline bool operator==(const PipelineConfigKey& a, const PipelineConfigKey& b) {
+    return a.config_id == b.config_id && a.render_target == b.render_target;
+}
+
+template <>
+struct std::hash<PipelineConfigKey> {
+    static size_t operator()(const PipelineConfigKey& key) noexcept {
+        size_t hash = std::hash<uint32_t>{}(key.config_id);
+        hash ^= std::hash<uint32_t>{}(key.config_id) << 1;
+        return hash;
+    }
+};
 
 namespace sge {
 
@@ -103,11 +122,11 @@ class Renderer {
 public:
     bool Init(sge::RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path);
 
-    uint32_t RegisterWindow(const std::shared_ptr<GlfwWindow>& window);
-    void UnregisterWindow(uint32_t id);
+    void UnregisterWindow(const GlfwWindow& window);
 
     void Begin();
     void BeginPass(LLGL::RenderTarget& target, const Camera& camera);
+    void BeginPass(const std::shared_ptr<GlfwWindow>&, const Camera& camera);
 
     inline void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
         m_command_buffer->Clear(clear_flags, clear_value);
@@ -122,6 +141,7 @@ public:
     }
 
     void End();
+    void Present(const std::shared_ptr<GlfwWindow>& window);
 
     void PrepareBatch(sge::Batch& batch);
     void UploadBatchData();
@@ -234,12 +254,22 @@ public:
         return std::make_unique<sge::Batch>(*this, desc);
     }
 
+    void DestroyBatch(sge::Batch& batch);
+
+    inline uint32_t AddPipelineConfig(const GraphicsPipelineConfig& config) {
+        uint32_t index = m_pipeline_config_index;
+        m_pipeline_configs[m_pipeline_config_index++] = config;
+        return index;
+    }
+
+    void BindPipeline(uint32_t pipeline_id);
+
 private:
     SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
-    LLGLResource<LLGL::PipelineState> CreateNinepatchBatchPipeline(bool enable_scissor);
-    LLGLResource<LLGL::PipelineState> CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
-    LLGLResource<LLGL::PipelineState> CreateShapeBatchPipeline(bool enable_scissor);
-    LLGLResource<LLGL::PipelineState> CreateLineBatchPipeline(bool enable_scissor);
+    uint32_t CreateNinepatchBatchPipeline(bool enable_scissor);
+    uint32_t CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
+    uint32_t CreateShapeBatchPipeline(bool enable_scissor);
+    uint32_t CreateLineBatchPipeline(bool enable_scissor);
 
     BatchData<SpriteInstance> InitSpriteBatchData();
     BatchData<NinePatchInstance> InitNinepatchBatchData();
@@ -282,17 +312,20 @@ private:
     LLGL::RenderingDebugger* m_debugger = nullptr;
 #endif
 
-    std::unordered_map<uint32_t, 
+    LLGL::RenderTarget* m_current_target = nullptr;
 
-    glm::uvec2 m_viewport = glm::uvec2(0);
+    LLGL::Extent2D m_viewport = LLGL::Extent2D(0, 0);
 
     uint32_t m_texture_index = 0;
 
-    uint32_t m_window_index = 0;
-
     size_t m_batch_instance_count = 0;
 
+    uint32_t m_pipeline_config_index = 0;
+
     sge::RenderBackend m_backend;
+
+    std::unordered_map<uint32_t, GraphicsPipelineConfig> m_pipeline_configs;
+    std::unordered_map<PipelineConfigKey, LLGL::PipelineState*> m_pipeline_states;
 
     bool m_cache_pipelines = true;
 };

@@ -49,7 +49,8 @@ void Camera::compute_projection_and_view_matrix() {
     const sge::Rect& projection_area = get_projection_area();
     const sge::Rect& nozoom_projection_area = get_nozoom_projection_area();
 
-    if (sge::Engine::Renderer().Backend().IsOpenGL()) {
+    // TODO
+    if (false) {
         const glm::vec3 eye     = glm::vec3(m_position, 50.0f);
         const glm::vec3 right   = glm::vec3(m_right, 0.0f, 0.0f);
         const glm::vec3 up      = glm::vec3(0.0f, m_up, 0.0f);

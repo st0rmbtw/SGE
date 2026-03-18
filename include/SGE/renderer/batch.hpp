@@ -409,36 +409,26 @@ public:
     }
     
     [[nodiscard]]
-    inline LLGL::PipelineState& NinepatchPipeline() const noexcept {
-        return *m_ninepatch_pipeline;
+    inline std::optional<uint32_t> NinepatchPipeline() const noexcept {
+        return m_ninepatch_pipeline;
     }
 
     [[nodiscard]]
-    inline LLGL::PipelineState& GlyphPipeline() const noexcept {
-        return *m_glyph_pipeline;
+    inline std::optional<uint32_t> GlyphPipeline() const noexcept {
+        return m_glyph_pipeline;
     }
 
     [[nodiscard]]
-    inline LLGL::PipelineState& ShapePipeline() const noexcept {
-        return *m_shape_pipeline;
+    inline std::optional<uint32_t> ShapePipeline() const noexcept {
+        return m_shape_pipeline;
     }
 
     [[nodiscard]]
-    inline LLGL::PipelineState& LinePipeline() const noexcept {
-        return *m_line_pipeline;
+    inline std::optional<uint32_t> LinePipeline() const noexcept {
+        return m_line_pipeline;
     }
 
     inline uint32_t GetOrder(sge::Order custom_order = {});
-
-    void Destroy(const LLGL::RenderSystemPtr& context) {
-        m_sprite_pipeline.Destroy(context);
-        
-        SGE_RESOURCE_RELEASE(m_ninepatch_pipeline);
-        SGE_RESOURCE_RELEASE(m_glyph_pipeline);
-        SGE_RESOURCE_RELEASE(m_shape_pipeline);
-        SGE_RESOURCE_RELEASE(m_line_pipeline);
-    }
-
 private:
     uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius = glm::vec4(0.0f), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
 
@@ -514,10 +504,10 @@ private:
     Data m_shape_data;
     Data m_line_data;
 
-    LLGLResource<LLGL::PipelineState> m_ninepatch_pipeline = nullptr;
-    LLGLResource<LLGL::PipelineState> m_glyph_pipeline = nullptr;
-    LLGLResource<LLGL::PipelineState> m_shape_pipeline = nullptr;
-    LLGLResource<LLGL::PipelineState> m_line_pipeline = nullptr;
+    std::optional<uint32_t> m_ninepatch_pipeline = std::nullopt;
+    std::optional<uint32_t> m_glyph_pipeline = std::nullopt;
+    std::optional<uint32_t> m_shape_pipeline = std::nullopt;
+    std::optional<uint32_t> m_line_pipeline = std::nullopt;
 
     uint32_t m_order = 0;
 

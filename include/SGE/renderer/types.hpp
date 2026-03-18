@@ -1,6 +1,7 @@
 #ifndef _SGE_RENDERER_TYPES_HPP_
 #define _SGE_RENDERER_TYPES_HPP_
 
+#include "LLGL/PipelineStateFlags.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -72,27 +73,30 @@ struct ShapeInstance {
     uint8_t flags;
 };
 
+struct GraphicsPipelineConfig {
+    LLGL::BlendDescriptor blend;
+    LLGL::DepthDescriptor depth;
+    const char* debugName = nullptr;
+    LLGL::PipelineLayout* layout = nullptr;
+    LLGL::Shader* vertexShader = nullptr;
+    LLGL::Shader* geometryShader = nullptr;
+    LLGL::Shader* pixelShader = nullptr;
+    LLGL::PrimitiveTopology primitiveTopology = LLGL::PrimitiveTopology::TriangleList;
+    LLGL::Format indexFormat = LLGL::Format::Undefined;
+    bool frontCCW = false;
+    bool scissorTestEnabled = false;
+};
+
 struct SpriteBatchPipeline {
-    LLGLResource<LLGL::PipelineState> additive = nullptr;
-    LLGLResource<LLGL::PipelineState> alpha_blend = nullptr;
-    LLGLResource<LLGL::PipelineState> opaque = nullptr;
-    LLGLResource<LLGL::PipelineState> premultiplied_alpha = nullptr;
+    std::optional<uint32_t> additive = -1;
+    std::optional<uint32_t> alpha_blend = -1;
+    std::optional<uint32_t> opaque = -1;
+    std::optional<uint32_t> premultiplied_alpha = -1;
 
-    LLGLResource<LLGL::PipelineState> depth_additive = nullptr;
-    LLGLResource<LLGL::PipelineState> depth_alpha_blend = nullptr;
-    LLGLResource<LLGL::PipelineState> depth_opaque = nullptr;
-    LLGLResource<LLGL::PipelineState> depth_premultiplied_alpha = nullptr;
-
-    void Destroy(const LLGL::RenderSystemPtr& context) {
-        SGE_RESOURCE_RELEASE(additive);
-        SGE_RESOURCE_RELEASE(alpha_blend);
-        SGE_RESOURCE_RELEASE(opaque);
-        SGE_RESOURCE_RELEASE(premultiplied_alpha);
-        SGE_RESOURCE_RELEASE(depth_additive);
-        SGE_RESOURCE_RELEASE(depth_alpha_blend);
-        SGE_RESOURCE_RELEASE(depth_opaque);
-        SGE_RESOURCE_RELEASE(depth_premultiplied_alpha);
-    }
+    std::optional<uint32_t> depth_additive = -1;
+    std::optional<uint32_t> depth_alpha_blend = -1;
+    std::optional<uint32_t> depth_opaque = -1;
+    std::optional<uint32_t> depth_premultiplied_alpha = -1;
 };
 
 }

@@ -1,4 +1,4 @@
-#include <SGE/renderer/glfw_surface.hpp>
+#include <SGE/renderer/glfw_window.hpp>
 
 #include <LLGL/Platform/NativeHandle.h>
 #include <GLFW/glfw3native.h>
@@ -67,3 +67,5 @@ bool GlfwWindow::AdaptForVideoMode(LLGL::Extent2D* resolution, bool* fullscreen)
 
     return result;
 }
+
+std::atomic<uint32_t> sge::GlfwWindow::s_id = 0;
