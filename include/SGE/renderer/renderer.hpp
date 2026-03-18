@@ -28,6 +28,10 @@
 
 namespace sge {
 
+struct PipelineData {
+    LLGLResource<LLGL::Resource> m_vertex_shader;
+};
+
 template <typename T>
 class BatchData {
 public:
@@ -97,23 +101,16 @@ class Renderer {
     friend class Batch;
 
 public:
-    bool InitEngine(sge::RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path);
-    bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const WindowSettings& settings);
+    bool Init(sge::RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path);
 
-    void Begin(const sge::Camera& camera);
+    uint32_t RegisterWindow(const std::shared_ptr<GlfwWindow>& window);
+    void UnregisterWindow(uint32_t id);
+
+    void Begin();
+    void BeginPass(LLGL::RenderTarget& target, const Camera& camera);
 
     inline void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
         m_command_buffer->Clear(clear_flags, clear_value);
-    }
-
-    void BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport);
-
-    inline void BeginPass(LLGL::RenderTarget& target) {
-        BeginPassWithViewport(target, target.GetResolution());
-    }
-
-    inline void BeginMainPass() {
-        BeginPass(*m_swap_chain);
     }
 
     inline void EndPass() {
@@ -147,7 +144,7 @@ public:
 
     LLGL::Shader* LoadShader(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
 
-    void ResizeBuffers(LLGL::Extent2D size);
+    void ResizeBuffers(LLGL::SwapChain* swap_chain, LLGL::Extent2D size);
 
     void Terminate();
 
@@ -198,11 +195,6 @@ public:
     }
 
     [[nodiscard]]
-    inline LLGL::SwapChain* SwapChain() const noexcept {
-        return m_swap_chain.get();
-    }
-
-    [[nodiscard]]
     inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
         return m_command_buffer.get();
     }
@@ -210,11 +202,6 @@ public:
     [[nodiscard]]
     inline LLGL::CommandQueue* CommandQueue() const noexcept {
         return m_command_queue.get();
-    }
-
-    [[nodiscard]]
-    inline const std::shared_ptr<GlfwSurface>& Surface() const noexcept {
-        return m_surface;
     }
 
     [[nodiscard]]
@@ -276,10 +263,10 @@ private:
 
     std::string m_cache_pipeline_dir;
 
-    LLGL::RenderSystemPtr m_context = nullptr;
-    std::shared_ptr<GlfwSurface> m_surface = nullptr;
+    std::unordered_map<uint32_t, LLGLResource<LLGL::SwapChain>> m_swapchain_map;
 
-    LLGLResource<LLGL::SwapChain> m_swap_chain = nullptr;
+    LLGL::RenderSystemPtr m_context = nullptr;
+
     LLGLResource<LLGL::CommandBuffer> m_command_buffer = nullptr;
     LLGLResource<LLGL::CommandQueue> m_command_queue = nullptr;
     LLGLResource<LLGL::Buffer> m_constant_buffer = nullptr;
@@ -295,9 +282,13 @@ private:
     LLGL::RenderingDebugger* m_debugger = nullptr;
 #endif
 
+    std::unordered_map<uint32_t, 
+
     glm::uvec2 m_viewport = glm::uvec2(0);
 
     uint32_t m_texture_index = 0;
+
+    uint32_t m_window_index = 0;
 
     size_t m_batch_instance_count = 0;
 

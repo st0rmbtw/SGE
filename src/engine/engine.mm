@@ -7,6 +7,7 @@
 #include <SGE/log.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/time/time.hpp>
+#include <cstdlib>
 
 #include "defines.hpp"
 
@@ -45,39 +46,6 @@ static void HandleWindowResize(GLFWwindow* window, int width, int height);
 static void HandleFramebufferResize(GLFWwindow* window, int width, int height);
 static void HandleWindowIconify(GLFWwindow* window, int iconified);
 static void HandleCharacterCallback(GLFWwindow* window, uint32_t codepoint);
-
-static inline const char* glfwGetErrorString() {
-    const char* description = nullptr;
-    glfwGetError(&description);
-    return description;
-}
-
-static GLFWwindow* CreateWindow(const WindowSettings& window_settings) {
-    glfwWindowHint(GLFW_FOCUSED, 1);
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_VISIBLE, window_settings.hidden ? GLFW_FALSE : GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, window_settings.samples);
-    glfwWindowHint(GLFW_RESIZABLE, window_settings.resizable ? GLFW_TRUE : GLFW_FALSE);
-
-    GLFWmonitor* primary_monitor = window_settings.fullscreen ? glfwGetPrimaryMonitor() : nullptr;
-
-    GLFWwindow *window = glfwCreateWindow(window_settings.width, window_settings.height, window_settings.title, primary_monitor, nullptr);
-    if (window == nullptr) {
-        SGE_LOG_ERROR("Couldn't create a window: {}", glfwGetErrorString());
-        return nullptr;
-    }
-
-    glfwSetKeyCallback(window, HandleKeyboardEvents);
-    glfwSetMouseButtonCallback(window, HandleMouseButtonEvents);
-    glfwSetScrollCallback(window, HandleMouseScrollEvents);
-    glfwSetCursorPosCallback(window, HandleCursorPosEvents);
-    glfwSetWindowSizeCallback(window, HandleWindowResize);
-    glfwSetWindowIconifyCallback(window, HandleWindowIconify);
-    glfwSetFramebufferSizeCallback(window, HandleFramebufferResize);
-    glfwSetCharCallback(window, HandleCharacterCallback);
-
-    return window;
-}
 
 static inline LLGL::Extent2D get_scaled_resolution(uint32_t width, uint32_t height) {
     float xscale;
@@ -126,30 +94,6 @@ void Engine::SetLoadAssetsCallback(LoadAssetsCallback callback) {
     state.load_assets_callback = callback;
 }
 
-void Engine::SetWindowMinSize(int min_width, int min_height) {
-    state.window_min_size.x = min_width;
-    state.window_min_size.y = min_height;
-    glfwSetWindowSizeLimits(state.window, min_width, min_height, state.window_max_size.x, state.window_max_size.y);
-}
-
-void Engine::SetWindowMaxSize(int max_width, int max_height) {
-    state.window_max_size.x = max_width;
-    state.window_max_size.y = max_height;
-    glfwSetWindowSizeLimits(state.window, state.window_min_size.x, state.window_min_size.y, max_width, max_height);
-}
-
-void Engine::ShowWindow() {
-    glfwShowWindow(state.window);
-}
-
-void Engine::HideWindow() {
-    glfwHideWindow(state.window);
-}
-
-void Engine::SetCursorMode(CursorMode cursor_mode) {
-    glfwSetInputMode(state.window, GLFW_CURSOR, static_cast<int>(cursor_mode));
-}
-
 uint32_t Engine::GetFrameCount() {
     return state.frame_count;
 }
@@ -157,18 +101,7 @@ uint32_t Engine::GetFrameCount() {
 bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::Extent2D& output_viewport) {
     ZoneScoped;
 
-#if SGE_PLATFORM_LINUX
-    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
-#endif
-
-    if (!glfwInit()) {
-        SGE_LOG_ERROR("Couldn't initialize GLFW: {}", glfwGetErrorString());
-        return false;
-    }
-
-    LLGL::Log::RegisterCallbackStd();
-
-    if (!state.renderer.InitEngine(backend, config.cache_pipelines, config.pipeline_cache_path)) return false;
+    if (!state.renderer.Init(backend, config.cache_pipelines, config.pipeline_cache_path)) return false;
 
     const WindowSettings& window_settings = config.window_settings;
 
@@ -198,81 +131,11 @@ bool Engine::Init(sge::RenderBackend backend, const EngineConfig& config, LLGL::
         if (!state.load_assets_callback()) return false;
     }
 
-    Time::SetFixedTimestepSeconds(1.0f / 60.0f);
-
     return true;
 }
 
 static inline bool IsDrawable() {
     return !state.window_iconified && (state.window_size.width >= state.window_samples && state.window_size.height >= state.window_samples);
-}
-
-void Engine::Run() {
-    double prev_tick = glfwGetTime();
-
-    double fixed_timer = 0;
-
-    state.running = true;
-
-    while (state.running) {
-        if (!state.renderer.Surface()->ProcessEvents()) {
-            break;
-        }
-
-        MACOS_AUTORELEASEPOOL_OPEN
-            const double current_tick = glfwGetTime();
-            const double delta_time = (current_tick - prev_tick);
-            prev_tick = current_tick;
-
-            const delta_time_t dt(delta_time);
-            Time::AdvanceBy(dt);
-
-            if (state.pre_update_callback)
-                state.pre_update_callback();
-
-            int fixed_update_count = 0;
-
-            fixed_timer += delta_time;
-            while (fixed_timer >= Time::FixedDeltaSeconds()) {
-                Time::AdvanceFixed();
-                if (state.fixed_update_callback)
-                    state.fixed_update_callback();
-                fixed_timer -= Time::FixedDeltaSeconds();
-                ++fixed_update_count;
-            }
-
-            if (state.update_callback)
-                state.update_callback();
-
-            for (int i = 0; i < fixed_update_count; ++i) {
-                if (state.fixed_post_update_callback)
-                    state.fixed_post_update_callback();
-            }
-
-            if (state.post_update_callback)
-                state.post_update_callback();
-
-            if (IsDrawable()) {
-                if (state.render_callback) {
-                    state.render_callback();
-                    ++state.frame_count;
-                }
-
-                if (state.post_render_callback)
-                    state.post_render_callback();
-            }
-
-            Input::Clear();
-        MACOS_AUTORELEASEPOOL_CLOSE
-
-        FrameMark;
-    }
-
-    state.running = false;
-}
-
-void Engine::Stop() {
-    state.running = false;
 }
 
 void Engine::Destroy() {
@@ -354,4 +217,76 @@ static void HandleWindowIconify(GLFWwindow*, int iconified) {
 
 static void HandleCharacterCallback(GLFWwindow*, uint32_t codepoint) {
     Input::AddCodePoint(codepoint);
+}
+
+
+
+
+IEngine::IEngine() {
+#if SGE_PLATFORM_LINUX
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+#endif
+
+    if (!glfwInit()) {
+        SGE_LOG_ERROR("Couldn't initialize GLFW: {}", glfwGetErrorString());
+        std::abort();
+    }
+
+    LLGL::Log::RegisterCallbackStd();
+    Time::SetFixedTimestepSeconds(1.0f / 60.0f);
+}
+
+void IEngine::Run() {
+    double prev_tick = glfwGetTime();
+
+    double fixed_timer = 0;
+
+    m_running = true;
+
+    while (m_running) {
+        if (ShouldStop()) {
+            break;
+        }
+
+        MACOS_AUTORELEASEPOOL_OPEN
+            const double current_tick = glfwGetTime();
+            const double delta_time = (current_tick - prev_tick);
+            prev_tick = current_tick;
+
+            const delta_time_t dt(delta_time);
+            Time::AdvanceBy(dt);
+
+            OnPreUpdate();
+
+            int fixed_update_count = 0;
+
+            fixed_timer += delta_time;
+            while (fixed_timer >= Time::FixedDeltaSeconds()) {
+                Time::AdvanceFixed();
+                OnFixedUpdate();
+                fixed_timer -= Time::FixedDeltaSeconds();
+                ++fixed_update_count;
+            }
+
+            OnUpdate();
+
+            for (int i = 0; i < fixed_update_count; ++i) {
+                OnFixedPostUpdate();
+            }
+
+            OnPostUpdate();
+
+            if (IsDrawable()) {
+                OnRender();
+                OnPostRender();
+                ++m_frame_count;
+            }
+
+            Input::Clear();
+        MACOS_AUTORELEASEPOOL_CLOSE
+
+        FrameMark;
+    }
+
+    m_running = false;
 }

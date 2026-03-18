@@ -758,7 +758,11 @@ BatchData<LineInstance> Renderer::InitLineBatchData() {
     return batchData;
 }
 
-bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path) {
+static SGE_FORCE_INLINE LLGL::Shader* CreateBatchVertexShader(const Renderer& renderer, const ShaderSourceCode& source_code, const BatchVertexFormats& vertex_formats) {
+    return CreateShader(renderer, ShaderType::Vertex, source_code.vs_source, source_code.vs_size, "VS", vertex_formats.total_attributes());
+}
+
+bool Renderer::Init(RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path) {
     ZoneScoped;
 
     LLGL::Report report;
@@ -804,29 +808,6 @@ bool Renderer::InitEngine(RenderBackend backend, bool cache_pipelines, const std
         fs::create_directories(cache_dir_path);
     }
 
-    return true;
-}
-
-static SGE_FORCE_INLINE LLGL::Shader* CreateBatchVertexShader(const Renderer& renderer, const ShaderSourceCode& source_code, const BatchVertexFormats& vertex_formats) {
-    return CreateShader(renderer, ShaderType::Vertex, source_code.vs_source, source_code.vs_size, "VS", vertex_formats.total_attributes());
-}
-
-bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const WindowSettings& settings) {
-    ZoneScoped;
-
-    const LLGL::RenderSystemPtr& context = m_context;
-
-    m_surface = std::make_shared<GlfwSurface>(window, resolution);
-
-    LLGL::SwapChainDescriptor swapChainDesc;
-    swapChainDesc.resolution = resolution;
-    swapChainDesc.fullscreen = settings.fullscreen;
-    swapChainDesc.samples = settings.samples;
-    swapChainDesc.colorBits = settings.transparent ? 32 : 24;
-
-    m_swap_chain = context->CreateSwapChain(swapChainDesc, m_surface);
-    m_swap_chain->SetVsyncInterval(settings.vsync ? 1 : 0);
-
     const LLGL::RendererInfo& info = GetRendererInfo();
 
     SGE_LOG_INFO("Renderer:             {}", info.rendererName.c_str());
@@ -842,8 +823,8 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const 
     LLGL::CommandBufferDescriptor command_buffer_desc;
     command_buffer_desc.numNativeBuffers = 3;
 
-    m_command_buffer = context->CreateCommandBuffer(command_buffer_desc);
-    m_command_queue = context->GetCommandQueue();
+    m_command_buffer = m_context->CreateCommandBuffer(command_buffer_desc);
+    m_command_queue = m_context->GetCommandQueue();
 
     m_constant_buffer = CreateConstantBuffer(sizeof(GlobalUniforms), "ConstantBuffer");
 
@@ -868,19 +849,58 @@ bool Renderer::Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const 
         m_glyph_default_fragment_shader = CreateShader(*this, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
     }
 
-    ResizeBuffers(resolution);
-
     return true;
 }
 
-void Renderer::ResizeBuffers(LLGL::Extent2D size) {
-    m_command_queue->WaitIdle();
-    m_swap_chain->ResizeBuffers(size);
+static inline LLGL::Extent2D get_scaled_resolution(uint32_t width, uint32_t height) {
+    float xscale;
+    float yscale;
+    glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &xscale, &yscale);
+    return LLGL::Extent2D(width * xscale, height * yscale);
 }
 
-void Renderer::Begin(const Camera& camera) {
+uint32_t Renderer::RegisterWindow(const std::shared_ptr<GlfwWindow>& window) {
+    const LLGL::RenderSystemPtr& context = m_context;
+
+    LLGL::SwapChainDescriptor swapChainDesc;
+    swapChainDesc.resolution = window->GetContentSize();
+    // swapChainDesc.fullscreen = settings.fullscreen;
+    // swapChainDesc.samples = settings.samples;
+    // swapChainDesc.colorBits = settings.transparent ? 32 : 24;
+
+    m_swapchain_map[m_window_index++] = context->CreateSwapChain(swapChainDesc, window);
+
+    // m_swap_chain->SetVsyncInterval(settings.vsync ? 1 : 0);
+}
+
+void Renderer::UnregisterWindow(uint32_t id) {
+    if (!m_swapchain_map.contains(id))
+        return;
+
+    m_command_queue->WaitIdle();
+
+    m_context->Release(*m_swapchain_map.find(id)->second);
+    m_swapchain_map.erase(id);
+}
+
+void Renderer::ResizeBuffers(LLGL::SwapChain* swap_chain, LLGL::Extent2D size) {
+    m_command_queue->WaitIdle();
+    swap_chain->ResizeBuffers(size);
+}
+
+void Renderer::Begin() {
     ZoneScoped;
 
+    m_batch_instance_count = 0;
+
+    m_sprite_batch_data.Reset();
+    m_glyph_batch_data.Reset();
+    m_ninepatch_batch_data.Reset();
+    m_shape_batch_data.Reset();
+    m_line_batch_data.Reset();
+}
+
+void Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) {
     m_viewport = camera.viewport();
 
     auto global_uniforms = GlobalUniforms {
@@ -897,18 +917,8 @@ void Renderer::Begin(const Camera& camera) {
     m_command_buffer->Begin();
     m_command_buffer->UpdateBuffer(*m_constant_buffer, 0, &global_uniforms, sizeof(global_uniforms));
 
-    m_batch_instance_count = 0;
-
-    m_sprite_batch_data.Reset();
-    m_glyph_batch_data.Reset();
-    m_ninepatch_batch_data.Reset();
-    m_shape_batch_data.Reset();
-    m_line_batch_data.Reset();
-}
-
-void Renderer::BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport) {
     m_command_buffer->BeginRenderPass(target);
-    m_command_buffer->SetViewport(viewport);
+    m_command_buffer->SetViewport(LLGL::Extent2D(m_viewport.x, m_viewport.y));
 }
 
 void Renderer::End() {
@@ -917,7 +927,7 @@ void Renderer::End() {
     m_command_buffer->End();
     m_command_queue->Submit(*m_command_buffer);
 
-    m_swap_chain->Present();
+    // m_swap_chain->Present();
 }
 
 static SGE_FORCE_INLINE LLGL::PipelineState* GetPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
