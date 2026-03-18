@@ -23,7 +23,7 @@ static void HandleClayErrors(Clay_ErrorData errorData) {
     printf("%s", errorData.errorText.chars);
 }
 
-App::App(const ExampleConfig& config) {
+App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::TopLeft) {
     InitRenderContext(config.backend);
 
     WindowSettings window_settings;

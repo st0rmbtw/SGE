@@ -9,6 +9,7 @@
 #include <SGE/assert.hpp>
 #include <SGE/math/rect.hpp>
 #include <SGE/defines.hpp>
+#include <SGE/types/backend.hpp>
 
 namespace sge {
 
@@ -40,7 +41,7 @@ struct CoordinateSystem {
 
 class Camera {
 public:
-    Camera(CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
+    Camera(RenderBackend backend, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
         m_projection_matrix(),
         m_screen_projection_matrix(),
         m_nozoom_projection_matrix(),
@@ -49,12 +50,13 @@ public:
         m_viewport(0),
         m_position(0.0f),
         m_origin(origin),
+        m_backend(backend),
         m_changed(true)
     {
         set_coordinate_system(coordinate_system);
     }
 
-    explicit Camera(glm::uvec2 viewport, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
+    explicit Camera(glm::uvec2 viewport, RenderBackend backend, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
         m_projection_matrix(),
         m_screen_projection_matrix(),
         m_nozoom_projection_matrix(),
@@ -63,6 +65,7 @@ public:
         m_viewport(viewport),
         m_position(0.0f),
         m_origin(origin),
+        m_backend(backend),
         m_changed(true)
     {
         set_coordinate_system(coordinate_system);
@@ -301,6 +304,7 @@ private:
     float m_zoom = 1.0f;
 
     CameraOrigin m_origin;
+    RenderBackend m_backend;
 
     bool m_flip_horizontal = false;
     bool m_flip_vertical = false;

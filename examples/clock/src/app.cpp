@@ -22,8 +22,7 @@ static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
 using namespace sge;
 
-
-App::App(const ExampleConfig& config) : IEngine() {
+App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::TopLeft) {
     InitRenderContext(config.backend);
 
     WindowSettings window_settings;
@@ -44,7 +43,6 @@ App::App(const ExampleConfig& config) : IEngine() {
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
-
     m_camera.set_viewport({resolution.width, resolution.height});
     m_camera.set_zoom(1.0f);
 

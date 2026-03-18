@@ -28,7 +28,7 @@ protected:
 private:
     std::unique_ptr<sge::Renderer> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
-    sge::Camera m_camera = sge::Camera(sge::CameraOrigin::TopLeft);
+    sge::Camera m_camera;
     uint32_t m_primary_window_id = 0;
 };
 

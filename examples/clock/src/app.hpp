@@ -34,7 +34,7 @@ private:
     void sync_time();
 
 private:
-    sge::Camera m_camera = sge::Camera(sge::CameraOrigin::TopLeft);
+    sge::Camera m_camera;
     std::unique_ptr<sge::Renderer> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
     CurrentTime m_t;
