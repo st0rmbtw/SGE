@@ -5,6 +5,7 @@
 
 #include <SGE/engine.hpp>
 #include <SGE/types/backend.hpp>
+#include <SGE/renderer/renderer.hpp>
 
 #include "../../common.hpp"
 
@@ -25,7 +26,7 @@ protected:
         }
     }
 private:
-    sge::Renderer m_renderer;
+    std::unique_ptr<sge::Renderer> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
     sge::Camera m_camera = sge::Camera(sge::CameraOrigin::TopLeft);
     uint32_t m_primary_window_id = 0;

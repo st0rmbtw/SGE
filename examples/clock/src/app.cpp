@@ -16,6 +16,7 @@
 #include <glm/trigonometric.hpp>
 
 #include "app.hpp"
+#include "SGE/renderer/context.hpp"
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
@@ -23,6 +24,8 @@ using namespace sge;
 
 
 App::App(const ExampleConfig& config) : IEngine() {
+    InitRenderContext(config.backend);
+
     WindowSettings window_settings;
     window_settings.width = 800;
     window_settings.height = 800;
@@ -45,9 +48,9 @@ App::App(const ExampleConfig& config) : IEngine() {
     m_camera.set_viewport({resolution.width, resolution.height});
     m_camera.set_zoom(1.0f);
 
-    m_renderer.Init(config.backend, false, "");
+    m_renderer = std::make_unique<Renderer>(GetRenderContext());
 
-    m_batch = m_renderer.CreateBatch();
+    m_batch = m_renderer->CreateBatch();
     m_batch->SetIsUi(true);
     m_batch->BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
@@ -74,12 +77,12 @@ void App::OnUpdate() {
     }
 
     if (Input::JustPressed(Key::W)) {
-        CreateWindow(WindowSettings {
+        auto _ = CreateWindow(WindowSettings {
             .width = 500,
             .height = 500,
-            .vsync = true,
             .samples = 1,
-            .resizable = true
+            .resizable = true,
+            .vsync = true,
         });
     }
 
@@ -132,7 +135,7 @@ void App::OnUpdate() {
 }
 
 void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
-    m_renderer.Begin();
+    m_renderer->Begin();
 
     static constexpr float CLOCK_BORDER_WIDTH = 25.0f / 400.0f;
     static constexpr float CLOCK_HAND_THICKNESS = 9.0f / 800.0f;
@@ -269,27 +272,27 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         }
     }
 
-    m_renderer.BeginPass(window, m_camera);
+    m_renderer->BeginPass(window, m_camera);
         float red = ((float)0xC5) / 255.0f;
         float green = ((float)0xC8) / 255.0f;
         float blue = ((float)0xD3) / 255.0f;
-        m_renderer.Clear(LLGL::ClearValue(red, green, blue, 1.0f));
+        m_renderer->Clear(LLGL::ClearValue(red, green, blue, 1.0f));
 
-        m_renderer.PrepareBatch(*m_batch);
-        m_renderer.UploadBatchData();
-        m_renderer.RenderBatch(*m_batch);
+        m_renderer->PrepareBatch(*m_batch);
+        m_renderer->UploadBatchData();
+        m_renderer->RenderBatch(*m_batch);
 
         m_batch->Reset();
-    m_renderer.EndPass();
+    m_renderer->EndPass();
 
-    m_renderer.End();
-    m_renderer.Present(window);
+    m_renderer->End();
+    GetRenderContext()->Present(window);
 }
 
 void App::OnPostRender(const std::shared_ptr<GlfwWindow>& window) {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
-        m_renderer.PrintDebugInfo();
+        GetRenderContext()->PrintDebugInfo();
     }
 #endif
 }
@@ -301,5 +304,5 @@ void App::OnWindowResized(const std::shared_ptr<GlfwWindow>& window, int width, 
 }
 
 App::~App() {
-    m_renderer.DestroyBatch(*m_batch);
+    m_renderer->DestroyBatch(*m_batch);
 }

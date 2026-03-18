@@ -25,8 +25,6 @@ protected:
     void OnWindowResized(const std::shared_ptr<sge::GlfwWindow> &window, int width, int height) override;
 
     void OnWindowDestroy(sge::GlfwWindow &window) override {
-        m_renderer.UnregisterWindow(window);
-
         if (window.GetID() == m_primary_window_id) {
             Stop();
         }
@@ -36,8 +34,8 @@ private:
     void sync_time();
 
 private:
-    class sge::Renderer m_renderer;
     sge::Camera m_camera = sge::Camera(sge::CameraOrigin::TopLeft);
+    std::unique_ptr<sge::Renderer> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
     CurrentTime m_t;
     uint32_t m_primary_window_id = 0;

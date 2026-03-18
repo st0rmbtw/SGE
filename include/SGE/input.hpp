@@ -120,7 +120,7 @@ enum class Key : uint16_t {
 };
 
 namespace Input {
-    void AddCodePoint(uint32_t codepoint);
+    void PushCodePoint(uint32_t codepoint);
     void Press(Key key, uint8_t modifiers);
     void Press(MouseButton button);
     void Release(Key key, uint8_t modifiers);

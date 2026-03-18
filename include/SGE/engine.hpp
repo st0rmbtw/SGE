@@ -13,7 +13,7 @@
 #include <SGE/types/backend.hpp>
 #include <SGE/types/window_settings.hpp>
 #include <SGE/types/cursor_mode.hpp>
-#include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/context.hpp>
 #include <SGE/utils/containers/swapbackvector.hpp>
 
 namespace sge {
@@ -30,6 +30,11 @@ public:
     void Run();
     void Stop() {
         m_running = false;
+    }
+
+    [[nodiscard]]
+    const std::shared_ptr<RenderContext>& GetRenderContext() const {
+        return m_context;
     }
 
     [[nodiscard]]
@@ -55,10 +60,15 @@ protected: // Callbacks
     virtual void OnWindowDestroy(GlfwWindow& window) {}
 
 protected:
+    void InitRenderContext(RenderBackend backend) {
+        m_context->Init(backend, false, "");
+    }
 
     std::expected<GlfwWindow*, const char*> CreateWindow(const WindowSettings& window_settings);
+
     void DestroyWindow(const std::shared_ptr<GlfwWindow>& window) {
         OnWindowDestroy(*window);
+        m_context->UnregisterWindow(*window);
         m_window_map.erase(window->m_wnd);
     }
 
@@ -106,6 +116,10 @@ protected:
         }
     }
 
+    void OnCharacterEvent(GLFWwindow *window, uint32_t codepoint) final {
+        Input::PushCodePoint(codepoint);
+    }
+
     void OnMouseButtonEvent(GLFWwindow*, int button, int action, int mods) final {
         if (action == GLFW_PRESS) {
             Input::Press(static_cast<MouseButton>(button));
@@ -118,7 +132,7 @@ protected:
         Input::PushMouseScrollEvent(yoffset);
     }
 private:
-    class Renderer m_renderer;
+    std::shared_ptr<RenderContext> m_context;
     std::unordered_map<GLFWwindow*, std::shared_ptr<GlfwWindow>> m_window_map;
     uint64_t m_frame_count = 0;
     bool m_running = false;

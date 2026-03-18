@@ -24,6 +24,8 @@ static void HandleClayErrors(Clay_ErrorData errorData) {
 }
 
 App::App(const ExampleConfig& config) {
+    InitRenderContext(config.backend);
+
     WindowSettings window_settings;
     window_settings.width = 1280;
     window_settings.height = 720;
@@ -45,9 +47,9 @@ App::App(const ExampleConfig& config) {
     m_camera.set_viewport({resolution.width, resolution.height});
     m_camera.set_zoom(1.0f);
 
-    m_renderer.Init(config.backend, false, "");
+    m_renderer = std::make_unique<Renderer>(GetRenderContext());
 
-    m_batch = m_renderer.CreateBatch();
+    m_batch = m_renderer->CreateBatch();
     m_batch->SetIsUi(true);
     m_batch->BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
@@ -65,7 +67,7 @@ App::App(const ExampleConfig& config) {
 }
 
 App::~App() {
-    m_renderer.DestroyBatch(*m_batch);
+    m_renderer->DestroyBatch(*m_batch);
 }
 
 void App::OnUpdate() {
@@ -112,7 +114,7 @@ void App::OnUpdate() {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
-    m_renderer.Begin();
+    m_renderer->Begin();
 
     Clay_BeginLayout();
 
@@ -298,24 +300,24 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         .border_radius = glm::vec4(14.0f)
     });
 
-    m_renderer.BeginPass(window, m_camera);
-        m_renderer.Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
+    m_renderer->BeginPass(window, m_camera);
+        m_renderer->Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
 
-        m_renderer.PrepareBatch(*m_batch);
-        m_renderer.UploadBatchData();
-        m_renderer.RenderBatch(*m_batch);
+        m_renderer->PrepareBatch(*m_batch);
+        m_renderer->UploadBatchData();
+        m_renderer->RenderBatch(*m_batch);
 
         m_batch->Reset();
-    m_renderer.EndPass();
+    m_renderer->EndPass();
 
-    m_renderer.End();
-    m_renderer.Present(window);
+    m_renderer->End();
+    GetRenderContext()->Present(window);
 }
 
 void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
-        m_renderer.PrintDebugInfo();
+        GetRenderContext()->PrintDebugInfo();
     }
 #endif
 }

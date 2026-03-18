@@ -8,6 +8,7 @@
 #include <SGE/profile.hpp>
 #include <SGE/time/time.hpp>
 #include <cstdlib>
+#include <memory>
 
 #include "defines.hpp"
 #include "utils.hpp"
@@ -26,6 +27,8 @@ IEngine::IEngine() {
 
     LLGL::Log::RegisterCallbackStd();
     Time::SetFixedTimestepSeconds(1.0f / 60.0f);
+
+    m_context = std::make_shared<RenderContext>();
 }
 
 IEngine::~IEngine() {
@@ -46,6 +49,7 @@ void IEngine::Run() {
             const auto& window = it->second;
             if (window->ShouldBeClosed()) {
                 OnWindowDestroy(*window);
+                m_context->UnregisterWindow(*window);
                 it = m_window_map.erase(it);
             } else {
                 ++it;

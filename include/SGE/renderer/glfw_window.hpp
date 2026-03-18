@@ -29,14 +29,14 @@ class GlfwWindow : public LLGL::Surface {
 public:
     class EventListener {
     public:
-        virtual void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) {}
-        virtual void OnCharacterEvent(GLFWwindow* window, uint32_t codepoint) {}
-        virtual void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) {}
-        virtual void OnMouseButtonEvent(GLFWwindow* window, int button, int action, int mods) {}
-        virtual void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) {}
-        virtual void OnWindowIconifyEvent(GLFWwindow* window, int iconified) {}
-        virtual void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) {}
-        virtual void OnWindowResizeEvent(GLFWwindow* window, int width, int height) {}
+        virtual void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) = 0;
+        virtual void OnCharacterEvent(GLFWwindow* window, uint32_t codepoint) = 0;
+        virtual void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) = 0;
+        virtual void OnMouseButtonEvent(GLFWwindow* window, int button, int action, int mods) = 0;
+        virtual void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) = 0;
+        virtual void OnWindowIconifyEvent(GLFWwindow* window, int iconified) = 0;
+        virtual void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) = 0;
+        virtual void OnWindowResizeEvent(GLFWwindow* window, int width, int height) = 0;
     };
 
     friend class IEngine;
