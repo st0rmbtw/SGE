@@ -17,6 +17,7 @@
 
 #include "app.hpp"
 #include "SGE/renderer/context.hpp"
+#include "SGE/types/shape.hpp"
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
@@ -50,7 +51,6 @@ App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::T
 
     m_batch = m_renderer->CreateBatch();
     m_batch->SetIsUi(true);
-    m_batch->BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -160,7 +160,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         .color = sge::LinearRgba(0.0f, 0.0f, 0.0f),
         .border_thickness = CLOCK_BORDER_WIDTH * background_size.x / 2.0f,
         .border_color = sge::LinearRgba(0x3B, 0x40, 0x43),
-        .border_radius = glm::vec4(radius)
+        .border_radius = BorderRadius::Absolute(radius)
     });
 
     {
@@ -172,7 +172,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         m_batch->DrawRect(center, {
             .size = size,
             .color = sge::LinearRgba(0x05, 0x0C, 0x0B),
-            .border_radius = glm::vec4(radius - padding)
+            .border_radius = BorderRadius::Absolute(radius - padding)
         });
 
         m_batch->DrawCircle(center, {
@@ -195,7 +195,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f - (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH - (size * CLOCK_TICKS_LENGTH) * 0.2f);
 
-            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), glm::vec4(tick_thickness / 2.0f));
+            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), BorderRadius::Relative(75.0f));
         }
 
         for (int i = 0; i < 12; ++i) {
@@ -210,7 +210,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f + (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH);
 
-            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), glm::vec4(tick_thickness / 2.0f));
+            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), BorderRadius::Relative(75.0f));
         }
         m_batch->EndOrderMode();
 
@@ -242,7 +242,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), glm::vec4(hand_thickness / 2.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), BorderRadius::Relative(75.0f));
         }
 
         // Minute hand
@@ -254,7 +254,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), glm::vec4(hand_thickness / 2.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), BorderRadius::Relative(75.0f));
         }
 
         // Second hand
@@ -266,7 +266,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
             const float length = hand_length - CLOCK_SECOND_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), glm::vec4(hand_thickness / 2.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), BorderRadius::Relative(75.0f));
         }
     }
 

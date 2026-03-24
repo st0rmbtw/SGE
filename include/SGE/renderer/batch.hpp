@@ -316,7 +316,7 @@ public:
     }
 
     inline uint32_t DrawCircle(glm::vec2 position, sge::Order custom_order, const ShapeCircle& circle) {
-        return DrawShape(sge::Shape::Circle, position, glm::vec2(circle.radius * 2.0f), circle.color, circle.border_color, circle.border_thickness, glm::vec4(0.0), circle.anchor, custom_order);
+        return DrawShape(sge::Shape::Circle, position, glm::vec2(circle.radius * 2.0f), circle.color, circle.border_color, circle.border_thickness, BorderRadius::Absolute(0.0), circle.anchor, custom_order);
     }
 
     inline uint32_t DrawCircle(glm::vec2 position, const ShapeCircle& circle) {
@@ -332,14 +332,14 @@ public:
     }
 
     inline uint32_t DrawArc(glm::vec2 position, sge::Order custom_order, const ShapeArc& arc) {
-        return DrawShape(sge::Shape::Arc, position, glm::vec2(arc.outer_radius * 2.0f), arc.color, sge::LinearRgba(0.0f), arc.inner_radius, glm::vec4(arc.start_angle, arc.end_angle, 0.0f, 0.0f), arc.anchor, custom_order);
+        return DrawShape(sge::Shape::Arc, position, glm::vec2(arc.outer_radius * 2.0f), arc.color, sge::LinearRgba(0.0f), arc.inner_radius, BorderRadius::Absolute(arc.start_angle, arc.end_angle, 0.0f, 0.0f), arc.anchor, custom_order);
     }
 
     inline uint32_t DrawArc(glm::vec2 position, const ShapeArc& arc) {
         return DrawArc(position, sge::Order(), arc);
     }
 
-    uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, const glm::vec4& border_radius = glm::vec4(0.0f), sge::Order custom_order = {});
+    uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius = BorderRadius(), sge::Order custom_order = {});
 
     inline void Reset() {
         m_draw_commands.clear();
@@ -430,7 +430,7 @@ public:
 
     inline uint32_t GetOrder(sge::Order custom_order = {});
 private:
-    uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius = glm::vec4(0.0f), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
+    uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, BorderRadius border_radius = BorderRadius(), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
 
     uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, sge::Order custom_order);
     uint32_t AddNinePatchDrawCommand(const sge::NinePatch& ninepatch, const glm::vec4& uv_offset_scale, sge::Order custom_order);

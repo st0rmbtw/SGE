@@ -164,6 +164,8 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_i
         pipeline_state = it_pipeline->second;
     } else {
         LLGL::GraphicsPipelineDescriptor pipelineDesc;
+        pipelineDesc.depth = config.depth;
+        pipelineDesc.blend = config.blend;
         pipelineDesc.debugName = config.debugName;
         pipelineDesc.pipelineLayout = config.layout;
         pipelineDesc.vertexShader = config.vertexShader;
@@ -171,8 +173,10 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_i
         pipelineDesc.fragmentShader = config.pixelShader;
         pipelineDesc.primitiveTopology = config.primitiveTopology;
         pipelineDesc.indexFormat = config.indexFormat;
-        pipelineDesc.renderPass = m_current_target->GetRenderPass();
         pipelineDesc.rasterizer.multiSampleEnabled = (m_current_target->GetSamples() > 1);
+        pipelineDesc.rasterizer.scissorTestEnabled = config.scissorTestEnabled;
+        pipelineDesc.rasterizer.frontCCW = config.frontCCW;
+        pipelineDesc.renderPass = m_current_target->GetRenderPass();
 
         pipeline_state = m_context->CreatePipelineState(pipelineDesc);
         m_pipeline_states[key] = pipeline_state;

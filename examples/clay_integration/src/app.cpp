@@ -9,6 +9,7 @@
 #include <SGE/types/color.hpp>
 #include <SGE/types/window_settings.hpp>
 #include <SGE/types/blend_mode.hpp>
+#include <SGE/types/shape.hpp>
 
 #include <glm/trigonometric.hpp>
 
@@ -154,7 +155,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
             const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y);
             const glm::vec2 size = glm::vec2(boundingBox.width, boundingBox.height);
             const LinearRgba color = LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
-            const glm::vec4 cornerRadius = glm::vec4(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
+            const BorderRadius cornerRadius = BorderRadius::Absolute(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
             m_batch->DrawRect(position, {
                 .size = size,
@@ -170,7 +171,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 
             const LinearRgba color = LinearRgba(config->color.r / 255.0f, config->color.g / 255.0f, config->color.b / 255.0f, config->color.a / 255.0f);
 
-            const glm::vec4 cornerRadius = glm::vec4(0.0f);
+            const BorderRadius cornerRadius = BorderRadius::Absolute(0.0f);
 
             // Left border
             if (config->width.left > 0) {
@@ -297,7 +298,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
         .border_thickness = 2.0f,
         .border_color = sge::LinearRgba::blue(),
-        .border_radius = glm::vec4(14.0f)
+        .border_radius = BorderRadius::Absolute(14.0f)
     });
 
     m_renderer->BeginPass(window, m_camera);

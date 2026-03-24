@@ -163,14 +163,20 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
     return order;
 }
 
-uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, glm::vec4 border_radius, Anchor anchor, struct Order custom_order) {
+uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, BorderRadius border_radius, Anchor anchor, struct Order custom_order) {
+    float length = glm::min(size.x, size.y);
+
+    const glm::vec4 radius = border_radius.is_relative()
+        ? glm::vec4(border_radius.values()) / 100.0f * length
+        : glm::vec4(border_radius.values());
+
     const internal::DrawCommandShape command = {
         .position = position,
         .size = size,
         .offset = anchor.to_vec2(),
         .color = color,
         .border_color = border_color,
-        .border_radius = border_radius,
+        .border_radius = radius,
         .border_thickness = border_thickness,
         .shape = shape,
     };
@@ -185,12 +191,18 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
     return order;
 }
 
-uint32_t Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, const glm::vec4& border_radius, sge::Order custom_order) {
+uint32_t Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius, sge::Order custom_order) {
+    float length = glm::min(glm::sqrt(glm::dot(start, end)), thickness);
+
+    const glm::vec4 radius = border_radius.is_relative()
+        ? glm::vec4(border_radius.values()) * length / 100.0f
+        : glm::vec4(border_radius.values());
+
     const internal::DrawCommandLine command = {
         .start = start,
         .end = end,
         .color = color,
-        .border_radius = border_radius,
+        .border_radius = radius,
         .thickness = thickness
     };
 
