@@ -128,7 +128,7 @@ LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<
 
         LLGL::SwapChainDescriptor swapChainDesc;
         swapChainDesc.resolution = window->GetContentSize();
-        // swapChainDesc.fullscreen = settings.fullscreen;
+        swapChainDesc.fullscreen = window->IsFullscreen();
         swapChainDesc.samples = window->GetSamples();
         // swapChainDesc.colorBits = settings.transparent ? 32 : 24;
 
@@ -139,6 +139,14 @@ LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<
     }
 
     return *swap_chain;
+}
+
+LLGL::SwapChain* sge::RenderContext::GetSwapChain(const std::shared_ptr<GlfwWindow>& window) {
+    auto it = m_swapchain_map.find(window->GetID());
+    if (it == m_swapchain_map.end()) {
+        return nullptr;
+    }
+    return it->second.get();
 }
 
 void sge::RenderContext::Present(const std::shared_ptr<sge::GlfwWindow>& window) {

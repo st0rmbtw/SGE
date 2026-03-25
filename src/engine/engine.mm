@@ -123,7 +123,10 @@ std::expected<GlfwWindow*, const char*> IEngine::CreateWindow(const WindowSettin
     int width, height;
     glfwGetWindowSize(window, &width, &height);
 
-    std::shared_ptr<GlfwWindow> instance = std::make_shared<GlfwWindow>(window, LLGL::Extent2D(width, height), window_settings.samples);
+    glm::ivec2 position;
+    glfwGetWindowPos(window, &position.x, &position.y);
+
+    std::shared_ptr<GlfwWindow> instance = std::make_shared<GlfwWindow>(window, LLGL::Extent2D(width, height), position, window_settings.samples, window_settings.fullscreen);
     instance->Listen(*this);
 
     m_window_map.try_emplace(window, instance);

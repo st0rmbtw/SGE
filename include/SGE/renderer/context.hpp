@@ -50,6 +50,7 @@ public:
 
     LLGL::PipelineState& GetOrCreatePipeline(uint32_t pipeline_id);
     LLGL::SwapChain& GetOrCreateSwapChain(const std::shared_ptr<GlfwWindow>& window);
+    LLGL::SwapChain* GetSwapChain(const std::shared_ptr<GlfwWindow>& window);
 
     void DeletePipeline(uint32_t pipeline_id);
 

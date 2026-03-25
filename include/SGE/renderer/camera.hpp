@@ -42,13 +42,6 @@ struct CoordinateSystem {
 class Camera {
 public:
     Camera(RenderBackend backend, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
-        m_projection_matrix(),
-        m_screen_projection_matrix(),
-        m_nozoom_projection_matrix(),
-        m_view_matrix(),
-        m_transform_matrix(),
-        m_viewport(0),
-        m_position(0.0f),
         m_origin(origin),
         m_backend(backend),
         m_changed(true)
@@ -57,13 +50,7 @@ public:
     }
 
     explicit Camera(glm::uvec2 viewport, RenderBackend backend, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
-        m_projection_matrix(),
-        m_screen_projection_matrix(),
-        m_nozoom_projection_matrix(),
-        m_view_matrix(),
-        m_transform_matrix(),
         m_viewport(viewport),
-        m_position(0.0f),
         m_origin(origin),
         m_backend(backend),
         m_changed(true)
@@ -76,7 +63,6 @@ public:
     inline void update() {
         if (m_changed) {
             compute_projection_and_view_matrix();
-            compute_transform_matrix();
             m_changed = false;
         }
     }
@@ -157,11 +143,6 @@ public:
     [[nodiscard]]
     inline const glm::mat4x4& get_view_matrix() const noexcept {
         return m_view_matrix;
-    }
-
-    [[nodiscard]]
-    inline const glm::mat4x4& get_transform_matrix() const noexcept {
-        return m_transform_matrix;
     }
 
     [[nodiscard]]
@@ -248,9 +229,6 @@ public:
 private:
     void compute_projection_and_view_matrix();
     void update_projection_area() noexcept;
-    void compute_transform_matrix() {
-        m_transform_matrix = glm::translate(glm::mat4(1.0), glm::vec3(m_position, 0.));
-    }
 
     void set_coordinate_system(CoordinateSystem coordinate_system) noexcept {
         switch (coordinate_system.right) {
@@ -282,28 +260,27 @@ private:
     }
 
 private:
-    glm::mat4x4 m_projection_matrix;
-    glm::mat4x4 m_screen_projection_matrix;
-    glm::mat4x4 m_nozoom_projection_matrix;
-    glm::mat4x4 m_view_matrix;
-    glm::mat4x4 m_transform_matrix;
-    glm::mat4x4 m_inv_view_proj_matrix;
-    glm::mat4x4 m_view_proj_matrix;
-    glm::mat4x4 m_nozoom_view_proj_matrix;
+    glm::mat4x4 m_projection_matrix = glm::identity<glm::mat4>();
+    glm::mat4x4 m_screen_projection_matrix = glm::identity<glm::mat4>();
+    glm::mat4x4 m_nozoom_projection_matrix = glm::identity<glm::mat4>();
+    glm::mat4x4 m_view_matrix = glm::identity<glm::mat4>();
+    glm::mat4x4 m_inv_view_proj_matrix = glm::identity<glm::mat4>();
+    glm::mat4x4 m_view_proj_matrix = glm::identity<glm::mat4>();
+    glm::mat4x4 m_nozoom_view_proj_matrix = glm::identity<glm::mat4>();
 
     sge::Rect m_area;
     sge::Rect m_area_nozoom;
+
+    glm::uvec2 m_viewport = glm::uvec2(0);
+    glm::vec2 m_position = glm::vec2(0.0f);
 
     float m_right;
     float m_up;
     float m_forward;
 
-    glm::uvec2 m_viewport;
-    glm::vec2 m_position;
-
     float m_zoom = 1.0f;
 
-    CameraOrigin m_origin;
+    CameraOrigin m_origin = CameraOrigin::TopLeft;
     RenderBackend m_backend;
 
     bool m_flip_horizontal = false;

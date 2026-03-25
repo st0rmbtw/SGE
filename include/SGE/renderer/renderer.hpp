@@ -81,7 +81,6 @@ struct SGE_ALIGN(16) GlobalUniforms {
     glm::mat4 view_projection_matrix;
     glm::mat4 nonscale_view_projection_matrix;
     glm::mat4 nonscale_projection_matrix;
-    glm::mat4 transform_matrix;
     glm::mat4 inv_view_proj_matrix;
     glm::vec2 camera_position;
     glm::vec2 window_size;

@@ -34,7 +34,8 @@ public:
         virtual void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) = 0;
         virtual void OnMouseButtonEvent(GLFWwindow* window, int button, int action, int mods) = 0;
         virtual void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) = 0;
-        virtual void OnWindowIconifyEvent(GLFWwindow* window, int iconified) = 0;
+        virtual void OnWindowIconifyEvent(GLFWwindow* window, bool iconified) = 0;
+        virtual void OnWindowMaximizeEvent(GLFWwindow* window, bool maximized) = 0;
         virtual void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) = 0;
         virtual void OnWindowResizeEvent(GLFWwindow* window, int width, int height) = 0;
     };
@@ -42,18 +43,27 @@ public:
     friend class IEngine;
 
 public:
-    GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size, uint8_t samples) :
+    GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size, glm::ivec2 position, uint8_t samples, bool fullscreen) :
         m_size(size),
         m_wnd(wnd),
+        m_position(position),
         m_id(s_id++),
-        m_samples(samples)
+        m_samples(samples),
+        m_fullscreen(fullscreen)
     {}
 
     GlfwWindow(GlfwWindow&& other) noexcept {
-        m_size = other.m_size;
-        m_wnd = other.m_wnd;
-        m_id = other.m_id;
         other.m_wnd = nullptr;
+        m_wnd = other.m_wnd;
+        m_size = other.m_size;
+        m_position = other.m_position;
+        m_min_size = other.m_min_size;
+        m_max_size = other.m_max_size;
+        m_id = other.m_id;
+        m_samples = other.m_samples;
+        m_minimized = other.m_minimized;
+        m_maximized = other.m_maximized;
+        m_fullscreen = other.m_fullscreen;
     }
 
     ~GlfwWindow() override {
@@ -74,6 +84,7 @@ public:
         glfwSetCursorPosCallback(m_wnd, HandleCursorPosEvents);
         glfwSetWindowSizeCallback(m_wnd, HandleWindowResize);
         glfwSetWindowIconifyCallback(m_wnd, HandleWindowIconify);
+        glfwSetWindowMaximizeCallback(m_wnd, HandleWindowMaximize);
         glfwSetFramebufferSizeCallback(m_wnd, HandleFramebufferResize);
         glfwSetCharCallback(m_wnd, HandleCharacterCallback);
     }
@@ -141,9 +152,44 @@ public:
         glfwSetInputMode(m_wnd, GLFW_CURSOR, static_cast<int>(cursor_mode));
     }
 
+    void SetMaximized() {
+        glfwMaximizeWindow(m_wnd);
+        m_maximized = true;
+    }
+
+    void SetMinimized() {
+        glfwIconifyWindow(m_wnd);
+        m_minimized = true;
+    }
+
+    void SetFullscreen() {
+        glfwGetWindowPos(m_wnd, &m_position.x, &m_position.y);
+        glfwSetWindowMonitor(m_wnd, glfwGetPrimaryMonitor(), 0, 0, m_size.width, m_size.height, GLFW_DONT_CARE);
+    }
+
+    void SetWindowed() {
+        glfwSetWindowMonitor(m_wnd, nullptr, m_position.x, m_position.y, m_size.width, m_size.height, GLFW_DONT_CARE);
+    }
+
+    void Restore() {
+        glfwRestoreWindow(m_wnd);
+        m_minimized = false;
+        m_maximized = false;
+    }
+
     [[nodiscard]]
     bool IsMinimized() const noexcept {
         return m_minimized;
+    }
+
+    [[nodiscard]]
+    bool IsMaximized() const noexcept {
+        return m_maximized;
+    }
+
+    [[nodiscard]]
+    bool IsFullscreen() const noexcept {
+        return m_fullscreen;
     }
 
     [[nodiscard]]
@@ -154,6 +200,11 @@ public:
     [[nodiscard]]
     uint32_t GetID() const noexcept {
         return m_id;
+    }
+
+    [[nodiscard]]
+    glm::ivec2 GetPosition() const noexcept {
+        return m_position;
     }
 
     [[nodiscard]]
@@ -207,7 +258,13 @@ private:
         EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));
         if (listener == nullptr)
             return;
-        listener->OnWindowIconifyEvent(window, iconified);
+        listener->OnWindowIconifyEvent(window, iconified == GLFW_TRUE);
+    }
+    static void HandleWindowMaximize(GLFWwindow* window, int maximized) {
+        EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));
+        if (listener == nullptr)
+            return;
+        listener->OnWindowMaximizeEvent(window, maximized == GLFW_TRUE);
     }
 
 private:
@@ -215,9 +272,12 @@ private:
     GLFWwindow* m_wnd = nullptr;
     glm::ivec2 m_min_size = glm::ivec2(0, 0);
     glm::ivec2 m_max_size = glm::ivec2(INT_MAX, INT_MAX);
+    glm::ivec2 m_position = glm::ivec2(0, 0);
     uint32_t m_id = 0;
     uint8_t m_samples = 1;
     bool m_minimized = false;
+    bool m_maximized = false;
+    bool m_fullscreen = false;
 
     static std::atomic<uint32_t> s_id;
 };

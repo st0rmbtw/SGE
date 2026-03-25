@@ -760,7 +760,6 @@ void Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) {
         .view_projection_matrix = camera.get_view_projection_matrix(),
         .nonscale_view_projection_matrix = camera.get_nonscale_view_projection_matrix(),
         .nonscale_projection_matrix = camera.get_nonscale_projection_matrix(),
-        .transform_matrix = camera.get_transform_matrix(),
         .inv_view_proj_matrix = camera.get_inv_view_projection_matrix(),
         .camera_position = camera.position(),
         .window_size = camera.viewport()

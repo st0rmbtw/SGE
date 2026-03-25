@@ -52,32 +52,39 @@ protected: // Callbacks
     virtual void OnPostUpdate() {}
     virtual void OnFixedUpdate() {}
     virtual void OnFixedPostUpdate() {}
-    virtual void OnRender(const std::shared_ptr<GlfwWindow>& window) {}
-    virtual void OnPostRender(const std::shared_ptr<GlfwWindow>& window) {}
+    virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {}
+    virtual void OnPostRender(const std::shared_ptr<sge::GlfwWindow>& window) {}
 
-    virtual void OnWindowResized(const std::shared_ptr<GlfwWindow>& window, int width, int height) {}
-    virtual void OnFramebufferResize(const std::shared_ptr<GlfwWindow>& window, int width, int height) {}
-    virtual void OnWindowDestroy(GlfwWindow& window) {}
+    virtual void OnWindowResized(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {}
+    virtual void OnFramebufferResize(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {}
+    virtual void OnWindowDestroy(sge::GlfwWindow& window) {}
 
 protected:
     void InitRenderContext(RenderBackend backend) {
         m_context->Init(backend, false, "");
     }
 
-    std::expected<GlfwWindow*, const char*> CreateWindow(const WindowSettings& window_settings);
+    std::expected<sge::GlfwWindow*, const char*> CreateWindow(const WindowSettings& window_settings);
 
-    void DestroyWindow(const std::shared_ptr<GlfwWindow>& window) {
+    void DestroyWindow(const std::shared_ptr<sge::GlfwWindow>& window) {
         OnWindowDestroy(*window);
         m_context->UnregisterWindow(*window);
         m_window_map.erase(window->m_wnd);
     }
 
 protected:
-    void OnWindowIconifyEvent(GLFWwindow *window, int iconified) final {
+    void OnWindowIconifyEvent(GLFWwindow *window, bool iconified) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
-        it->second->m_minimized = iconified == GLFW_TRUE;
+        it->second->m_minimized = iconified;
+    }
+
+    void OnWindowMaximizeEvent(GLFWwindow *window, bool maximized) final {
+        auto it = m_window_map.find(window);
+        SGE_ASSERT(it != m_window_map.end());
+
+        it->second->m_maximized = true;
     }
 
     void OnWindowResizeEvent(GLFWwindow *window, int width, int height) final {
@@ -104,6 +111,13 @@ protected:
     void OnFramebufferResizeEvent(GLFWwindow *window, int width, int height) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
+
+        SGE_ASSERT(width >= 0);
+        SGE_ASSERT(height >= 0);
+
+        if (LLGL::SwapChain* swap_chain = m_context->GetSwapChain(it->second)) {
+            swap_chain->ResizeBuffers(LLGL::Extent2D(width, height));
+        }
         
         OnFramebufferResize(it->second, width, height);
     }
