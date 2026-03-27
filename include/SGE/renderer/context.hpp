@@ -14,6 +14,8 @@
 
 #include <LLGL/Utils/Utility.h>
 
+#include <filesystem>
+
 struct PipelineConfigKey {
     uint32_t config_id;
     LLGL::RenderTarget* render_target;
@@ -36,7 +38,7 @@ namespace sge {
 
 class RenderContext {
 public:
-    bool Init(RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path);
+    bool Init(RenderBackend backend);
     ~RenderContext();
 
     void RegisterWindow(const std::shared_ptr<GlfwWindow>& window);
@@ -74,8 +76,8 @@ public:
 
     LLGL::Shader* LoadShader(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
 
-    LLGLResource<LLGL::PipelineCache> ReadPipelineCache(const std::string& name, bool& hasInitialCache);
-    void SavePipelineCache(const std::string& name, LLGL::PipelineCache& pipelineCache);
+    LLGLResource<LLGL::PipelineCache> ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache);
+    void SavePipelineCache(const std::filesystem::path& dir, const std::string& name, LLGL::PipelineCache& pipelineCache);
 
     template <typename Container>
     inline LLGL::Buffer* CreateVertexBuffer(const Container& vertices, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) const {
@@ -114,7 +116,7 @@ public:
     }
 
 #if SGE_DEBUG
-    void PrintDebugInfo();
+    LLGL::FrameProfile GetDebugInfo();
 #endif
 
     [[nodiscard]]
@@ -149,8 +151,6 @@ private:
     std::unordered_map<uint32_t, GraphicsPipelineConfig> m_pipeline_configs;
     std::unordered_map<PipelineConfigKey, LLGL::PipelineState*> m_pipeline_states;
 
-    std::string m_cache_pipeline_dir;
-
     LLGL::RenderSystemPtr m_context = nullptr;
     
 #if SGE_DEBUG
@@ -163,8 +163,6 @@ private:
     uint32_t m_texture_index = 0;
 
     sge::RenderBackend m_backend;
-
-    bool m_cache_pipelines = true;
 };
 
 

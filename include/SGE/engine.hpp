@@ -60,8 +60,8 @@ protected: // Callbacks
     virtual void OnWindowDestroy(sge::GlfwWindow& window) {}
 
 protected:
-    void InitRenderContext(RenderBackend backend) {
-        m_context->Init(backend, false, "");
+    bool InitRenderContext(RenderBackend backend) {
+        return m_context->Init(backend);
     }
 
     std::expected<sge::GlfwWindow*, const char*> CreateWindow(const WindowSettings& window_settings);

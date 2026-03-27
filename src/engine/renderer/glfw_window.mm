@@ -1,9 +1,19 @@
-#include <SGE/renderer/glfw_window.hpp>
-
 #include <LLGL/Platform/NativeHandle.h>
-#include <GLFW/glfw3native.h>
-
+#include <SGE/renderer/glfw_window.hpp>
 #include <SGE/defines.hpp>
+
+#if SGE_PLATFORM_WINDOWS
+    #define GLFW_EXPOSE_NATIVE_WIN32
+#elif SGE_PLATFORM_MACOS
+    #define GLFW_EXPOSE_NATIVE_COCOA
+#else
+    #if SGE_PLATFORM_LINUX
+        #define GLFW_EXPOSE_NATIVE_WAYLAND
+        #define GLFW_EXPOSE_NATIVE_X11
+    #endif
+#endif
+
+#include <GLFW/glfw3native.h>
 
 using namespace sge;
 

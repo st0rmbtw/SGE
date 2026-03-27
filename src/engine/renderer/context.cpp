@@ -4,10 +4,8 @@
 
 namespace fs = std::filesystem;
 
-bool sge::RenderContext::Init(sge::RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path) {
+bool sge::RenderContext::Init(sge::RenderBackend backend) {
     m_backend = backend;
-    m_cache_pipelines = cache_pipelines;
-    m_cache_pipeline_dir = cache_dir_path;
 
     LLGL::Report report;
 
@@ -44,10 +42,6 @@ bool sge::RenderContext::Init(sge::RenderBackend backend, bool cache_pipelines, 
         return false;
     }
 
-    if (cache_pipelines && (!fs::is_directory(cache_dir_path) || !fs::exists(cache_dir_path))) {
-        fs::create_directories(cache_dir_path);
-    }
-
     const LLGL::RendererInfo& info = GetRendererInfo();
 
     SGE_LOG_INFO("Renderer:             {}", info.rendererName.c_str());
@@ -79,10 +73,10 @@ sge::RenderContext::~RenderContext() {
     }
 }
 
-sge::LLGLResource<LLGL::PipelineCache> sge::RenderContext::ReadPipelineCache(const std::string& name, bool& hasInitialCache) {
+sge::LLGLResource<LLGL::PipelineCache> sge::RenderContext::ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache) {
     // Try to read PSO cache from file
     const std::string cacheFilename = name + '.' + std::string(m_backend.ToString()) + ".cache";
-    const fs::path cachePath = fs::path(m_cache_pipeline_dir) / cacheFilename;
+    const fs::path cachePath = dir / cacheFilename;
 
     LLGL::Blob pipelineCacheBlob = LLGL::Blob::CreateFromFile(cachePath.string());
     if (pipelineCacheBlob) {
@@ -92,11 +86,11 @@ sge::LLGLResource<LLGL::PipelineCache> sge::RenderContext::ReadPipelineCache(con
     return m_context->CreatePipelineCache(pipelineCacheBlob);
 }
 
-void sge::RenderContext::SavePipelineCache(const std::string& name, LLGL::PipelineCache& pipelineCache) {
+void sge::RenderContext::SavePipelineCache(const std::filesystem::path& dir, const std::string& name, LLGL::PipelineCache& pipelineCache) {
     if (LLGL::Blob psoCache = pipelineCache.GetBlob())
     {
         const std::string cacheFilename = name + '.' + std::string(m_backend.ToString()) + ".cache";
-        const fs::path cachePath = fs::path(m_cache_pipeline_dir) / cacheFilename;
+        const fs::path cachePath = dir / cacheFilename;
 
         // Store PSO cache to file
         std::ofstream file{ cachePath, std::ios::out | std::ios::binary };
@@ -325,10 +319,9 @@ LLGL::Shader* sge::RenderContext::LoadShader(const ShaderPath& shader_path, cons
 }
 
 #if SGE_DEBUG
-void sge::RenderContext::PrintDebugInfo() {
+LLGL::FrameProfile sge::RenderContext::GetDebugInfo() {
     LLGL::FrameProfile profile;
     m_debugger->FlushProfile(&profile);
-
-    SGE_LOG_DEBUG("Draw commands count: {}", profile.commandBufferRecord.drawCommands);
+    return profile;
 }
 #endif

@@ -318,7 +318,8 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
-        GetRenderContext()->PrintDebugInfo();
+        LLGL::FrameProfile profile = GetRenderContext()->GetDebugInfo();
+        SGE_LOG_DEBUG("Draw commands count: {}", profile.commandBufferRecord.drawCommands);
     }
 #endif
 }

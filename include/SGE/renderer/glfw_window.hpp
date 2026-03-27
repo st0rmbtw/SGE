@@ -10,20 +10,8 @@
 #include <SGE/types/window_settings.hpp>
 #include <SGE/log.hpp>
 #include <glm/vec2.hpp>
-#include "../defines.hpp"
 
 namespace sge {
-
-#if SGE_PLATFORM_WINDOWS
-    #define GLFW_EXPOSE_NATIVE_WIN32
-#elif SGE_PLATFORM_MACOS
-    #define GLFW_EXPOSE_NATIVE_COCOA
-#else
-    #if SGE_PLATFORM_LINUX
-        #define GLFW_EXPOSE_NATIVE_WAYLAND
-        #define GLFW_EXPOSE_NATIVE_X11
-    #endif
-#endif
 
 class GlfwWindow : public LLGL::Surface {
 public:

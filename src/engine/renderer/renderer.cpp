@@ -401,22 +401,8 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
         };
 
         for (const auto& [blend_mode, pointer, pipelineName, index] : pipelines) {
-            const std::string name = std::format("{}_{}", pipelineName, count);
-            depthPipelineConfig.debugName = name.c_str();
-
-            // bool hasInitialCache = false;
-            // auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
-
-            // LLGL::PipelineState* pipeline = context->CreatePipelineState(depthPipelineConfig, pipelineCache.get());
+            depthPipelineConfig.debugName = pipelineName;
             *pointer = m_context->AddPipelineConfig(pipelineConfig);
-
-            // if (m_cache_pipelines && !hasInitialCache) {
-            //     SavePipelineCache(name, *pipelineCache);
-            // }
-
-            // if (const LLGL::Report* report = pipeline->GetReport()) {
-            //     if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
-            // }
         }
     }
 
@@ -463,22 +449,6 @@ uint32_t Renderer::CreateNinepatchBatchPipeline(bool enable_scissor) {
         }
     };
 
-    // bool hasInitialCache = false;
-
-    // const std::string name = std::format("NinePatchBatchPipeline{}", count);
-
-    // auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
-
-    // LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineConfig, pipelineCache.get());
-
-    // if (m_cache_pipelines && !hasInitialCache) {
-    //     SavePipelineCache(name, *pipelineCache);
-    // }
-
-    // if (const LLGL::Report* report = pipeline->GetReport()) {
-    //     if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
-    // }
-
     return m_context->AddPipelineConfig(pipelineConfig);
 }
 
@@ -523,21 +493,6 @@ uint32_t Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* f
         }
     };
 
-    // const std::string name = std::format("GlyphBatchPipeline_{}", count);
-
-    // bool hasInitialCache = false;
-    // auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
-
-    // auto pipeline = context->CreatePipelineState(pipelineConfig, pipelineCache.get());
-
-    // if (m_cache_pipelines && !hasInitialCache) {
-    //     SavePipelineCache(name, *pipelineCache);
-    // }
-
-    // if (const LLGL::Report* report = pipeline->GetReport()) {
-    //     if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
-    // }
-
     return m_context->AddPipelineConfig(std::move(pipelineConfig));
 }
 
@@ -577,21 +532,6 @@ uint32_t Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
         }
     };
 
-    // const std::string name = std::format("ShapeBatchPipeline{}", count);
-    
-    // bool hasInitialCache = false;
-    // auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
-
-    // LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineConfig, pipelineCache.get());
-
-    // if (m_cache_pipelines && !hasInitialCache) {
-    //     SavePipelineCache(name, *pipelineCache);
-    // }
-
-    // if (const LLGL::Report* report = pipeline->GetReport()) {
-    //     if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
-    // }
-
     return m_context->AddPipelineConfig(std::move(pipelineConfig));
 }
 
@@ -630,21 +570,6 @@ uint32_t Renderer::CreateLineBatchPipeline(bool enable_scissor) {
             }
         }
     };
-
-    // const std::string name = std::format("LineBatchPipeline{}", count);
-
-    // bool hasInitialCache = false;
-    // auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
-
-    // LLGL::PipelineState* pipeline = context->CreatePipelineState(pipelineDesc, pipelineCache.get());
-
-    // if (m_cache_pipelines && !hasInitialCache) {
-    //     SavePipelineCache(name, *pipelineCache);
-    // }
-
-    // if (const LLGL::Report* report = pipeline->GetReport()) {
-    //     if (report->HasErrors()) SGE_LOG_ERROR("{}", report->GetText());
-    // }
 
     return m_context->AddPipelineConfig(std::move(pipelineConfig));;
 }
