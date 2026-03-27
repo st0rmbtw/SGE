@@ -97,7 +97,7 @@ float sd_rounded_box(float2 p, float2 size, float4 corner_radii) {
 // get alpha for antialiasing for sdf
 float antialias(float d) {
     float w = fwidth(d);
-    return 1.0 - smoothstep(0.0, w, d);
+    return 1.0 - smoothstep(-w, w, d);
 }
 
 [shader("fragment")]

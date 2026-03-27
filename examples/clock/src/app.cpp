@@ -133,6 +133,9 @@ void App::OnUpdate() {
 }
 
 void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
+    LLGL::Extent2D resolution = window->GetContentSize();
+    m_camera.set_viewport(glm::vec2(resolution.width, resolution.height));
+
     m_renderer->Begin();
 
     static constexpr float CLOCK_BORDER_WIDTH = 25.0f / 400.0f;
