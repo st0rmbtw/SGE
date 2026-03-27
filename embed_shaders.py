@@ -31,7 +31,7 @@ def write_constant(f, name, unmangle=False):
     content = ""
     for line in f.readlines():
         l = comment_remover(line).strip(" \t")
-        l = re.sub(COMBINED_SAMPLER_PATTERN, "\g<name>", l)
+        l = re.sub(COMBINED_SAMPLER_PATTERN, r"\g<name>", l)
         if unmangle:
             l = l.replace('SLANG_ParameterGroup_', '')
         if l == '\n': continue
@@ -231,6 +231,29 @@ def main():
     cwd = sys.argv[1]
     ext = ""
 
+    compile_d3d = True
+    compile_vulkan = True
+    compile_metal = True
+    compile_gl = True
+    
+    for arg in sys.argv[2:]:
+        if arg == "-d3d" or arg == "-vulkan" or arg == "-metal" or arg == "-gl":
+            compile_d3d = False
+            compile_vulkan = False
+            compile_metal = False
+            compile_gl = False
+            break
+        
+    for arg in sys.argv[2:]:
+        if arg == "-d3d":
+            compile_d3d = True
+        elif arg == "-vulkan":
+            compile_vulkan = True
+        elif arg == "-metal":
+            compile_metal = True
+        elif arg == "-gl":
+            compile_gl = True
+
     if platform.system() == "Windows":
         ext = ".exe"
 
@@ -259,15 +282,37 @@ def main():
         shader_names.add(item.stem)
         
         item_path = item.resolve()
+        basename = item_path.stem.upper()
         
         executable = f"slangc{ext}"
         
         slang_flags = SLANG_FLAGS + ("-I", str(shaders_dir))
         
-        shaders_hpp_content += compile_d3d_shader(executable, item_path, slang_flags)
-        shaders_hpp_content += compile_vulkan_shader(executable, item_path, slang_flags)
-        shaders_hpp_content += compile_metal_shader(executable, item_path, slang_flags)
-        shaders_hpp_content += compile_opengl_shader(executable, item_path, slang_flags)
+        if compile_d3d:
+            print(f"Compiling {item} for D3D11 ...")
+            shaders_hpp_content += compile_d3d_shader(executable, item_path, slang_flags)
+        else:
+            shaders_hpp_content += f"static const char D3D11_{basename}_VERT[1] = {{'\\0'}};\n\n"
+            shaders_hpp_content += f"static const char D3D11_{basename}_FRAG[1] = {{'\\0'}};\n\n"
+            
+        if compile_vulkan:
+            print(f"Compiling {item} for Vulkan ...")
+            shaders_hpp_content += compile_vulkan_shader(executable, item_path, slang_flags)
+        else:
+            shaders_hpp_content += f"static const char VULKAN_{basename}_VERT[1] = {{'\\0'}};\n\n"
+            shaders_hpp_content += f"static const char VULKAN_{basename}_FRAG[1] = {{'\\0'}};\n\n"
+        if compile_metal:
+            print(f"Compiling {item} for Metal ...")
+            shaders_hpp_content += compile_metal_shader(executable, item_path, slang_flags)
+        else:
+            shaders_hpp_content += f"static const char METAL_{basename}_VERT[1] = {{'\\0'}};\n\n"
+            shaders_hpp_content += f"static const char METAL_{basename}_FRAG[1] = {{'\\0'}};\n\n"
+        if compile_gl:
+            print(f"Compiling {item} for OpenGL ...")
+            shaders_hpp_content += compile_opengl_shader(executable, item_path, slang_flags)
+        else:
+            shaders_hpp_content += f"static const char GL_{basename}_VERT[1] = {{'\\0'}};\n\n"
+            shaders_hpp_content += f"static const char GL_{basename}_FRAG[1] = {{'\\0'}};\n\n"
         
     shaders_hpp_content += SHADER_SOURCE_STRUCTURE_CODE
     shaders_hpp_content += '\n'

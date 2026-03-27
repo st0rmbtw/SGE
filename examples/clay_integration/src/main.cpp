@@ -10,10 +10,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (App::Init(config)) {
-        App::Run();
-    }
-    App::Destroy();
+    App app(config);
+    app.Run();
 
     return 0;
 }

@@ -81,7 +81,7 @@ void Input::Clear() {
     input_state.codepoint_queue.clear();
 }
 
-void Input::AddCodePoint(uint32_t codepoint) {
+void Input::PushCodePoint(uint32_t codepoint) {
     input_state.codepoint_queue.push_back(codepoint);
 }
 

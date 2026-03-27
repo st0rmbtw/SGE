@@ -204,7 +204,7 @@ float sd_inset_rounded_box(float2 p, float2 size, float4 radius, float4 inset) {
 float antialias(float d) {
     // return clamp(0.5 - d, 0.0, 1.0);
 
-    float afwidth = pow(fwidth(d), 1.0 / 2.2);
+    float afwidth = fwidth(d) * 1.3;
     return 1.0 - smoothstep(0.0, afwidth, d);
 
     // float edge = -d / max(abs(ddx(d)), abs(ddy(d)));

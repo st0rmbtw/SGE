@@ -1,6 +1,7 @@
 #ifndef _SGE_RENDERER_HPP_
 #define _SGE_RENDERER_HPP_
 
+#include "LLGL/PipelineStateFlags.h"
 #include <GLFW/glfw3.h>
 
 #include <LLGL/Shader.h>
@@ -17,21 +18,26 @@
 #include <SGE/types/shader_def.hpp>
 #include <SGE/types/window_settings.hpp>
 #include <SGE/types/attributes.hpp>
-#include <SGE/renderer/glfw_surface.hpp>
+#include <SGE/renderer/glfw_window.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/context.hpp>
 #include <SGE/defines.hpp>
 #include <SGE/utils/llgl.hpp>
 #include <memory>
 
 namespace sge {
 
+struct PipelineData {
+    LLGLResource<LLGL::Resource> m_vertex_shader;
+};
+
 template <typename T>
 class BatchData {
 public:
-    void Init(const sge::Renderer& renderer, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
+    void Init(const std::shared_ptr<sge::RenderContext>& context, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
     void Destroy(const LLGL::RenderSystemPtr& context);
 
     inline void Update(LLGL::CommandBuffer& command_buffer) {
@@ -75,7 +81,6 @@ struct SGE_ALIGN(16) GlobalUniforms {
     glm::mat4 view_projection_matrix;
     glm::mat4 nonscale_view_projection_matrix;
     glm::mat4 nonscale_projection_matrix;
-    glm::mat4 transform_matrix;
     glm::mat4 inv_view_proj_matrix;
     glm::vec2 camera_position;
     glm::vec2 window_size;
@@ -97,23 +102,17 @@ class Renderer {
     friend class Batch;
 
 public:
-    bool InitEngine(sge::RenderBackend backend, bool cache_pipelines, const std::string& cache_dir_path);
-    bool Init(GLFWwindow* window, const LLGL::Extent2D& resolution, const WindowSettings& settings);
+    Renderer(const std::shared_ptr<RenderContext>& context);
+    ~Renderer();
 
-    void Begin(const sge::Camera& camera);
+    void Begin();
+    void BeginPass(LLGL::RenderTarget& target, const Camera& camera);
+    inline void BeginPass(const std::shared_ptr<GlfwWindow>& window, const Camera& camera) {
+        BeginPass(m_context->GetOrCreateSwapChain(window), camera);
+    }
 
     inline void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
         m_command_buffer->Clear(clear_flags, clear_value);
-    }
-
-    void BeginPassWithViewport(LLGL::RenderTarget& target, const LLGL::Viewport& viewport);
-
-    inline void BeginPass(LLGL::RenderTarget& target) {
-        BeginPassWithViewport(target, target.GetResolution());
-    }
-
-    inline void BeginMainPass() {
-        BeginPass(*m_swap_chain);
     }
 
     inline void EndPass() {
@@ -130,78 +129,6 @@ public:
     void UploadBatchData();
     void RenderBatch(sge::Batch& batch);
 
-    sge::Sampler CreateSampler(const LLGL::SamplerDescriptor& descriptor);
-
-    sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const sge::Sampler& sampler, const void* data, bool generate_mip_maps = false);
-
-    sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const sge::Sampler& sampler, const uint8_t* data, bool generate_mip_maps = false) {
-        return CreateTexture(type, image_format, LLGL::DataType::UInt8, width, height, layers, sampler, data, generate_mip_maps);
-    }
-    sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const sge::Sampler& sampler, const int8_t* data, bool generate_mip_maps = false) {
-        return CreateTexture(type, image_format, LLGL::DataType::Int8, width, height, layers, sampler, data, generate_mip_maps);
-    }
-
-    sge::Texture CopyTextureWithSampler(const sge::Texture& texture, const sge::Sampler& sampler) {
-        return Texture(m_texture_index++, sampler, texture.size(), texture.internal());
-    }
-
-    LLGL::Shader* LoadShader(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
-
-    void ResizeBuffers(LLGL::Extent2D size);
-
-    void Terminate();
-
-    #if SGE_DEBUG
-        void PrintDebugInfo();
-    #endif
-
-    template <typename Container>
-    inline LLGL::Buffer* CreateVertexBuffer(const Container& vertices, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) const
-    {
-        LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(GetArraySize(vertices), vertexFormat);
-        bufferDesc.debugName = debug_name;
-        return m_context->CreateBuffer(bufferDesc, &vertices[0]);
-    }
-
-    inline LLGL::Buffer* CreateVertexBuffer(size_t size, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) const
-    {
-        LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(size, vertexFormat);
-        bufferDesc.debugName = debug_name;
-        return m_context->CreateBuffer(bufferDesc, nullptr);
-    }
-
-    inline LLGL::Buffer* CreateVertexBufferInit(size_t size, const void* data, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) const
-    {
-        LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(size, vertexFormat);
-        bufferDesc.debugName = debug_name;
-        return m_context->CreateBuffer(bufferDesc, data);
-    }
-
-    template <typename Container>
-    inline LLGL::Buffer* CreateIndexBuffer(const Container& indices, const LLGL::Format format, const char* debug_name = nullptr) const
-    {
-        LLGL::BufferDescriptor bufferDesc = LLGL::IndexBufferDesc(GetArraySize(indices), format);
-        bufferDesc.debugName = debug_name;
-        return m_context->CreateBuffer(bufferDesc, &indices[0]);
-    }
-
-    inline LLGL::Buffer* CreateConstantBuffer(const size_t size, const char* debug_name = nullptr) const
-    {
-        LLGL::BufferDescriptor bufferDesc = LLGL::ConstantBufferDesc(size);
-        bufferDesc.debugName = debug_name;
-        return m_context->CreateBuffer(bufferDesc);
-    }
-
-    [[nodiscard]]
-    inline const LLGL::RenderSystemPtr& Context() const noexcept {
-        return m_context;
-    }
-
-    [[nodiscard]]
-    inline LLGL::SwapChain* SwapChain() const noexcept {
-        return m_swap_chain.get();
-    }
-
     [[nodiscard]]
     inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
         return m_command_buffer.get();
@@ -213,55 +140,28 @@ public:
     }
 
     [[nodiscard]]
-    inline const std::shared_ptr<GlfwSurface>& Surface() const noexcept {
-        return m_surface;
-    }
-
-    [[nodiscard]]
     inline LLGL::Buffer* GlobalUniformBuffer() const noexcept {
         return m_constant_buffer.get();
-    }
-
-    [[nodiscard]]
-    inline sge::RenderBackend Backend() const noexcept {
-        return m_backend;
-    }
-
-#if SGE_DEBUG
-    [[nodiscard]] inline LLGL::RenderingDebugger* Debugger() const noexcept {
-        return m_debugger;
-    }
-#endif
-
-    [[nodiscard]]
-    inline const LLGL::RendererInfo& GetRendererInfo() const noexcept {
-        return m_context->GetRendererInfo();
-    }
-
-    [[nodiscard]]
-    inline const LLGL::RenderingCapabilities& GetRenderingCaps() const noexcept {
-        return m_context->GetRenderingCaps();
     }
 
     inline std::unique_ptr<sge::Batch> CreateBatch(const sge::BatchDesc& desc = {}) {
         return std::make_unique<sge::Batch>(*this, desc);
     }
 
+    void DestroyBatch(sge::Batch& batch);
+
 private:
     SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
-    LLGLResource<LLGL::PipelineState> CreateNinepatchBatchPipeline(bool enable_scissor);
-    LLGLResource<LLGL::PipelineState> CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
-    LLGLResource<LLGL::PipelineState> CreateShapeBatchPipeline(bool enable_scissor);
-    LLGLResource<LLGL::PipelineState> CreateLineBatchPipeline(bool enable_scissor);
+    uint32_t CreateNinepatchBatchPipeline(bool enable_scissor);
+    uint32_t CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
+    uint32_t CreateShapeBatchPipeline(bool enable_scissor);
+    uint32_t CreateLineBatchPipeline(bool enable_scissor);
 
     BatchData<SpriteInstance> InitSpriteBatchData();
     BatchData<NinePatchInstance> InitNinepatchBatchData();
     BatchData<GlyphInstance> InitGlyphBatchData();
     BatchData<ShapeInstance> InitShapeBatchData();
     BatchData<LineInstance> InitLineBatchData();
-
-    LLGLResource<LLGL::PipelineCache> ReadPipelineCache(const std::string& name, bool& hasInitialCache);
-    void SavePipelineCache(const std::string& name, LLGL::PipelineCache& pipelineCache);
 
     void SortBatchDrawCommands(sge::Batch& batch);
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
@@ -274,12 +174,8 @@ private:
     BatchData<ShapeInstance> m_shape_batch_data;
     BatchData<LineInstance> m_line_batch_data;
 
-    std::string m_cache_pipeline_dir;
-
-    LLGL::RenderSystemPtr m_context = nullptr;
-    std::shared_ptr<GlfwSurface> m_surface = nullptr;
-
-    LLGLResource<LLGL::SwapChain> m_swap_chain = nullptr;
+    std::shared_ptr<RenderContext> m_context;
+    
     LLGLResource<LLGL::CommandBuffer> m_command_buffer = nullptr;
     LLGLResource<LLGL::CommandQueue> m_command_queue = nullptr;
     LLGLResource<LLGL::Buffer> m_constant_buffer = nullptr;
@@ -291,19 +187,10 @@ private:
     LLGLResource<LLGL::Shader> m_sprite_default_fragment_shader = nullptr;
     LLGLResource<LLGL::Shader> m_glyph_default_fragment_shader = nullptr;
 
-#if SGE_DEBUG
-    LLGL::RenderingDebugger* m_debugger = nullptr;
-#endif
-
-    glm::uvec2 m_viewport = glm::uvec2(0);
-
-    uint32_t m_texture_index = 0;
+    LLGL::Extent2D m_viewport = LLGL::Extent2D(0, 0);
 
     size_t m_batch_instance_count = 0;
 
-    sge::RenderBackend m_backend;
-
-    bool m_cache_pipelines = true;
 };
 
 }
