@@ -128,6 +128,11 @@ public:
         return m_constant_buffer.get();
     }
 
+    [[nodiscard]]
+    const std::shared_ptr<RenderContext>& GetRenderContext() const noexcept {
+        return m_context;
+    }
+
     inline std::unique_ptr<sge::Batch> CreateBatch(const sge::BatchDesc& desc = {}) {
         return std::make_unique<sge::Batch>(*this, desc);
     }
