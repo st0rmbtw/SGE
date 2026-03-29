@@ -1,6 +1,7 @@
 #include <SGE/defines.hpp>
 
 #include "../../common.hpp"
+
 #include "app.hpp"
 
 int main(int argc, char** argv) {
@@ -10,10 +11,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (App::Init(config)) {
-        App::Run();
-    }
-    App::Destroy();
+    App app(config);
+    app.Run();
 
     return 0;
 }

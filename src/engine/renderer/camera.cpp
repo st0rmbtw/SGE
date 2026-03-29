@@ -49,10 +49,12 @@ void Camera::compute_projection_and_view_matrix() {
     const sge::Rect& projection_area = get_projection_area();
     const sge::Rect& nozoom_projection_area = get_nozoom_projection_area();
 
-    if (sge::Engine::Renderer().Backend().IsOpenGL()) {
-        const glm::vec3 eye     = glm::vec3(m_position, 50.0f);
-        const glm::vec3 right   = glm::vec3(m_right, 0.0f, 0.0f);
-        const glm::vec3 up      = glm::vec3(0.0f, m_up, 0.0f);
+    // TODO
+    const glm::vec3 eye     = glm::vec3(m_position, 50.0f);
+    const glm::vec3 right   = glm::vec3(m_right, 0.0f, 0.0f);
+    const glm::vec3 up      = glm::vec3(0.0f, m_up, 0.0f);
+    
+    if (m_backend.IsOpenGL() || m_backend.IsVulkan()) {
         const glm::vec3 forward = glm::vec3(0.0f, 0.0f, -m_forward);
 
         m_view_matrix = glm::inverse(glm::mat4(
@@ -61,7 +63,18 @@ void Camera::compute_projection_and_view_matrix() {
             glm::vec4(forward, 0.0f),
             glm::vec4(eye, 1.0f)
         ));
+    } else {
+        const glm::vec3 forward = glm::vec3(0.0f, 0.0f, m_forward);
 
+        m_view_matrix = glm::inverse(glm::mat4(
+            glm::vec4(right, 0.0f),
+            glm::vec4(up, 0.0f),
+            glm::vec4(forward, 0.0f),
+            glm::vec4(eye, 1.0f)
+        ));
+    }
+
+    if (m_backend.IsOpenGL()) {
         m_projection_matrix = glm::orthoRH_NO(
             projection_area.min.x, projection_area.max.x,
             projection_area.min.y, projection_area.max.y,
@@ -73,18 +86,6 @@ void Camera::compute_projection_and_view_matrix() {
             0.0f, 100.0f
         );
     } else {
-        const glm::vec3 eye     = glm::vec3(m_position, 50.0f);
-        const glm::vec3 right   = glm::vec3(m_right, 0.0f, 0.0f);
-        const glm::vec3 up      = glm::vec3(0.0f, m_up, 0.0f);
-        const glm::vec3 forward = glm::vec3(0.0f, 0.0f, m_forward);
-
-        m_view_matrix = glm::inverse(glm::mat4(
-            glm::vec4(right, 0.0f),
-            glm::vec4(up, 0.0f),
-            glm::vec4(forward, 0.0f),
-            glm::vec4(eye, 1.0f)
-        ));
-
         m_projection_matrix = glm::orthoLH_ZO(
             projection_area.min.x, projection_area.max.x,
             projection_area.min.y, projection_area.max.y,
