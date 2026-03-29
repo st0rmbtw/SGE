@@ -30,10 +30,6 @@
 
 namespace sge {
 
-struct PipelineData {
-    LLGLResource<LLGL::Resource> m_vertex_shader;
-};
-
 template <typename T>
 class BatchData {
 public:
@@ -85,18 +81,6 @@ struct SGE_ALIGN(16) GlobalUniforms {
     glm::vec2 camera_position;
     glm::vec2 window_size;
 };
-
-template <typename Container>
-static constexpr inline std::size_t GetArraySize(const Container& container) noexcept
-{
-    return (container.size() * sizeof(typename Container::value_type));
-}
-
-template <typename T, std::size_t N>
-static constexpr inline std::size_t GetArraySize(const T (&)[N]) noexcept
-{
-    return (N * sizeof(T));
-}
 
 class Renderer {
     friend class Batch;

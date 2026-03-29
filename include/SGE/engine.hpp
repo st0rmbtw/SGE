@@ -73,21 +73,21 @@ protected:
     }
 
 protected:
-    void OnWindowIconifyEvent(GLFWwindow *window, bool iconified) final {
+    void OnWindowIconifyEvent(GLFWwindow* window, bool iconified) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
         it->second->m_minimized = iconified;
     }
 
-    void OnWindowMaximizeEvent(GLFWwindow *window, bool maximized) final {
+    void OnWindowMaximizeEvent(GLFWwindow* window, bool maximized) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
         it->second->m_maximized = true;
     }
 
-    void OnWindowResizeEvent(GLFWwindow *window, int width, int height) final {
+    void OnWindowResizeEvent(GLFWwindow* window, int width, int height) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
@@ -96,7 +96,7 @@ protected:
         OnWindowResized(it->second, width, height);
     }
 
-    void OnCursorPosEvent(GLFWwindow *window, double xpos, double ypos) final {
+    void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
@@ -108,7 +108,7 @@ protected:
         Input::SetMouseScreenPosition(glm::vec2(xpos, ypos));
     }
 
-    void OnFramebufferResizeEvent(GLFWwindow *window, int width, int height) final {
+    void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
@@ -130,7 +130,7 @@ protected:
         }
     }
 
-    void OnCharacterEvent(GLFWwindow *window, uint32_t codepoint) final {
+    void OnCharacterEvent(GLFWwindow*, uint32_t codepoint) final {
         Input::PushCodePoint(codepoint);
     }
 
@@ -142,7 +142,7 @@ protected:
         }
     }
 
-    void OnMouseScrollEvent(GLFWwindow *window, double xoffset, double yoffset) final {
+    void OnMouseScrollEvent(GLFWwindow*, double xoffset, double yoffset) final {
         Input::PushMouseScrollEvent(yoffset);
     }
 private:
