@@ -151,6 +151,11 @@ private:
         return (container.size() * sizeof(typename Container::value_type));
     }
 
+    template <typename T, std::size_t N>
+    std::size_t GetArraySize(const T (&)[N]) const {
+        return (N * sizeof(T));
+    }
+
 private:
     std::unordered_map<uint32_t, LLGLResource<LLGL::SwapChain>> m_swapchain_map;
     std::unordered_map<uint32_t, GraphicsPipelineConfig> m_pipeline_configs;

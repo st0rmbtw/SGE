@@ -152,7 +152,7 @@ protected:
         }
     }
 
-    void OnMouseScrollEvent(GLFWwindow*, double xoffset, double yoffset) final {
+    void OnMouseScrollEvent(GLFWwindow*, double /* xoffset */, double yoffset) final {
         Input::PushMouseScrollEvent(yoffset);
     }
 private:
