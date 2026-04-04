@@ -74,7 +74,7 @@ protected:
         return m_context->Init(backend);
     }
 
-    std::expected<sge::GlfwWindow*, const char*> CreateWindow(const WindowSettings& window_settings);
+    std::expected<std::shared_ptr<sge::GlfwWindow>, const char*> CreateWindow(const WindowSettings& window_settings);
 
     void DestroyWindow(const std::shared_ptr<sge::GlfwWindow>& window) {
         OnWindowDestroy(*window);

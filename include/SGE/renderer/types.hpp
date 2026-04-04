@@ -74,9 +74,9 @@ struct ShapeInstance {
 };
 
 struct GraphicsPipelineConfig {
+    std::string debugName;
     LLGL::BlendDescriptor blend;
     LLGL::DepthDescriptor depth;
-    const char* debugName = nullptr;
     LLGL::PipelineLayout* layout = nullptr;
     LLGL::Shader* vertexShader = nullptr;
     LLGL::Shader* geometryShader = nullptr;

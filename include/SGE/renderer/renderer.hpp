@@ -107,6 +107,10 @@ public:
         m_command_buffer->SetScissor(scissor);
     }
 
+    void Present(const std::shared_ptr<GlfwWindow>& window) {
+        m_context->Present(window);
+    }
+
     void End();
 
     void PrepareBatch(sge::Batch& batch);

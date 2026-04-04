@@ -41,7 +41,7 @@ App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::T
         std::abort();
     }
 
-    GlfwWindow* window = result.value();
+    std::shared_ptr<GlfwWindow> window = result.value();
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();

@@ -358,8 +358,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
         };
 
         for (const auto& [blend_mode, pointer, pipelineName, index] : pipelines) {
-            const std::string name = std::format("{}_{}", pipelineName, count);
-            pipelineConfig.debugName = name.c_str();
+            pipelineConfig.debugName = std::format("{}_{}", pipelineName, count);
             
             // bool hasInitialCache = false;
             // auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
@@ -402,7 +401,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
 
         for (const auto& [blend_mode, pointer, pipelineName, index] : pipelines) {
             depthPipelineConfig.debugName = pipelineName;
-            *pointer = m_context->AddPipelineConfig(pipelineConfig);
+            *pointer = m_context->AddPipelineConfig(depthPipelineConfig);
         }
     }
 
@@ -674,6 +673,8 @@ void Renderer::Begin() {
     m_ninepatch_batch_data.Reset();
     m_shape_batch_data.Reset();
     m_line_batch_data.Reset();
+
+    m_command_buffer->Begin();
 }
 
 void Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) {
@@ -690,7 +691,6 @@ void Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) {
         .window_size = camera.viewport()
     };
 
-    m_command_buffer->Begin();
     m_command_buffer->UpdateBuffer(*m_constant_buffer, 0, &global_uniforms, sizeof(global_uniforms));
 
     m_command_buffer->BeginRenderPass(target);

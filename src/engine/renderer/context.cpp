@@ -168,7 +168,7 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_i
         LLGL::GraphicsPipelineDescriptor pipelineDesc;
         pipelineDesc.depth = config.depth;
         pipelineDesc.blend = config.blend;
-        pipelineDesc.debugName = config.debugName;
+        pipelineDesc.debugName = config.debugName.c_str();
         pipelineDesc.pipelineLayout = config.layout;
         pipelineDesc.vertexShader = config.vertexShader;
         pipelineDesc.geometryShader = config.geometryShader;

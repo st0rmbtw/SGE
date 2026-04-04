@@ -101,7 +101,7 @@ struct ShapeRect {
     float border_thickness = 0.0f;
     LinearRgba border_color = sge::LinearRgba::transparent();
     // [topLeft, topRight, bottomLeft, bottomRight]
-    BorderRadius border_radius;
+    BorderRadius border_radius{};
     Anchor anchor = sge::Anchor::Center;
 };
 

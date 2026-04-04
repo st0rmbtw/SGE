@@ -104,7 +104,7 @@ void IEngine::Run() {
     m_running = false;
 }
 
-std::expected<GlfwWindow*, const char*> IEngine::CreateWindow(const WindowSettings& window_settings) {
+std::expected<std::shared_ptr<sge::GlfwWindow>, const char*> IEngine::CreateWindow(const WindowSettings& window_settings) {
     glfwWindowHint(GLFW_FOCUSED, 1);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_VISIBLE, window_settings.hidden ? GLFW_FALSE : GLFW_TRUE);
@@ -130,5 +130,5 @@ std::expected<GlfwWindow*, const char*> IEngine::CreateWindow(const WindowSettin
     instance->Listen(*this);
 
     m_window_map.try_emplace(window, instance);
-    return instance.get();
+    return instance;
 }
