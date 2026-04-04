@@ -223,7 +223,7 @@ static LLGL::Shader* CreateShader(const std::shared_ptr<RenderContext>& context,
     shader_desc.sourceSize = length;
 
     if (shader_type.IsVertex()) {
-        shader_desc.vertex.inputAttribs = vertex_attributes;
+        shader_desc.vertex.inputAttribs = std::move(vertex_attributes);
     }
 
     if (backend.IsOpenGL() && shader_type.IsFragment()) {
@@ -493,7 +493,7 @@ uint32_t Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* f
         }
     };
 
-    return m_context->AddPipelineConfig(std::move(pipelineConfig));
+    return m_context->AddPipelineConfig(pipelineConfig);
 }
 
 uint32_t Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
@@ -532,7 +532,7 @@ uint32_t Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
         }
     };
 
-    return m_context->AddPipelineConfig(std::move(pipelineConfig));
+    return m_context->AddPipelineConfig(pipelineConfig);
 }
 
 uint32_t Renderer::CreateLineBatchPipeline(bool enable_scissor) {
@@ -571,7 +571,7 @@ uint32_t Renderer::CreateLineBatchPipeline(bool enable_scissor) {
         }
     };
 
-    return m_context->AddPipelineConfig(std::move(pipelineConfig));;
+    return m_context->AddPipelineConfig(pipelineConfig);
 }
 
 
@@ -625,7 +625,7 @@ BatchData<LineInstance> Renderer::InitLineBatchData() {
     return batchData;
 }
 
-static SGE_FORCE_INLINE LLGL::Shader* CreateBatchVertexShader(const std::shared_ptr<sge::RenderContext> context, const ShaderSourceCode& source_code, const BatchVertexFormats& vertex_formats) {
+static SGE_FORCE_INLINE LLGL::Shader* CreateBatchVertexShader(const std::shared_ptr<sge::RenderContext>& context, const ShaderSourceCode& source_code, const BatchVertexFormats& vertex_formats) {
     return CreateShader(context, ShaderType::Vertex, source_code.vs_source, source_code.vs_size, "VS", vertex_formats.total_attributes());
 }
 

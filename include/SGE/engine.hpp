@@ -52,12 +52,22 @@ protected: // Callbacks
     virtual void OnPostUpdate() {}
     virtual void OnFixedUpdate() {}
     virtual void OnFixedPostUpdate() {}
-    virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {}
-    virtual void OnPostRender(const std::shared_ptr<sge::GlfwWindow>& window) {}
+    virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
+        (void)window;
+    }
+    virtual void OnPostRender(const std::shared_ptr<sge::GlfwWindow>& window) {
+        (void)window;
+    }
 
-    virtual void OnWindowResized(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {}
-    virtual void OnFramebufferResize(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {}
-    virtual void OnWindowDestroy(sge::GlfwWindow& window) {}
+    virtual void OnWindowResized(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {
+        (void)window; (void)width; (void)height;
+    }
+    virtual void OnFramebufferResize(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {
+        (void)window; (void)width; (void)height;
+    }
+    virtual void OnWindowDestroy(sge::GlfwWindow& window) {
+        (void)window;
+    }
 
 protected:
     bool InitRenderContext(RenderBackend backend) {
@@ -84,7 +94,7 @@ protected:
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
-        it->second->m_maximized = true;
+        it->second->m_maximized = maximized;
     }
 
     void OnWindowResizeEvent(GLFWwindow* window, int width, int height) final {
@@ -122,7 +132,7 @@ protected:
         OnFramebufferResize(it->second, width, height);
     }
 
-    void OnKeyEvent(GLFWwindow*, int key, int scancode, int action, int mods) final {
+    void OnKeyEvent(GLFWwindow*, int key, int /* scancode */, int action, int mods) final {
         if (action == GLFW_PRESS) {
             Input::Press(static_cast<Key>(key), mods);
         } else if (action == GLFW_RELEASE) {
@@ -134,7 +144,7 @@ protected:
         Input::PushCodePoint(codepoint);
     }
 
-    void OnMouseButtonEvent(GLFWwindow*, int button, int action, int mods) final {
+    void OnMouseButtonEvent(GLFWwindow*, int button, int action, int /* mods */) final {
         if (action == GLFW_PRESS) {
             Input::Press(static_cast<MouseButton>(button));
         } else if (action == GLFW_RELEASE) {

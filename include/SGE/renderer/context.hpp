@@ -40,8 +40,7 @@ class RenderContext {
 public:
     bool Init(RenderBackend backend);
     ~RenderContext();
-
-    void RegisterWindow(const std::shared_ptr<GlfwWindow>& window);
+    
     void UnregisterWindow(const GlfwWindow& window);
 
     inline uint32_t AddPipelineConfig(const GraphicsPipelineConfig& config) {
@@ -145,6 +144,12 @@ public:
         return m_debugger;
     }
 #endif
+
+private:
+    template <typename Container>
+    std::size_t GetArraySize(const Container& container) const {
+        return (container.size() * sizeof(typename Container::value_type));
+    }
 
 private:
     std::unordered_map<uint32_t, LLGLResource<LLGL::SwapChain>> m_swapchain_map;
