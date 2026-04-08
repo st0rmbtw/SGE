@@ -83,7 +83,7 @@ void App::OnUpdate() {
 
         m_camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
 
-        const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::MouseScreenPosition());
+        const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::CursorPosition());
         const glm::vec2 length = mouse_pos - m_camera.position();
         const glm::vec2 scaledLength = length * zoom_factor;
         const glm::vec2 deltaLength = length - scaledLength;

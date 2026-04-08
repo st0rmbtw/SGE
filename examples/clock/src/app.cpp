@@ -50,7 +50,6 @@ App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::T
     m_renderer = std::make_unique<Renderer>(GetRenderContext());
 
     m_batch = m_renderer->CreateBatch();
-    m_batch->SetIsUi(true);
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -92,7 +91,7 @@ void App::OnUpdate() {
 
         m_camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
 
-        const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::MouseScreenPosition());
+        const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::CursorPosition());
         const glm::vec2 length = mouse_pos - m_camera.position();
         const glm::vec2 scaledLength = length * zoom_factor;
         const glm::vec2 deltaLength = length - scaledLength;
@@ -198,7 +197,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f - (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH - (size * CLOCK_TICKS_LENGTH) * 0.2f);
 
-            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), BorderRadius::Relative(75.0f));
+            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), BorderRadius::Relative(50.0f));
         }
 
         for (int i = 0; i < 12; ++i) {
@@ -213,7 +212,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f + (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH);
 
-            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), BorderRadius::Relative(75.0f));
+            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), BorderRadius::Relative(50.0f));
         }
         m_batch->EndOrderMode();
 
@@ -245,7 +244,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), BorderRadius::Relative(75.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), BorderRadius::Relative(50.0f));
         }
 
         // Minute hand
@@ -257,7 +256,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), BorderRadius::Relative(75.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), BorderRadius::Relative(50.0f));
         }
 
         // Second hand
@@ -269,7 +268,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
             const float length = hand_length - CLOCK_SECOND_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), BorderRadius::Relative(75.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), BorderRadius::Relative(50.0f));
         }
     }
 

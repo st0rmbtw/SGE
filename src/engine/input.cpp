@@ -31,7 +31,7 @@ static struct InputState {
     std::unordered_set<uint8_t> mouse_just_released;
     std::vector<float> mouse_scroll_events;
     std::vector<uint32_t> codepoint_queue;
-    glm::vec2 mouse_screen_position;
+    glm::vec2 cursor_position;
     glm::vec2 mouse_delta;
 } input_state;
 
@@ -113,9 +113,9 @@ void Input::PushMouseScrollEvent(float y) noexcept {
     input_state.mouse_scroll_events.push_back(y);
 }
 
-void Input::SetMouseScreenPosition(const glm::vec2& position) noexcept {
-    input_state.mouse_delta = position - input_state.mouse_screen_position;
-    input_state.mouse_screen_position = position;
+void Input::SetCursorPosition(const glm::vec2& position) noexcept {
+    input_state.mouse_delta = position - input_state.cursor_position;
+    input_state.cursor_position = position;
 }
 
 glm::vec2 Input::MouseDelta() noexcept {
@@ -126,8 +126,8 @@ const std::vector<float>& Input::ScrollEvents() noexcept {
     return input_state.mouse_scroll_events;
 }
 
-const glm::vec2& Input::MouseScreenPosition() noexcept {
-    return input_state.mouse_screen_position;
+const glm::vec2& Input::CursorPosition() noexcept {
+    return input_state.cursor_position;
 }
 
 const std::vector<uint32_t>& Input::CodePoints() noexcept {

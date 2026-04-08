@@ -136,10 +136,10 @@ namespace Input {
     bool JustReleased(MouseButton button);
 
     void PushMouseScrollEvent(float y) noexcept;
-    void SetMouseScreenPosition(const glm::vec2& position) noexcept;
+    void SetCursorPosition(const glm::vec2& position) noexcept;
 
     const std::vector<float>& ScrollEvents() noexcept;
-    const glm::vec2& MouseScreenPosition() noexcept;
+    const glm::vec2& CursorPosition() noexcept;
     const std::vector<uint32_t>& CodePoints() noexcept;
     glm::vec2 MouseDelta() noexcept;
 

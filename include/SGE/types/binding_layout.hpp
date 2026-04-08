@@ -2,6 +2,7 @@
 #define _SGE_TYPES_BINDING_LAYOUT_HPP_
 
 #include <initializer_list>
+#include <utility>
 
 #include <LLGL/PipelineLayoutFlags.h>
 
@@ -15,27 +16,27 @@ class BindingLayoutItem {
 public:
 
     static BindingLayoutItem TextureStorage(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
-        return BindingLayoutItem(LLGL::ResourceType::Texture, LLGL::BindFlags::Storage, stage, slot, 0, name);
+        return BindingLayoutItem(LLGL::ResourceType::Texture, LLGL::BindFlags::Storage, stage, slot, 0, std::move(name));
     }
 
     static BindingLayoutItem Texture(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
-        return BindingLayoutItem(LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, stage, slot, 0, name);
+        return BindingLayoutItem(LLGL::ResourceType::Texture, LLGL::BindFlags::Sampled, stage, slot, 0, std::move(name));
     }
 
     static BindingLayoutItem StorageBuffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
-        return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::Storage, stage, slot, 0, name);
+        return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::Storage, stage, slot, 0, std::move(name));
     }
 
     static BindingLayoutItem Buffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
-        return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::Sampled, stage, slot, 0, name);
+        return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::Sampled, stage, slot, 0, std::move(name));
     }
 
     static BindingLayoutItem ConstantBuffer(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
-        return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::ConstantBuffer, stage, slot, 0, name);
+        return BindingLayoutItem(LLGL::ResourceType::Buffer, LLGL::BindFlags::ConstantBuffer, stage, slot, 0, std::move(name));
     }
 
     static BindingLayoutItem Sampler(int slot = -1, LLGL::StringLiteral name = {}, long stage = -1) {
-        return BindingLayoutItem(LLGL::ResourceType::Sampler, 0, stage, slot, 0, name);
+        return BindingLayoutItem(LLGL::ResourceType::Sampler, 0, stage, slot, 0, std::move(name));
     }
 
 private:
@@ -62,7 +63,7 @@ public:
         m_items(items),
         m_stage(stage) {}
 
-    inline void AddItem(BindingLayoutItem item) {
+    inline void AddItem(const BindingLayoutItem& item) {
         m_items.push_back(item);
     }
 

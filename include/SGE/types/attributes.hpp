@@ -2,6 +2,7 @@
 #define _SGE_TYPES_ATTRIBUTES_HPP_
 
 #include <initializer_list>
+#include <utility>
 #include <vector>
 
 #include <LLGL/Format.h>
@@ -25,11 +26,11 @@ private:
 
 public:
     static Attribute Vertex(LLGL::Format format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) noexcept {
-        return Attribute(format, Type::PerVertex, name, semantic_name, slot);
+        return Attribute(format, Type::PerVertex, std::move(name), std::move(semantic_name), slot);
     }
 
     static Attribute Instance(LLGL::Format format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) noexcept {
-        return Attribute(format, Type::PerInstance, name, semantic_name, slot);
+        return Attribute(format, Type::PerInstance, std::move(name), std::move(semantic_name), slot);
     }
 
 private:
@@ -71,7 +72,7 @@ public:
     Attributes(sge::RenderBackend backend, uint32_t start_location, std::initializer_list<Attribute> items) : Attributes(backend, start_location, std::vector(items)) {}
 
     Attributes(sge::RenderBackend backend, std::initializer_list<Attribute> items) : Attributes(backend, 0, items) {}
-    Attributes(sge::RenderBackend backend, std::vector<Attribute> items) : Attributes(backend, 0, items) {}
+    Attributes(sge::RenderBackend backend, std::vector<Attribute> items) : Attributes(backend, 0, std::move(items)) {}
 
     [[nodiscard]]
     inline constexpr size_t size() const noexcept {

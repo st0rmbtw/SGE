@@ -110,12 +110,7 @@ protected:
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
-        const LLGL::Extent2D window_size = it->second->GetSize();
-
-        xpos = std::min(std::max(xpos, 0.0), static_cast<double>(window_size.width));
-        ypos = std::min(std::max(ypos, 0.0), static_cast<double>(window_size.height));
-
-        Input::SetMouseScreenPosition(glm::vec2(xpos, ypos));
+        Input::SetCursorPosition(glm::vec2(xpos, ypos));
     }
 
     void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) final {
