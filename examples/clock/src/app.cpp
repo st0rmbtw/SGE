@@ -58,6 +58,10 @@ App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::T
     window->ShowWindow();
 }
 
+App::~App() {
+    m_renderer->DestroyBatch(*m_batch);
+}
+
 void App::sync_time() {
     const std::chrono::time_zone* local_tz = std::chrono::current_zone();
     const std::chrono::time_point now = std::chrono::system_clock::now();
@@ -131,7 +135,7 @@ void App::OnUpdate() {
     m_t.seconds = std::fmod(secs, 60.0f);
 }
 
-void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
+void App::OnRender(const std::shared_ptr<GlfwWindow>& window, double) {
     LLGL::Extent2D resolution = window->GetContentSize();
     m_camera.set_viewport(glm::vec2(resolution.width, resolution.height));
 
@@ -296,14 +300,4 @@ void App::OnPostRender(const std::shared_ptr<GlfwWindow>& window) {
         SGE_LOG_DEBUG("Draw commands count: {}", profile.commandBufferRecord.drawCommands);
     }
 #endif
-}
-
-void App::OnWindowResized(const std::shared_ptr<GlfwWindow>& window, int width, int height) {
-    m_camera.set_viewport(glm::uvec2(width, height));
-    m_camera.update();
-    OnRender(window);
-}
-
-App::~App() {
-    m_renderer->DestroyBatch(*m_batch);
 }

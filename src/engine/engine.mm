@@ -58,8 +58,11 @@ void IEngine::Run() {
 
         MACOS_AUTORELEASEPOOL_OPEN
             const double current_tick = glfwGetTime();
-            const double delta_time = (current_tick - prev_tick);
+            double delta_time = (current_tick - prev_tick);
             prev_tick = current_tick;
+
+            if (delta_time > 0.25)
+                delta_time = 0.25;
 
             const delta_time_t dt(delta_time);
             Time::AdvanceBy(dt);
@@ -87,8 +90,8 @@ void IEngine::Run() {
             for (auto& [glfw, window] : m_window_map) {
                 LLGL::Extent2D size = window->GetContentSize();
 
-                if (!window->IsMinimized() && (size.width >= window->GetSamples() && size.height >= window->GetSamples())) {
-                    OnRender(window);
+                if (!window->IsMinimized() && (size.width > 0 && size.height > 0)) {
+                    OnRender(window, fixed_timer / Time::FixedDeltaSeconds());
                     OnPostRender(window);
                 }
             }
@@ -126,7 +129,7 @@ std::expected<std::shared_ptr<sge::GlfwWindow>, const char*> IEngine::CreateWind
     glm::ivec2 position;
     glfwGetWindowPos(window, &position.x, &position.y);
 
-    std::shared_ptr<GlfwWindow> instance = std::make_shared<GlfwWindow>(window, LLGL::Extent2D(width, height), position, window_settings.samples, window_settings.fullscreen);
+    std::shared_ptr<GlfwWindow> instance = std::make_shared<GlfwWindow>(window, LLGL::Extent2D(width, height), position, window_settings.cursor_mode, window_settings.samples, window_settings.fullscreen);
     instance->Listen(*this);
 
     m_window_map.try_emplace(window, instance);

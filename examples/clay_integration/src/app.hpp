@@ -16,9 +16,14 @@ public:
 
 protected:
     void OnUpdate() override;
-    void OnRender(const std::shared_ptr<sge::GlfwWindow> &window) override;
+    void OnRender(const std::shared_ptr<sge::GlfwWindow> &window, double) override;
     void OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) override;
-    void OnWindowResized(const std::shared_ptr<sge::GlfwWindow> &window, int width, int height) override;
+    
+    void OnWindowResized(const std::shared_ptr<sge::GlfwWindow> &window, int width, int height) override {
+        m_camera.set_viewport(glm::uvec2(width, height));
+        m_camera.update();
+        OnRender(window, 0.0);
+    }
     
     void OnWindowDestroy(sge::GlfwWindow &window) override {
         if (window.GetID() == m_primary_window_id) {

@@ -8,12 +8,20 @@
 
 #include <SGE/types/cursor_mode.hpp>
 #include <SGE/types/window_settings.hpp>
+#include <SGE/utils/bitflags.hpp>
 #include <SGE/log.hpp>
 #include <glm/vec2.hpp>
 
 namespace sge {
 
 class GlfwWindow : public LLGL::Surface {
+    enum class Flags : uint8_t {
+        Minimized = 0,
+        Maximized,
+        Fullscreen,
+        Focused,
+    };
+
 public:
     class EventListener {
     public:
@@ -24,21 +32,25 @@ public:
         virtual void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) = 0;
         virtual void OnWindowIconifyEvent(GLFWwindow* window, bool iconified) = 0;
         virtual void OnWindowMaximizeEvent(GLFWwindow* window, bool maximized) = 0;
+        virtual void OnWindowFocusEvent(GLFWwindow* window, bool focused) = 0;
         virtual void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) = 0;
         virtual void OnWindowResizeEvent(GLFWwindow* window, int width, int height) = 0;
+        virtual void OnWindowRefreshEvent(GLFWwindow* window) = 0;
     };
 
     friend class IEngine;
 
 public:
-    GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size, glm::ivec2 position, uint8_t samples, bool fullscreen) :
+    GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size, glm::ivec2 position, sge::CursorMode cursor_mode, uint8_t samples, bool fullscreen) :
         m_size(size),
         m_wnd(wnd),
         m_position(position),
         m_id(s_id++),
         m_samples(samples),
-        m_fullscreen(fullscreen)
-    {}
+        m_cursor_mode(cursor_mode)
+    {
+        m_flags.set(Flags::Fullscreen, fullscreen);
+    }
 
     GlfwWindow(GlfwWindow&& other) noexcept {
         other.m_wnd = nullptr;
@@ -49,9 +61,8 @@ public:
         m_max_size = other.m_max_size;
         m_id = other.m_id;
         m_samples = other.m_samples;
-        m_minimized = other.m_minimized;
-        m_maximized = other.m_maximized;
-        m_fullscreen = other.m_fullscreen;
+        m_flags = other.m_flags;
+        m_cursor_mode = other.m_cursor_mode;
     }
 
     ~GlfwWindow() override {
@@ -73,8 +84,10 @@ public:
         glfwSetWindowSizeCallback(m_wnd, HandleWindowResize);
         glfwSetWindowIconifyCallback(m_wnd, HandleWindowIconify);
         glfwSetWindowMaximizeCallback(m_wnd, HandleWindowMaximize);
+        glfwSetWindowFocusCallback(m_wnd, HandleWindowFocusCallback);
         glfwSetFramebufferSizeCallback(m_wnd, HandleFramebufferResize);
         glfwSetCharCallback(m_wnd, HandleCharacterCallback);
+        glfwSetWindowRefreshCallback(m_wnd, HandleWindowRefreshCallback);
     }
 
     [[nodiscard]]
@@ -138,16 +151,23 @@ public:
 
     void SetCursorMode(CursorMode cursor_mode) {
         glfwSetInputMode(m_wnd, GLFW_CURSOR, static_cast<int>(cursor_mode));
+        m_cursor_mode = cursor_mode;
+    }
+
+    void SetRawMouseInput(bool raw) {
+        if (glfwRawMouseMotionSupported()) {
+            glfwSetInputMode(m_wnd, GLFW_RAW_MOUSE_MOTION, raw ? GLFW_TRUE : GLFW_FALSE);
+        }
     }
 
     void SetMaximized() {
         glfwMaximizeWindow(m_wnd);
-        m_maximized = true;
+        m_flags.set(Flags::Maximized, true);
     }
 
     void SetMinimized() {
         glfwIconifyWindow(m_wnd);
-        m_minimized = true;
+        m_flags.set(Flags::Minimized, true);
     }
 
     void SetFullscreen() {
@@ -161,23 +181,33 @@ public:
 
     void Restore() {
         glfwRestoreWindow(m_wnd);
-        m_minimized = false;
-        m_maximized = false;
+        m_flags.set(Flags::Minimized, false);
+        m_flags.set(Flags::Maximized, false);
     }
 
     [[nodiscard]]
     bool IsMinimized() const noexcept {
-        return m_minimized;
+        return m_flags[Flags::Minimized];
     }
 
     [[nodiscard]]
     bool IsMaximized() const noexcept {
-        return m_maximized;
+        return m_flags[Flags::Maximized];
+    }
+
+    [[nodiscard]]
+    bool IsFocused() const noexcept {
+        return m_flags[Flags::Focused];
     }
 
     [[nodiscard]]
     bool IsFullscreen() const noexcept {
-        return m_fullscreen;
+        return m_flags[Flags::Fullscreen];
+    }
+
+    [[nodiscard]]
+    CursorMode GetCursorMode() const noexcept {
+        return m_cursor_mode;
     }
 
     [[nodiscard]]
@@ -254,6 +284,18 @@ private:
             return;
         listener->OnWindowMaximizeEvent(window, maximized == GLFW_TRUE);
     }
+    static void HandleWindowFocusCallback(GLFWwindow* window, int focus) {
+        EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));
+        if (listener == nullptr)
+            return;
+        listener->OnWindowFocusEvent(window, focus == GLFW_TRUE);
+    }
+    static void HandleWindowRefreshCallback(GLFWwindow* window) {
+        EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));
+        if (listener == nullptr)
+            return;
+        listener->OnWindowRefreshEvent(window);
+    }
 
 private:
     LLGL::Extent2D m_size;
@@ -263,9 +305,8 @@ private:
     glm::ivec2 m_position = glm::ivec2(0, 0);
     uint32_t m_id = 0;
     uint8_t m_samples = 1;
-    bool m_minimized = false;
-    bool m_maximized = false;
-    bool m_fullscreen = false;
+    BitFlags<Flags> m_flags;
+    CursorMode m_cursor_mode;
 
     static std::atomic<uint32_t> s_id;
 };

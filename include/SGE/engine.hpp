@@ -15,14 +15,61 @@
 #include <SGE/types/cursor_mode.hpp>
 #include <SGE/renderer/context.hpp>
 #include <SGE/utils/containers/swapbackvector.hpp>
+#include <utility>
 
 namespace sge {
 
 inline constexpr const char* DEFAULT_CACHE_DIR = "./cache/pipeline/";
 
-using WindowId = uint32_t;
-
 class IEngine : GlfwWindow::EventListener {
+    using WindowMap = std::unordered_map<GLFWwindow*, std::shared_ptr<sge::GlfwWindow>>;
+    using WindowFlags = GlfwWindow::Flags;
+
+protected:
+    class WindowIterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = GlfwWindow;
+        using difference_type = typename WindowMap::difference_type;
+        using pointer = value_type*;
+        using reference = value_type&;
+
+        explicit WindowIterator(WindowMap::iterator it) : current(std::move(it)) {   
+        }
+
+        reference operator*() const { return *current->second.get(); }
+        pointer operator->() const { return current->second.get(); }
+
+        WindowIterator& operator++() {
+            ++current;
+            return *this;
+        }
+
+        WindowIterator operator++(int) {
+            WindowIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator==(const WindowIterator& other) const { return current == other.current; }
+        bool operator!=(const WindowIterator& other) const { return current != other.current; }
+
+    private:
+        WindowMap::iterator current;
+    };
+
+    class WindowContainer {
+    public:
+        WindowContainer(WindowMap::iterator begin, WindowMap::iterator end) :
+            m_begin(std::move(begin)), m_end(std::move(end)) {}
+
+        WindowIterator begin() { return WindowIterator(m_begin); }
+        WindowIterator end() { return WindowIterator(m_end); }
+    private:
+        WindowMap::iterator m_begin;
+        WindowMap::iterator m_end;
+    };
+
 protected:
     IEngine();
     ~IEngine();
@@ -52,8 +99,9 @@ protected: // Callbacks
     virtual void OnPostUpdate() {}
     virtual void OnFixedUpdate() {}
     virtual void OnFixedPostUpdate() {}
-    virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
+    virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window, double interpolation) {
         (void)window;
+        (void)interpolation;
     }
     virtual void OnPostRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         (void)window;
@@ -82,19 +130,34 @@ protected:
         m_window_map.erase(window->m_wnd);
     }
 
+    WindowContainer IterWindows() {
+        return WindowContainer(m_window_map.begin(), m_window_map.end());
+    }
+
+    sge::GlfwWindow* GetFocusedWindow() {
+        for (const auto& [ptr, window] : m_window_map) {
+            if (window->IsFocused()) return window.get();
+        }
+        return nullptr;
+    }
+
 protected:
     void OnWindowIconifyEvent(GLFWwindow* window, bool iconified) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
-
-        it->second->m_minimized = iconified;
+        it->second->m_flags.set(WindowFlags::Minimized, iconified);
     }
 
     void OnWindowMaximizeEvent(GLFWwindow* window, bool maximized) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
+        it->second->m_flags.set(WindowFlags::Maximized, maximized);
+    }
 
-        it->second->m_maximized = maximized;
+    void OnWindowFocusEvent(GLFWwindow *window, bool focused) final {
+        auto it = m_window_map.find(window);
+        SGE_ASSERT(it != m_window_map.end());
+        it->second->m_flags.set(WindowFlags::Focused, focused);
     }
 
     void OnWindowResizeEvent(GLFWwindow* window, int width, int height) final {
@@ -109,7 +172,6 @@ protected:
     void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
-
         Input::SetCursorPosition(glm::vec2(xpos, ypos));
     }
 
@@ -150,9 +212,16 @@ protected:
     void OnMouseScrollEvent(GLFWwindow*, double /* xoffset */, double yoffset) final {
         Input::PushMouseScrollEvent(yoffset);
     }
+
+    void OnWindowRefreshEvent(GLFWwindow *window) override {
+        auto it = m_window_map.find(window);
+        SGE_ASSERT(it != m_window_map.end());
+        OnRender(it->second, 0.0f);
+        OnPostRender(it->second);
+    }
 private:
     std::shared_ptr<RenderContext> m_context;
-    std::unordered_map<GLFWwindow*, std::shared_ptr<GlfwWindow>> m_window_map;
+    WindowMap m_window_map;
     uint64_t m_frame_count = 0;
     bool m_running = false;
 };

@@ -114,7 +114,7 @@ void App::OnUpdate() {
     m_camera.update();
 }
 
-void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
+void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window, double) {
     m_renderer->Begin();
 
     Clay_BeginLayout();
@@ -322,10 +322,4 @@ void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         SGE_LOG_DEBUG("Draw commands count: {}", profile.commandBufferRecord.drawCommands);
     }
 #endif
-}
-
-void App::OnWindowResized(const std::shared_ptr<sge::GlfwWindow> &window, int width, int height) {
-    m_camera.set_viewport(glm::uvec2(width, height));
-    m_camera.update();
-    OnRender(window);
 }

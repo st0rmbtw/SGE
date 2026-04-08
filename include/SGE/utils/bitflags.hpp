@@ -13,7 +13,6 @@ class BitFlags {
 
 public:
     constexpr BitFlags() = default;
-    constexpr BitFlags(UnderlyingT value) : m_data(value) {}
     constexpr BitFlags(T value) : m_data(underlying(value)) {}
 
     constexpr BitFlags(const std::initializer_list<T> values) noexcept {
@@ -61,7 +60,7 @@ public:
 private:
     [[nodiscard]]
     static constexpr UnderlyingT underlying(T e) {
-        return static_cast<UnderlyingT>(e);
+        return 1 << static_cast<UnderlyingT>(e);
     }
 
 private:
