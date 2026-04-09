@@ -152,6 +152,9 @@ public:
     void SetCursorMode(CursorMode cursor_mode) {
         glfwSetInputMode(m_wnd, GLFW_CURSOR, static_cast<int>(cursor_mode));
         m_cursor_mode = cursor_mode;
+        double xpos, ypos;
+        glfwGetCursorPos(m_wnd, &xpos, &ypos);
+        HandleCursorPosEvents(m_wnd, xpos, ypos);
     }
 
     void SetRawMouseInput(bool raw) {
@@ -171,8 +174,12 @@ public:
     }
 
     void SetFullscreen() {
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
         glfwGetWindowPos(m_wnd, &m_position.x, &m_position.y);
-        glfwSetWindowMonitor(m_wnd, glfwGetPrimaryMonitor(), 0, 0, m_size.width, m_size.height, GLFW_DONT_CARE);
+        glfwSetWindowMonitor(m_wnd, monitor, 0, 0, mode->width, mode->height, GLFW_DONT_CARE);
+        m_size.width = mode->width;
+        m_size.height = mode->height;
     }
 
     void SetWindowed() {
