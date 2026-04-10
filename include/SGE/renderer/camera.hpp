@@ -41,7 +41,9 @@ struct CoordinateSystem {
 
 class Camera {
 public:
-    Camera(RenderBackend backend, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
+    Camera() = default;
+
+    explicit Camera(RenderBackend backend, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
         m_origin(origin),
         m_backend(backend),
         m_changed(true)
@@ -166,12 +168,12 @@ public:
     }
 
     [[nodiscard]]
-    inline bool flip_horizontal() const noexcept {
+    inline bool flipped_horizontally() const noexcept {
         return m_flip_horizontal;
     }
 
     [[nodiscard]]
-    inline bool flip_vertical() const noexcept {
+    inline bool flipped_vertically() const noexcept {
         return m_flip_vertical;
     }
 

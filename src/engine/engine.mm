@@ -7,7 +7,6 @@
 #include <SGE/log.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/time/time.hpp>
-#include <cstdlib>
 #include <memory>
 
 #include "defines.hpp"
@@ -15,20 +14,24 @@
 
 using namespace sge;
 
-IEngine::IEngine() {
-#if SGE_PLATFORM_LINUX
+bool IEngine::Init() {
+    #if SGE_PLATFORM_LINUX
     glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
 #endif
 
     if (!glfwInit()) {
         SGE_LOG_ERROR("Couldn't initialize GLFW: {}", glfwGetErrorString());
-        std::abort();
+        return false;
     }
 
     LLGL::Log::RegisterCallbackStd();
     Time::SetFixedTimestepSeconds(1.0f / 60.0f);
 
     m_context = std::make_shared<RenderContext>();
+
+    m_initialized = true;
+    
+    return true;
 }
 
 IEngine::~IEngine() {
@@ -36,9 +39,12 @@ IEngine::~IEngine() {
 }
 
 void IEngine::Run() {
-    double prev_tick = glfwGetTime();
+    if (!m_initialized) {
+        SGE_LOG_ERROR("Engine is not initialized. Did you forget to call `IEngine::Init` function?");
+        return;
+    }
 
-    double fixed_timer = 0;
+    double prev_tick = glfwGetTime();
 
     m_running = true;
 
@@ -67,31 +73,22 @@ void IEngine::Run() {
             const delta_time_t dt(delta_time);
             Time::AdvanceBy(dt);
 
-            OnPreUpdate();
-
-            int fixed_update_count = 0;
-
-            fixed_timer += delta_time;
-            while (fixed_timer >= Time::FixedDeltaSeconds()) {
+            OnPreFixedUpdate();
+            while (Time::Overstep() >= Time::FixedDeltaSeconds()) {
                 Time::AdvanceFixed();
                 OnFixedUpdate();
-                fixed_timer -= Time::FixedDeltaSeconds();
-                ++fixed_update_count;
             }
+            OnPostFixedUpdate();
 
+            OnPreUpdate();
             OnUpdate();
-
-            for (int i = 0; i < fixed_update_count; ++i) {
-                OnFixedPostUpdate();
-            }
-
             OnPostUpdate();
 
             for (auto& [glfw, window] : m_window_map) {
-                LLGL::Extent2D size = window->GetContentSize();
+                const LLGL::Extent2D size = window->GetContentSize();
 
                 if (!window->IsMinimized() && (size.width > 0 && size.height > 0)) {
-                    OnRender(window, fixed_timer / Time::FixedDeltaSeconds());
+                    OnRender(window);
                     OnPostRender(window);
                 }
             }
@@ -105,6 +102,10 @@ void IEngine::Run() {
     }
 
     m_running = false;
+
+    if (m_context->IsInitialized()) {
+        m_context->GetCommandQueue()->WaitIdle();
+    }
 }
 
 std::expected<std::shared_ptr<sge::GlfwWindow>, const char*> IEngine::CreateWindow(const WindowSettings& window_settings) {

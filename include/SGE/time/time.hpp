@@ -7,7 +7,7 @@
 
 namespace sge {
 
-using delta_time_t = std::chrono::duration<float>;
+using delta_time_t = std::chrono::duration<double>;
 
 namespace Time {
     const delta_time_t& Delta() noexcept;
@@ -16,8 +16,10 @@ namespace Time {
     float ElapsedSeconds() noexcept;
     float FixedDeltaSeconds() noexcept;
     float FixedElapsedSeconds() noexcept;
+    float Overstep() noexcept;
+    float OverstepFraction() noexcept;
 
-    void SetFixedTimestepSeconds(const float seconds) noexcept;
+    void SetFixedTimestepSeconds(double seconds) noexcept;
 
     template <class Rep, class Period>
     void SetFixedTimestep(const std::chrono::duration<Rep, Period>& delta) {

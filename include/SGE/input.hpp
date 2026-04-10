@@ -120,12 +120,18 @@ enum class Key : uint16_t {
 };
 
 namespace Input {
+// These are supposed to be private
     void PushCodePoint(uint32_t codepoint);
     void Press(Key key, uint8_t modifiers);
     void Press(MouseButton button);
     void Release(Key key, uint8_t modifiers);
     void Release(MouseButton button);
 
+    void PushMouseScrollEvent(float y) noexcept;
+    void SetCursorPosition(glm::vec2 position) noexcept;
+    void SetMouseDelta(glm::vec2 delta) noexcept;
+
+// Public
     bool Pressed(Key key);
     bool Pressed(Key key, uint8_t modifiers);
     bool JustPressed(Key key);
@@ -134,9 +140,6 @@ namespace Input {
     bool Pressed(MouseButton button);
     bool JustPressed(MouseButton button);
     bool JustReleased(MouseButton button);
-
-    void PushMouseScrollEvent(float y) noexcept;
-    void SetCursorPosition(const glm::vec2& position) noexcept;
 
     const std::vector<float>& ScrollEvents() noexcept;
     const glm::vec2& CursorPosition() noexcept;

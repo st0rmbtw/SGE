@@ -12,7 +12,8 @@ int main(int argc, char** argv) {
     }
 
     App app(config);
-    app.Run();
-
+    if (app.Init()) {
+        app.Run();
+    }
     return 0;
 }

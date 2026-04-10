@@ -23,27 +23,31 @@ static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
 using namespace sge;
 
-App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::TopLeft) {
-    InitRenderContext(config.backend);
+bool App::Init() {
+    if (!IEngine::Init())
+        return false;
+    if (!InitRenderContext(m_config.backend))
+        return false;
 
     WindowSettings window_settings;
     window_settings.width = 800;
     window_settings.height = 800;
-    window_settings.fullscreen = config.fullscreen;
-    window_settings.vsync = config.vsync;
-    window_settings.samples = config.samples;
+    window_settings.fullscreen = m_config.fullscreen;
+    window_settings.vsync = m_config.vsync;
+    window_settings.samples = m_config.samples;
     window_settings.hidden = true;
 
     auto result = CreateWindow(window_settings);
     if (!result.has_value()) {
         SGE_LOG_ERROR("Couldn't create a window: {}", result.error());
-        std::abort();
+        return false;
     }
 
     std::shared_ptr<sge::GlfwWindow> window = result.value();
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
+    m_camera = sge::Camera(m_config.backend, CameraOrigin::TopLeft);
     m_camera.set_viewport({resolution.width, resolution.height});
     m_camera.set_zoom(1.0f);
 
@@ -56,6 +60,8 @@ App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::T
     sync_time();
 
     window->ShowWindow();
+
+    return true;
 }
 
 App::~App() {
@@ -135,7 +141,7 @@ void App::OnUpdate() {
     m_t.seconds = std::fmod(secs, 60.0f);
 }
 
-void App::OnRender(const std::shared_ptr<GlfwWindow>& window, double) {
+void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
     LLGL::Extent2D resolution = window->GetContentSize();
     m_camera.set_viewport(glm::vec2(resolution.width, resolution.height));
 
@@ -241,9 +247,9 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window, double) {
 
         // Hour hand
         {
-            const float sin = glm::sin(wh - consts::PI * 0.5f);
-            const float cos = glm::cos(wh - consts::PI * 0.5f);
-            const glm::vec2 line_dir = glm::vec2(cos, sin);
+            const float sin = glm::sin(wh - consts::FRAC_PI_2);
+            const float cos = glm::cos(wh - consts::FRAC_PI_2);
+            const glm::vec2 line_dir = glm::vec2(cos, -sin);
 
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
@@ -253,9 +259,9 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window, double) {
 
         // Minute hand
         {
-            const float sin = glm::sin(wm - consts::PI * 0.5f);
-            const float cos = glm::cos(wm - consts::PI * 0.5f);
-            const glm::vec2 line_dir = glm::vec2(cos, sin);
+            const float sin = glm::sin(wm - consts::FRAC_PI_2);
+            const float cos = glm::cos(wm - consts::FRAC_PI_2);
+            const glm::vec2 line_dir = glm::vec2(cos, -sin);
 
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
@@ -265,9 +271,9 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window, double) {
 
         // Second hand
         {
-            const float sin = glm::sin(ws - consts::PI * 0.5f);
-            const float cos = glm::cos(ws - consts::PI * 0.5f);
-            const glm::vec2 line_dir = glm::vec2(cos, sin);
+            const float sin = glm::sin(ws - consts::FRAC_PI_2);
+            const float cos = glm::cos(ws - consts::FRAC_PI_2);
+            const glm::vec2 line_dir = glm::vec2(cos, -sin);
 
             const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
             const float length = hand_length - CLOCK_SECOND_HAND_OFFSET * size.x;

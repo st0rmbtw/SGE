@@ -71,37 +71,39 @@ protected:
     };
 
 protected:
-    IEngine();
+    IEngine() = default;
     ~IEngine();
 public:
+    virtual bool Init();
+
     void Run();
-    void Stop() {
+    void Stop() noexcept {
         m_running = false;
     }
 
     [[nodiscard]]
-    const std::shared_ptr<RenderContext>& GetRenderContext() const {
+    const std::shared_ptr<RenderContext>& GetRenderContext() const noexcept {
         return m_context;
     }
 
     [[nodiscard]]
-    uint64_t GetFrameCount() const {
+    uint64_t GetFrameCount() const noexcept {
         return m_frame_count;
     }
 
     [[nodiscard]]
-    bool IsRunning() const {
+    bool IsRunning() const noexcept {
         return m_running;
     }
 protected: // Callbacks
     virtual void OnPreUpdate() {}
     virtual void OnUpdate() {}
     virtual void OnPostUpdate() {}
+    virtual void OnPreFixedUpdate() {}
     virtual void OnFixedUpdate() {}
-    virtual void OnFixedPostUpdate() {}
-    virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window, double interpolation) {
+    virtual void OnPostFixedUpdate() {}
+    virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         (void)window;
-        (void)interpolation;
     }
     virtual void OnPostRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         (void)window;
@@ -119,6 +121,11 @@ protected: // Callbacks
 
 protected:
     bool InitRenderContext(RenderBackend backend) {
+        if (!m_context) {
+            SGE_LOG_ERROR("Calling `InitRenderContext` before the engine is initialized. Did you forget to call `IEngine::Init` function?");
+            return false;
+        }
+
         return m_context->Init(backend);
     }
 
@@ -172,7 +179,14 @@ protected:
     void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) final {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
-        Input::SetCursorPosition(glm::vec2(xpos, ypos));
+
+        const glm::vec2 prev_pos = Input::CursorPosition();
+        const glm::vec2 current_pos = glm::vec2(xpos, ypos);
+
+        const glm::vec2 delta = current_pos - prev_pos;
+
+        Input::SetMouseDelta(Input::MouseDelta() + delta);
+        Input::SetCursorPosition(current_pos);
     }
 
     void OnFramebufferResizeEvent(GLFWwindow* window, int width, int height) final {
@@ -216,7 +230,7 @@ protected:
     void OnWindowRefreshEvent(GLFWwindow *window) override {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
-        OnRender(it->second, 0.0f);
+        OnRender(it->second);
         OnPostRender(it->second);
     }
 private:
@@ -224,6 +238,7 @@ private:
     WindowMap m_window_map;
     uint64_t m_frame_count = 0;
     bool m_running = false;
+    bool m_initialized = false;
 };
 
 }

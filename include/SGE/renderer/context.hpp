@@ -135,8 +135,18 @@ public:
 #endif
 
     [[nodiscard]]
+    bool IsInitialized() const noexcept {
+        return m_context ? true : false;
+    }
+
+    [[nodiscard]]
     inline const LLGL::RenderSystemPtr& GetLLGLContext() const noexcept {
         return m_context;
+    }
+
+    [[nodiscard]]
+    inline LLGL::CommandQueue* GetCommandQueue() const noexcept {
+        return m_context->GetCommandQueue();
     }
 
     [[nodiscard]]

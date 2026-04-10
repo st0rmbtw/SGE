@@ -24,27 +24,31 @@ static void HandleClayErrors(Clay_ErrorData errorData) {
     printf("%s", errorData.errorText.chars);
 }
 
-App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::TopLeft) {
-    InitRenderContext(config.backend);
+bool App::Init() {
+    if (!IEngine::Init())
+        return false;
+    if (!InitRenderContext(m_config.backend))
+        return false;
 
     WindowSettings window_settings;
     window_settings.width = 1280;
     window_settings.height = 720;
-    window_settings.fullscreen = config.fullscreen;
-    window_settings.vsync = config.vsync;
-    window_settings.samples = config.samples;
+    window_settings.fullscreen = m_config.fullscreen;
+    window_settings.vsync = m_config.vsync;
+    window_settings.samples = m_config.samples;
     window_settings.hidden = true;
 
     auto result = CreateWindow(window_settings);
     if (!result.has_value()) {
         SGE_LOG_ERROR("Couldn't create a window: {}", result.error());
-        std::abort();
+        return false;
     }
 
     std::shared_ptr<GlfwWindow> window = result.value();
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
+    m_camera = sge::Camera(m_config.backend, CameraOrigin::TopLeft);
     m_camera.set_viewport({resolution.width, resolution.height});
     m_camera.set_zoom(1.0f);
 
@@ -65,6 +69,8 @@ App::App(const ExampleConfig& config) : m_camera(config.backend, CameraOrigin::T
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
     window->ShowWindow();
+
+    return true;
 }
 
 App::~App() {
@@ -114,7 +120,7 @@ void App::OnUpdate() {
     m_camera.update();
 }
 
-void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window, double) {
+void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
     m_renderer->Begin();
 
     Clay_BeginLayout();

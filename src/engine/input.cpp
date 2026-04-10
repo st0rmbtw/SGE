@@ -49,26 +49,6 @@ void Input::Release(Key key, uint8_t modifiers) {
     }
 }
 
-bool Input::Pressed(Key key) {
-    return input_state.keyboard_pressed.find(key) != input_state.keyboard_pressed.end();
-}
-
-bool Input::JustPressed(Key key) {
-    return input_state.keyboard_just_pressed.find(key) != input_state.keyboard_just_pressed.end();
-}
-
-bool Input::Pressed(Key key, uint8_t modifiers) {
-    const auto entry = input_state.keyboard_pressed.find(key);
-    if (entry == input_state.keyboard_pressed.end()) return false;
-    return entry->modifiers == modifiers;
-}
-
-bool Input::JustPressed(Key key, uint8_t modifiers) {
-    const auto entry = input_state.keyboard_just_pressed.find(key);
-    if (entry == input_state.keyboard_just_pressed.end()) return false;
-    return entry->modifiers == modifiers;
-}
-
 void Input::Clear() {
     input_state.keyboard_just_pressed.clear();
     input_state.keyboard_just_released.clear();
@@ -97,6 +77,42 @@ void Input::Release(MouseButton button) {
     }
 }
 
+void Input::PushMouseScrollEvent(float y) noexcept {
+    input_state.mouse_scroll_events.push_back(y);
+}
+
+void Input::SetCursorPosition(glm::vec2 position) noexcept {    
+    input_state.cursor_position = position;
+}
+
+void Input::SetMouseDelta(glm::vec2 delta) noexcept {
+    input_state.mouse_delta = delta;
+}
+
+
+// ----------------- Public -----------------
+
+
+bool Input::Pressed(Key key) {
+    return input_state.keyboard_pressed.find(key) != input_state.keyboard_pressed.end();
+}
+
+bool Input::JustPressed(Key key) {
+    return input_state.keyboard_just_pressed.find(key) != input_state.keyboard_just_pressed.end();
+}
+
+bool Input::Pressed(Key key, uint8_t modifiers) {
+    const auto entry = input_state.keyboard_pressed.find(key);
+    if (entry == input_state.keyboard_pressed.end()) return false;
+    return entry->modifiers == modifiers;
+}
+
+bool Input::JustPressed(Key key, uint8_t modifiers) {
+    const auto entry = input_state.keyboard_just_pressed.find(key);
+    if (entry == input_state.keyboard_just_pressed.end()) return false;
+    return entry->modifiers == modifiers;
+}
+
 bool Input::Pressed(MouseButton button) {
     return input_state.mouse_pressed.find(static_cast<uint8_t>(button)) != input_state.mouse_pressed.end();
 }
@@ -107,15 +123,6 @@ bool Input::JustPressed(MouseButton button) {
 
 bool Input::JustReleased(MouseButton button) {
     return input_state.mouse_just_released.find(static_cast<uint8_t>(button)) != input_state.mouse_just_released.end();
-}
-
-void Input::PushMouseScrollEvent(float y) noexcept {
-    input_state.mouse_scroll_events.push_back(y);
-}
-
-void Input::SetCursorPosition(const glm::vec2& position) noexcept {
-    input_state.mouse_delta = position - input_state.cursor_position;
-    input_state.cursor_position = position;
 }
 
 glm::vec2 Input::MouseDelta() noexcept {
