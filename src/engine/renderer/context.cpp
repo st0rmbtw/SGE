@@ -1,3 +1,4 @@
+#include "SGE/renderer/dependency_graph.hpp"
 #include <filesystem>
 #include <SGE/renderer/context.hpp>
 #include <SGE/profile.hpp>
@@ -58,6 +59,8 @@ bool sge::RenderContext::Init(sge::RenderBackend backend) {
 }
 
 sge::RenderContext::~RenderContext() {
+    m_dependency_graph.DeleteAll();
+
 #if SGE_DEBUG
     if (m_debugger != nullptr) {
         delete m_debugger;
@@ -65,10 +68,6 @@ sge::RenderContext::~RenderContext() {
 #endif
 
     if (m_context != nullptr) {
-        for (auto& [id, swap_chain] : m_swapchain_map) {
-            m_context->Release(*swap_chain);
-        }
-
         LLGL::RenderSystem::Unload(std::move(m_context));
     }
 }
@@ -107,7 +106,7 @@ void sge::RenderContext::UnregisterWindow(const GlfwWindow& window) {
         return;
 
     if (m_context != nullptr)
-        m_context->Release(*it->second);
+        m_dependency_graph.RemoveNode(*it->second);
 
     m_swapchain_map.erase(window.GetID());
 }
@@ -127,6 +126,10 @@ LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<
         // swapChainDesc.colorBits = settings.transparent ? 32 : 24;
 
         swap_chain = context->CreateSwapChain(swapChainDesc, window);
+        SGE_ASSERT(swap_chain != nullptr);
+
+        m_dependency_graph.AddNode(*swap_chain);
+
         m_swapchain_map.try_emplace(window->GetID(), swap_chain);
     } else {
         swap_chain = it->second.get();
@@ -181,6 +184,13 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_i
         pipelineDesc.renderPass = m_current_target->GetRenderPass();
 
         pipeline_state = m_context->CreatePipelineState(pipelineDesc);
+        SGE_ASSERT(pipeline_state != nullptr);
+
+        m_dependency_graph.AddNode(*pipeline_state, *config.layout);
+        m_dependency_graph.AddNode(*pipeline_state, *config.vertexShader);
+        m_dependency_graph.AddNode(*pipeline_state, *config.pixelShader);
+        m_dependency_graph.AddNode(*pipeline_state, *config.geometryShader);
+
         m_pipeline_states[key] = pipeline_state;
     }
 
@@ -188,15 +198,14 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_i
 }
 
 void sge::RenderContext::DeletePipeline(uint32_t pipeline_id) {
-    for (auto it = m_pipeline_states.begin(); it != m_pipeline_states.end();) {
+    for (auto it = m_pipeline_states.begin(); it != m_pipeline_states.end(); ++it) {
         auto key = it->first;
         auto value = it->second;
 
         if (key.config_id == pipeline_id) {
-            m_context->Release(*value);
-            it = m_pipeline_states.erase(it);
-        } else {
-            ++it;
+            m_dependency_graph.RemoveNode(*value);
+            m_pipeline_states.erase(it);
+            break;
         }
     }
 }
@@ -204,7 +213,23 @@ void sge::RenderContext::DeletePipeline(uint32_t pipeline_id) {
 sge::Sampler sge::RenderContext::CreateSampler(const LLGL::SamplerDescriptor& descriptor) {
     ZoneScoped;
     LLGL::Sampler* sampler = m_context->CreateSampler(descriptor);
+    SGE_ASSERT(sampler != nullptr);
+    m_dependency_graph.AddNode(*sampler);
     return Sampler(sampler, descriptor);
+}
+
+LLGL::Buffer* sge::RenderContext::CreateBuffer(const LLGL::BufferDescriptor& desc, const void* initial_data) {
+    LLGL::Buffer* buffer = m_context->CreateBuffer(desc, initial_data);
+    m_dependency_graph.AddNode(*buffer);
+    return buffer;
+}
+
+LLGL::BufferArray* sge::RenderContext::CreateBufferArray(std::initializer_list<LLGL::Buffer*> buffers) {
+    LLGL::BufferArray* buffer_array = m_context->CreateBufferArray(buffers.size(), buffers.begin());
+    for (LLGL::Buffer* buffer : buffers) {
+        m_dependency_graph.AddNode(*buffer_array, *buffer);
+    }
+    return buffer_array;
 }
 
 sge::Texture sge::RenderContext::CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const Sampler& sampler, const void* data, bool generate_mip_maps) {
@@ -229,10 +254,15 @@ sge::Texture sge::RenderContext::CreateTexture(LLGL::TextureType type, LLGL::Ima
 
     uint32_t id = m_texture_index++;
 
-    return sge::Texture(id, sampler, glm::uvec2(width, height), m_context->CreateTexture(texture_desc, &image_view));
+    LLGL::Texture* texture = m_context->CreateTexture(texture_desc, &image_view);
+    SGE_ASSERT(texture != nullptr);
+
+    m_dependency_graph.AddNode(*texture);
+
+    return sge::Texture(id, sampler, glm::uvec2(width, height), texture);
 }
 
-LLGL::Shader* sge::RenderContext::LoadShader(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
+LLGL::Shader* sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
     ZoneScoped;
 
     const RenderBackend backend = m_backend;
@@ -252,16 +282,20 @@ LLGL::Shader* sge::RenderContext::LoadShader(const ShaderPath& shader_path, cons
         return nullptr;
     }
 
-    std::string shader_source;
+    std::ifstream shader_file;
 
-    if (!backend.IsVulkan()) {
-        std::ifstream shader_file;
+    uint8_t* data = nullptr;
+    uintmax_t data_length = 0;
+    
+    if (backend.IsVulkan()) {
+        shader_file.open(path, std::ios::binary);
+        data_length = fs::file_size(path);
+        data = new uint8_t[data_length];
+        shader_file.read(reinterpret_cast<char*>(data), data_length);
+    } else {
         shader_file.open(path);
-
-        std::stringstream shader_source_str;
-        shader_source_str << shader_file.rdbuf();
-
-        shader_source = shader_source_str.str();
+        std::string shader_source;
+        shader_file >> shader_source;
 
         for (const ShaderDef& shader_def : shader_defs) {
             size_t pos;
@@ -270,12 +304,37 @@ LLGL::Shader* sge::RenderContext::LoadShader(const ShaderPath& shader_path, cons
             }
         }
 
-        shader_file.close();
+        data_length = shader_source.size();
+        data = new uint8_t[data_length];
+        memcpy(data, shader_source.data(), data_length);
     }
+
+    LLGL::Shader* shader = CreateShader(shader_path.shader_type, shader_path.func_name.c_str(), data, data_length, vertex_attributes);
+    delete[] data;
+
+    if (shader == nullptr) {
+        fmt::println(stderr, "Shader file: {}", path_str);
+    }
+    return shader;
+}
+
+LLGL::Shader* sge::RenderContext::CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t length, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
+    const RenderBackend backend = m_backend;
 
     LLGL::ShaderDescriptor shader_desc;
     shader_desc.type = shader_type.ToLLGLType();
     shader_desc.sourceType = LLGL::ShaderSourceType::CodeString;
+    shader_desc.source = static_cast<const char*>(data);
+    shader_desc.sourceSize = length;
+
+    if (backend.IsVulkan()) {
+        shader_desc.sourceType = LLGL::ShaderSourceType::BinaryBuffer;
+    }
+
+    if (!backend.IsVulkan() && !backend.IsOpenGL()) {
+        shader_desc.entryPoint = entry_point;
+        shader_desc.profile = shader_type.Profile(backend);
+    }
 
     if (shader_type.IsVertex()) {
         shader_desc.vertex.inputAttribs = vertex_attributes;
@@ -283,18 +342,8 @@ LLGL::Shader* sge::RenderContext::LoadShader(const ShaderPath& shader_path, cons
 
     if (backend.IsOpenGL() && shader_type.IsFragment()) {
         shader_desc.fragment.outputAttribs = {
-            { "frag_color", LLGL::Format::RGBA8UNorm, 0, LLGL::SystemValue::Color }
+            { "fragColor", LLGL::Format::RGBA8UNorm, 0, LLGL::SystemValue::Color }
         };
-    }
-
-    if (backend.IsVulkan()) {
-        shader_desc.source = path_str.c_str();
-        shader_desc.sourceType = LLGL::ShaderSourceType::BinaryFile;
-    } else {
-        shader_desc.entryPoint = shader_type.IsCompute() ? shader_path.func_name.c_str() : shader_type.EntryPoint(backend);
-        shader_desc.source = shader_source.c_str();
-        shader_desc.sourceSize = shader_source.length();
-        shader_desc.profile = shader_type.Profile(backend);
     }
 
 #if SGE_DEBUG
@@ -307,13 +356,15 @@ LLGL::Shader* sge::RenderContext::LoadShader(const ShaderPath& shader_path, cons
     if (const LLGL::Report* report = shader->GetReport()) {
         if (*report->GetText() != '\0') {
             if (report->HasErrors()) {
-                SGE_LOG_ERROR("Failed to create a shader. File: {}\nError: {}", path_str.c_str(), report->GetText());
+                SGE_LOG_ERROR("Failed to create a shader. Error: {}", report->GetText());
                 return nullptr;
             }
 
             SGE_LOG_INFO("{}", report->GetText());
         }
     }
+
+    m_dependency_graph.AddNode(*shader);
 
     return shader;
 }

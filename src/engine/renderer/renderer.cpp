@@ -1,6 +1,5 @@
 #include <cstddef>
 #include <optional>
-#include <utility>
 
 #include <SGE/renderer/renderer.hpp>
 #include <SGE/renderer/batch.hpp>
@@ -183,7 +182,7 @@ static BatchVertexFormats LineBatchVertexFormats(const RenderBackend backend) {
 }
 
 template <typename T>
-void BatchData<T>::Init(const std::shared_ptr<sge::RenderContext>& context, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format) {
+void BatchData<T>::Init(sge::RenderContext& context, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format) {
     const Vertex vertices[] = {
         Vertex(0.0f, 0.0f),
         Vertex(0.0f, 1.0f),
@@ -194,71 +193,20 @@ void BatchData<T>::Init(const std::shared_ptr<sge::RenderContext>& context, uint
     m_buffer = checked_alloc<T>(size);
     m_buffer_ptr = m_buffer;
 
-    m_vertex_buffer = context->CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "SpriteBatch VertexBuffer");
-    m_instance_buffer = context->CreateVertexBuffer(size * sizeof(T), instance_format, "SpriteBatch InstanceBuffer");
-
-    LLGL::Buffer* buffers[] = { m_vertex_buffer.get(), m_instance_buffer.get() };
-    m_buffer_array = context->Context()->CreateBufferArray(2, buffers);
+    m_vertex_buffer = context.CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "SpriteBatch VertexBuffer");
+    m_instance_buffer = context.CreateVertexBuffer(size * sizeof(T), instance_format, "SpriteBatch InstanceBuffer");
+    m_buffer_array = context.CreateBufferArray({ m_vertex_buffer.get(), m_instance_buffer.get() });
 }
 
 template <typename T>
-void BatchData<T>::Destroy(const LLGL::RenderSystemPtr& context) {
-    SGE_RESOURCE_RELEASE(m_vertex_buffer);
-    SGE_RESOURCE_RELEASE(m_instance_buffer);
-    SGE_RESOURCE_RELEASE(m_buffer_array);
+void BatchData<T>::Destroy(sge::RenderContext& context) {
     free(m_buffer);
-
     m_buffer = nullptr;
     m_buffer_ptr = nullptr;
-}
 
-static LLGL::Shader* CreateShader(const std::shared_ptr<RenderContext>& context, ShaderType shader_type, const void* data, size_t length, const char* entry_point, std::vector<LLGL::VertexAttribute> vertex_attributes = {}) {
-    const RenderBackend backend = context->Backend();
-
-    const char* shader_source = static_cast<const char*>(data);
-
-    LLGL::ShaderDescriptor shader_desc;
-    shader_desc.type = shader_type.ToLLGLType();
-    shader_desc.source = shader_source;
-    shader_desc.sourceSize = length;
-
-    if (shader_type.IsVertex()) {
-        shader_desc.vertex.inputAttribs = std::move(vertex_attributes);
-    }
-
-    if (backend.IsOpenGL() && shader_type.IsFragment()) {
-        shader_desc.fragment.outputAttribs = {
-            { "frag_color", LLGL::Format::RGBA8UNorm, 0, LLGL::SystemValue::Color }
-        };
-    }
-
-    if (backend.IsVulkan()) {
-        shader_desc.sourceType = LLGL::ShaderSourceType::BinaryBuffer;
-    } else {
-        shader_desc.sourceType = LLGL::ShaderSourceType::CodeString;
-        shader_desc.entryPoint = entry_point;
-        shader_desc.profile = shader_type.Profile(backend);
-    }
-
-#if SGE_DEBUG
-    shader_desc.flags |= LLGL::ShaderCompileFlags::NoOptimization;
-#else
-    shader_desc.flags |= LLGL::ShaderCompileFlags::OptimizationLevel3;
-#endif
-
-    LLGL::Shader* shader = context->Context()->CreateShader(shader_desc);
-    if (const LLGL::Report* report = shader->GetReport()) {
-        if (*report->GetText() != '\0') {
-            if (report->HasErrors()) {
-                SGE_LOG_ERROR("Failed to create a shader: {}", report->GetText());
-                return nullptr;
-            }
-
-            SGE_LOG_INFO("{}", report->GetText());
-        }
-    }
-
-    return shader;
+    context.DeleteResource(*m_vertex_buffer);
+    context.DeleteResource(*m_instance_buffer);
+    context.DeleteResource(*m_buffer_array);
 }
 
 SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader) {
@@ -268,7 +216,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
 
     static uint32_t count = 0;
 
-    auto& context = m_context->Context();
+    auto& context = m_context->GetLLGLContext();
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
@@ -411,7 +359,7 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, LLG
 }
 
 uint32_t Renderer::CreateNinepatchBatchPipeline(bool enable_scissor) {
-    auto& context = m_context->Context();
+    auto& context = m_context->GetLLGLContext();
     const RenderBackend backend = m_context->Backend();
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
@@ -424,7 +372,7 @@ uint32_t Renderer::CreateNinepatchBatchPipeline(bool enable_scissor) {
     LLGL::PipelineLayout* pipelineLayout = context->CreatePipelineLayout(pipelineLayoutDesc);
 
     ShaderSourceCode shader = GetNinepatchShaderSourceCode(backend);
-    LLGL::Shader* fragment_shader = CreateShader(m_context, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
+    LLGL::Shader* fragment_shader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
 
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "NinePatchBatch Pipeline";
@@ -456,7 +404,7 @@ uint32_t Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* f
         fragment_shader = m_glyph_default_fragment_shader.get();
     }
 
-    auto& context = m_context->Context();
+    auto& context = m_context->GetLLGLContext();
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
@@ -496,7 +444,7 @@ uint32_t Renderer::CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* f
 }
 
 uint32_t Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
-    auto& context = m_context->Context();
+    auto& context = m_context->GetLLGLContext();
     const RenderBackend backend = m_context->Backend();
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
@@ -511,8 +459,8 @@ uint32_t Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
 
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "ShapeBatch Pipeline";
-    pipelineConfig.vertexShader = CreateShader(m_context, ShaderType::Vertex, shader.vs_source, shader.vs_size, "VS", vertex_formats.total_attributes());
-    pipelineConfig.pixelShader = CreateShader(m_context, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
+    pipelineConfig.vertexShader = m_context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, vertex_formats.total_attributes());
+    pipelineConfig.pixelShader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     pipelineConfig.layout = pipelineLayout;
     pipelineConfig.indexFormat = LLGL::Format::R16UInt;
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
@@ -535,7 +483,7 @@ uint32_t Renderer::CreateShapeBatchPipeline(bool enable_scissor) {
 }
 
 uint32_t Renderer::CreateLineBatchPipeline(bool enable_scissor) {
-    auto& context = m_context->Context();
+    auto& context = m_context->GetLLGLContext();
     const RenderBackend backend = m_context->Backend();
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
@@ -551,8 +499,8 @@ uint32_t Renderer::CreateLineBatchPipeline(bool enable_scissor) {
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "LineBatch Pipeline";
     pipelineConfig.layout = pipelineLayout;
-    pipelineConfig.vertexShader = CreateShader(m_context, ShaderType::Vertex, shader.vs_source, shader.vs_size, "VS", vertex_formats.total_attributes());
-    pipelineConfig.pixelShader = CreateShader(m_context, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
+    pipelineConfig.vertexShader = m_context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, vertex_formats.total_attributes());
+    pipelineConfig.pixelShader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     pipelineConfig.indexFormat = LLGL::Format::R16UInt;
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineConfig.frontCCW = true;
@@ -580,7 +528,7 @@ BatchData<SpriteInstance> Renderer::InitSpriteBatchData() {
     BatchVertexFormats vertex_formats = SpriteBatchVertexFormats(m_context->Backend());
 
     BatchData<SpriteInstance> batchData;
-    batchData.Init(m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
+    batchData.Init(*m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
     return batchData;
 }
 
@@ -590,7 +538,7 @@ BatchData<NinePatchInstance> Renderer::InitNinepatchBatchData() {
     BatchVertexFormats vertex_formats = NinepatchBatchVertexFormats(m_context->Backend());
 
     BatchData<NinePatchInstance> batchData;
-    batchData.Init(m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
+    batchData.Init(*m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
     return batchData;
 }
 
@@ -600,7 +548,7 @@ BatchData<GlyphInstance> Renderer::InitGlyphBatchData() {
     BatchVertexFormats vertex_formats = GlyphBatchVertexFormats(m_context->Backend());
 
     BatchData<GlyphInstance> batchData;
-    batchData.Init(m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
+    batchData.Init(*m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
     return batchData;
 }
 
@@ -610,7 +558,7 @@ BatchData<ShapeInstance> Renderer::InitShapeBatchData() {
     BatchVertexFormats vertex_formats = ShapeBatchVertexFormats(m_context->Backend());
 
     BatchData<ShapeInstance> batchData;
-    batchData.Init(m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
+    batchData.Init(*m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
     return batchData;
 }
 
@@ -620,24 +568,24 @@ BatchData<LineInstance> Renderer::InitLineBatchData() {
     BatchVertexFormats vertex_formats = LineBatchVertexFormats(m_context->Backend());
 
     BatchData<LineInstance> batchData;
-    batchData.Init(m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
+    batchData.Init(*m_context, MAX_QUADS, vertex_formats.vertex, vertex_formats.instance);
     return batchData;
 }
 
 static SGE_FORCE_INLINE LLGL::Shader* CreateBatchVertexShader(const std::shared_ptr<sge::RenderContext>& context, const ShaderSourceCode& source_code, const BatchVertexFormats& vertex_formats) {
-    return CreateShader(context, ShaderType::Vertex, source_code.vs_source, source_code.vs_size, "VS", vertex_formats.total_attributes());
+    return context->CreateShader(ShaderType::Vertex, "VS", source_code.vs_source, source_code.vs_size, vertex_formats.total_attributes());
 }
 
 Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_context(context) {
-    SGE_ASSERT(context->Context() != nullptr);
+    SGE_ASSERT(context->GetLLGLContext() != nullptr);
 
     const RenderBackend backend = context->Backend();
 
     LLGL::CommandBufferDescriptor command_buffer_desc;
     command_buffer_desc.numNativeBuffers = 3;
 
-    m_command_buffer = m_context->Context()->CreateCommandBuffer(command_buffer_desc);
-    m_command_queue = m_context->Context()->GetCommandQueue();
+    m_command_buffer = m_context->GetLLGLContext()->CreateCommandBuffer(command_buffer_desc);
+    m_command_queue = m_context->GetLLGLContext()->GetCommandQueue();
 
     m_constant_buffer = m_context->CreateConstantBuffer(sizeof(GlobalUniforms), "ConstantBuffer");
 
@@ -654,12 +602,12 @@ Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_context(co
 
     {
         ShaderSourceCode shader = GetSpriteShaderSourceCode(backend);
-        m_sprite_default_fragment_shader = CreateShader(m_context, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
+        m_sprite_default_fragment_shader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     }
 
     {
         ShaderSourceCode shader = GetFontShaderSourceCode(backend);
-        m_glyph_default_fragment_shader = CreateShader(m_context, ShaderType::Fragment, shader.fs_source, shader.fs_size, "PS");
+        m_glyph_default_fragment_shader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     }
 }
 
@@ -1424,13 +1372,13 @@ void Renderer::RenderBatch(sge::Batch& batch) {
 }
 
 Renderer::~Renderer() {
-    const auto& context = m_context->Context();
-
-    SGE_RESOURCE_RELEASE(m_constant_buffer);
+    const auto& context = m_context->GetLLGLContext();
     SGE_RESOURCE_RELEASE(m_command_buffer);
 
-    m_sprite_batch_data.Destroy(context);
-    m_ninepatch_batch_data.Destroy(context);
-    m_glyph_batch_data.Destroy(context);
-    m_shape_batch_data.Destroy(context);
+    m_context->DeleteResource(*m_constant_buffer);
+
+    m_sprite_batch_data.Destroy(*m_context);
+    m_ninepatch_batch_data.Destroy(*m_context);
+    m_glyph_batch_data.Destroy(*m_context);
+    m_shape_batch_data.Destroy(*m_context);
 }

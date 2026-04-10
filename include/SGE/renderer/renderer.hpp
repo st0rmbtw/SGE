@@ -33,8 +33,8 @@ namespace sge {
 template <typename T>
 class BatchData {
 public:
-    void Init(const std::shared_ptr<sge::RenderContext>& context, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
-    void Destroy(const LLGL::RenderSystemPtr& context);
+    void Init(sge::RenderContext& context, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
+    void Destroy(sge::RenderContext& context);
 
     inline void Update(LLGL::CommandBuffer& command_buffer) {
         command_buffer.UpdateBuffer(*m_instance_buffer, 0, m_buffer, m_count * sizeof(T));

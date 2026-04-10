@@ -257,11 +257,11 @@ entryPointParam_VS_color = inp_i_color;
 }
 )";
 
-static const char GL_FONT_FRAG[436] = R"(#version 410
+static const char GL_FONT_FRAG[418] = R"(#version 410
 uniform sampler2D Texture;
 layout(location = 0) in vec2 inp_uv;
 layout(location = 1) flat in vec3 inp_color;
-layout(location = 0) out vec4 entryPointParam_PS;
+layout(location = 0) out vec4 fragColor;
 void main()
 {
 vec4 sampled = texture(Texture, inp_uv);
@@ -272,7 +272,7 @@ if (_38 <= 0.0500000007450580596923828125)
 {
 discard;
 }
-entryPointParam_PS = vec4(inp_color, _38);
+fragColor = vec4(inp_color, _38);
 }
 )";
 
@@ -638,12 +638,12 @@ entryPointParam_VS_uv = inp_position;
 }
 )";
 
-static const char GL_LINE_FRAG[897] = R"(#version 410
+static const char GL_LINE_FRAG[879] = R"(#version 410
 layout(location = 0) flat in vec4 inp_color;
 layout(location = 1) flat in vec4 inp_border_radius;
 layout(location = 2) flat in vec2 inp_size;
 layout(location = 3) in vec2 inp_p;
-layout(location = 0) out vec4 entryPointParam_PS;
+layout(location = 0) out vec4 fragColor;
 void main()
 {
 vec4 _76;
@@ -680,7 +680,7 @@ if (_76.w <= 0.0500000007450580596923828125)
 {
 discard;
 }
-entryPointParam_PS = _76;
+fragColor = _76;
 }
 )";
 
@@ -1125,14 +1125,14 @@ entryPointParam_VS_uv = (inp_position * inp_i_uv_offset_scale.zw) + inp_i_uv_off
 }
 )";
 
-static const char GL_NINEPATCH_FRAG[1445] = R"(#version 410
+static const char GL_NINEPATCH_FRAG[1427] = R"(#version 410
 uniform sampler2D Texture;
 layout(location = 0) flat in vec4 inp_color;
 layout(location = 1) flat in uvec4 inp_margin;
 layout(location = 2) flat in vec2 inp_source_size;
 layout(location = 3) flat in vec2 inp_output_size;
 layout(location = 4) in vec2 inp_uv;
-layout(location = 0) out vec4 entryPointParam_PS;
+layout(location = 0) out vec4 fragColor;
 void main()
 {
 vec2 _42 = vec2(inp_margin.xy);
@@ -1189,7 +1189,7 @@ if (color.w <= 0.0500000007450580596923828125)
 {
 discard;
 }
-entryPointParam_PS = color;
+fragColor = color;
 }
 )";
 
@@ -1884,7 +1884,7 @@ entryPointParam_VS_shape = inp_i_shape;
 }
 )";
 
-static const char GL_SHAPE_FRAG[4232] = R"(#version 410
+static const char GL_SHAPE_FRAG[4205] = R"(#version 410
 layout(location = 0) in vec2 inp_uv;
 layout(location = 1) in vec2 inp_p;
 layout(location = 2) flat in vec2 inp_size;
@@ -1893,7 +1893,7 @@ layout(location = 4) flat in vec4 inp_border_color;
 layout(location = 5) flat in vec4 inp_border_radius;
 layout(location = 6) flat in float inp_border_thickness;
 layout(location = 7) flat in uint inp_shape;
-layout(location = 0) out vec4 entryPointParam_PS;
+layout(location = 0) out vec4 fragColor;
 void main()
 {
 do
@@ -1980,7 +1980,7 @@ break;
 _172 = abs(length(p) - _127);
 break;
 } while(false);
-entryPointParam_PS = vec4(inp_color.xyz, min(inp_color.w, 1.0 - smoothstep(thickness - length(vec2(dFdx(_172), dFdy(_172))), thickness, _172)));
+fragColor = vec4(inp_color.xyz, min(inp_color.w, 1.0 - smoothstep(thickness - length(vec2(dFdx(_172), dFdy(_172))), thickness, _172)));
 break;
 }
 else
@@ -2079,7 +2079,7 @@ if (_308.w <= 0.00999999977648258209228515625)
 {
 discard;
 }
-entryPointParam_PS = _308;
+fragColor = _308;
 break;
 } while(false);
 }
@@ -2492,13 +2492,13 @@ entryPointParam_VS_outline_thickness = inp_i_outline_thickness;
 }
 )";
 
-static const char GL_SPRITE_FRAG[1057] = R"(#version 410
+static const char GL_SPRITE_FRAG[1039] = R"(#version 410
 uniform sampler2D Texture;
 layout(location = 0) flat in vec4 inp_color;
 layout(location = 1) flat in vec4 inp_outline_color;
 layout(location = 2) in vec2 inp_uv;
 layout(location = 3) flat in float inp_outline_thickness;
-layout(location = 0) out vec4 entryPointParam_PS;
+layout(location = 0) out vec4 fragColor;
 void main()
 {
 vec4 _113;
@@ -2515,7 +2515,7 @@ if (_113.w <= 0.02500000037252902984619140625)
 {
 discard;
 }
-entryPointParam_PS = _113;
+fragColor = _113;
 }
 )";
 

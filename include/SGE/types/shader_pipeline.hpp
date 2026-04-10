@@ -3,8 +3,8 @@
 
 #pragma once
 
+#include <SGE/renderer/context.hpp>
 #include <LLGL/Shader.h>
-#include <LLGL/RenderSystem.h>
 
 namespace sge {
 
@@ -16,13 +16,19 @@ struct ShaderPipeline {
     LLGL::Shader* ps = nullptr; // Pixel shader (aka. fragment shader)
     LLGL::Shader* cs = nullptr; // Compute shader
     
-    void Unload(const LLGL::RenderSystemPtr& context) const {
-        if (vs != nullptr) context->Release(*vs);
-        if (hs != nullptr) context->Release(*hs);
-        if (ds != nullptr) context->Release(*ds);
-        if (gs != nullptr) context->Release(*gs);
-        if (ps != nullptr) context->Release(*ps);
-        if (cs != nullptr) context->Release(*cs);
+    void Unload(sge::RenderContext& context) const {
+        if (vs != nullptr)
+            context.DeleteResource(*vs);
+        if (hs != nullptr)
+            context.DeleteResource(*hs);
+        if (ds != nullptr)
+            context.DeleteResource(*ds);
+        if (gs != nullptr)
+            context.DeleteResource(*gs);
+        if (ps != nullptr)
+            context.DeleteResource(*ps);
+        if (cs != nullptr)
+            context.DeleteResource(*cs);
     }
 };
 

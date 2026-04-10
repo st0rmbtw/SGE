@@ -192,7 +192,7 @@ def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]):
     
     fd, path_glsl = tempfile.mkstemp(suffix=".glsl")
     ps = subprocess.Popen(
-        ("spirv-cross", str(path_spv), "--stage", "frag") + SPIRV_CROSS_FLAGS + ("--output", str(path_glsl)),
+        ("spirv-cross", str(path_spv), "--stage", "frag", "--rename-interface-variable", "out", "0", "fragColor") + SPIRV_CROSS_FLAGS + ("--output", str(path_glsl)),
         stdout=sys.stdout,
         stderr=sys.stderr
     )

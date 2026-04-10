@@ -22,7 +22,7 @@ public:
     };
 
     ShaderType() = default;
-    constexpr ShaderType(Value backend) : m_value(backend) {}
+    constexpr ShaderType(Value type) : m_value(type) {}
 
     constexpr operator Value() const { return m_value; }
     explicit operator bool() const = delete;
