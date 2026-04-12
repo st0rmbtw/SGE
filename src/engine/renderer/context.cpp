@@ -178,9 +178,10 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_i
         pipelineDesc.fragmentShader = config.pixelShader;
         pipelineDesc.primitiveTopology = config.primitiveTopology;
         pipelineDesc.indexFormat = config.indexFormat;
-        pipelineDesc.rasterizer.multiSampleEnabled = (m_current_target->GetSamples() > 1);
-        pipelineDesc.rasterizer.scissorTestEnabled = config.scissorTestEnabled;
+        pipelineDesc.rasterizer.cullMode = config.cullMode;
         pipelineDesc.rasterizer.frontCCW = config.frontCCW;
+        pipelineDesc.rasterizer.scissorTestEnabled = config.scissorTestEnabled;
+        pipelineDesc.rasterizer.multiSampleEnabled = (m_current_target->GetSamples() > 1);
         pipelineDesc.renderPass = m_current_target->GetRenderPass();
 
         pipeline_state = m_context->CreatePipelineState(pipelineDesc);
@@ -267,12 +268,15 @@ LLGL::Shader* sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_pa
 
     const RenderBackend backend = m_backend;
     const ShaderType shader_type = shader_path.shader_type;
+    const char* entry_point = shader_type.IsCompute() ? shader_path.func_name.c_str() : shader_type.EntryPoint(backend);
 
-    const std::string filename = backend.IsMetal()
-        ? std::format("{}{}", shader_path.name, shader_type.FileExtension(backend))
-        : shader_type.IsCompute()
-            ? std::format("{}.{}.{}{}", shader_path.func_name, shader_path.name, shader_type.Stage(), shader_type.FileExtension(backend))
-            : std::format("{}.{}{}", shader_path.name, shader_type.Stage(), shader_type.FileExtension(backend));
+    std::string filename = shader_type.IsCompute() ? shader_path.func_name : shader_path.name;
+    if (backend.IsVulkan() || backend.IsOpenGL()) {
+        filename += '.';
+        filename += shader_type.Stage();
+    }
+
+    filename += shader_type.FileExtension(backend);
 
     const fs::path path = fs::path(backend.AssetFolder()) / filename;
     const std::string path_str = path.string().c_str();
@@ -282,20 +286,19 @@ LLGL::Shader* sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_pa
         return nullptr;
     }
 
-    std::ifstream shader_file;
-
     uint8_t* data = nullptr;
     uintmax_t data_length = 0;
     
     if (backend.IsVulkan()) {
-        shader_file.open(path, std::ios::binary);
+        std::ifstream shader_file(path, std::ios::binary);
         data_length = fs::file_size(path);
         data = new uint8_t[data_length];
         shader_file.read(reinterpret_cast<char*>(data), data_length);
     } else {
-        shader_file.open(path);
-        std::string shader_source;
-        shader_file >> shader_source;
+        std::ifstream shader_file(path);
+        std::stringstream buffer;
+        buffer << shader_file.rdbuf();
+        std::string shader_source = buffer.str();
 
         for (const ShaderDef& shader_def : shader_defs) {
             size_t pos;
@@ -304,12 +307,13 @@ LLGL::Shader* sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_pa
             }
         }
 
-        data_length = shader_source.size();
+        data_length = shader_source.size() + 1;
         data = new uint8_t[data_length];
-        memcpy(data, shader_source.data(), data_length);
+        data[data_length - 1] = '\0';
+        memcpy(data, shader_source.data(), data_length - 1);
     }
 
-    LLGL::Shader* shader = CreateShader(shader_path.shader_type, shader_path.func_name.c_str(), data, data_length, vertex_attributes);
+    LLGL::Shader* shader = CreateShader(shader_path.shader_type, entry_point, data, data_length, vertex_attributes);
     delete[] data;
 
     if (shader == nullptr) {

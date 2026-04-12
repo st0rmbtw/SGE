@@ -149,7 +149,7 @@ float4 position_2;
 float2 uv_1;
 [[flat]] float3 color_1;
 };
-vertex VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
+[[vertex]] VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
 {
 thread KernelContext_0 kernelContext_0;
 (&kernelContext_0)->GlobalUniformBuffer_0 = GlobalUniformBuffer_1;
@@ -196,7 +196,7 @@ struct KernelContext_0
 texture2d<float, access::sample> Texture_0;
 sampler Sampler_0;
 };
-fragment pixelOutput_0 PS(pixelInput_0 _S1 [[stage_in]], float4 position_0 [[position]], texture2d<float, access::sample> Texture_1 [[texture(3)]], sampler Sampler_1 [[sampler(4)]])
+[[fragment]] pixelOutput_0 PS(pixelInput_0 _S1 [[stage_in]], float4 position_0 [[position]], texture2d<float, access::sample> Texture_1 [[texture(3)]], sampler Sampler_1 [[sampler(4)]])
 {
 thread KernelContext_0 kernelContext_0;
 (&kernelContext_0)->Texture_0 = Texture_1;
@@ -472,7 +472,7 @@ float4 position_2;
 float2 p_1;
 float2 uv_1;
 };
-vertex VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], uint vid_0 [[vertex_id]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
+[[vertex]] VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], uint vid_0 [[vertex_id]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
 {
 thread KernelContext_0 kernelContext_0;
 (&kernelContext_0)->GlobalUniformBuffer_0 = GlobalUniformBuffer_1;
@@ -555,7 +555,7 @@ struct pixelInput_0
 float2 p_1 [[user(POINT)]];
 float2 uv_0 [[user(UV)]];
 };
-fragment pixelOutput_0 PS(pixelInput_0 _S1 [[stage_in]], float4 position_0 [[position]])
+[[fragment]] pixelOutput_0 PS(pixelInput_0 _S1 [[stage_in]], float4 position_0 [[position]])
 {
 float4 result_0;
 if((max(_S1.border_radius_0.x, max(_S1.border_radius_0.y, max(_S1.border_radius_0.z, _S1.border_radius_0.w)))) > 0.0)
@@ -903,7 +903,7 @@ float4 position_2;
 [[flat]] float2 output_size_1;
 float2 uv_1;
 };
-vertex VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
+[[vertex]] VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
 {
 thread KernelContext_0 kernelContext_0;
 (&kernelContext_0)->GlobalUniformBuffer_0 = GlobalUniformBuffer_1;
@@ -1011,7 +1011,7 @@ struct KernelContext_0
 texture2d<float, access::sample> Texture_0;
 sampler Sampler_0;
 };
-fragment pixelOutput_0 PS(pixelInput_0 _S3 [[stage_in]], float4 position_0 [[position]], texture2d<float, access::sample> Texture_1 [[texture(3)]], sampler Sampler_1 [[sampler(4)]])
+[[fragment]] pixelOutput_0 PS(pixelInput_0 _S3 [[stage_in]], float4 position_0 [[position]], texture2d<float, access::sample> Texture_1 [[texture(3)]], sampler Sampler_1 [[sampler(4)]])
 {
 thread KernelContext_0 kernelContext_0;
 (&kernelContext_0)->Texture_0 = Texture_1;
@@ -1554,7 +1554,7 @@ float2 p_1;
 [[flat]] float border_thickness_1;
 [[flat]] uint shape_1;
 };
-vertex VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
+[[vertex]] VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
 {
 thread KernelContext_0 kernelContext_0;
 (&kernelContext_0)->GlobalUniformBuffer_0 = GlobalUniformBuffer_1;
@@ -1714,7 +1714,7 @@ float2 p_4 [[user(POINT)]];
 [[flat]] float border_thickness_0 [[user(BORDERTHICKNESS)]];
 [[flat]] uint shape_0 [[user(SHAPE)]];
 };
-fragment pixelOutput_0 PS(pixelInput_0 _S9 [[stage_in]], float4 position_0 [[position]])
+[[fragment]] pixelOutput_0 PS(pixelInput_0 _S9 [[stage_in]], float4 position_0 [[position]])
 {
 bool _S10;
 float4 result_0;
@@ -2287,7 +2287,7 @@ float4 position_2;
 float2 uv_1;
 [[flat]] float outline_thickness_1;
 };
-vertex VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
+[[vertex]] VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_GlobalUniformBuffer_natural_0 constant* GlobalUniformBuffer_1 [[buffer(2)]])
 {
 thread KernelContext_0 kernelContext_0;
 (&kernelContext_0)->GlobalUniformBuffer_0 = GlobalUniformBuffer_1;
@@ -2374,7 +2374,7 @@ struct KernelContext_0
 texture2d<float, access::sample> Texture_0;
 sampler Sampler_0;
 };
-fragment pixelOutput_0 PS(pixelInput_0 _S1 [[stage_in]], float4 position_0 [[position]], texture2d<float, access::sample> Texture_1 [[texture(3)]], sampler Sampler_1 [[sampler(4)]])
+[[fragment]] pixelOutput_0 PS(pixelInput_0 _S1 [[stage_in]], float4 position_0 [[position]], texture2d<float, access::sample> Texture_1 [[texture(3)]], sampler Sampler_1 [[sampler(4)]])
 {
 thread KernelContext_0 kernelContext_0;
 (&kernelContext_0)->Texture_0 = Texture_1;

@@ -107,12 +107,6 @@ public:
         return CreateBuffer(bufferDesc);
     }
 
-    inline LLGL::Buffer* CreateVertexBufferInit(size_t size, const void* data, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) {
-        LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(size, vertexFormat);
-        bufferDesc.debugName = debug_name;
-        return CreateBuffer(bufferDesc, data);
-    }
-
     template <typename Container>
     inline LLGL::Buffer* CreateIndexBuffer(const Container& indices, const LLGL::Format format, const char* debug_name = nullptr) {
         LLGL::BufferDescriptor bufferDesc = LLGL::IndexBufferDesc(GetArraySize(indices), format);
@@ -124,6 +118,12 @@ public:
         LLGL::BufferDescriptor bufferDesc = LLGL::ConstantBufferDesc(size);
         bufferDesc.debugName = debug_name;
         return CreateBuffer(bufferDesc);
+    }
+
+    inline LLGL::CommandBuffer* CreateCommandBuffer(const LLGL::CommandBufferDescriptor& desc = {}) {
+        LLGL::CommandBuffer* commandBuffer = m_context->CreateCommandBuffer(desc);
+        m_dependency_graph.AddNode(*commandBuffer);
+        return commandBuffer;
     }
 
     inline void SetCurrentRenderTarget(LLGL::RenderTarget* target) {

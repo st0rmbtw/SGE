@@ -193,7 +193,7 @@ void BatchData<T>::Init(sge::RenderContext& context, uint32_t size, const LLGL::
     m_buffer = checked_alloc<T>(size);
     m_buffer_ptr = m_buffer;
 
-    m_vertex_buffer = context.CreateVertexBufferInit(sizeof(vertices), vertices, vertex_format, "SpriteBatch VertexBuffer");
+    m_vertex_buffer = context.CreateVertexBuffer(vertices, vertex_format, "SpriteBatch VertexBuffer");
     m_instance_buffer = context.CreateVertexBuffer(size * sizeof(T), instance_format, "SpriteBatch InstanceBuffer");
     m_buffer_array = context.CreateBufferArray({ m_vertex_buffer.get(), m_instance_buffer.get() });
 }

@@ -83,6 +83,15 @@ public:
         return m_value == Value::D3D11 || m_value == Value::D3D12;
     }
 
+    [[nodiscard]]
+    inline constexpr bool IsRightHanded() const {
+        return m_value == Value::OpenGL || m_value == Value::Vulkan;
+    }
+    [[nodiscard]]
+    inline constexpr bool IsLeftHanded() const {
+        return !IsRightHanded();
+    }
+
 private:
     Value m_value = Value::Vulkan;
 };

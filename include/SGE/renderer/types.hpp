@@ -83,6 +83,7 @@ struct GraphicsPipelineConfig {
     LLGL::Shader* pixelShader = nullptr;
     LLGL::PrimitiveTopology primitiveTopology = LLGL::PrimitiveTopology::TriangleList;
     LLGL::Format indexFormat = LLGL::Format::Undefined;
+    LLGL::CullMode cullMode = LLGL::CullMode::Disabled;
     bool frontCCW = false;
     bool scissorTestEnabled = false;
 };
