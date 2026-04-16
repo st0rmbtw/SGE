@@ -1,8 +1,10 @@
 #include "LLGL/TypeInfo.h"
+#include "SGE/assert.hpp"
 #include <SGE/renderer/dependency_graph.hpp>
 
 
 void sge::Node::AddChild(const sge::Node* node) const {
+    SGE_ASSERT(node != nullptr);
     m_children.insert(node);
     node->m_parents.insert(this);
 }
@@ -14,15 +16,15 @@ void sge::DependencyGraph::AddNode(LLGL::RenderSystemChild& resource) {
     }
 }
 
-void sge::DependencyGraph::AddNode(LLGL::RenderSystemChild& resource, LLGL::RenderSystemChild& dependensOn) {
+void sge::DependencyGraph::AddNode(LLGL::RenderSystemChild& resource, LLGL::RenderSystemChild& dependsOn) {
     auto node = m_nodes.find(Node(&resource));
     if (node == m_nodes.end()) {
         node = m_nodes.insert(Node(&resource)).first;
     }
 
-    auto child = m_nodes.find(Node(&dependensOn));
+    auto child = m_nodes.find(Node(&dependsOn));
     if (child == m_nodes.end()) {
-        child = m_nodes.insert(Node(&dependensOn)).first;
+        child = m_nodes.insert(Node(&dependsOn)).first;
     }
 
     node->AddChild(&*child);

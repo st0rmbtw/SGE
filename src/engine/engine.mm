@@ -130,7 +130,9 @@ std::expected<std::shared_ptr<sge::GlfwWindow>, const char*> IEngine::CreateWind
     glm::ivec2 position;
     glfwGetWindowPos(window, &position.x, &position.y);
 
-    std::shared_ptr<GlfwWindow> instance = std::make_shared<GlfwWindow>(window, LLGL::Extent2D(width, height), position, window_settings.cursor_mode, window_settings.samples, window_settings.fullscreen);
+    const uint8_t vsync_interval = window_settings.vsync;
+
+    std::shared_ptr<GlfwWindow> instance = std::make_shared<GlfwWindow>(window, LLGL::Extent2D(width, height), position, window_settings.cursor_mode, window_settings.samples, vsync_interval, window_settings.fullscreen);
     instance->Listen(*this);
 
     m_window_map.try_emplace(window, instance);

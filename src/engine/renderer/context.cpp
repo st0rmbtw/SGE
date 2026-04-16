@@ -128,6 +128,8 @@ LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<
         swap_chain = context->CreateSwapChain(swapChainDesc, window);
         SGE_ASSERT(swap_chain != nullptr);
 
+        swap_chain->SetVsyncInterval(window->GetVsyncInterval());
+
         m_dependency_graph.AddNode(*swap_chain);
 
         m_swapchain_map.try_emplace(window->GetID(), swap_chain);
@@ -188,9 +190,9 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_i
         SGE_ASSERT(pipeline_state != nullptr);
 
         m_dependency_graph.AddNode(*pipeline_state, *config.layout);
-        m_dependency_graph.AddNode(*pipeline_state, *config.vertexShader);
-        m_dependency_graph.AddNode(*pipeline_state, *config.pixelShader);
-        m_dependency_graph.AddNode(*pipeline_state, *config.geometryShader);
+        m_dependency_graph.AddNode(pipeline_state, config.vertexShader);
+        m_dependency_graph.AddNode(pipeline_state, config.pixelShader);
+        m_dependency_graph.AddNode(pipeline_state, config.geometryShader);
 
         m_pipeline_states[key] = pipeline_state;
     }
@@ -212,7 +214,6 @@ void sge::RenderContext::DeletePipeline(uint32_t pipeline_id) {
 }
 
 sge::Sampler sge::RenderContext::CreateSampler(const LLGL::SamplerDescriptor& descriptor) {
-    ZoneScoped;
     LLGL::Sampler* sampler = m_context->CreateSampler(descriptor);
     SGE_ASSERT(sampler != nullptr);
     m_dependency_graph.AddNode(*sampler);
@@ -221,14 +222,14 @@ sge::Sampler sge::RenderContext::CreateSampler(const LLGL::SamplerDescriptor& de
 
 LLGL::Buffer* sge::RenderContext::CreateBuffer(const LLGL::BufferDescriptor& desc, const void* initial_data) {
     LLGL::Buffer* buffer = m_context->CreateBuffer(desc, initial_data);
-    m_dependency_graph.AddNode(*buffer);
+    m_dependency_graph.AddNode(buffer);
     return buffer;
 }
 
 LLGL::BufferArray* sge::RenderContext::CreateBufferArray(std::initializer_list<LLGL::Buffer*> buffers) {
     LLGL::BufferArray* buffer_array = m_context->CreateBufferArray(buffers.size(), buffers.begin());
     for (LLGL::Buffer* buffer : buffers) {
-        m_dependency_graph.AddNode(*buffer_array, *buffer);
+        m_dependency_graph.AddNode(buffer_array, buffer);
     }
     return buffer_array;
 }
@@ -368,7 +369,7 @@ LLGL::Shader* sge::RenderContext::CreateShader(sge::ShaderType shader_type, cons
         }
     }
 
-    m_dependency_graph.AddNode(*shader);
+    m_dependency_graph.AddNode(shader);
 
     return shader;
 }

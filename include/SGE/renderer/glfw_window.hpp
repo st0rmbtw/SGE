@@ -41,12 +41,13 @@ public:
     friend class IEngine;
 
 public:
-    GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size, glm::ivec2 position, sge::CursorMode cursor_mode, uint8_t samples, bool fullscreen) :
+    GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size, glm::ivec2 position, sge::CursorMode cursor_mode, uint8_t samples, uint8_t vsync, bool fullscreen) :
         m_size(size),
         m_wnd(wnd),
         m_position(position),
         m_id(s_id++),
         m_samples(samples),
+        m_vsync_interval(vsync),
         m_cursor_mode(cursor_mode)
     {
         m_flags.set(Flags::Fullscreen, fullscreen);
@@ -61,6 +62,7 @@ public:
         m_max_size = other.m_max_size;
         m_id = other.m_id;
         m_samples = other.m_samples;
+        m_vsync_interval = other.m_vsync_interval;
         m_flags = other.m_flags;
         m_cursor_mode = other.m_cursor_mode;
     }
@@ -223,6 +225,11 @@ public:
     }
 
     [[nodiscard]]
+    uint8_t GetVsyncInterval() const noexcept {
+        return m_vsync_interval;
+    }
+
+    [[nodiscard]]
     uint32_t GetID() const noexcept {
         return m_id;
     }
@@ -312,6 +319,7 @@ private:
     glm::ivec2 m_position = glm::ivec2(0, 0);
     uint32_t m_id = 0;
     uint8_t m_samples = 1;
+    uint8_t m_vsync_interval = 0;
     BitFlags<Flags> m_flags;
     CursorMode m_cursor_mode;
 

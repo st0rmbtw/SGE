@@ -25,8 +25,8 @@ protected:
     void OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) override;
 
     void OnWindowResized(const std::shared_ptr<sge::GlfwWindow> &window, int width, int height) override {
-        m_camera.set_viewport(glm::uvec2(width, height));
-        m_camera.update();
+        m_cameras[window->GetID()].set_viewport(glm::uvec2(width, height));
+        m_cameras[window->GetID()].update();
         OnRender(window);
     }
 
@@ -34,13 +34,14 @@ protected:
         if (window.GetID() == m_primary_window_id) {
             Stop();
         }
+        m_cameras.erase(window.GetID());
     }
 
 private:
     void sync_time();
 
 private:
-    sge::Camera m_camera;
+    std::unordered_map<uint32_t, sge::Camera> m_cameras;
     std::unique_ptr<sge::Renderer> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
     CurrentTime m_t;

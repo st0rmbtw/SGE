@@ -105,8 +105,27 @@ public:
 
     template <typename TParent, typename TChild>
     requires (std::derived_from<TParent, LLGL::RenderSystemChild> && std::derived_from<TChild, LLGL::RenderSystemChild>)
-    inline constexpr void AddNode(TParent& resource, TChild& dependensOn) {
-        AddNode(static_cast<LLGL::RenderSystemChild&>(resource), static_cast<LLGL::RenderSystemChild&>(dependensOn));
+    inline constexpr void AddNode(TParent& resource, TChild& dependsOn) {
+        AddNode(static_cast<LLGL::RenderSystemChild&>(resource), static_cast<LLGL::RenderSystemChild&>(dependsOn));
+    }
+
+    template <typename TParent>
+    requires (std::derived_from<TParent, LLGL::RenderSystemChild>)
+    inline constexpr void AddNode(TParent* resource) {
+        if (resource == nullptr)
+            return;
+        AddNode(*resource);
+    }
+
+    template <typename TParent, typename TChild>
+    requires (std::derived_from<TParent, LLGL::RenderSystemChild> && std::derived_from<TChild, LLGL::RenderSystemChild>)
+    inline constexpr void AddNode(TParent* resource, TChild* dependsOn) {
+        if (resource == nullptr)
+            return;
+        if (dependsOn == nullptr)
+            AddNode(*resource);
+        else
+            AddNode(*resource, *dependsOn);
     }
 
 private:
