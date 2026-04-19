@@ -193,9 +193,9 @@ void BatchData<T>::Init(sge::RenderContext& context, uint32_t size, const LLGL::
     m_buffer = checked_alloc<T>(size);
     m_buffer_ptr = m_buffer;
 
-    m_vertex_buffer = context.CreateVertexBuffer(vertices, vertex_format, "SpriteBatch VertexBuffer").AsRef();
-    m_instance_buffer = context.CreateVertexBuffer(size * sizeof(T), instance_format, "SpriteBatch InstanceBuffer").AsRef();
-    m_buffer_array = context.CreateBufferArray({ m_vertex_buffer.Get(), m_instance_buffer.Get() }).AsRef();
+    m_vertex_buffer = context.CreateVertexBuffer(vertices, vertex_format, "SpriteBatch VertexBuffer");
+    m_instance_buffer = context.CreateVertexBuffer(size * sizeof(T), instance_format, "SpriteBatch InstanceBuffer");
+    m_buffer_array = context.CreateBufferArray({ m_vertex_buffer.Get(), m_instance_buffer.Get() });
 }
 
 SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader) {
@@ -212,12 +212,10 @@ SpriteBatchPipeline Renderer::CreateSpriteBatchPipeline(bool enable_scissor, Ref
         BindingLayoutItem::Sampler(4, "Sampler", LLGL::StageFlags::FragmentStage)
     });
 
-    Ref<LLGL::PipelineLayout> pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc).AsRef();
-
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.vertexShader = m_sprite_vertex_shader;
     pipelineConfig.pixelShader = fragment_shader;
-    pipelineConfig.layout = pipelineLayout;
+    pipelineConfig.layout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineConfig.scissorTestEnabled = enable_scissor;
 
@@ -353,19 +351,14 @@ Handle<LLGL::PipelineState> Renderer::CreateNinepatchBatchPipeline(bool enable_s
         BindingLayoutItem::Sampler(4, "Sampler", LLGL::StageFlags::FragmentStage)
     });
 
-    Ref<LLGL::PipelineLayout> pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc).AsRef();
-
     ShaderSourceCode shader = GetNinepatchShaderSourceCode(backend);
-    Ref<LLGL::Shader> fragment_shader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size).AsRef();
 
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "NinePatchBatch Pipeline";
     pipelineConfig.vertexShader = m_ninepatch_vertex_shader;
-    pipelineConfig.pixelShader = fragment_shader;
-    pipelineConfig.layout = pipelineLayout;
-    pipelineConfig.indexFormat = LLGL::Format::R16UInt;
+    pipelineConfig.pixelShader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+    pipelineConfig.layout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
-    pipelineConfig.frontCCW = true;
     pipelineConfig.scissorTestEnabled = enable_scissor;
     pipelineConfig.blend = LLGL::BlendDescriptor {
         .targets = {
@@ -398,16 +391,12 @@ Handle<LLGL::PipelineState> Renderer::CreateGlyphBatchPipeline(bool enable_sciss
         LLGL::CombinedTextureSamplerDescriptor{ "Texture", "Texture", "Sampler", 3 }
     };
 
-    Ref<LLGL::PipelineLayout> pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc).AsRef();
-
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "GlyphBatch Pipeline";
     pipelineConfig.vertexShader = m_glyph_vertex_shader;
     pipelineConfig.pixelShader = fragment_shader;
-    pipelineConfig.layout = pipelineLayout;
-    pipelineConfig.indexFormat = LLGL::Format::R16UInt;
+    pipelineConfig.layout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
-    pipelineConfig.frontCCW = true;
     pipelineConfig.scissorTestEnabled = enable_scissor;
     pipelineConfig.blend = LLGL::BlendDescriptor {
         .targets = {
@@ -433,19 +422,15 @@ Handle<LLGL::PipelineState> Renderer::CreateShapeBatchPipeline(bool enable_sciss
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
     });
 
-    Ref<LLGL::PipelineLayout> pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc).AsRef();
-
     ShaderSourceCode shader = GetShapeShaderSourceCode(backend);
     BatchVertexFormats vertex_formats = ShapeBatchVertexFormats(backend);
 
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "ShapeBatch Pipeline";
-    pipelineConfig.vertexShader = m_context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, vertex_formats.total_attributes()).AsRef();
-    pipelineConfig.pixelShader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size).AsRef();
-    pipelineConfig.layout = pipelineLayout;
-    pipelineConfig.indexFormat = LLGL::Format::R16UInt;
+    pipelineConfig.vertexShader = m_context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, vertex_formats.total_attributes());
+    pipelineConfig.pixelShader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+    pipelineConfig.layout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
-    pipelineConfig.frontCCW = true;
     pipelineConfig.scissorTestEnabled = enable_scissor;
     pipelineConfig.blend = LLGL::BlendDescriptor {
         .targets = {
@@ -471,19 +456,15 @@ Handle<LLGL::PipelineState> Renderer::CreateLineBatchPipeline(bool enable_scisso
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
     });
 
-    Ref<LLGL::PipelineLayout> pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc).AsRef();
-
     ShaderSourceCode shader = GetLineShaderSourceCode(backend);
     BatchVertexFormats vertex_formats = LineBatchVertexFormats(backend);
 
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "LineBatch Pipeline";
-    pipelineConfig.layout = pipelineLayout;
-    pipelineConfig.vertexShader = m_context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, vertex_formats.total_attributes()).AsRef();
-    pipelineConfig.pixelShader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size).AsRef();
-    pipelineConfig.indexFormat = LLGL::Format::R16UInt;
+    pipelineConfig.layout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
+    pipelineConfig.vertexShader = m_context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, vertex_formats.total_attributes());
+    pipelineConfig.pixelShader = m_context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
-    pipelineConfig.frontCCW = true;
     pipelineConfig.scissorTestEnabled = enable_scissor;
     pipelineConfig.blend = LLGL::BlendDescriptor {
         .targets = {
@@ -553,7 +534,7 @@ BatchData<LineInstance> Renderer::InitLineBatchData() {
 }
 
 static SGE_FORCE_INLINE Ref<LLGL::Shader> CreateBatchVertexShader(const std::shared_ptr<sge::RenderContext>& context, const ShaderSourceCode& source_code, const BatchVertexFormats& vertex_formats) {
-    return context->CreateShader(ShaderType::Vertex, "VS", source_code.vs_source, source_code.vs_size, vertex_formats.total_attributes()).AsRef();
+    return context->CreateShader(ShaderType::Vertex, "VS", source_code.vs_source, source_code.vs_size, vertex_formats.total_attributes());
 }
 
 Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_context(context) {
@@ -612,9 +593,9 @@ void Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) {
     auto global_uniforms = GlobalUniforms {
         .screen_projection_matrix = camera.get_screen_projection_matrix(),
         .view_projection_matrix = camera.get_view_projection_matrix(),
+        .inv_view_proj_matrix = camera.get_inv_view_projection_matrix(),
         .nonscale_view_projection_matrix = camera.get_nonscale_view_projection_matrix(),
         .nonscale_projection_matrix = camera.get_nonscale_projection_matrix(),
-        .inv_view_proj_matrix = camera.get_inv_view_projection_matrix(),
         .camera_position = camera.position(),
         .window_size = camera.viewport()
     };

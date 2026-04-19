@@ -49,58 +49,33 @@ void Camera::compute_projection_and_view_matrix() {
     const sge::Rect& projection_area = get_projection_area();
     const sge::Rect& nozoom_projection_area = get_nozoom_projection_area();
 
-    // TODO
     const glm::vec3 eye     = glm::vec3(m_position, 50.0f);
     const glm::vec3 right   = glm::vec3(m_right, 0.0f, 0.0f);
     const glm::vec3 up      = glm::vec3(0.0f, m_up, 0.0f);
     
-    if (m_backend.IsOpenGL() || m_backend.IsVulkan()) {
-        const glm::vec3 forward = glm::vec3(0.0f, 0.0f, -m_forward);
+    const glm::vec3 forward = glm::vec3(0.0f, 0.0f, m_forward);
 
-        m_view_matrix = glm::inverse(glm::mat4(
-            glm::vec4(right, 0.0f),
-            glm::vec4(up, 0.0f),
-            glm::vec4(forward, 0.0f),
-            glm::vec4(eye, 1.0f)
-        ));
-    } else {
-        const glm::vec3 forward = glm::vec3(0.0f, 0.0f, m_forward);
+    m_view_matrix = glm::inverse(glm::mat4(
+        glm::vec4(right, 0.0f),
+        glm::vec4(up, 0.0f),
+        glm::vec4(forward, 0.0f),
+        glm::vec4(eye, 1.0f)
+    ));
 
-        m_view_matrix = glm::inverse(glm::mat4(
-            glm::vec4(right, 0.0f),
-            glm::vec4(up, 0.0f),
-            glm::vec4(forward, 0.0f),
-            glm::vec4(eye, 1.0f)
-        ));
-    }
-
-    if (m_backend.IsOpenGL()) {
-        m_projection_matrix = glm::orthoRH_NO(
-            projection_area.min.x, projection_area.max.x,
-            projection_area.min.y, projection_area.max.y,
-            0.0f, 100.0f
-        );
-        m_nozoom_projection_matrix = glm::orthoRH_NO(
-            nozoom_projection_area.min.x, nozoom_projection_area.max.x,
-            nozoom_projection_area.min.y, nozoom_projection_area.max.y,
-            0.0f, 100.0f
-        );
-    } else {
-        m_projection_matrix = glm::orthoLH_ZO(
-            projection_area.min.x, projection_area.max.x,
-            projection_area.min.y, projection_area.max.y,
-            0.0f, 100.0f
-        );
-        m_nozoom_projection_matrix = glm::orthoLH_ZO(
-            nozoom_projection_area.min.x, nozoom_projection_area.max.x,
-            nozoom_projection_area.min.y, nozoom_projection_area.max.y,
-            0.0f, 100.0f
-        );
-    }
+    m_projection_matrix = glm::orthoLH_ZO(
+        projection_area.min.x, projection_area.max.x,
+        projection_area.min.y, projection_area.max.y,
+        0.0f, 100.0f
+    );
+    m_nozoom_projection_matrix = glm::orthoLH_ZO(
+        nozoom_projection_area.min.x, nozoom_projection_area.max.x,
+        nozoom_projection_area.min.y, nozoom_projection_area.max.y,
+        0.0f, 100.0f
+    );
 
     m_view_proj_matrix = m_projection_matrix * m_view_matrix;
     m_nozoom_view_proj_matrix = m_nozoom_projection_matrix * m_view_matrix;
-    m_inv_view_proj_matrix = glm::inverse(m_projection_matrix * m_view_matrix);
+    m_inv_view_proj_matrix = glm::inverse(m_view_proj_matrix);
 }
 
 static inline glm::vec2 project_point(const glm::mat4& mat, const glm::vec2& point) {

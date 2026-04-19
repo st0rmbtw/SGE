@@ -49,10 +49,9 @@ class Camera {
 public:
     Camera() = default;
 
-    explicit Camera(RenderBackend backend, glm::uvec2 viewport, const CameraConfig& config = {}) :
+    explicit Camera(glm::uvec2 viewport, const CameraConfig& config = {}) :
         m_viewport(viewport),
         m_origin(config.origin),
-        m_backend(backend),
         m_samples(config.samples),
         m_changed(true)
     {
@@ -61,9 +60,8 @@ public:
         compute_projection_and_view_matrix();
     }
 
-    explicit Camera(RenderBackend backend, const CameraConfig& config = {}) :
+    explicit Camera(const CameraConfig& config) :
         m_origin(config.origin),
-        m_backend(backend),
         m_samples(config.samples),
         m_changed(true)
     {
@@ -300,7 +298,6 @@ private:
     float m_zoom = 1.0f;
 
     CameraOrigin m_origin = CameraOrigin::TopLeft;
-    RenderBackend m_backend;
 
     uint8_t m_samples = 1;
 

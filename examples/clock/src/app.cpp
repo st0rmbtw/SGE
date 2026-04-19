@@ -47,7 +47,7 @@ bool App::Init() {
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
-    m_cameras[window->GetID()] = sge::Camera(m_config.backend, sge::CameraConfig { .origin = CameraOrigin::TopLeft });
+    m_cameras[window->GetID()] = sge::Camera(sge::CameraConfig { .origin = CameraOrigin::TopLeft });
     m_cameras[window->GetID()].set_viewport({resolution.width, resolution.height});
     m_cameras[window->GetID()].set_zoom(1.0f);
 
@@ -94,7 +94,7 @@ void App::OnUpdate() {
         if (window.has_value()) {
             const uint32_t id = window.value()->GetID();
             const LLGL::Extent2D size = window.value()->GetContentSize();
-            m_cameras[id] = sge::Camera(m_config.backend, sge::CameraConfig { .origin = CameraOrigin::TopLeft });
+            m_cameras[id] = sge::Camera(sge::CameraConfig { .origin = CameraOrigin::TopLeft });
             m_cameras[id].set_viewport({size.width, size.height});
             m_cameras[id].set_zoom(1.0f);
             m_cameras[id].update();

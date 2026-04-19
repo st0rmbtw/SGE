@@ -4,7 +4,6 @@
 sge::LLGLResourceRC::~LLGLResourceRC() {
     if (m_data) {
         m_render_context->ReleaseUntyped(*m_data);
-        SGE_LOG_DEBUG("Destroyed: {}", m_id);
     }
 }
 

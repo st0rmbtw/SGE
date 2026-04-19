@@ -1,7 +1,6 @@
 #ifndef SGE_RENDERER_RESOURCE_HPP_
 #define SGE_RENDERER_RESOURCE_HPP_
 
-#include "SGE/log.hpp"
 #include <LLGL/RenderSystemChild.h>
 #include <concepts>
 #include <cstddef>
@@ -39,7 +38,6 @@ public:
         m_data(data),
         m_id(s_id++)
     {
-        SGE_LOG_DEBUG("Created: {}", m_id);
     }
     ~LLGLResourceRC();
 
