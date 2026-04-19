@@ -95,7 +95,11 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
             internal::DrawCommandGlyph command = internal::DrawCommandGlyph {
-                .texture = font.texture,
+                .texture = internal::TextureWithSampler {
+                    .ptr = font.texture.internal().Get(),
+                    .sampler = font.texture.sampler()->internal().Get(),
+                    .id = font.texture.id()
+                },
                 .color = color,
                 .pos = pos,
                 .size = size,
@@ -116,7 +120,11 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
 
 uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const Texture& texture, struct Order custom_order) {
     const internal::DrawCommandSprite draw_command = internal::DrawCommandSprite {
-        .texture = texture,
+        .texture = internal::TextureWithSampler {
+            .ptr = texture.internal().Get(),
+            .sampler = texture.sampler()->internal().Get(),
+            .id = texture.id()
+        },
         .rotation = sprite.rotation(),
         .uv_offset_scale = uv_offset_scale,
         .color = sprite.color().to_vec4(),
@@ -141,7 +149,11 @@ uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& 
 
 uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::vec4& uv_offset_scale, struct Order custom_order) {
     const internal::DrawCommandNinePatch draw_command = internal::DrawCommandNinePatch {
-        .texture = ninepatch.texture(),
+        .texture = internal::TextureWithSampler {
+            .ptr = ninepatch.texture().internal().Get(),
+            .sampler = ninepatch.texture().sampler()->internal().Get(),
+            .id = ninepatch.texture().id()
+        },
         .rotation = ninepatch.rotation(),
         .uv_offset_scale = uv_offset_scale,
         .color = ninepatch.color().to_vec4(),

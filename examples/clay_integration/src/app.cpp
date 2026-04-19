@@ -48,7 +48,7 @@ bool App::Init() {
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
-    m_camera = sge::Camera(m_config.backend, CameraOrigin::TopLeft);
+    m_camera = sge::Camera(m_config.backend, sge::CameraConfig { .origin = CameraOrigin::TopLeft });
     m_camera.set_viewport({resolution.width, resolution.height});
     m_camera.set_zoom(1.0f);
 

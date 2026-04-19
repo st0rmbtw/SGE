@@ -36,8 +36,16 @@ enum class FlushDataType : uint8_t {
     Line,
 };
 
+struct TextureWithSampler {
+    LLGL::Texture* ptr = nullptr;
+    LLGL::Sampler* sampler = nullptr;
+    int id = 0;
+
+    [[nodiscard]] inline bool is_valid() const { return id >= 0 && ptr != nullptr; }
+};
+
 struct FlushData {
-    std::optional<sge::Texture> texture;
+    std::optional<TextureWithSampler> texture;
     sge::IRect scissor;
     uint32_t offset;
     uint32_t count;
@@ -47,7 +55,7 @@ struct FlushData {
 };
 
 struct DrawCommandSprite {
-    sge::Texture texture;
+    TextureWithSampler texture;
     glm::quat rotation;
     glm::vec4 uv_offset_scale;
     glm::vec4 color;
@@ -61,7 +69,7 @@ struct DrawCommandSprite {
 };
 
 struct DrawCommandNinePatch {
-    sge::Texture texture;
+    TextureWithSampler texture;
     glm::quat rotation;
     glm::vec4 uv_offset_scale;
     glm::vec4 color;
@@ -74,7 +82,7 @@ struct DrawCommandNinePatch {
 };
 
 struct DrawCommandGlyph {
-    sge::Texture texture;
+    TextureWithSampler texture;
     glm::vec3 color;
     glm::vec2 pos;
     glm::vec2 size;
@@ -159,7 +167,7 @@ public:
 
     [[nodiscard]] inline sge::IRect scissor() const { return m_scissor; }
 
-    [[nodiscard]] inline const sge::Texture* texture() const {
+    [[nodiscard]] inline const TextureWithSampler* texture() const {
         switch (m_type) {
         case DrawSprite: return &m_sprite_data.texture;
         case DrawGlyph: return &m_glyph_data.texture;
@@ -216,13 +224,13 @@ struct BatchDesc {
      * 
      * @note If null, the default sprite fragment shader is used
      */
-    LLGL::Shader* sprite_shader = nullptr;
+    Ref<LLGL::Shader> sprite_shader = nullptr;
     /**
      * @brief Custom font fragment shader
      * 
      * @note If null, the default font fragment shader is used
      */
-    LLGL::Shader* font_shader = nullptr;
+    Ref<LLGL::Shader> font_shader = nullptr;
     bool enable_scissor = false;
 };
 
@@ -409,22 +417,22 @@ public:
     }
     
     [[nodiscard]]
-    inline std::optional<uint32_t> NinepatchPipeline() const noexcept {
+    inline sge::Handle<LLGL::PipelineState> NinepatchPipeline() const noexcept {
         return m_ninepatch_pipeline;
     }
 
     [[nodiscard]]
-    inline std::optional<uint32_t> GlyphPipeline() const noexcept {
+    inline sge::Handle<LLGL::PipelineState> GlyphPipeline() const noexcept {
         return m_glyph_pipeline;
     }
 
     [[nodiscard]]
-    inline std::optional<uint32_t> ShapePipeline() const noexcept {
+    inline sge::Handle<LLGL::PipelineState> ShapePipeline() const noexcept {
         return m_shape_pipeline;
     }
 
     [[nodiscard]]
-    inline std::optional<uint32_t> LinePipeline() const noexcept {
+    inline sge::Handle<LLGL::PipelineState> LinePipeline() const noexcept {
         return m_line_pipeline;
     }
 
@@ -504,10 +512,10 @@ private:
     Data m_shape_data;
     Data m_line_data;
 
-    std::optional<uint32_t> m_ninepatch_pipeline = std::nullopt;
-    std::optional<uint32_t> m_glyph_pipeline = std::nullopt;
-    std::optional<uint32_t> m_shape_pipeline = std::nullopt;
-    std::optional<uint32_t> m_line_pipeline = std::nullopt;
+    sge::Handle<LLGL::PipelineState> m_ninepatch_pipeline;
+    sge::Handle<LLGL::PipelineState> m_glyph_pipeline;
+    sge::Handle<LLGL::PipelineState> m_shape_pipeline;
+    sge::Handle<LLGL::PipelineState> m_line_pipeline;
 
     uint32_t m_order = 0;
 

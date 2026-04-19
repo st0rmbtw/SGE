@@ -7,6 +7,8 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <utility>
+#include <utility>
 
 #include "../math/rect.hpp"
 #include "anchor.hpp"
@@ -180,12 +182,12 @@ class Sprite : public BaseSprite {
 public:
     Sprite() = default;
 
-    Sprite(Texture texture) : BaseSprite(), m_texture(texture) {};
+    Sprite(Texture texture) : BaseSprite(), m_texture(std::move(texture)) {};
 
-    Sprite(Texture texture, glm::vec2 position) : BaseSprite(position), m_texture(texture) {}
-    Sprite(Texture texture, glm::vec2 position, glm::vec2 scale) : BaseSprite(position, scale), m_texture(texture) {}
+    Sprite(Texture texture, glm::vec2 position) : BaseSprite(position), m_texture(std::move(texture)) {}
+    Sprite(Texture texture, glm::vec2 position, glm::vec2 scale) : BaseSprite(position, scale), m_texture(std::move(texture)) {}
 
-    inline Sprite& set_texture(Texture texture) { m_texture = texture; return *this; }
+    inline Sprite& set_texture(Texture texture) { m_texture = std::move(texture); return *this; }
     [[nodiscard]] inline const Texture& texture() const { return m_texture; }
 
     [[nodiscard]]

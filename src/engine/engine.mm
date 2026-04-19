@@ -15,7 +15,7 @@
 using namespace sge;
 
 bool IEngine::Init() {
-    #if SGE_PLATFORM_LINUX
+#if SGE_PLATFORM_LINUX
     glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
 #endif
 
@@ -35,6 +35,9 @@ bool IEngine::Init() {
 }
 
 IEngine::~IEngine() {
+    if (m_context)
+        m_context->Destroy();
+
     glfwTerminate();
 }
 
@@ -112,7 +115,7 @@ std::expected<std::shared_ptr<sge::GlfwWindow>, const char*> IEngine::CreateWind
     glfwWindowHint(GLFW_FOCUSED, 1);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_VISIBLE, window_settings.hidden ? GLFW_FALSE : GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, window_settings.samples);
+    glfwWindowHint(GLFW_SAMPLES, 1);
     glfwWindowHint(GLFW_RESIZABLE, window_settings.resizable ? GLFW_TRUE : GLFW_FALSE);
 
     GLFWmonitor* primary_monitor = window_settings.fullscreen ? glfwGetPrimaryMonitor() : nullptr;

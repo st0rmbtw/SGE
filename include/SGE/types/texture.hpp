@@ -6,6 +6,8 @@
 #include <LLGL/ResourceHeapFlags.h>
 #include <LLGL/Texture.h>
 #include <glm/glm.hpp>
+#include <SGE/renderer/resource.hpp>
+#include <utility>
 
 #include "../types/sampler.hpp"
 
@@ -42,30 +44,30 @@ class Texture {
 public:
     constexpr Texture() = default;
 
-    constexpr Texture(int id, Sampler sampler, glm::uvec2 size, LLGL::Texture* internal) :
-        m_sampler(sampler),
+    constexpr Texture(int id, Ref<Sampler> sampler, glm::uvec2 size, Ref<LLGL::Texture> internal) :
+        m_internal(std::move(internal)),
+        m_sampler(std::move(sampler)),
         m_size(size),
-        m_internal(internal),
         m_id(id) {}
 
     [[nodiscard]] inline int id() const { return m_id; }
-    [[nodiscard]] inline const Sampler& sampler() const { return m_sampler; }
+    [[nodiscard]] inline const Ref<Sampler>& sampler() const { return m_sampler; }
     [[nodiscard]] inline glm::uvec2 size() const { return m_size; }
     [[nodiscard]] inline uint32_t width() const { return m_size.x; }
     [[nodiscard]] inline uint32_t height() const { return m_size.y; }
-    [[nodiscard]] inline LLGL::Texture* internal() const { return m_internal; }
+    [[nodiscard]] inline const Ref<LLGL::Texture>& internal() const { return m_internal; }
 
-    [[nodiscard]] inline bool is_valid() const { return m_id >= 0 && m_internal != nullptr; }
+    [[nodiscard]] inline bool is_valid() const { return m_id >= 0 && m_internal.IsValid(); }
 
-    inline operator LLGL::Resource*() const { return m_internal; }
-    inline operator LLGL::Texture*() const { return m_internal; }
+    inline operator LLGL::Resource*() const { return m_internal.Get(); }
+    inline operator LLGL::Texture*() const { return m_internal.Get(); }
     inline operator LLGL::Texture&() const { return *m_internal; }
-    inline operator LLGL::ResourceViewDescriptor() const { return m_internal; }
+    inline operator LLGL::ResourceViewDescriptor() const { return m_internal.Get(); }
 
 private:
-    Sampler m_sampler;
+    Ref<LLGL::Texture> m_internal = nullptr;
+    Ref<Sampler> m_sampler = nullptr;
     glm::uvec2 m_size = glm::uvec2(0, 0);
-    LLGL::Texture* m_internal = nullptr;
     int m_id = -1;
 };
 

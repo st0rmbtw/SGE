@@ -1,18 +1,20 @@
 #ifndef _SGE_TYPES_SAMPLER_HPP_
 #define _SGE_TYPES_SAMPLER_HPP_
 
+#include <utility>
+#include <SGE/renderer/resource.hpp>
 #include <LLGL/Sampler.h>
 #include <LLGL/SamplerFlags.h>
 
 namespace sge {
 
-class Sampler {
+class Sampler : public RefCounted {
 public:
     Sampler() = default;
 
-    explicit Sampler(LLGL::Sampler* internal, LLGL::SamplerDescriptor descriptor) noexcept :
-        m_internal(internal),
-        m_descriptor(descriptor) {}
+    explicit Sampler(Unique<LLGL::Sampler> internal, LLGL::SamplerDescriptor descriptor) noexcept :
+        m_descriptor(descriptor),
+        m_internal(std::move(internal)) {}
 
     [[nodiscard]]
     inline const LLGL::SamplerDescriptor& descriptor() const noexcept {
@@ -20,7 +22,7 @@ public:
     }
 
     [[nodiscard]]
-    inline LLGL::Sampler* internal() const noexcept {
+    inline const Unique<LLGL::Sampler>& internal() const noexcept {
         return m_internal;
     }
 
@@ -30,8 +32,8 @@ public:
     }
 
 private:
-    LLGL::Sampler* m_internal = nullptr;
     LLGL::SamplerDescriptor m_descriptor;
+    Unique<LLGL::Sampler> m_internal = nullptr;
 };
 
 }

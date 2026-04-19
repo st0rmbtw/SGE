@@ -39,27 +39,35 @@ struct CoordinateSystem {
     CoordinateDirectionZ forward = CoordinateDirectionZ::Positive;
 };
 
+struct CameraConfig {
+    CameraOrigin origin = CameraOrigin::Center;
+    CoordinateSystem coordinateSystem = {};
+    uint8_t samples = 1;
+};
+
 class Camera {
 public:
     Camera() = default;
 
-    explicit Camera(RenderBackend backend, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
-        m_origin(origin),
-        m_backend(backend),
-        m_changed(true)
-    {
-        set_coordinate_system(coordinate_system);
-    }
-
-    explicit Camera(glm::uvec2 viewport, RenderBackend backend, CameraOrigin origin = CameraOrigin::Center, CoordinateSystem coordinate_system = {}) :
+    explicit Camera(RenderBackend backend, glm::uvec2 viewport, const CameraConfig& config = {}) :
         m_viewport(viewport),
-        m_origin(origin),
+        m_origin(config.origin),
         m_backend(backend),
+        m_samples(config.samples),
         m_changed(true)
     {
-        set_coordinate_system(coordinate_system);
+        set_coordinate_system(config.coordinateSystem);
         update_projection_area();
         compute_projection_and_view_matrix();
+    }
+
+    explicit Camera(RenderBackend backend, const CameraConfig& config = {}) :
+        m_origin(config.origin),
+        m_backend(backend),
+        m_samples(config.samples),
+        m_changed(true)
+    {
+        set_coordinate_system(config.coordinateSystem);
     }
 
     inline void update() {
@@ -97,6 +105,10 @@ public:
         m_changed = true;
         m_flip_vertical = flip_vertical;
         update_projection_area();
+    }
+
+    inline void set_samples(uint8_t samples) noexcept {
+        m_samples = samples;
     }
 
     [[nodiscard]]
@@ -175,6 +187,11 @@ public:
     [[nodiscard]]
     inline bool flipped_vertically() const noexcept {
         return m_flip_vertical;
+    }
+
+    [[nodiscard]]
+    inline uint8_t samples() const noexcept {
+        return m_samples;
     }
 
     [[nodiscard]]
@@ -284,6 +301,8 @@ private:
 
     CameraOrigin m_origin = CameraOrigin::TopLeft;
     RenderBackend m_backend;
+
+    uint8_t m_samples = 1;
 
     bool m_flip_horizontal = false;
     bool m_flip_vertical = false;

@@ -1,5 +1,9 @@
-#include "SGE/renderer/dependency_graph.hpp"
+#include "LLGL/Constants.h"
+#include <algorithm>
 #include <filesystem>
+
+#include <LLGL/ResourceFlags.h>
+#include <SGE/renderer/types.hpp>
 #include <SGE/renderer/context.hpp>
 #include <SGE/profile.hpp>
 
@@ -58,8 +62,32 @@ bool sge::RenderContext::Init(sge::RenderBackend backend) {
     return true;
 }
 
+void sge::RenderContext::Destroy() {
+    m_context->GetCommandQueue()->WaitIdle();
+
+    m_pipeline_configs.clear();
+    m_render_target_configs.clear();
+    m_render_pass_configs.clear();
+
+    for (auto& [key, swapChain] : m_swapchain_map) {
+        Release(*swapChain);
+    }
+
+    for (auto& [key, renderPass] : m_render_passes) {
+        Release(*renderPass);
+    }
+
+    for (auto& [key, renderTarget] : m_render_targets) {
+        Release(*renderTarget);
+    }
+
+    for (auto& [key, pipelineState] : m_pipeline_states) {
+        Release(*pipelineState);
+    }
+}
+
 sge::RenderContext::~RenderContext() {
-    m_dependency_graph.DeleteAll();
+    m_context->GetCommandQueue()->WaitIdle();
 
 #if SGE_DEBUG
     if (m_debugger != nullptr) {
@@ -72,7 +100,7 @@ sge::RenderContext::~RenderContext() {
     }
 }
 
-sge::LLGLResource<LLGL::PipelineCache> sge::RenderContext::ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache) {
+LLGL::PipelineCache* sge::RenderContext::ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache) {
     // Try to read PSO cache from file
     const std::string cacheFilename = name + '.' + std::string(m_backend.ToString()) + ".cache";
     const fs::path cachePath = dir / cacheFilename;
@@ -106,7 +134,7 @@ void sge::RenderContext::UnregisterWindow(const GlfwWindow& window) {
         return;
 
     if (m_context != nullptr)
-        m_dependency_graph.RemoveNode(*it->second);
+        Release(*it->second);
 
     m_swapchain_map.erase(window.GetID());
 }
@@ -117,24 +145,20 @@ LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<
     auto it = m_swapchain_map.find(window->GetID());
 
     if (it == m_swapchain_map.end()) {
-        const LLGL::RenderSystemPtr& context = m_context;
-
         LLGL::SwapChainDescriptor swapChainDesc;
         swapChainDesc.resolution = window->GetContentSize();
         swapChainDesc.fullscreen = window->IsFullscreen();
         swapChainDesc.samples = window->GetSamples();
         // swapChainDesc.colorBits = settings.transparent ? 32 : 24;
 
-        swap_chain = context->CreateSwapChain(swapChainDesc, window);
+        swap_chain = m_context->CreateSwapChain(swapChainDesc, window);
         SGE_ASSERT(swap_chain != nullptr);
 
         swap_chain->SetVsyncInterval(window->GetVsyncInterval());
 
-        m_dependency_graph.AddNode(*swap_chain);
-
         m_swapchain_map.try_emplace(window->GetID(), swap_chain);
     } else {
-        swap_chain = it->second.get();
+        swap_chain = it->second;
     }
 
     return *swap_chain;
@@ -145,7 +169,7 @@ LLGL::SwapChain* sge::RenderContext::GetSwapChain(const std::shared_ptr<GlfwWind
     if (it == m_swapchain_map.end()) {
         return nullptr;
     }
-    return it->second.get();
+    return it->second;
 }
 
 void sge::RenderContext::Present(const std::shared_ptr<sge::GlfwWindow>& window) {
@@ -155,44 +179,48 @@ void sge::RenderContext::Present(const std::shared_ptr<sge::GlfwWindow>& window)
     it->second->Present();
 }
 
-LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_id) {
+LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::PipelineState> handle) {
     SGE_ASSERT(m_current_target != nullptr);
 
-    const auto it_config = m_pipeline_configs.find(pipeline_id);
+    const auto it_config = m_pipeline_configs.find(handle.ID());
     SGE_ASSERT(it_config != m_pipeline_configs.end());
 
     const GraphicsPipelineConfig& config = it_config->second;
 
     LLGL::PipelineState* pipeline_state = nullptr;
 
-    const PipelineConfigKey key = {.config_id=pipeline_id, .render_target=m_current_target};
+    const PipelineConfigKey key = {.render_target=m_current_target, .config_id=handle.ID()};
     const auto it_pipeline = m_pipeline_states.find(key);
     if (it_pipeline != m_pipeline_states.end()) {
         pipeline_state = it_pipeline->second;
     } else {
+        LLGL::RenderPass* renderPass = nullptr;
+        if (config.renderPass.IsValid()) {
+            renderPass = &GetOrCreateRenderPass(config.renderPass, m_current_target->GetSamples());
+        } 
+
         LLGL::GraphicsPipelineDescriptor pipelineDesc;
         pipelineDesc.depth = config.depth;
         pipelineDesc.blend = config.blend;
         pipelineDesc.debugName = config.debugName.c_str();
-        pipelineDesc.pipelineLayout = config.layout;
-        pipelineDesc.vertexShader = config.vertexShader;
-        pipelineDesc.geometryShader = config.geometryShader;
-        pipelineDesc.fragmentShader = config.pixelShader;
+        pipelineDesc.pipelineLayout = config.layout.Get();
+        pipelineDesc.vertexShader = config.vertexShader.Get();
+        pipelineDesc.geometryShader = config.geometryShader.Get();
+        pipelineDesc.fragmentShader = config.pixelShader.Get();
         pipelineDesc.primitiveTopology = config.primitiveTopology;
         pipelineDesc.indexFormat = config.indexFormat;
+        pipelineDesc.renderPass = renderPass;
         pipelineDesc.rasterizer.cullMode = config.cullMode;
         pipelineDesc.rasterizer.frontCCW = config.frontCCW;
         pipelineDesc.rasterizer.scissorTestEnabled = config.scissorTestEnabled;
         pipelineDesc.rasterizer.multiSampleEnabled = (m_current_target->GetSamples() > 1);
-        pipelineDesc.renderPass = m_current_target->GetRenderPass();
+        
+        if (pipelineDesc.renderPass == nullptr) {
+            pipelineDesc.renderPass = m_current_target->GetRenderPass();
+        }
 
         pipeline_state = m_context->CreatePipelineState(pipelineDesc);
         SGE_ASSERT(pipeline_state != nullptr);
-
-        m_dependency_graph.AddNode(*pipeline_state, *config.layout);
-        m_dependency_graph.AddNode(pipeline_state, config.vertexShader);
-        m_dependency_graph.AddNode(pipeline_state, config.pixelShader);
-        m_dependency_graph.AddNode(pipeline_state, config.geometryShader);
 
         m_pipeline_states[key] = pipeline_state;
     }
@@ -200,41 +228,145 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(uint32_t pipeline_i
     return *pipeline_state;
 }
 
-void sge::RenderContext::DeletePipeline(uint32_t pipeline_id) {
+LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::RenderTarget> handle, uint8_t samples) {
+    const auto it_config = m_render_target_configs.find(handle.ID());
+    SGE_ASSERT(it_config != m_render_target_configs.end());
+
+    const RenderTargetConfig& config = it_config->second;
+
+    LLGL::RenderTarget* renderTarget = nullptr;
+
+    const RenderTargetKey key = {
+        .resolution=config.resolution,
+        .config_id=handle.ID(),
+        .render_pass_id=config.renderPass.ID(),
+        .format=config.format,
+        .samples=samples,
+    };
+
+    const auto it_target = m_render_targets.find(key);
+    if (it_target != m_render_targets.end()) {
+        renderTarget = it_target->second;
+    } else {
+        LLGL::RenderPass* renderPass = nullptr;
+        if (config.renderPass.IsValid()) {
+            renderPass = &GetOrCreateRenderPass(config.renderPass, samples);
+        }
+
+        LLGL::RenderTargetDescriptor targetDesc;
+        targetDesc.resolution = config.resolution;
+        targetDesc.samples = samples;
+        targetDesc.renderPass = renderPass;
+
+        if (samples > 1) {
+            std::ranges::copy(config.colorAttachments, targetDesc.resolveAttachments);
+
+            LLGL::TextureDescriptor textureDesc;
+            textureDesc.type = LLGL::TextureType::Texture2DMS;
+            textureDesc.extent.width = config.resolution.width;
+            textureDesc.extent.height = config.resolution.height;
+            textureDesc.miscFlags = LLGL::MiscFlags::FixedSamples;
+            textureDesc.cpuAccessFlags = 0;
+            textureDesc.samples = samples;
+            
+            for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
+                LLGL::Format attachmentFormat = config.colorAttachments[i].format;
+                LLGL::Texture* attachmentTexture = config.colorAttachments[i].texture;
+
+                if (attachmentFormat == LLGL::Format::Undefined && attachmentTexture != nullptr) {
+                    attachmentFormat = attachmentTexture->GetFormat();
+                }
+                
+                if (attachmentFormat != LLGL::Format::Undefined) {
+                    textureDesc.format = attachmentFormat;
+                    targetDesc.colorAttachments[i].texture = m_context->CreateTexture(textureDesc);
+                }
+            }
+        } else {
+            for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
+                targetDesc.colorAttachments[i] = config.colorAttachments[i];
+            }
+        }
+
+        targetDesc.depthStencilAttachment = config.depthStencilAttachment;
+
+        renderTarget = m_context->CreateRenderTarget(targetDesc);
+
+        m_render_targets.try_emplace(key, renderTarget);
+    }
+
+    return *renderTarget;
+}
+
+LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderPass> handle, uint8_t samples) {
+    const auto it_config = m_render_pass_configs.find(handle.ID());
+    SGE_ASSERT(it_config != m_render_pass_configs.end());
+
+    const RenderPassConfig& config = it_config->second;
+
+    LLGL::RenderPass* renderPass = nullptr;
+
+    const RenderPassKey key = {
+        .config_id=handle.ID(),
+        .samples=samples,
+    };
+
+    const auto it_target = m_render_passes.find(key);
+    if (it_target != m_render_passes.end()) {
+        renderPass = it_target->second;
+    } else {
+        LLGL::RenderPassDescriptor targetDesc;
+        targetDesc.depthAttachment = config.depthAttachment;
+        targetDesc.stencilAttachment = config.stencilAttachment;
+        targetDesc.samples = samples;
+
+        for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
+            targetDesc.colorAttachments[i] = config.colorAttachments[i];
+        }
+
+        renderPass = m_context->CreateRenderPass(targetDesc);
+
+        m_render_passes.try_emplace(key, renderPass);
+    }
+
+    return *renderPass;
+}
+
+void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
     for (auto it = m_pipeline_states.begin(); it != m_pipeline_states.end(); ++it) {
         auto key = it->first;
         auto value = it->second;
 
-        if (key.config_id == pipeline_id) {
-            m_dependency_graph.RemoveNode(*value);
+        if (key.config_id == handle.ID()) {
+            Release(*value);
             m_pipeline_states.erase(it);
             break;
         }
     }
 }
 
-sge::Sampler sge::RenderContext::CreateSampler(const LLGL::SamplerDescriptor& descriptor) {
+void sge::RenderContext::DeleteRenderTarget(Handle<LLGL::RenderTarget> renderTarget) {
+    if (!renderTarget.IsValid()) return;
+
+    for (auto it = m_render_targets.begin(); it != m_render_targets.end(); ++it) {
+        auto key = it->first;
+        auto value = it->second;
+
+        if (key.config_id == renderTarget.ID()) {
+            Release(*value);
+            m_render_targets.erase(it);
+            break;
+        }
+    }
+}
+
+sge::Raw<sge::Sampler> sge::RenderContext::CreateSampler(const LLGL::SamplerDescriptor& descriptor) {
     LLGL::Sampler* sampler = m_context->CreateSampler(descriptor);
     SGE_ASSERT(sampler != nullptr);
-    m_dependency_graph.AddNode(*sampler);
-    return Sampler(sampler, descriptor);
+    return Raw<sge::Sampler>::Create(new Sampler(CreateUnique(sampler), descriptor));
 }
 
-LLGL::Buffer* sge::RenderContext::CreateBuffer(const LLGL::BufferDescriptor& desc, const void* initial_data) {
-    LLGL::Buffer* buffer = m_context->CreateBuffer(desc, initial_data);
-    m_dependency_graph.AddNode(buffer);
-    return buffer;
-}
-
-LLGL::BufferArray* sge::RenderContext::CreateBufferArray(std::initializer_list<LLGL::Buffer*> buffers) {
-    LLGL::BufferArray* buffer_array = m_context->CreateBufferArray(buffers.size(), buffers.begin());
-    for (LLGL::Buffer* buffer : buffers) {
-        m_dependency_graph.AddNode(buffer_array, buffer);
-    }
-    return buffer_array;
-}
-
-sge::Texture sge::RenderContext::CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const Sampler& sampler, const void* data, bool generate_mip_maps) {
+sge::Texture sge::RenderContext::CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const Ref<Sampler>& sampler, const void* data, bool generate_mip_maps) {
     ZoneScoped;
 
     LLGL::TextureDescriptor texture_desc;
@@ -259,12 +391,10 @@ sge::Texture sge::RenderContext::CreateTexture(LLGL::TextureType type, LLGL::Ima
     LLGL::Texture* texture = m_context->CreateTexture(texture_desc, &image_view);
     SGE_ASSERT(texture != nullptr);
 
-    m_dependency_graph.AddNode(*texture);
-
-    return sge::Texture(id, sampler, glm::uvec2(width, height), texture);
+    return sge::Texture(id, sampler, glm::uvec2(width, height), Ref<LLGL::Texture>(shared_from_this(), texture));
 }
 
-LLGL::Shader* sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
+sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
     ZoneScoped;
 
     const RenderBackend backend = m_backend;
@@ -284,7 +414,7 @@ LLGL::Shader* sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_pa
 
     if (!fs::exists(path)) {
         SGE_LOG_ERROR("Failed to find shader '{}'", path_str.c_str());
-        return nullptr;
+        return sge::Raw<LLGL::Shader>::Create(shared_from_this(), nullptr);
     }
 
     uint8_t* data = nullptr;
@@ -317,13 +447,13 @@ LLGL::Shader* sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_pa
     LLGL::Shader* shader = CreateShader(shader_path.shader_type, entry_point, data, data_length, vertex_attributes);
     delete[] data;
 
-    if (shader == nullptr) {
+    if (!shader) {
         fmt::println(stderr, "Shader file: {}", path_str);
     }
-    return shader;
+    return sge::Raw<LLGL::Shader>::Create(shared_from_this(), shader);
 }
 
-LLGL::Shader* sge::RenderContext::CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t length, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
+sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t length, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
     const RenderBackend backend = m_backend;
 
     LLGL::ShaderDescriptor shader_desc;
@@ -362,16 +492,65 @@ LLGL::Shader* sge::RenderContext::CreateShader(sge::ShaderType shader_type, cons
         if (*report->GetText() != '\0') {
             if (report->HasErrors()) {
                 SGE_LOG_ERROR("Failed to create a shader. Error: {}", report->GetText());
-                return nullptr;
+                return sge::Raw<LLGL::Shader>::Create(shared_from_this(), nullptr);
             }
 
             SGE_LOG_INFO("{}", report->GetText());
         }
     }
 
-    m_dependency_graph.AddNode(shader);
+    return sge::Raw<LLGL::Shader>::Create(shared_from_this(), shader);
+}
 
-    return shader;
+void sge::RenderContext::ReleaseUntyped(LLGL::RenderSystemChild& resource) {
+    if (LLGL::Buffer* r = LLGL::CastTo<LLGL::Buffer>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::BufferArray* r = LLGL::CastTo<LLGL::BufferArray>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::Texture* r = LLGL::CastTo<LLGL::Texture>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::Sampler* r = LLGL::CastTo<LLGL::Sampler>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::Shader* r = LLGL::CastTo<LLGL::Shader>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::PipelineLayout* r = LLGL::CastTo<LLGL::PipelineLayout>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::PipelineState* r = LLGL::CastTo<LLGL::PipelineState>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::RenderPass* r = LLGL::CastTo<LLGL::RenderPass>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::ResourceHeap* r = LLGL::CastTo<LLGL::ResourceHeap>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::PipelineCache* r = LLGL::CastTo<LLGL::PipelineCache>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::QueryHeap* r = LLGL::CastTo<LLGL::QueryHeap>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::Fence* r = LLGL::CastTo<LLGL::Fence>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::SwapChain* r = LLGL::CastTo<LLGL::SwapChain>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::RenderTarget* r = LLGL::CastTo<LLGL::RenderTarget>(&resource)) {
+        m_context->Release(*r);
+    }
+    else if (LLGL::CommandBuffer* r = LLGL::CastTo<LLGL::CommandBuffer>(&resource)) {
+        m_context->Release(*r);
+    }
+    else {
+        SGE_UNREACHABLE();
+    }
 }
 
 #if SGE_DEBUG

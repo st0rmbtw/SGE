@@ -25,7 +25,6 @@
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/context.hpp>
 #include <SGE/defines.hpp>
-#include <SGE/utils/llgl.hpp>
 #include <memory>
 
 namespace sge {
@@ -33,8 +32,35 @@ namespace sge {
 template <typename T>
 class BatchData {
 public:
+    BatchData() = default;
+    ~BatchData() {
+        if (m_buffer) free(m_buffer);
+    }
+
+    BatchData(BatchData&& other) noexcept {
+        operator=(std::move(other));
+    }
+
+    BatchData(const BatchData& other) {
+        operator=(other);
+    }
+
+    BatchData& operator=(BatchData&& other) noexcept {
+        m_buffer = other.m_buffer;
+        m_buffer_ptr = other.m_buffer_ptr;
+        m_count = other.m_count;
+        m_vertex_buffer = std::move(other.m_vertex_buffer);
+        m_instance_buffer = std::move(other.m_instance_buffer);
+        m_buffer_array = std::move(other.m_buffer_array);
+        other.m_buffer = nullptr;
+        other.m_buffer_ptr = nullptr;
+        other.m_count = 0;
+        return *this;
+    }
+
+    BatchData& operator=(const BatchData& other) = default;
+
     void Init(sge::RenderContext& context, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
-    void Destroy(sge::RenderContext& context);
 
     inline void Update(LLGL::CommandBuffer& command_buffer) {
         command_buffer.UpdateBuffer(*m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
@@ -52,8 +78,8 @@ public:
     }
 
     [[nodiscard]]
-    inline LLGL::BufferArray& GetBufferArray() const {
-        return *m_buffer_array;
+    inline const Ref<LLGL::BufferArray>& GetBufferArray() const {
+        return m_buffer_array;
     }
 
     [[nodiscard]]
@@ -65,9 +91,9 @@ private:
     T* m_buffer = nullptr;
     T* m_buffer_ptr = nullptr;
 
-    LLGLResource<LLGL::Buffer> m_vertex_buffer = nullptr;
-    LLGLResource<LLGL::Buffer> m_instance_buffer = nullptr;
-    LLGLResource<LLGL::BufferArray> m_buffer_array = nullptr;
+    Ref<LLGL::Buffer> m_vertex_buffer;
+    Ref<LLGL::Buffer> m_instance_buffer;
+    Ref<LLGL::BufferArray> m_buffer_array;
 
     uint32_t m_count = 0;
 };
@@ -87,7 +113,6 @@ class Renderer {
 
 public:
     Renderer(const std::shared_ptr<RenderContext>& context);
-    ~Renderer();
 
     void Begin();
     void BeginPass(LLGL::RenderTarget& target, const Camera& camera);
@@ -118,18 +143,18 @@ public:
     void RenderBatch(sge::Batch& batch);
 
     [[nodiscard]]
-    inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
-        return m_command_buffer.get();
+    inline const Unique<LLGL::CommandBuffer>& CommandBuffer() const noexcept {
+        return m_command_buffer;
     }
 
     [[nodiscard]]
     inline LLGL::CommandQueue* CommandQueue() const noexcept {
-        return m_command_queue.get();
+        return m_command_queue;
     }
 
     [[nodiscard]]
-    inline LLGL::Buffer* GlobalUniformBuffer() const noexcept {
-        return m_constant_buffer.get();
+    inline const Unique<LLGL::Buffer>& GlobalUniformBuffer() const noexcept {
+        return m_constant_buffer;
     }
 
     [[nodiscard]]
@@ -144,11 +169,11 @@ public:
     void DestroyBatch(sge::Batch& batch);
 
 private:
-    SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
-    uint32_t CreateNinepatchBatchPipeline(bool enable_scissor);
-    uint32_t CreateGlyphBatchPipeline(bool enable_scissor, LLGL::Shader* fragment_shader = nullptr);
-    uint32_t CreateShapeBatchPipeline(bool enable_scissor);
-    uint32_t CreateLineBatchPipeline(bool enable_scissor);
+    SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = Ref<LLGL::Shader>());
+    Handle<LLGL::PipelineState> CreateNinepatchBatchPipeline(bool enable_scissor);
+    Handle<LLGL::PipelineState> CreateGlyphBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = Ref<LLGL::Shader>());
+    Handle<LLGL::PipelineState> CreateShapeBatchPipeline(bool enable_scissor);
+    Handle<LLGL::PipelineState> CreateLineBatchPipeline(bool enable_scissor);
 
     BatchData<SpriteInstance> InitSpriteBatchData();
     BatchData<NinePatchInstance> InitNinepatchBatchData();
@@ -169,16 +194,16 @@ private:
 
     std::shared_ptr<RenderContext> m_context;
     
-    LLGLResource<LLGL::CommandBuffer> m_command_buffer = nullptr;
-    LLGLResource<LLGL::CommandQueue> m_command_queue = nullptr;
-    LLGLResource<LLGL::Buffer> m_constant_buffer = nullptr;
+    LLGL::CommandQueue* m_command_queue;
+    Unique<LLGL::CommandBuffer> m_command_buffer;
+    Unique<LLGL::Buffer> m_constant_buffer;
 
-    LLGLResource<LLGL::Shader> m_sprite_vertex_shader = nullptr;
-    LLGLResource<LLGL::Shader> m_glyph_vertex_shader = nullptr;
-    LLGLResource<LLGL::Shader> m_ninepatch_vertex_shader = nullptr;
+    Ref<LLGL::Shader> m_sprite_vertex_shader;
+    Ref<LLGL::Shader> m_glyph_vertex_shader;
+    Ref<LLGL::Shader> m_ninepatch_vertex_shader;
 
-    LLGLResource<LLGL::Shader> m_sprite_default_fragment_shader = nullptr;
-    LLGLResource<LLGL::Shader> m_glyph_default_fragment_shader = nullptr;
+    Ref<LLGL::Shader> m_sprite_default_fragment_shader;
+    Ref<LLGL::Shader> m_glyph_default_fragment_shader;
 
     LLGL::Extent2D m_viewport = LLGL::Extent2D(0, 0);
 
