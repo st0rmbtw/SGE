@@ -35,8 +35,7 @@ class LLGLResourceRC : public RefCounted {
 public:
     explicit LLGLResourceRC(std::shared_ptr<RenderContext> context, LLGL::RenderSystemChild* data) :
         m_render_context(std::move(context)),
-        m_data(data),
-        m_id(s_id++)
+        m_data(data)
     {
     }
     ~LLGLResourceRC();
@@ -48,8 +47,6 @@ public:
 private:
     std::shared_ptr<RenderContext> m_render_context = nullptr;
     LLGL::RenderSystemChild* m_data = nullptr;
-    uint32_t m_id = 0;
-    static uint32_t s_id;
 };
 
 class LLGLResource {

@@ -7,9 +7,6 @@ sge::LLGLResourceRC::~LLGLResourceRC() {
     }
 }
 
-uint32_t sge::LLGLResourceRC::s_id = 0;
-
-
 sge::LLGLResource::~LLGLResource() {
     if (m_data) {
         m_render_context->ReleaseUntyped(*m_data);
