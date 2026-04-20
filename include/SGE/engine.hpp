@@ -74,8 +74,7 @@ protected:
     IEngine() = default;
     ~IEngine();
 public:
-    virtual bool Init();
-
+    bool Init();
     void Run();
     void Stop() noexcept {
         m_running = false;
@@ -96,6 +95,9 @@ public:
         return m_running;
     }
 protected: // Callbacks
+    virtual bool OnInit() {
+        return true;
+    }
     virtual void OnPreUpdate() {}
     virtual void OnUpdate() {}
     virtual void OnPostUpdate() {}

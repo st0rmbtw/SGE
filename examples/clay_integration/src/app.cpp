@@ -24,9 +24,7 @@ static void HandleClayErrors(Clay_ErrorData errorData) {
     printf("%s", errorData.errorText.chars);
 }
 
-bool App::Init() {
-    if (!IEngine::Init())
-        return false;
+bool App::OnInit() {
     if (!InitRenderContext(m_config.backend))
         return false;
 

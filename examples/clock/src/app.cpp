@@ -23,9 +23,7 @@ static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
 using namespace sge;
 
-bool App::Init() {
-    if (!IEngine::Init())
-        return false;
+bool App::OnInit() {
     if (!InitRenderContext(m_config.backend))
         return false;
 

@@ -29,11 +29,11 @@ const delta_time_t& Time::Delta() noexcept {
     return state.delta;
 }
 
-float Time::DeltaSeconds() noexcept {
+double Time::DeltaSeconds() noexcept {
     return state.delta.count();
 }
 
-float Time::ElapsedSeconds() noexcept {
+double Time::ElapsedSeconds() noexcept {
     return state.elapsed_seconds;
 }
 
@@ -41,18 +41,18 @@ const delta_time_t Time::FixedDelta() noexcept {
     return state.fixed_delta;
 }
 
-float Time::FixedDeltaSeconds() noexcept {
+double Time::FixedDeltaSeconds() noexcept {
     return state.fixed_delta.count();
 }
 
-float Time::FixedElapsedSeconds() noexcept {
+double Time::FixedElapsedSeconds() noexcept {
     return state.fixed_elapsed_seconds;
 }
 
-float Time::Overstep() noexcept {
+double Time::Overstep() noexcept {
     return state.overstep;
 }
 
-float Time::OverstepFraction() noexcept {
+double Time::OverstepFraction() noexcept {
     return state.overstep / state.fixed_delta.count();
 }

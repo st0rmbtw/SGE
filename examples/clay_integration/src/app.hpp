@@ -14,8 +14,8 @@ public:
     App(const ExampleConfig& config) : m_config(config) {}
     ~App();
 
-    bool Init() override;
 protected:
+    bool OnInit() override;
     void OnUpdate() override;
     void OnRender(const std::shared_ptr<sge::GlfwWindow> &window) override;
     void OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) override;

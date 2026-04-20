@@ -12,12 +12,12 @@ using delta_time_t = std::chrono::duration<double>;
 namespace Time {
     const delta_time_t& Delta() noexcept;
     const delta_time_t FixedDelta() noexcept;
-    float DeltaSeconds() noexcept;
-    float ElapsedSeconds() noexcept;
-    float FixedDeltaSeconds() noexcept;
-    float FixedElapsedSeconds() noexcept;
-    float Overstep() noexcept;
-    float OverstepFraction() noexcept;
+    double DeltaSeconds() noexcept;
+    double ElapsedSeconds() noexcept;
+    double FixedDeltaSeconds() noexcept;
+    double FixedElapsedSeconds() noexcept;
+    double Overstep() noexcept;
+    double OverstepFraction() noexcept;
 
     void SetFixedTimestepSeconds(double seconds) noexcept;
 

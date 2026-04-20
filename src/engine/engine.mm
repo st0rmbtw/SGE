@@ -29,6 +29,9 @@ bool IEngine::Init() {
 
     m_context = std::make_shared<RenderContext>();
 
+    if (!OnInit())
+        return false;
+
     m_initialized = true;
     
     return true;
