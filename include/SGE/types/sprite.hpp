@@ -192,7 +192,7 @@ public:
 
     [[nodiscard]]
     inline glm::vec2 size() const override {
-        return m_custom_size.value_or(m_texture.size()) * scale();
+        return m_custom_size.value_or(glm::uvec2(m_texture.size())) * scale();
     }
 
 private:
@@ -218,7 +218,7 @@ public:
     [[nodiscard]] inline const TextureAtlas& atlas() const { return m_texture_atlas; }
 
     [[nodiscard]] glm::vec2 size() const override {
-        return m_custom_size.value_or(m_texture_atlas.size()) * scale();
+        return m_custom_size.value_or(glm::uvec2(m_texture_atlas.size())) * scale();
     }
 
 private:

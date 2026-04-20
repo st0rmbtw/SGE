@@ -18,9 +18,9 @@ public:
     NinePatch() = default;
 
     NinePatch(Texture texture, glm::uvec4 margin) :
-        m_texture(texture),
+        m_texture(std::move(texture)),
         m_margin(margin),
-        m_size(texture.size()) {}
+        m_size(glm::uvec2(texture.size())) {}
 
     inline NinePatch& set_texture(const Texture& texture) noexcept {
         m_texture = texture;

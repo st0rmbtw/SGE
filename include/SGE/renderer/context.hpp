@@ -139,7 +139,7 @@ public:
     }
 
     inline sge::Texture CopyTextureWithSampler(const sge::Texture& texture, const Ref<sge::Sampler>& sampler) {
-        return Texture(m_texture_index++, sampler, texture.size(), texture.internal());
+        return Texture(m_texture_index++, texture.size(), sampler, texture.internal());
     }
 
     Raw<LLGL::Shader> LoadShaderFromFile(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});

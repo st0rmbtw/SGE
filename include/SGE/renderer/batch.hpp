@@ -65,7 +65,6 @@ struct DrawCommandSprite {
     glm::vec2 offset;
     float outline_thickness;
     bool ignore_camera_zoom;
-    bool depth_enabled;
 };
 
 struct DrawCommandNinePatch {
@@ -75,7 +74,6 @@ struct DrawCommandNinePatch {
     glm::vec4 color;
     glm::uvec4 margin;
     glm::vec2 position;
-    glm::vec2 size;
     glm::vec2 offset;
     glm::vec2 source_size;
     glm::vec2 output_size;

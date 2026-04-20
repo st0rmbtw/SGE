@@ -2,6 +2,7 @@
 #define _SGE_UTILS_TEXT_HPP_
 
 #include <glm/vec2.hpp>
+#include <glm/common.hpp>
 
 #include <SGE/types/font.hpp>
 #include <SGE/types/rich_text.hpp>

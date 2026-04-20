@@ -78,7 +78,7 @@ public:
     }
 
     [[nodiscard]]
-    inline const Ref<LLGL::BufferArray>& GetBufferArray() const {
+    inline const sge::Unique<LLGL::BufferArray>& GetBufferArray() const {
         return m_buffer_array;
     }
 
@@ -91,9 +91,9 @@ private:
     T* m_buffer = nullptr;
     T* m_buffer_ptr = nullptr;
 
-    Ref<LLGL::Buffer> m_vertex_buffer;
-    Ref<LLGL::Buffer> m_instance_buffer;
-    Ref<LLGL::BufferArray> m_buffer_array;
+    sge::Unique<LLGL::Buffer> m_vertex_buffer;
+    sge::Unique<LLGL::Buffer> m_instance_buffer;
+    sge::Unique<LLGL::BufferArray> m_buffer_array;
 
     uint32_t m_count = 0;
 };
@@ -105,7 +105,7 @@ struct SGE_ALIGN(16) GlobalUniforms {
     glm::mat4 nonscale_view_projection_matrix;
     glm::mat4 nonscale_projection_matrix;
     glm::vec2 camera_position;
-    glm::vec2 window_size;
+    glm::uvec2 window_size;
 };
 
 class Renderer {

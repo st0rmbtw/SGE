@@ -132,7 +132,7 @@ public:
     }
     
     template <typename... Args>
-    static Ref& Create(Args... args) {
+    static Ref Create(Args... args) {
         return Ref(new T(std::forward<Args>(args)...));
     }
 

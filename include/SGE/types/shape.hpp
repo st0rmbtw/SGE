@@ -108,9 +108,9 @@ struct ShapeRect {
 struct ShapeArc {
     float outer_radius;
     float inner_radius;
-    /// In radians
+    /// @note In radians
     float start_angle;
-    /// In radians
+    /// @note In radians
     float end_angle;
     sge::LinearRgba color;
     Anchor anchor = sge::Anchor::Center;

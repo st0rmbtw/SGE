@@ -333,6 +333,8 @@ LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderP
 }
 
 void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
+    if (!handle.IsValid()) return;
+
     for (auto it = m_pipeline_states.begin(); it != m_pipeline_states.end(); ++it) {
         auto key = it->first;
         auto value = it->second;
@@ -345,14 +347,14 @@ void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
     }
 }
 
-void sge::RenderContext::DeleteRenderTarget(Handle<LLGL::RenderTarget> renderTarget) {
-    if (!renderTarget.IsValid()) return;
+void sge::RenderContext::DeleteRenderTarget(Handle<LLGL::RenderTarget> handle) {
+    if (!handle.IsValid()) return;
 
     for (auto it = m_render_targets.begin(); it != m_render_targets.end(); ++it) {
         auto key = it->first;
         auto value = it->second;
 
-        if (key.config_id == renderTarget.ID()) {
+        if (key.config_id == handle.ID()) {
             Release(*value);
             m_render_targets.erase(it);
             break;
@@ -391,7 +393,7 @@ sge::Texture sge::RenderContext::CreateTexture(LLGL::TextureType type, LLGL::Ima
     LLGL::Texture* texture = m_context->CreateTexture(texture_desc, &image_view);
     SGE_ASSERT(texture != nullptr);
 
-    return sge::Texture(id, sampler, glm::uvec2(width, height), Ref<LLGL::Texture>(shared_from_this(), texture));
+    return sge::Texture(id, sge::Size(width, height), sampler, Ref<LLGL::Texture>(shared_from_this(), texture));
 }
 
 sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {

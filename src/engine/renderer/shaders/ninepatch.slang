@@ -12,7 +12,6 @@ struct VSInput
 
     float2 i_position : I_Position;
     float4 i_rotation : I_Rotation;
-    float2 i_size : I_Size;
     float2 i_offset : I_Offset;
     float2 i_source_size: I_SourceSize;
     float2 i_output_size: I_OutputSize;
@@ -64,7 +63,7 @@ VSOutput VS(VSInput inp)
 
     transform = mul(transform, rotation_matrix);
 
-    const float2 offset = -inp.i_offset * inp.i_size;
+    const float2 offset = -inp.i_offset * inp.i_output_size;
 
     // translate
     transform[0][3] = transform[0][0] * offset[0] + transform[0][1] * offset[1] + transform[0][2] * 0.0 + transform[0][3];
@@ -73,15 +72,15 @@ VSOutput VS(VSInput inp)
     transform[3][3] = transform[3][0] * offset[0] + transform[3][1] * offset[1] + transform[3][2] * 0.0 + transform[3][3];
 
     //scale
-    transform[0][0] = transform[0][0] * inp.i_size[0];
-    transform[1][0] = transform[1][0] * inp.i_size[0];
-    transform[2][0] = transform[2][0] * inp.i_size[0];
-    transform[3][0] = transform[3][0] * inp.i_size[0];
+    transform[0][0] = transform[0][0] * inp.i_output_size[0];
+    transform[1][0] = transform[1][0] * inp.i_output_size[0];
+    transform[2][0] = transform[2][0] * inp.i_output_size[0];
+    transform[3][0] = transform[3][0] * inp.i_output_size[0];
 
-    transform[0][1] = transform[0][1] * inp.i_size[1];
-    transform[1][1] = transform[1][1] * inp.i_size[1];
-    transform[2][1] = transform[2][1] * inp.i_size[1];
-    transform[3][1] = transform[3][1] * inp.i_size[1];
+    transform[0][1] = transform[0][1] * inp.i_output_size[1];
+    transform[1][1] = transform[1][1] * inp.i_output_size[1];
+    transform[2][1] = transform[2][1] * inp.i_output_size[1];
+    transform[3][1] = transform[3][1] * inp.i_output_size[1];
 
     const int flags = inp.i_flags;
     const bool ignore_camera_zoom = (flags & FLAG_IGNORE_CAMERA_ZOOM) == FLAG_IGNORE_CAMERA_ZOOM;

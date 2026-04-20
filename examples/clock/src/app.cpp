@@ -47,9 +47,8 @@ bool App::Init() {
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
-    m_cameras[window->GetID()] = sge::Camera(sge::CameraConfig { .origin = CameraOrigin::TopLeft });
-    m_cameras[window->GetID()].set_viewport({resolution.width, resolution.height});
-    m_cameras[window->GetID()].set_zoom(1.0f);
+    m_cameras[window->GetID()] = sge::Camera(resolution, sge::CameraConfig { .origin = CameraOrigin::TopLeft });
+    m_cameras[window->GetID()].set_samples(m_config.samples);
 
     m_renderer = std::make_unique<Renderer>(GetRenderContext());
 
@@ -89,14 +88,13 @@ void App::OnUpdate() {
             .height = 500,
             .samples = 1,
             .resizable = true,
-            .vsync = true,
+            .vsync = m_config.vsync,
         });
         if (window.has_value()) {
             const uint32_t id = window.value()->GetID();
             const LLGL::Extent2D size = window.value()->GetContentSize();
             m_cameras[id] = sge::Camera(sge::CameraConfig { .origin = CameraOrigin::TopLeft });
             m_cameras[id].set_viewport({size.width, size.height});
-            m_cameras[id].set_zoom(1.0f);
             m_cameras[id].update();
         }
     }
@@ -131,10 +129,10 @@ void App::OnUpdate() {
         const glm::vec2 deltaLength = length - scaledLength;
 
         const Rect& area = camera.get_projection_area();
-        const glm::vec2 window_size = camera.viewport();
+        const glm::uvec2 window_size = camera.viewport();
 
         const glm::vec2 new_position = camera.position() + deltaLength;
-        camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size - area.size())));
+        camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size) - area.size()));
     }
 
     if (Input::Pressed(MouseButton::Left)) {
@@ -157,9 +155,7 @@ void App::OnUpdate() {
 
 void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
     sge::Camera& camera = m_cameras[window->GetID()];
-
-    LLGL::Extent2D resolution = window->GetContentSize();
-    camera.set_viewport(glm::vec2(resolution.width, resolution.height));
+    camera.set_viewport(window->GetSize());
 
     m_renderer->Begin();
 
@@ -175,7 +171,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
     static constexpr float CLOCK_CIRCLE_RADIUS = 30.0f / 800.0f;
 
     const glm::vec2 center = camera.screen_center();
-    const glm::vec2 screen_size = glm::vec2(camera.viewport());
+    const glm::vec2 screen_size = glm::uvec2(camera.viewport());
 
     glm::vec2 background_size = glm::vec2(screen_size);
     float aspect = background_size.x / background_size.y;

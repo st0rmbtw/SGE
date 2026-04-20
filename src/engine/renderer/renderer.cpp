@@ -105,7 +105,6 @@ static BatchVertexFormats NinepatchBatchVertexFormats(const RenderBackend backen
     LLGL::VertexFormat instance_format = Attributes(backend, vertex_format.attributes.size(), {
         Attribute::Instance(LLGL::Format::RG32Float, "inp_i_position", "I_Position", 1),
         Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_rotation", "I_Rotation", 1),
-        Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "inp_i_source_size", "I_SourceSize", 1),
         Attribute::Instance(LLGL::Format::RG32Float, "inp_i_output_size", "I_OutputSize", 1),
@@ -619,28 +618,17 @@ void Renderer::DestroyBatch(sge::Batch& batch) {
     const auto line_pipeline = batch.LinePipeline();
     const auto shape_pipeline = batch.ShapePipeline();
 
-    if (sprite_pipeline.additive.IsValid())
-        m_context->DeletePipeline(sprite_pipeline.additive);
-    if (sprite_pipeline.alpha_blend.IsValid())
-        m_context->DeletePipeline(sprite_pipeline.alpha_blend);
-    if (sprite_pipeline.premultiplied_alpha.IsValid())
-        m_context->DeletePipeline(sprite_pipeline.premultiplied_alpha);
-    if (sprite_pipeline.opaque.IsValid())
-        m_context->DeletePipeline(sprite_pipeline.opaque);
-    if (sprite_pipeline.depth_additive.IsValid())
-        m_context->DeletePipeline(sprite_pipeline.depth_additive);
-    if (sprite_pipeline.depth_alpha_blend.IsValid())
-        m_context->DeletePipeline(sprite_pipeline.depth_alpha_blend);
-    if (sprite_pipeline.depth_premultiplied_alpha.IsValid())
-        m_context->DeletePipeline(sprite_pipeline.depth_premultiplied_alpha);
-    if (sprite_pipeline.depth_opaque.IsValid())
-        m_context->DeletePipeline(sprite_pipeline.depth_opaque);
-    if (glyph_pipeline.IsValid())
-        m_context->DeletePipeline(glyph_pipeline);
-    if (line_pipeline.IsValid())
-        m_context->DeletePipeline(line_pipeline);
-    if (shape_pipeline.IsValid())
-        m_context->DeletePipeline(shape_pipeline);
+    m_context->DeletePipeline(sprite_pipeline.additive);
+    m_context->DeletePipeline(sprite_pipeline.alpha_blend);
+    m_context->DeletePipeline(sprite_pipeline.premultiplied_alpha);
+    m_context->DeletePipeline(sprite_pipeline.opaque);
+    m_context->DeletePipeline(sprite_pipeline.depth_additive);
+    m_context->DeletePipeline(sprite_pipeline.depth_alpha_blend);
+    m_context->DeletePipeline(sprite_pipeline.depth_premultiplied_alpha);
+    m_context->DeletePipeline(sprite_pipeline.depth_opaque);
+    m_context->DeletePipeline(glyph_pipeline);
+    m_context->DeletePipeline(line_pipeline);
+    m_context->DeletePipeline(shape_pipeline);
 }
 
 static SGE_FORCE_INLINE Handle<LLGL::PipelineState> GetPipelineByBlendMode(sge::BlendMode blend_mode, const SpriteBatchPipeline& pipeline) {
@@ -1082,7 +1070,6 @@ void Renderer::UpdateBatchBuffers(
             buffer->position = ninepatch_data.position;
             buffer->rotation = ninepatch_data.rotation;
             buffer->margin = ninepatch_data.margin;
-            buffer->size = ninepatch_data.size;
             buffer->offset = ninepatch_data.offset;
             buffer->source_size = ninepatch_data.source_size;
             buffer->output_size = ninepatch_data.output_size;

@@ -1,6 +1,6 @@
 #include <SGE/types/texture_atlas.hpp>
 
-sge::TextureAtlas sge::TextureAtlas::from_grid(const sge::Texture& texture, const glm::uvec2 &tile_size, uint32_t columns, uint32_t rows, const glm::uvec2& padding, const glm::uvec2& offset) {
+sge::TextureAtlas sge::TextureAtlas::from_grid(const sge::Texture& texture, sge::Size tile_size, uint32_t columns, uint32_t rows, glm::uvec2 padding, glm::uvec2 offset) {
     std::vector<sge::Rect> sprites;
 
     glm::uvec2 current_padding = offset;
@@ -17,9 +17,9 @@ sge::TextureAtlas sge::TextureAtlas::from_grid(const sge::Texture& texture, cons
 
             const glm::uvec2 cell = glm::uvec2(x, y);
 
-            const glm::uvec2 rect_min = (tile_size + current_padding) * cell + offset;
+            const glm::uvec2 rect_min = (glm::uvec2(tile_size) + current_padding) * cell + offset;
 
-            sprites.emplace_back(rect_min, rect_min + tile_size);
+            sprites.emplace_back(rect_min, rect_min + glm::uvec2(tile_size));
         }
     }
 

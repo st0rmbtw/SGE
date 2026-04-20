@@ -9,7 +9,7 @@
 #include <SGE/assert.hpp>
 #include <SGE/math/rect.hpp>
 #include <SGE/defines.hpp>
-#include <SGE/types/backend.hpp>
+#include <SGE/types/size.hpp>
 
 namespace sge {
 
@@ -49,7 +49,7 @@ class Camera {
 public:
     Camera() = default;
 
-    explicit Camera(glm::uvec2 viewport, const CameraConfig& config = {}) :
+    explicit Camera(sge::Size viewport, const CameraConfig& config = {}) :
         m_viewport(viewport),
         m_origin(config.origin),
         m_samples(config.samples),
@@ -86,10 +86,10 @@ public:
         update_projection_area();
     }
 
-    inline void set_viewport(const glm::uvec2& viewport) {
+    inline void set_viewport(Size viewport) {
         m_changed = true;
         m_viewport = viewport;
-        m_screen_projection_matrix = glm::ortho(0.0f, static_cast<float>(viewport.x), static_cast<float>(viewport.y), 0.0f);
+        m_screen_projection_matrix = glm::ortho(0.0f, static_cast<float>(viewport.width), static_cast<float>(viewport.height), 0.0f);
         update_projection_area();
     }
 
@@ -110,15 +110,15 @@ public:
     }
 
     [[nodiscard]]
-    auto screen_to_world(const glm::vec2 &screen_pos) const -> glm::vec2;
+    glm::vec2 screen_to_world(const glm::vec2& screen_pos) const;
 
     [[nodiscard]]
-    inline const glm::vec2& position() const noexcept {
+    inline glm::vec2 position() const noexcept {
         return m_position;
     }
 
     [[nodiscard]]
-    inline const glm::uvec2& viewport() const noexcept {
+    inline sge::Size viewport() const noexcept {
         return m_viewport;
     }
 
@@ -225,21 +225,17 @@ public:
     [[nodiscard]]
     inline glm::vec2 screen_center() const noexcept {
         switch (m_origin) {
-
         case CameraOrigin::TopLeft: {
-            const glm::vec2 half = glm::vec2(viewport()) / 2.0f;
+            const glm::vec2 half = glm::vec2(m_viewport.width, m_viewport.height) / 2.0f;
 
             return glm::vec2(
                 half.x * m_right,
                 half.y * m_up
             );
         } break;
-
         case CameraOrigin::Center:
             return glm::vec2(0.0f, 0.0f);
         break;
-
-        default: SGE_UNREACHABLE();
         }
     }
 
@@ -288,7 +284,7 @@ private:
     sge::Rect m_area;
     sge::Rect m_area_nozoom;
 
-    glm::uvec2 m_viewport = glm::uvec2(0);
+    sge::Size m_viewport = sge::Size(0);
     glm::vec2 m_position = glm::vec2(0.0f);
 
     float m_right;

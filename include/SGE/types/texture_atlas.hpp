@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "texture.hpp"
+#include "size.hpp"
 
 #include "../math/rect.hpp"
 #include "../assert.hpp"
@@ -16,14 +17,14 @@ namespace sge {
 struct TextureAtlas {
     TextureAtlas() = default;
 
-    TextureAtlas(const Texture &texture, std::vector<sge::Rect> rects, glm::uvec2 size, uint32_t columns, uint32_t rows) :
+    TextureAtlas(Texture texture, std::vector<sge::Rect> rects, sge::Size size, uint32_t columns, uint32_t rows) :
         m_rects(std::move(rects)),
-        m_texture(texture),
+        m_texture(std::move(texture)),
         m_size(size),
         m_columns(columns),
         m_rows(rows) {}
 
-    static TextureAtlas from_grid(const Texture& texture, const glm::uvec2& tile_size, uint32_t columns, uint32_t rows, const glm::uvec2& padding = glm::uvec2(0), const glm::uvec2& offset = glm::uvec2(0));
+    static TextureAtlas from_grid(const Texture& texture, sge::Size tile_size, uint32_t columns, uint32_t rows, glm::uvec2 padding = glm::uvec2(0), glm::uvec2 offset = glm::uvec2(0));
 
     [[nodiscard]]
     inline const std::vector<sge::Rect>& rects() const noexcept {
@@ -36,7 +37,7 @@ struct TextureAtlas {
     }
 
     [[nodiscard]]
-    inline const glm::uvec2& size() const noexcept {
+    inline sge::Size size() const noexcept {
         return m_size;
     }
 
@@ -59,9 +60,9 @@ struct TextureAtlas {
 private:
     std::vector<sge::Rect> m_rects;
     Texture m_texture;
-    glm::uvec2 m_size;
-    uint32_t m_columns;
-    uint32_t m_rows;
+    sge::Size m_size = sge::Size(0);
+    uint32_t m_columns = 0;
+    uint32_t m_rows = 0;
 };
 
 }

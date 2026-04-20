@@ -50,7 +50,6 @@ bool App::Init() {
     LLGL::Extent2D resolution = window->GetContentSize();
     m_camera = sge::Camera(sge::CameraConfig { .origin = CameraOrigin::TopLeft });
     m_camera.set_viewport({resolution.width, resolution.height});
-    m_camera.set_zoom(1.0f);
 
     m_renderer = std::make_unique<Renderer>(GetRenderContext());
 
@@ -78,9 +77,11 @@ App::~App() {
 }
 
 void App::OnUpdate() {
+    const glm::uvec2 window_size = m_camera.viewport();
+
     Clay_SetLayoutDimensions(Clay_Dimensions {
-        .width = static_cast<float>(m_camera.viewport().x),
-        .height = static_cast<float>(m_camera.viewport().y)
+        .width = static_cast<float>(window_size.x),
+        .height = static_cast<float>(window_size.y)
     });
 
     for (const float scroll : Input::ScrollEvents()) {
@@ -95,15 +96,14 @@ void App::OnUpdate() {
         const glm::vec2 deltaLength = length - scaledLength;
 
         const Rect& area = m_camera.get_projection_area();
-        const glm::vec2 window_size = m_camera.viewport();
 
         const glm::vec2 new_position = m_camera.position() + deltaLength;
-        m_camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size - area.size())));
+        m_camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size) - area.size()));
     }
 
     if (Input::Pressed(MouseButton::Left)) {
         const Rect& area = m_camera.get_projection_area();
-        const glm::vec2 half_screen_size = glm::vec2(m_camera.viewport()) / 2.0f;
+        const glm::vec2 half_screen_size = glm::vec2(window_size) / 2.0f;
 
         const glm::vec2 dir = glm::vec2(m_camera.right(), m_camera.down());
 

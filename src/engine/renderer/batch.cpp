@@ -134,7 +134,6 @@ uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& 
         .offset = sprite.anchor().to_vec2(),
         .outline_thickness = sprite.outline_thickness(),
         .ignore_camera_zoom = sprite.ignore_camera_zoom(),
-        .depth_enabled = false
     };
 
     const uint32_t order = GetOrder(custom_order);
@@ -159,9 +158,8 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
         .color = ninepatch.color().to_vec4(),
         .margin = ninepatch.margin(),
         .position = ninepatch.position(),
-        .size = ninepatch.size(),
         .offset = ninepatch.anchor().to_vec2(),
-        .source_size = ninepatch.texture().size(),
+        .source_size = glm::uvec2(ninepatch.texture().size()),
         .output_size = ninepatch.size(),
     };
 
