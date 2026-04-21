@@ -20,7 +20,7 @@ public:
     NinePatch(Texture texture, glm::uvec4 margin) :
         m_texture(std::move(texture)),
         m_margin(margin),
-        m_size(glm::uvec2(texture.size())) {}
+        m_size(glm::vec2(texture.size())) {}
 
     inline NinePatch& set_texture(const Texture& texture) noexcept {
         m_texture = texture;

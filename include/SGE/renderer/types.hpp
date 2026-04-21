@@ -66,7 +66,6 @@ struct SpriteInstance {
 struct NinePatchInstance {
     glm::vec2 position;
     glm::quat rotation;
-    glm::vec2 size;
     glm::vec2 offset;
     glm::vec2 source_size;
     glm::vec2 output_size;
