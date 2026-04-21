@@ -118,14 +118,27 @@ struct ComputePipelineConfig {
     LLGL::Shader* computeShader = nullptr;
 };
 
+struct AttachmentConfig {
+    AttachmentConfig() = default;
+    explicit AttachmentConfig(const sge::Ref<LLGL::Texture>& t) :
+        format(t->GetFormat()),
+        texture(t)
+    {}
+
+    LLGL::Format format = LLGL::Format::Undefined;
+    sge::Ref<LLGL::Texture> texture = nullptr;
+    uint32_t mipLevel = 0;
+    uint32_t arrayLayer = 0;
+};
+
 struct RenderTargetConfig {
     std::string debugName;
     Handle<LLGL::RenderPass> renderPass;
     LLGL::Extent2D resolution;
     LLGL::Format format;
 
-    LLGL::AttachmentDescriptor colorAttachments[LLGL_MAX_NUM_COLOR_ATTACHMENTS];
-    LLGL::AttachmentDescriptor depthStencilAttachment;
+    sge::AttachmentConfig colorAttachments[LLGL_MAX_NUM_COLOR_ATTACHMENTS];
+    sge::AttachmentConfig depthStencilAttachment;
 };
 
 struct RenderPassConfig {

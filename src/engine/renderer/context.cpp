@@ -1,5 +1,4 @@
 #include "LLGL/Constants.h"
-#include <algorithm>
 #include <filesystem>
 
 #include <LLGL/ResourceFlags.h>
@@ -65,10 +64,6 @@ bool sge::RenderContext::Init(sge::RenderBackend backend) {
 void sge::RenderContext::Destroy() {
     m_context->GetCommandQueue()->WaitIdle();
 
-    m_pipeline_configs.clear();
-    m_render_target_configs.clear();
-    m_render_pass_configs.clear();
-
     for (auto& [key, swapChain] : m_swapchain_map) {
         Release(*swapChain);
     }
@@ -84,6 +79,10 @@ void sge::RenderContext::Destroy() {
     for (auto& [key, pipelineState] : m_pipeline_states) {
         Release(*pipelineState);
     }
+
+    m_pipeline_configs.clear();
+    m_render_target_configs.clear();
+    m_render_pass_configs.clear();
 }
 
 sge::RenderContext::~RenderContext() {
@@ -259,7 +258,12 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
         targetDesc.renderPass = renderPass;
 
         if (samples > 1) {
-            std::ranges::copy(config.colorAttachments, targetDesc.resolveAttachments);
+            for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
+                targetDesc.resolveAttachments[i].format = config.colorAttachments[i].format;
+                targetDesc.resolveAttachments[i].texture = config.colorAttachments[i].texture;
+                targetDesc.resolveAttachments[i].mipLevel = config.colorAttachments[i].mipLevel;
+                targetDesc.resolveAttachments[i].arrayLayer = config.colorAttachments[i].arrayLayer;
+            }
 
             LLGL::TextureDescriptor textureDesc;
             textureDesc.type = LLGL::TextureType::Texture2DMS;
@@ -284,11 +288,17 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
             }
         } else {
             for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
-                targetDesc.colorAttachments[i] = config.colorAttachments[i];
+                targetDesc.colorAttachments[i].format = config.colorAttachments[i].format;
+                targetDesc.colorAttachments[i].texture = config.colorAttachments[i].texture;
+                targetDesc.colorAttachments[i].mipLevel = config.colorAttachments[i].mipLevel;
+                targetDesc.colorAttachments[i].arrayLayer = config.colorAttachments[i].arrayLayer;
             }
         }
 
-        targetDesc.depthStencilAttachment = config.depthStencilAttachment;
+        targetDesc.depthStencilAttachment.format = config.depthStencilAttachment.format;
+        targetDesc.depthStencilAttachment.texture = config.depthStencilAttachment.texture;
+        targetDesc.depthStencilAttachment.mipLevel = config.depthStencilAttachment.mipLevel;
+        targetDesc.depthStencilAttachment.arrayLayer = config.depthStencilAttachment.arrayLayer;
 
         renderTarget = m_context->CreateRenderTarget(targetDesc);
 
