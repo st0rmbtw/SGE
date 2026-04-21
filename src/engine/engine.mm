@@ -15,6 +15,11 @@
 using namespace sge;
 
 bool IEngine::Init() {
+    if (m_initialized) {
+        SGE_LOG_ERROR("Engine::Init was called twice!");
+        std::abort();
+    }
+
 #if SGE_PLATFORM_LINUX
     glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
 #endif

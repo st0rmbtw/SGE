@@ -159,7 +159,7 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
         .margin = ninepatch.margin(),
         .position = ninepatch.position(),
         .offset = ninepatch.anchor().to_vec2(),
-        .source_size = glm::uvec2(ninepatch.texture().size()),
+        .source_size = glm::vec2(ninepatch.texture().size()),
         .output_size = ninepatch.size(),
     };
 

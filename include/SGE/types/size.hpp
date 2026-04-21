@@ -25,6 +25,10 @@ struct Size {
     operator LLGL::Extent2D() const noexcept {
         return LLGL::Extent2D(width, height);
     }
+
+    explicit operator glm::vec2() const noexcept {
+        return glm::vec2(width, height);
+    }
 };
 
 }

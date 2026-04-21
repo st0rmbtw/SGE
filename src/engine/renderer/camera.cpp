@@ -7,7 +7,7 @@
 using namespace sge;
 
 void Camera::update_projection_area() noexcept {
-    const glm::vec2 viewport = glm::uvec2(m_viewport);
+    const glm::vec2 viewport = glm::vec2(m_viewport);
 
     switch (m_origin) {
     case CameraOrigin::TopLeft: {
@@ -86,7 +86,7 @@ static inline glm::vec2 project_point(const glm::mat4& mat, const glm::vec2& poi
 }
 
 glm::vec2 Camera::screen_to_world(const glm::vec2& screen_pos) const {
-    const glm::vec2 viewport = glm::uvec2(m_viewport);
+    const glm::vec2 viewport = glm::vec2(m_viewport);
 
     const glm::vec2 inverted_y = glm::vec2(screen_pos.x, viewport.y - screen_pos.y);
     const glm::vec2 ndc = inverted_y * 2.0f / viewport - glm::vec2(1.0);
