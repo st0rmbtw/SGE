@@ -18,15 +18,16 @@ find_package(Python REQUIRED COMPONENTS Interpreter)
 option(SGE_BUILD_STATIC "Build SGE as static library" ON)
 option(SGE_BUILD_EXAMPLES "Build examples" OFF)
 option(SGE_ENABLE_PROFILE "Enable profiling via Tracy" OFF)
+option(SGE_ENABLE_IMGUI "Enable ImGui integration" OFF)
 option(SGE_BACKEND_VULKAN "Enable the Vulkan backend" OFF)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 
-if (WIN32)
+if(WIN32)
     add_compile_definitions(NOMINMAX)
 endif()
 
-if (MSVC)
+if(MSVC)
     add_compile_options(/wd5240)
 else()
     add_compile_options(-Wno-ignored-attributes -march=native)
@@ -36,34 +37,32 @@ add_compile_definitions(GLM_FORCE_INTRINSICS)
 
 set(LLGL_BUILD_RENDERER_NULL OFF CACHE BOOL "" FORCE)
 
-if (APPLE)
-    set(LLGL_BUILD_RENDERER_METAL ON CACHE BOOL "" FORCE)
-else()
-    set(LLGL_BUILD_RENDERER_METAL OFF CACHE BOOL "" FORCE)
-    set(LLGL_VK_ENABLE_SPIRV_REFLECT ON CACHE BOOL "" FORCE)
-endif()
-
-if (SGE_BACKEND_VULKAN)
-    set(LLGL_BUILD_RENDERER_VULKAN ON CACHE BOOL "" FORCE)
-endif()
-
-if (WIN32)
-    set(LLGL_BUILD_RENDERER_DIRECT3D12 ON CACHE BOOL "" FORCE)
-    set(LLGL_BUILD_RENDERER_DIRECT3D11 ON CACHE BOOL "" FORCE)
-    set(LLGL_D3D11_ENABLE_FEATURELEVEL "Direct3D 11.1" CACHE STRING "" FORCE)
-else()
-    set(LLGL_BUILD_RENDERER_DIRECT3D12 OFF CACHE BOOL "" FORCE)
-    set(LLGL_BUILD_RENDERER_DIRECT3D11 OFF CACHE BOOL "" FORCE)
-endif()
-
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 
 if(SGE_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-file(GLOB_RECURSE SGE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm")
-if (NOT APPLE)
+set(SGE_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/engine.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/input.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/batch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/camera.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/glfw_window.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/renderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/resource.cpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/time/time.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/time/timer.cpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/attributes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/texture_atlas.cpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/text.cpp
+)
+
+if(NOT APPLE)
     set_source_files_properties(${SGE_SRC} PROPERTIES COMPILE_FLAGS "-x c++")
 endif()
 
@@ -73,10 +72,84 @@ else()
     add_library(${PROJECT_NAME} SHARED)
 endif()
 
+if(APPLE)
+    set(LLGL_BUILD_RENDERER_METAL ON CACHE BOOL "" FORCE)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_METAL_BACKEND_ENABLED=1)
+else()
+    set(LLGL_BUILD_RENDERER_METAL OFF CACHE BOOL "" FORCE)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_METAL_BACKEND_ENABLED=0)
+endif()
+    
+if(SGE_BACKEND_VULKAN)
+    set(LLGL_BUILD_RENDERER_VULKAN ON CACHE BOOL "" FORCE)
+    set(LLGL_VK_ENABLE_SPIRV_REFLECT ON CACHE BOOL "" FORCE)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_VULKAN_BACKEND_ENABLED=1)
+else()
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_VULKAN_BACKEND_ENABLED=0)
+endif()
+
+if(WIN32)
+    set(LLGL_BUILD_RENDERER_DIRECT3D12 ON CACHE BOOL "" FORCE)
+    set(LLGL_BUILD_RENDERER_DIRECT3D11 ON CACHE BOOL "" FORCE)
+    set(LLGL_D3D11_ENABLE_FEATURELEVEL "Direct3D 11.1" CACHE STRING "" FORCE)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_D3D11_BACKEND_ENABLED=1)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_D3D12_BACKEND_ENABLED=1)
+else()
+    set(LLGL_BUILD_RENDERER_DIRECT3D12 OFF CACHE BOOL "" FORCE)
+    set(LLGL_BUILD_RENDERER_DIRECT3D11 OFF CACHE BOOL "" FORCE)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_D3D11_BACKEND_ENABLED=0)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_D3D12_BACKEND_ENABLED=0)
+endif()
+
+target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_OPENGL_BACKEND_ENABLED=1)
+
+if(SGE_ENABLE_IMGUI)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_IMGUI_ENABLED=1)
+    target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui)
+
+    list(APPEND SGE_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/imgui.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/imgui_draw.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/imgui_tables.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/imgui_widgets.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/imgui_demo.cpp
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_glfw.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_opengl3.cpp
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/imgui/backend/backend.mm
+    )
+
+    if(WIN32)
+        list(APPEND SGE_SRC
+            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_dx11.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_dx12.cpp
+
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/imgui/backend/d3d11/d3d11_backend.cpp
+        )
+    endif()
+
+    if(APPLE)
+        list(APPEND SGE_SRC
+            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_metal.mm
+        )
+    endif()
+
+    if(SGE_BACKEND_VULKAN)
+        list(APPEND SGE_SRC
+            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
+        )
+    endif()
+endif()
+
 if(SGE_ENABLE_PROFILE)
     set(TRACY_ENABLE CACHE BOOL "" ON)
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_PROFILE_ENABLED=1)
     target_link_libraries(${PROJECT_NAME} PUBLIC TracyClient)
+    add_subdirectory(thirdparty/tracy)
+    message(STATUS "[SGE] Profiling: Enabled")
+else()
+    message(STATUS "[SGE] Profiling: Disabled")
 endif()
 
 add_subdirectory(thirdparty/LLGL)
@@ -84,7 +157,6 @@ add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
 add_subdirectory(thirdparty/STB)
 add_subdirectory(thirdparty/fmt)
-add_subdirectory(thirdparty/tracy)
 add_subdirectory(thirdparty/freetype-2.13.2)
 
 target_sources(${PROJECT_NAME} PRIVATE ${SGE_SRC})

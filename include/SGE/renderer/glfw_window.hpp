@@ -243,6 +243,11 @@ public:
     bool ShouldBeClosed() const noexcept {
         return glfwWindowShouldClose(m_wnd);
     }
+
+    [[nodiscard]]
+    GLFWwindow* GetGlfwHandle() const noexcept {
+        return m_wnd;
+    }
 private:
     static void HandleKeyboardEvents(GLFWwindow* window, int key, int scancode, int action, int mods) {
         EventListener* listener = static_cast<EventListener*>(glfwGetWindowUserPointer(window));

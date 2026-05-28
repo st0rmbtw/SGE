@@ -17,6 +17,10 @@
 #include <SGE/utils/containers/swapbackvector.hpp>
 #include <utility>
 
+#if SGE_IMGUI_ENABLED
+    #include <backends/imgui_impl_glfw.h>
+#endif
+
 namespace sge {
 
 inline constexpr const char* DEFAULT_CACHE_DIR = "./cache/pipeline/";
@@ -179,6 +183,13 @@ protected:
     }
 
     void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) final {
+    #if SGE_IMGUI_ENABLED
+        if (ImGui::GetCurrentContext() == nullptr)
+            return;
+
+        ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+    #endif
+
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
 
@@ -198,14 +209,24 @@ protected:
         SGE_ASSERT(width >= 0);
         SGE_ASSERT(height >= 0);
 
-        if (LLGL::SwapChain* swap_chain = m_context->GetSwapChain(it->second)) {
+        if (LLGL::SwapChain* swap_chain = m_context->GetSwapChain(*it->second)) {
             swap_chain->ResizeBuffers(LLGL::Extent2D(width, height));
         }
         
         OnFramebufferResize(it->second, width, height);
     }
 
-    void OnKeyEvent(GLFWwindow*, int key, int /* scancode */, int action, int mods) final {
+    void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) final {
+    #if SGE_IMGUI_ENABLED
+        if (ImGui::GetCurrentContext() == nullptr)
+            return;
+
+        ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+
+        if (ImGui::GetIO().WantCaptureKeyboard)
+            return;
+    #endif
+
         if (action == GLFW_PRESS) {
             Input::Press(static_cast<Key>(key), mods);
         } else if (action == GLFW_RELEASE) {
@@ -213,11 +234,30 @@ protected:
         }
     }
 
-    void OnCharacterEvent(GLFWwindow*, uint32_t codepoint) final {
+    void OnCharacterEvent(GLFWwindow* window, uint32_t codepoint) final {
+    #if SGE_IMGUI_ENABLED
+        if (ImGui::GetCurrentContext() == nullptr)
+            return;
+
+        ImGui_ImplGlfw_CharCallback(window, codepoint);
+
+        if (ImGui::GetIO().WantCaptureKeyboard)
+            return;
+    #endif
+    
         Input::PushCodePoint(codepoint);
     }
 
-    void OnMouseButtonEvent(GLFWwindow*, int button, int action, int /* mods */) final {
+    void OnMouseButtonEvent(GLFWwindow* window, const int button, const int action, const int mods) final {
+    #if SGE_IMGUI_ENABLED
+        if (ImGui::GetCurrentContext() == nullptr)
+            return;
+        
+        ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+
+        if (ImGui::GetIO().WantCaptureMouse)
+            return;
+    #endif
         if (action == GLFW_PRESS) {
             Input::Press(static_cast<MouseButton>(button));
         } else if (action == GLFW_RELEASE) {
@@ -225,7 +265,17 @@ protected:
         }
     }
 
-    void OnMouseScrollEvent(GLFWwindow*, double /* xoffset */, double yoffset) final {
+    void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) final {
+    #if SGE_IMGUI_ENABLED
+        if (ImGui::GetCurrentContext() == nullptr)
+            return;
+
+        ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+
+        if (ImGui::GetIO().WantCaptureMouse)
+            return;
+    #endif
+
         Input::PushMouseScrollEvent(yoffset);
     }
 
@@ -239,6 +289,9 @@ protected:
 private:
     void Render(const std::shared_ptr<sge::GlfwWindow>& window);
     void Update();
+#if SGE_IMGUI_ENABLED
+    void ForwardInputToImGui();
+#endif
 
 private:
     std::shared_ptr<RenderContext> m_context;

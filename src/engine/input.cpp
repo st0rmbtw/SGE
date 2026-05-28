@@ -1,55 +1,35 @@
 #include <unordered_set>
 #include <SGE/input.hpp>
 
-struct KeyWithModifiers {
-    sge::Key key;
-    uint8_t modifiers;
-
-    constexpr KeyWithModifiers(sge::Key k, uint8_t mods = 0) : key(k), modifiers(mods) {}
-};
-
-constexpr inline bool operator==(const KeyWithModifiers a, const KeyWithModifiers b) {
-    return a.key == b.key;
-}
-
-template <>
-struct std::hash<KeyWithModifiers> {
-    std::size_t operator()(const KeyWithModifiers& key) const noexcept {
-        return std::hash<sge::Key>{}(key.key);
-    }
-};
-
-namespace sge {
-
 static struct InputState {
-    std::unordered_set<KeyWithModifiers> keyboard_pressed;
-    std::unordered_set<KeyWithModifiers> keyboard_just_pressed;
-    std::unordered_set<KeyWithModifiers> keyboard_just_released;
+    std::unordered_set<sge::KeyWithModifiers> keyboard_pressed;
+    std::unordered_set<sge::KeyWithModifiers> keyboard_just_pressed;
+    std::unordered_set<sge::KeyWithModifiers> keyboard_just_released;
 
-    std::unordered_set<uint8_t> mouse_pressed;
-    std::unordered_set<uint8_t> mouse_just_pressed;
-    std::unordered_set<uint8_t> mouse_just_released;
+    std::unordered_set<sge::MouseButton> mouse_pressed;
+    std::unordered_set<sge::MouseButton> mouse_just_pressed;
+    std::unordered_set<sge::MouseButton> mouse_just_released;
     std::vector<float> mouse_scroll_events;
     std::vector<uint32_t> codepoint_queue;
     glm::vec2 cursor_position;
     glm::vec2 mouse_delta;
 } input_state;
 
-void Input::Press(Key key, uint8_t modifiers) {
-    const KeyWithModifiers value = KeyWithModifiers(key, modifiers);
+void sge::Input::Press(sge::Key key, uint8_t modifiers) {
+    const sge::KeyWithModifiers value = sge::KeyWithModifiers(key, modifiers);
     if (input_state.keyboard_pressed.insert(value).second) {
         input_state.keyboard_just_pressed.insert(value);
     }
 }
 
-void Input::Release(Key key, uint8_t modifiers) {
-    const KeyWithModifiers value = KeyWithModifiers(key, modifiers);
+void sge::Input::Release(sge::Key key, uint8_t modifiers) {
+    const sge::KeyWithModifiers value = sge::KeyWithModifiers(key, modifiers);
     if (input_state.keyboard_pressed.erase(value) > 0) {
         input_state.keyboard_just_released.insert(value);
     }
 }
 
-void Input::Clear() {
+void sge::Input::Clear() {
     input_state.keyboard_just_pressed.clear();
     input_state.keyboard_just_released.clear();
 
@@ -61,31 +41,31 @@ void Input::Clear() {
     input_state.codepoint_queue.clear();
 }
 
-void Input::PushCodePoint(uint32_t codepoint) {
+void sge::Input::PushCodePoint(uint32_t codepoint) {
     input_state.codepoint_queue.push_back(codepoint);
 }
 
-void Input::Press(MouseButton button) {
-    if (input_state.mouse_pressed.insert(static_cast<uint8_t>(button)).second) {
-        input_state.mouse_just_pressed.insert(static_cast<uint8_t>(button));
+void sge::Input::Press(MouseButton button) {
+    if (input_state.mouse_pressed.insert(button).second) {
+        input_state.mouse_just_pressed.insert(button);
     }
 }
 
-void Input::Release(MouseButton button) {
-    if (input_state.mouse_pressed.erase(static_cast<uint8_t>(button)) > 0) {
-        input_state.mouse_just_released.insert(static_cast<uint8_t>(button));
+void sge::Input::Release(MouseButton button) {
+    if (input_state.mouse_pressed.erase(button) > 0) {
+        input_state.mouse_just_released.insert(button);
     }
 }
 
-void Input::PushMouseScrollEvent(float y) noexcept {
+void sge::Input::PushMouseScrollEvent(float y) noexcept {
     input_state.mouse_scroll_events.push_back(y);
 }
 
-void Input::SetCursorPosition(glm::vec2 position) noexcept {    
+void sge::Input::SetCursorPosition(glm::vec2 position) noexcept {    
     input_state.cursor_position = position;
 }
 
-void Input::SetMouseDelta(glm::vec2 delta) noexcept {
+void sge::Input::SetMouseDelta(glm::vec2 delta) noexcept {
     input_state.mouse_delta = delta;
 }
 
@@ -93,52 +73,58 @@ void Input::SetMouseDelta(glm::vec2 delta) noexcept {
 // ----------------- Public -----------------
 
 
-bool Input::Pressed(Key key) {
+bool sge::Input::Pressed(Key key) {
     return input_state.keyboard_pressed.find(key) != input_state.keyboard_pressed.end();
 }
 
-bool Input::JustPressed(Key key) {
+bool sge::Input::JustPressed(Key key) {
     return input_state.keyboard_just_pressed.find(key) != input_state.keyboard_just_pressed.end();
 }
 
-bool Input::Pressed(Key key, uint8_t modifiers) {
+bool sge::Input::Pressed(Key key, uint8_t modifiers) {
     const auto entry = input_state.keyboard_pressed.find(key);
     if (entry == input_state.keyboard_pressed.end()) return false;
     return entry->modifiers == modifiers;
 }
 
-bool Input::JustPressed(Key key, uint8_t modifiers) {
+bool sge::Input::JustPressed(Key key, uint8_t modifiers) {
     const auto entry = input_state.keyboard_just_pressed.find(key);
     if (entry == input_state.keyboard_just_pressed.end()) return false;
     return entry->modifiers == modifiers;
 }
 
-bool Input::Pressed(MouseButton button) {
-    return input_state.mouse_pressed.find(static_cast<uint8_t>(button)) != input_state.mouse_pressed.end();
+bool sge::Input::Pressed(MouseButton button) {
+    return input_state.mouse_pressed.find(button) != input_state.mouse_pressed.end();
 }
 
-bool Input::JustPressed(MouseButton button) {
-    return input_state.mouse_just_pressed.find(static_cast<uint8_t>(button)) != input_state.mouse_just_pressed.end();
+bool sge::Input::JustPressed(MouseButton button) {
+    return input_state.mouse_just_pressed.find(button) != input_state.mouse_just_pressed.end();
 }
 
-bool Input::JustReleased(MouseButton button) {
-    return input_state.mouse_just_released.find(static_cast<uint8_t>(button)) != input_state.mouse_just_released.end();
+bool sge::Input::JustReleased(MouseButton button) {
+    return input_state.mouse_just_released.find(button) != input_state.mouse_just_released.end();
 }
 
-glm::vec2 Input::MouseDelta() noexcept {
+glm::vec2 sge::Input::MouseDelta() noexcept {
     return input_state.mouse_delta;
 }
 
-const std::vector<float>& Input::ScrollEvents() noexcept {
+const std::vector<float>& sge::Input::ScrollEvents() noexcept {
     return input_state.mouse_scroll_events;
 }
 
-const glm::vec2& Input::CursorPosition() noexcept {
+const glm::vec2& sge::Input::CursorPosition() noexcept {
     return input_state.cursor_position;
 }
 
-const std::vector<uint32_t>& Input::CodePoints() noexcept {
+const std::vector<uint32_t>& sge::Input::CodePoints() noexcept {
     return input_state.codepoint_queue;
 }
 
+const std::unordered_set<sge::KeyWithModifiers>& sge::Input::GetJustPressedKeys() noexcept {
+    return input_state.keyboard_just_pressed;
+}
+
+const std::unordered_set<sge::KeyWithModifiers>& sge::Input::GetJustReleasedKeys() noexcept {
+    return input_state.keyboard_just_released;
 }

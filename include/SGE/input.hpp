@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <stdint.h>
 #include <vector>
+#include <unordered_set>
 
 namespace sge {
 
@@ -119,6 +120,17 @@ enum class Key : uint16_t {
     PageDown = GLFW_KEY_PAGE_DOWN
 };
 
+struct KeyWithModifiers {
+    sge::Key key;
+    uint8_t modifiers;
+
+    constexpr KeyWithModifiers(sge::Key k, uint8_t mods = 0) : key(k), modifiers(mods) {}
+};
+
+constexpr inline bool operator==(const sge::KeyWithModifiers a, const sge::KeyWithModifiers b) {
+    return a.key == b.key;
+}
+
 namespace Input {
 // These are supposed to be private
     void PushCodePoint(uint32_t codepoint);
@@ -146,9 +158,19 @@ namespace Input {
     const std::vector<uint32_t>& CodePoints() noexcept;
     glm::vec2 MouseDelta() noexcept;
 
+    const std::unordered_set<KeyWithModifiers>& GetJustPressedKeys() noexcept;
+    const std::unordered_set<KeyWithModifiers>& GetJustReleasedKeys() noexcept;
+
     void Clear();
 }
 
 }
+
+template <>
+struct std::hash<sge::KeyWithModifiers> {
+    std::size_t operator()(const sge::KeyWithModifiers& key) const noexcept {
+        return std::hash<sge::Key>{}(key.key);
+    }
+};
 
 #endif

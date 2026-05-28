@@ -19,6 +19,7 @@
 #include "SGE/renderer/context.hpp"
 #include "SGE/types/shape.hpp"
 
+
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
 using namespace sge;
@@ -302,11 +303,21 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         m_renderer->UploadBatchData();
         m_renderer->RenderBatch(*m_batch);
 
+        GetRenderContext()->BeginImGuiFrame(*window);
+        {
+            ImGui::NewFrame();
+            {
+                ImGui::ShowDemoWindow();
+            }
+            ImGui::Render();
+        }
+        GetRenderContext()->EndImGuiFrame();
+
         m_batch->Reset();
     m_renderer->EndPass();
 
     m_renderer->End();
-    GetRenderContext()->Present(window);
+    GetRenderContext()->Present(*window);
 }
 
 void App::OnPostRender(const std::shared_ptr<GlfwWindow>& window) {

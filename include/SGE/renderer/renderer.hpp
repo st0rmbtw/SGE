@@ -133,7 +133,7 @@ public:
     }
 
     void Present(const std::shared_ptr<GlfwWindow>& window) {
-        m_context->Present(window);
+        m_context->Present(*window);
     }
 
     void End();
@@ -143,7 +143,7 @@ public:
     void RenderBatch(sge::Batch& batch);
 
     [[nodiscard]]
-    inline const Unique<LLGL::CommandBuffer>& CommandBuffer() const noexcept {
+    inline const LLGL::CommandBuffer* CommandBuffer() const noexcept {
         return m_command_buffer;
     }
 
@@ -194,8 +194,8 @@ private:
 
     std::shared_ptr<RenderContext> m_context;
     
-    LLGL::CommandQueue* m_command_queue;
-    Unique<LLGL::CommandBuffer> m_command_buffer;
+    LLGL::CommandQueue* m_command_queue = nullptr;
+    LLGL::CommandBuffer* m_command_buffer = nullptr;
     Unique<LLGL::Buffer> m_constant_buffer;
 
     Ref<LLGL::Shader> m_sprite_vertex_shader;

@@ -12,6 +12,10 @@
 #include "defines.hpp"
 #include "utils.hpp"
 
+#if SGE_IMGUI_ENABLED
+    #include <SGE/renderer/imgui/backend/backend.hpp>
+#endif
+
 using namespace sge;
 
 bool IEngine::Init() {

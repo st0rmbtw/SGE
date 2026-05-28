@@ -17,6 +17,10 @@
 #include <LLGL/RenderSystemChild.h>
 #include <LLGL/Utils/Utility.h>
 
+#if SGE_IMGUI_ENABLED
+    #include <imgui.h>
+#endif
+
 #include <filesystem>
 #include <concepts>
 
@@ -90,6 +94,10 @@ struct std::hash<RenderPassKey> {
 
 namespace sge {
 
+#if SGE_IMGUI_ENABLED
+class ImGuiBackend;
+#endif
+
 class RenderContext : public std::enable_shared_from_this<RenderContext> {
 public:
     RenderContext() = default;
@@ -104,12 +112,24 @@ public:
     LLGL::RenderTarget& GetOrCreateRenderTarget(Handle<LLGL::RenderTarget> handle, uint8_t samples);
     LLGL::RenderPass& GetOrCreateRenderPass(Handle<LLGL::RenderPass> handle, uint8_t samples);
     LLGL::SwapChain& GetOrCreateSwapChain(const std::shared_ptr<GlfwWindow>& window);
-    LLGL::SwapChain* GetSwapChain(const std::shared_ptr<GlfwWindow>& window);
+    LLGL::SwapChain* GetSwapChain(const GlfwWindow& window);
+
+#if SGE_IMGUI_ENABLED
+    ImGuiContext* GetOrCreateImGuiContext(GlfwWindow& window);
+#endif
+
+#if SGE_IMGUI_ENABLED
+    void BeginImGuiFrame(GlfwWindow& window);
+    void EndImGuiFrame();
+#else
+    inline void BeginImGuiFrame(GlfwWindow& window) {}
+    inline void EndImGuiFrame(GlfwWindow& window) {}
+#endif
 
     void DeletePipeline(Handle<LLGL::PipelineState> handle);
     void DeleteRenderTarget(Handle<LLGL::RenderTarget> renderTarget);
 
-    void Present(const std::shared_ptr<GlfwWindow>& window);
+    void Present(const GlfwWindow& window);
 
     void ReleaseUntyped(LLGL::RenderSystemChild& resource);
 
@@ -224,9 +244,7 @@ public:
         return Handle<LLGL::RenderTarget>(id);
     }
 
-    inline void SetCurrentRenderTarget(LLGL::RenderTarget* target) {
-        m_current_target = target;
-    }
+    void SetCurrentRenderTarget(LLGL::RenderTarget* target);
 
     template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
     Ref<T> CreateRef(T* resource) {
@@ -255,6 +273,11 @@ public:
     [[nodiscard]]
     inline LLGL::CommandQueue* GetCommandQueue() const noexcept {
         return m_context->GetCommandQueue();
+    }
+
+    [[nodiscard]]
+    inline LLGL::CommandBuffer* GetCommandBuffer() const noexcept {
+        return m_command_buffer;
     }
 
     [[nodiscard]]
@@ -299,7 +322,12 @@ private:
     std::unordered_map<RenderTargetKey, LLGL::RenderTarget*> m_render_targets;
     std::unordered_map<RenderPassKey, LLGL::RenderPass*> m_render_passes;
 
+#if SGE_IMGUI_ENABLED
+    std::unique_ptr<ImGuiBackend> m_imgui_backend;
+#endif
+
     LLGL::RenderSystemPtr m_context = nullptr;
+    LLGL::CommandBuffer* m_command_buffer = nullptr;
     
 #if SGE_DEBUG
     LLGL::RenderingDebugger* m_debugger = nullptr;

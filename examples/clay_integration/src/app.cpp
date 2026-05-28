@@ -316,7 +316,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
     m_renderer->EndPass();
 
     m_renderer->End();
-    GetRenderContext()->Present(window);
+    GetRenderContext()->Present(*window);
 }
 
 void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) {

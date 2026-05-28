@@ -32,6 +32,9 @@
 #include "SGE/renderer/context.hpp"
 #include "shaders.hpp"
 
+#include <LLGL/Backend/Direct3D11/NativeHandle.h>
+#include <backends/imgui_impl_dx11.h>
+
 using namespace sge;
 using namespace sge::internal;
 
@@ -544,7 +547,7 @@ Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_context(co
     LLGL::CommandBufferDescriptor command_buffer_desc;
     command_buffer_desc.numNativeBuffers = 3;
 
-    m_command_buffer = m_context->CreateCommandBuffer(command_buffer_desc).AsUnique();
+    m_command_buffer = m_context->GetCommandBuffer();
     m_command_queue = m_context->GetCommandQueue();
 
     m_constant_buffer = m_context->CreateConstantBuffer(sizeof(GlobalUniforms), "ConstantBuffer").AsUnique();
@@ -656,7 +659,7 @@ void Renderer::ApplyBatchDrawCommands(sge::Batch& batch) {
 
     sge::Batch::FlushQueue& flush_queue = batch.flush_queue();
 
-    auto* const commands = m_command_buffer.Get();
+    auto* const commands = m_command_buffer;
 
     int prev_flush_data_type = -1;
     int prev_texture_id = -1;

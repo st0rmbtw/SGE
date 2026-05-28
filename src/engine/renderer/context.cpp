@@ -1,10 +1,20 @@
-#include "LLGL/Constants.h"
 #include <filesystem>
 
 #include <LLGL/ResourceFlags.h>
+#include <LLGL/Constants.h>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/context.hpp>
 #include <SGE/profile.hpp>
+#include <SGE/defines.hpp>
+#include <SGE/assert.hpp>
+
+#if SGE_IMGUI_ENABLED
+    #include "imgui/backend/d3d11/d3d11_backend.hpp"
+    #include "imgui/backend/d3d12/d3d12_backend.hpp"
+    #include "imgui/backend/metal/metal_backend.hpp"
+    #include "imgui/backend/opengl/opengl_backend.hpp"
+    #include "imgui/backend/vulkan/vulkan_backend.hpp"
+#endif
 
 namespace fs = std::filesystem;
 
@@ -46,6 +56,34 @@ bool sge::RenderContext::Init(sge::RenderBackend backend) {
         return false;
     }
 
+    LLGL::CommandBufferDescriptor command_buffer_desc;
+    command_buffer_desc.numNativeBuffers = 3;
+    m_command_buffer = m_context->CreateCommandBuffer(command_buffer_desc);
+
+#if SGE_IMGUI_ENABLED
+    IMGUI_CHECKVERSION();
+
+    switch (backend) {
+    // case RenderBackend::Vulkan:
+    //     m_imgui_backend = std::make_unique<ImGuiBackendVulkan>(shared_from_this());
+    // break;
+    case RenderBackend::D3D11:
+        m_imgui_backend = std::make_unique<ImGuiBackendDirect3D11>(shared_from_this());
+    break;
+    // case RenderBackend::D3D12:
+    //     m_imgui_backend = std::make_unique<ImGuiBackendDirect3D12>(shared_from_this());
+    // break;
+    // case RenderBackend::Metal:
+    //     m_imgui_backend = std::make_unique<ImGuiBackendMetal>(shared_from_this());
+    // break;
+    // case RenderBackend::OpenGL:
+    //     m_imgui_backend = std::make_unique<ImGuiBackendOpenGL>(shared_from_this());
+    // break;
+    default:
+        SGE_UNREACHABLE();
+    }
+#endif
+
     const LLGL::RendererInfo& info = GetRendererInfo();
 
     SGE_LOG_INFO("Renderer:             {}", info.rendererName.c_str());
@@ -86,7 +124,9 @@ void sge::RenderContext::Destroy() {
 }
 
 sge::RenderContext::~RenderContext() {
-    m_context->GetCommandQueue()->WaitIdle();
+    if (m_context != nullptr) {
+        m_context->GetCommandQueue()->WaitIdle();
+    }
 
 #if SGE_DEBUG
     if (m_debugger != nullptr) {
@@ -95,6 +135,7 @@ sge::RenderContext::~RenderContext() {
 #endif
 
     if (m_context != nullptr) {
+        m_context->Release(*m_command_buffer);
         LLGL::RenderSystem::Unload(std::move(m_context));
     }
 }
@@ -136,6 +177,14 @@ void sge::RenderContext::UnregisterWindow(const GlfwWindow& window) {
         Release(*it->second);
 
     m_swapchain_map.erase(window.GetID());
+
+#if SGE_IMGUI_ENABLED
+    m_imgui_backend->ReleaseContext(window);
+#endif
+}
+
+void sge::RenderContext::SetCurrentRenderTarget(LLGL::RenderTarget* target) {
+    m_current_target = target;
 }
 
 LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<GlfwWindow>& window) {
@@ -163,16 +212,16 @@ LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<
     return *swap_chain;
 }
 
-LLGL::SwapChain* sge::RenderContext::GetSwapChain(const std::shared_ptr<GlfwWindow>& window) {
-    auto it = m_swapchain_map.find(window->GetID());
+LLGL::SwapChain* sge::RenderContext::GetSwapChain(const GlfwWindow& window) {
+    auto it = m_swapchain_map.find(window.GetID());
     if (it == m_swapchain_map.end()) {
         return nullptr;
     }
     return it->second;
 }
 
-void sge::RenderContext::Present(const std::shared_ptr<sge::GlfwWindow>& window) {
-    auto it = m_swapchain_map.find(window->GetID());
+void sge::RenderContext::Present(const sge::GlfwWindow& window) {
+    auto it = m_swapchain_map.find(window.GetID());
     SGE_ASSERT(it != m_swapchain_map.end());
 
     it->second->Present();
@@ -341,6 +390,22 @@ LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderP
 
     return *renderPass;
 }
+
+#if SGE_IMGUI_ENABLED
+
+ImGuiContext* sge::RenderContext::GetOrCreateImGuiContext(GlfwWindow& window) {
+    return m_imgui_backend->GetOrCreateContext(window);
+}
+
+void sge::RenderContext::BeginImGuiFrame(GlfwWindow& window) {
+    m_imgui_backend->BeginFrame(window);
+}
+
+void sge::RenderContext::EndImGuiFrame() {
+    m_imgui_backend->EndFrame();
+}
+
+#endif
 
 void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
     if (!handle.IsValid()) return;
