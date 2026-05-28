@@ -232,12 +232,18 @@ protected:
     void OnWindowRefreshEvent(GLFWwindow *window) override {
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
-        OnRender(it->second);
-        OnPostRender(it->second);
+        Update();
+        Render(it->second);
     }
+
+private:
+    void Render(const std::shared_ptr<sge::GlfwWindow>& window);
+    void Update();
+
 private:
     std::shared_ptr<RenderContext> m_context;
     WindowMap m_window_map;
+    double m_prev_tick = 0.0;
     uint64_t m_frame_count = 0;
     bool m_running = false;
     bool m_initialized = false;

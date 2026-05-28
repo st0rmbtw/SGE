@@ -55,7 +55,7 @@ void IEngine::Run() {
         return;
     }
 
-    double prev_tick = glfwGetTime();
+    m_prev_tick = glfwGetTime();
 
     m_running = true;
 
@@ -74,40 +74,13 @@ void IEngine::Run() {
         }
 
         MACOS_AUTORELEASEPOOL_OPEN
-            const double current_tick = glfwGetTime();
-            double delta_time = (current_tick - prev_tick);
-            prev_tick = current_tick;
-
-            if (delta_time > 0.25)
-                delta_time = 0.25;
-
-            const delta_time_t dt(delta_time);
-            Time::AdvanceBy(dt);
-
-            OnPreFixedUpdate();
-            while (Time::Overstep() >= Time::FixedDeltaSeconds()) {
-                Time::AdvanceFixed();
-                OnFixedUpdate();
+            Update();
+            for (const auto& [glfw, window] : m_window_map) {
+                Render(window);
             }
-            OnPostFixedUpdate();
-
-            OnPreUpdate();
-            OnUpdate();
-            OnPostUpdate();
-
-            for (auto& [glfw, window] : m_window_map) {
-                const LLGL::Extent2D size = window->GetContentSize();
-
-                if (!window->IsMinimized() && (size.width > 0 && size.height > 0)) {
-                    OnRender(window);
-                    OnPostRender(window);
-                }
-            }
-
-            ++m_frame_count;
-
-            Input::Clear();
         MACOS_AUTORELEASEPOOL_CLOSE
+
+        ++m_frame_count;
 
         FrameMark;
     }
@@ -116,6 +89,40 @@ void IEngine::Run() {
 
     if (m_context->IsInitialized()) {
         m_context->GetCommandQueue()->WaitIdle();
+    }
+}
+
+void IEngine::Update() {
+    const double current_tick = glfwGetTime();
+    double delta_time = (current_tick - m_prev_tick);
+    m_prev_tick = current_tick;
+
+    if (delta_time > 0.25)
+        delta_time = 0.25;
+
+    const delta_time_t dt(delta_time);
+    Time::AdvanceBy(dt);
+
+    OnPreFixedUpdate();
+    while (Time::Overstep() >= Time::FixedDeltaSeconds()) {
+        Time::AdvanceFixed();
+        OnFixedUpdate();
+    }
+    OnPostFixedUpdate();
+
+    OnPreUpdate();
+    OnUpdate();
+    OnPostUpdate();
+
+    Input::Clear();
+}
+
+void IEngine::Render(const std::shared_ptr<sge::GlfwWindow>& window) {
+    const LLGL::Extent2D size = window->GetContentSize();
+
+    if (!window->IsMinimized() && (size.width > 0 && size.height > 0)) {
+        OnRender(window);
+        OnPostRender(window);
     }
 }
 
