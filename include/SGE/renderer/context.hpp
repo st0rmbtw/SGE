@@ -18,9 +18,7 @@
 #include <LLGL/RenderSystemChild.h>
 #include <LLGL/Utils/Utility.h>
 
-#if SGE_IMGUI_ENABLED
-    #include <imgui.h>
-#endif
+#include <imgui.h>
 
 #include <filesystem>
 #include <concepts>

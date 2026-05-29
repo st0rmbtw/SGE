@@ -327,6 +327,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         m_batch->Reset();
     m_renderer->EndPass();
 
+    #ifdef SGE_IMGUI_ENABLED
     ImGuiIO& io = ImGui::GetIO();
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
 
@@ -344,6 +345,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         }
         glfwMakeContextCurrent(saved_context);
     }
+    #endif
 
     m_renderer->End();
 }
