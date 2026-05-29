@@ -168,6 +168,11 @@ protected:
     }
 
     void OnWindowFocusEvent(GLFWwindow *window, bool focused) final {
+    #if SGE_IMGUI_ENABLED
+        if (ImGui::GetCurrentContext())
+            ImGui_ImplGlfw_WindowFocusCallback(window, focused);
+    #endif
+
         auto it = m_window_map.find(window);
         SGE_ASSERT(it != m_window_map.end());
         it->second->m_flags.set(WindowFlags::Focused, focused);
@@ -184,10 +189,8 @@ protected:
 
     void OnCursorPosEvent(GLFWwindow* window, double xpos, double ypos) final {
     #if SGE_IMGUI_ENABLED
-        if (ImGui::GetCurrentContext() == nullptr)
-            return;
-
-        ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+        if (ImGui::GetCurrentContext())
+            ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
     #endif
 
         auto it = m_window_map.find(window);
@@ -218,10 +221,9 @@ protected:
 
     void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) final {
     #if SGE_IMGUI_ENABLED
-        if (ImGui::GetCurrentContext() == nullptr)
-            return;
+        if (ImGui::GetCurrentContext())
+            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 
-        ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 
         if (ImGui::GetIO().WantCaptureKeyboard)
             return;
@@ -236,10 +238,8 @@ protected:
 
     void OnCharacterEvent(GLFWwindow* window, uint32_t codepoint) final {
     #if SGE_IMGUI_ENABLED
-        if (ImGui::GetCurrentContext() == nullptr)
-            return;
-
-        ImGui_ImplGlfw_CharCallback(window, codepoint);
+        if (ImGui::GetCurrentContext())
+            ImGui_ImplGlfw_CharCallback(window, codepoint);
 
         if (ImGui::GetIO().WantCaptureKeyboard)
             return;
@@ -250,10 +250,8 @@ protected:
 
     void OnMouseButtonEvent(GLFWwindow* window, const int button, const int action, const int mods) final {
     #if SGE_IMGUI_ENABLED
-        if (ImGui::GetCurrentContext() == nullptr)
-            return;
-        
-        ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+        if (ImGui::GetCurrentContext())    
+            ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 
         if (ImGui::GetIO().WantCaptureMouse)
             return;
@@ -267,10 +265,8 @@ protected:
 
     void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) final {
     #if SGE_IMGUI_ENABLED
-        if (ImGui::GetCurrentContext() == nullptr)
-            return;
-
-        ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+        if (ImGui::GetCurrentContext())
+            ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
 
         if (ImGui::GetIO().WantCaptureMouse)
             return;

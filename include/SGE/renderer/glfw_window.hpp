@@ -143,6 +143,14 @@ public:
         glfwSetWindowSizeLimits(m_wnd, m_min_size.x, m_min_size.y, max_width, max_height);
     }
 
+    void SetPosition(int xpos, int ypos) {
+        glfwSetWindowPos(m_wnd, xpos, ypos);
+        if (glfwGetError(nullptr) != GLFW_FEATURE_UNAVAILABLE) {
+            m_position.x = xpos;
+            m_position.y = ypos;
+        }
+    }
+
     void ShowWindow() {
         glfwShowWindow(m_wnd);
     }

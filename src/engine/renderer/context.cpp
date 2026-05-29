@@ -8,12 +8,12 @@
 #include <SGE/defines.hpp>
 #include <SGE/assert.hpp>
 
+#include <LLGL/Platform/NativeHandle.h>
+
 #if SGE_IMGUI_ENABLED
-    #include "imgui/backend/d3d11/d3d11_backend.hpp"
-    #include "imgui/backend/d3d12/d3d12_backend.hpp"
-    #include "imgui/backend/metal/metal_backend.hpp"
-    #include "imgui/backend/opengl/opengl_backend.hpp"
-    #include "imgui/backend/vulkan/vulkan_backend.hpp"
+    #include <imgui.h>
+    #include <backends/imgui_impl_glfw.h>
+    #include "imgui_renderer.hpp"
 #endif
 
 namespace fs = std::filesystem;
@@ -60,29 +60,19 @@ bool sge::RenderContext::Init(sge::RenderBackend backend) {
     command_buffer_desc.numNativeBuffers = 3;
     m_command_buffer = m_context->CreateCommandBuffer(command_buffer_desc);
 
-#if SGE_IMGUI_ENABLED
-    IMGUI_CHECKVERSION();
+    LLGL::SamplerDescriptor desc;
+    desc.minFilter = LLGL::SamplerFilter::Linear;
+    desc.magFilter = LLGL::SamplerFilter::Linear;
+    desc.mipMapFilter = LLGL::SamplerFilter::Linear;
+    desc.addressModeU = LLGL::SamplerAddressMode::Clamp;
+    desc.addressModeV = LLGL::SamplerAddressMode::Clamp;
+    desc.addressModeW = LLGL::SamplerAddressMode::Clamp;
+    m_linear_sampler = CreateSampler(desc);
 
-    switch (backend) {
-    // case RenderBackend::Vulkan:
-    //     m_imgui_backend = std::make_unique<ImGuiBackendVulkan>(shared_from_this());
-    // break;
-    case RenderBackend::D3D11:
-        m_imgui_backend = std::make_unique<ImGuiBackendDirect3D11>(shared_from_this());
-    break;
-    // case RenderBackend::D3D12:
-    //     m_imgui_backend = std::make_unique<ImGuiBackendDirect3D12>(shared_from_this());
-    // break;
-    // case RenderBackend::Metal:
-    //     m_imgui_backend = std::make_unique<ImGuiBackendMetal>(shared_from_this());
-    // break;
-    // case RenderBackend::OpenGL:
-    //     m_imgui_backend = std::make_unique<ImGuiBackendOpenGL>(shared_from_this());
-    // break;
-    default:
-        SGE_UNREACHABLE();
-    }
-#endif
+    desc.minFilter = LLGL::SamplerFilter::Nearest;
+    desc.magFilter = LLGL::SamplerFilter::Nearest;
+    desc.mipMapFilter = LLGL::SamplerFilter::Nearest;
+    m_nearest_sampler = CreateSampler(desc);
 
     const LLGL::RendererInfo& info = GetRendererInfo();
 
@@ -101,6 +91,15 @@ bool sge::RenderContext::Init(sge::RenderBackend backend) {
 
 void sge::RenderContext::Destroy() {
     m_context->GetCommandQueue()->WaitIdle();
+
+#if SGE_IMGUI_ENABLED
+    for (auto& [key, imguiContext] : m_imgui_context_map) {
+        ImGui::SetCurrentContext(imguiContext);
+        ImGuiRenderer::Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext(imguiContext);
+    }
+#endif
 
     for (auto& [key, swapChain] : m_swapchain_map) {
         Release(*swapChain);
@@ -179,7 +178,7 @@ void sge::RenderContext::UnregisterWindow(const GlfwWindow& window) {
     m_swapchain_map.erase(window.GetID());
 
 #if SGE_IMGUI_ENABLED
-    m_imgui_backend->ReleaseContext(window);
+    ReleaseImGuiContext(window);
 #endif
 }
 
@@ -394,15 +393,57 @@ LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderP
 #if SGE_IMGUI_ENABLED
 
 ImGuiContext* sge::RenderContext::GetOrCreateImGuiContext(GlfwWindow& window) {
-    return m_imgui_backend->GetOrCreateContext(window);
+    ImGuiContext* context = nullptr;
+
+    auto it = m_imgui_context_map.find(window.GetID());
+    if (it == m_imgui_context_map.end()) {
+        context = ImGui::CreateContext();
+        {
+            ImGuiIO& io = ImGui::GetIO();
+            io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        }
+        ImGui::SetCurrentContext(context);
+        ImGui::StyleColorsDark();
+
+        LLGL::NativeHandle nativeHandle;
+        window.GetNativeHandle(&nativeHandle, sizeof(nativeHandle));
+
+        ImGui_ImplGlfw_InitForOther(window.GetGlfwHandle(), false);
+
+        ImGuiRenderer::Init(shared_from_this());
+        m_imgui_context_map.try_emplace(window.GetID(), context);
+    } else {
+        context = it->second;
+    }
+    
+    return context;
+}
+
+void sge::RenderContext::ReleaseImGuiContext(const GlfwWindow& window) {
+    auto it = m_imgui_context_map.find(window.GetID());
+    if (it == m_imgui_context_map.end()) {
+        return;
+    }
+
+    ImGui::SetCurrentContext(it->second);
+
+    ImGuiRenderer::Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+
+    ImGui::DestroyContext(it->second);
+
+    m_imgui_context_map.erase(it);
 }
 
 void sge::RenderContext::BeginImGuiFrame(GlfwWindow& window) {
-    m_imgui_backend->BeginFrame(window);
+    ImGui::SetCurrentContext(GetOrCreateImGuiContext(window));
+    ImGui_ImplGlfw_NewFrame();
+    ImGuiRenderer::NewFrame();
 }
 
 void sge::RenderContext::EndImGuiFrame() {
-    m_imgui_backend->EndFrame();
+    ImGuiRenderer::RenderDrawData(ImGui::GetDrawData());
 }
 
 #endif

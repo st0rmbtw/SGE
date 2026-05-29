@@ -2,6 +2,7 @@
 #include <optional>
 
 #include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/context.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/types.hpp>
@@ -29,11 +30,7 @@
 #include <LLGL/RenderTarget.h>
 #include <LLGL/ShaderFlags.h>
 
-#include "SGE/renderer/context.hpp"
 #include "shaders.hpp"
-
-#include <LLGL/Backend/Direct3D11/NativeHandle.h>
-#include <backends/imgui_impl_dx11.h>
 
 using namespace sge;
 using namespace sge::internal;

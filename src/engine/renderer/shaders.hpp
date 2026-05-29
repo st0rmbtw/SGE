@@ -276,6 +276,170 @@ fragColor = vec4(inp_color, _38);
 }
 )";
 
+static const char D3D11_IMGUI_VERT[766] = R"(#pragma pack_matrix(column_major)
+#ifdef SLANG_HLSL_ENABLE_NVAPI
+#include "nvHLSLExtns.h"
+#endif
+#ifndef __DXC_VERSION_MAJOR
+#pragma warning(disable : 3557)
+#endif
+struct SLANG_ParameterGroup_UniformBuffer_0
+{
+float4x4 ProjectionMatrix_0;
+};
+cbuffer UniformBuffer_0 : register(b2)
+{
+SLANG_ParameterGroup_UniformBuffer_0 UniformBuffer_0;
+}
+struct VSOutput_0
+{
+float4 position_0 : SV_Position;
+float4 color_0 : Color0;
+float2 uv_0 : UV0;
+};
+struct VSInput_0
+{
+float2 position_1 : Position0;
+float4 color_1 : Color0;
+float2 uv_1 : UV0;
+};
+VSOutput_0 VS(VSInput_0 inp_0)
+{
+VSOutput_0 outp_0;
+outp_0.position_0 = mul(UniformBuffer_0.ProjectionMatrix_0, float4(inp_0.position_1.xy, 0.0f, 1.0f));
+outp_0.color_0 = inp_0.color_1;
+outp_0.uv_0 = inp_0.uv_1;
+return outp_0;
+}
+)";
+
+static const char D3D11_IMGUI_FRAG[457] = R"(#pragma pack_matrix(column_major)
+#ifdef SLANG_HLSL_ENABLE_NVAPI
+#include "nvHLSLExtns.h"
+#endif
+#ifndef __DXC_VERSION_MAJOR
+#pragma warning(disable : 3557)
+#endif
+Texture2D<float4 > Texture_0 : register(t3);
+SamplerState Sampler_0 : register(s4);
+struct VSOutput_0
+{
+float4 position_0 : SV_Position;
+float4 color_0 : Color0;
+float2 uv_0 : UV0;
+};
+float4 PS(VSOutput_0 inp_0) : SV_TARGET
+{
+return inp_0.color_0 * Texture_0.Sample(Sampler_0, inp_0.uv_0);
+}
+)";
+
+static const unsigned char VULKAN_IMGUI_VERT[1136] = {3, 2, 35, 7, 0, 5, 1, 0, 0, 0, 40, 0, 35, 0, 0, 0, 0, 0, 0, 0, 17, 0, 2, 0, 1, 0, 0, 0, 14, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 15, 0, 12, 0, 0, 0, 0, 0, 1, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 3, 0, 3, 0, 11, 0, 0, 0, 1, 0, 0, 0, 5, 0, 6, 0, 6, 0, 0, 0, 105, 110, 112, 46, 112, 111, 115, 105, 116, 105, 111, 110, 0, 0, 0, 0, 5, 0, 5, 0, 7, 0, 0, 0, 105, 110, 112, 46, 99, 111, 108, 111, 114, 0, 0, 0, 5, 0, 4, 0, 8, 0, 0, 0, 105, 110, 112, 46, 117, 118, 0, 0, 5, 0, 13, 0, 9, 0, 0, 0, 83, 76, 65, 78, 71, 95, 80, 97, 114, 97, 109, 101, 116, 101, 114, 71, 114, 111, 117, 112, 95, 85, 110, 105, 102, 111, 114, 109, 66, 117, 102, 102, 101, 114, 95, 115, 116, 100, 49, 52, 48, 0, 0, 0, 6, 0, 8, 0, 9, 0, 0, 0, 0, 0, 0, 0, 80, 114, 111, 106, 101, 99, 116, 105, 111, 110, 77, 97, 116, 114, 105, 120, 0, 0, 0, 0, 5, 0, 6, 0, 2, 0, 0, 0, 85, 110, 105, 102, 111, 114, 109, 66, 117, 102, 102, 101, 114, 0, 0, 0, 5, 0, 9, 0, 4, 0, 0, 0, 101, 110, 116, 114, 121, 80, 111, 105, 110, 116, 80, 97, 114, 97, 109, 95, 86, 83, 46, 99, 111, 108, 111, 114, 0, 0, 0, 0, 5, 0, 8, 0, 5, 0, 0, 0, 101, 110, 116, 114, 121, 80, 111, 105, 110, 116, 80, 97, 114, 97, 109, 95, 86, 83, 46, 117, 118, 0, 0, 0, 5, 0, 3, 0, 1, 0, 0, 0, 86, 83, 0, 0, 71, 0, 4, 0, 6, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 7, 0, 0, 0, 30, 0, 0, 0, 1, 0, 0, 0, 71, 0, 4, 0, 8, 0, 0, 0, 30, 0, 0, 0, 2, 0, 0, 0, 71, 0, 3, 0, 9, 0, 0, 0, 2, 0, 0, 0, 72, 0, 5, 0, 9, 0, 0, 0, 0, 0, 0, 0, 35, 0, 0, 0, 0, 0, 0, 0, 72, 0, 4, 0, 9, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 72, 0, 5, 0, 9, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 16, 0, 0, 0, 71, 0, 4, 0, 2, 0, 0, 0, 33, 0, 0, 0, 2, 0, 0, 0, 71, 0, 4, 0, 2, 0, 0, 0, 34, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 3, 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 4, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 5, 0, 0, 0, 30, 0, 0, 0, 1, 0, 0, 0, 19, 0, 2, 0, 10, 0, 0, 0, 33, 0, 3, 0, 11, 0, 0, 0, 10, 0, 0, 0, 22, 0, 3, 0, 12, 0, 0, 0, 32, 0, 0, 0, 23, 0, 4, 0, 13, 0, 0, 0, 12, 0, 0, 0, 4, 0, 0, 0, 23, 0, 4, 0, 14, 0, 0, 0, 12, 0, 0, 0, 2, 0, 0, 0, 32, 0, 4, 0, 15, 0, 0, 0, 1, 0, 0, 0, 14, 0, 0, 0, 32, 0, 4, 0, 16, 0, 0, 0, 1, 0, 0, 0, 13, 0, 0, 0, 21, 0, 4, 0, 17, 0, 0, 0, 32, 0, 0, 0, 1, 0, 0, 0, 43, 0, 4, 0, 17, 0, 0, 0, 18, 0, 0, 0, 0, 0, 0, 0, 24, 0, 4, 0, 19, 0, 0, 0, 13, 0, 0, 0, 4, 0, 0, 0, 30, 0, 3, 0, 9, 0, 0, 0, 19, 0, 0, 0, 32, 0, 4, 0, 20, 0, 0, 0, 2, 0, 0, 0, 9, 0, 0, 0, 32, 0, 4, 0, 21, 0, 0, 0, 2, 0, 0, 0, 19, 0, 0, 0, 43, 0, 4, 0, 12, 0, 0, 0, 22, 0, 0, 0, 0, 0, 0, 0, 43, 0, 4, 0, 12, 0, 0, 0, 23, 0, 0, 0, 0, 0, 128, 63, 32, 0, 4, 0, 24, 0, 0, 0, 3, 0, 0, 0, 13, 0, 0, 0, 32, 0, 4, 0, 25, 0, 0, 0, 3, 0, 0, 0, 14, 0, 0, 0, 59, 0, 4, 0, 15, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 59, 0, 4, 0, 16, 0, 0, 0, 7, 0, 0, 0, 1, 0, 0, 0, 59, 0, 4, 0, 15, 0, 0, 0, 8, 0, 0, 0, 1, 0, 0, 0, 59, 0, 4, 0, 20, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 59, 0, 4, 0, 24, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 59, 0, 4, 0, 24, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 59, 0, 4, 0, 25, 0, 0, 0, 5, 0, 0, 0, 3, 0, 0, 0, 54, 0, 5, 0, 10, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 248, 0, 2, 0, 26, 0, 0, 0, 61, 0, 4, 0, 14, 0, 0, 0, 27, 0, 0, 0, 6, 0, 0, 0, 61, 0, 4, 0, 13, 0, 0, 0, 28, 0, 0, 0, 7, 0, 0, 0, 61, 0, 4, 0, 14, 0, 0, 0, 29, 0, 0, 0, 8, 0, 0, 0, 65, 0, 5, 0, 21, 0, 0, 0, 30, 0, 0, 0, 2, 0, 0, 0, 18, 0, 0, 0, 61, 0, 4, 0, 19, 0, 0, 0, 31, 0, 0, 0, 30, 0, 0, 0, 79, 0, 7, 0, 14, 0, 0, 0, 32, 0, 0, 0, 27, 0, 0, 0, 27, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 80, 0, 6, 0, 13, 0, 0, 0, 33, 0, 0, 0, 32, 0, 0, 0, 22, 0, 0, 0, 23, 0, 0, 0, 144, 0, 5, 0, 13, 0, 0, 0, 34, 0, 0, 0, 33, 0, 0, 0, 31, 0, 0, 0, 62, 0, 3, 0, 3, 0, 0, 0, 34, 0, 0, 0, 62, 0, 3, 0, 4, 0, 0, 0, 28, 0, 0, 0, 62, 0, 3, 0, 5, 0, 0, 0, 29, 0, 0, 0, 253, 0, 1, 0, 56, 0, 1, 0};
+
+static const unsigned char VULKAN_IMGUI_FRAG[820] = {3, 2, 35, 7, 0, 5, 1, 0, 0, 0, 40, 0, 28, 0, 0, 0, 0, 0, 0, 0, 17, 0, 2, 0, 1, 0, 0, 0, 14, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 15, 0, 10, 0, 4, 0, 0, 0, 1, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 16, 0, 3, 0, 1, 0, 0, 0, 7, 0, 0, 0, 3, 0, 3, 0, 11, 0, 0, 0, 1, 0, 0, 0, 5, 0, 5, 0, 5, 0, 0, 0, 105, 110, 112, 46, 99, 111, 108, 111, 114, 0, 0, 0, 5, 0, 4, 0, 6, 0, 0, 0, 105, 110, 112, 46, 117, 118, 0, 0, 5, 0, 4, 0, 2, 0, 0, 0, 84, 101, 120, 116, 117, 114, 101, 0, 5, 0, 4, 0, 3, 0, 0, 0, 83, 97, 109, 112, 108, 101, 114, 0, 5, 0, 6, 0, 7, 0, 0, 0, 115, 97, 109, 112, 108, 101, 100, 73, 109, 97, 103, 101, 0, 0, 0, 0, 5, 0, 4, 0, 8, 0, 0, 0, 115, 97, 109, 112, 108, 101, 100, 0, 5, 0, 7, 0, 4, 0, 0, 0, 101, 110, 116, 114, 121, 80, 111, 105, 110, 116, 80, 97, 114, 97, 109, 95, 80, 83, 0, 0, 5, 0, 3, 0, 1, 0, 0, 0, 80, 83, 0, 0, 71, 0, 4, 0, 5, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 6, 0, 0, 0, 30, 0, 0, 0, 1, 0, 0, 0, 71, 0, 4, 0, 2, 0, 0, 0, 33, 0, 0, 0, 3, 0, 0, 0, 71, 0, 4, 0, 2, 0, 0, 0, 34, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 3, 0, 0, 0, 33, 0, 0, 0, 4, 0, 0, 0, 71, 0, 4, 0, 3, 0, 0, 0, 34, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 4, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 19, 0, 2, 0, 9, 0, 0, 0, 33, 0, 3, 0, 10, 0, 0, 0, 9, 0, 0, 0, 22, 0, 3, 0, 11, 0, 0, 0, 32, 0, 0, 0, 23, 0, 4, 0, 12, 0, 0, 0, 11, 0, 0, 0, 4, 0, 0, 0, 32, 0, 4, 0, 13, 0, 0, 0, 1, 0, 0, 0, 12, 0, 0, 0, 23, 0, 4, 0, 14, 0, 0, 0, 11, 0, 0, 0, 2, 0, 0, 0, 32, 0, 4, 0, 15, 0, 0, 0, 1, 0, 0, 0, 14, 0, 0, 0, 25, 0, 9, 0, 16, 0, 0, 0, 11, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 32, 0, 4, 0, 17, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 26, 0, 2, 0, 18, 0, 0, 0, 32, 0, 4, 0, 19, 0, 0, 0, 0, 0, 0, 0, 18, 0, 0, 0, 27, 0, 3, 0, 20, 0, 0, 0, 16, 0, 0, 0, 32, 0, 4, 0, 21, 0, 0, 0, 3, 0, 0, 0, 12, 0, 0, 0, 59, 0, 4, 0, 13, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 59, 0, 4, 0, 15, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 59, 0, 4, 0, 17, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 59, 0, 4, 0, 19, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 59, 0, 4, 0, 21, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 54, 0, 5, 0, 9, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 248, 0, 2, 0, 22, 0, 0, 0, 61, 0, 4, 0, 12, 0, 0, 0, 23, 0, 0, 0, 5, 0, 0, 0, 61, 0, 4, 0, 14, 0, 0, 0, 24, 0, 0, 0, 6, 0, 0, 0, 61, 0, 4, 0, 16, 0, 0, 0, 25, 0, 0, 0, 2, 0, 0, 0, 61, 0, 4, 0, 18, 0, 0, 0, 26, 0, 0, 0, 3, 0, 0, 0, 86, 0, 5, 0, 20, 0, 0, 0, 7, 0, 0, 0, 25, 0, 0, 0, 26, 0, 0, 0, 87, 0, 6, 0, 12, 0, 0, 0, 8, 0, 0, 0, 7, 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 133, 0, 5, 0, 12, 0, 0, 0, 27, 0, 0, 0, 23, 0, 0, 0, 8, 0, 0, 0, 62, 0, 3, 0, 4, 0, 0, 0, 27, 0, 0, 0, 253, 0, 1, 0, 56, 0, 1, 0};
+
+static const char METAL_IMGUI_VERT[2042] = R"(#include <metal_stdlib>
+#include <metal_math>
+#include <metal_texture>
+using namespace metal;
+struct VS_Result_0
+{
+float4 position_0 [[position]];
+float4 color_0 [[user(COLOR)]];
+float2 uv_0 [[user(UV)]];
+};
+struct vertexInput_0
+{
+float2 position_1 [[attribute(0)]];
+float4 color_1 [[attribute(1)]];
+float2 uv_1 [[attribute(2)]];
+};
+struct _MatrixStorage_float4x4_ColMajornatural_0
+{
+array<float4, int(4)> data_0;
+};
+struct SLANG_ParameterGroup_UniformBuffer_natural_0
+{
+_MatrixStorage_float4x4_ColMajornatural_0 ProjectionMatrix_0;
+};
+struct VSOutput_0
+{
+float4 position_2;
+float4 color_2;
+float2 uv_2;
+};
+[[vertex]] VS_Result_0 VS(vertexInput_0 _S1 [[stage_in]], SLANG_ParameterGroup_UniformBuffer_natural_0 constant* UniformBuffer_0 [[buffer(2)]])
+{
+thread VSOutput_0 outp_0;
+(&outp_0)->position_2 = (((float4(_S1.position_1.xy, 0.0, 1.0)) * (matrix<float,int(4),int(4)> (UniformBuffer_0->ProjectionMatrix_0.data_0[int(0)][int(0)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(1)][int(0)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(2)][int(0)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(3)][int(0)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(0)][int(1)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(1)][int(1)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(2)][int(1)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(3)][int(1)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(0)][int(2)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(1)][int(2)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(2)][int(2)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(3)][int(2)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(0)][int(3)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(1)][int(3)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(2)][int(3)], UniformBuffer_0->ProjectionMatrix_0.data_0[int(3)][int(3)]))));
+(&outp_0)->color_2 = _S1.color_1;
+(&outp_0)->uv_2 = _S1.uv_1;
+thread VS_Result_0 _S2;
+(&_S2)->position_0 = outp_0.position_2;
+(&_S2)->color_0 = outp_0.color_2;
+(&_S2)->uv_0 = outp_0.uv_2;
+return _S2;
+}
+)";
+
+static const char METAL_IMGUI_FRAG[738] = R"(#include <metal_stdlib>
+#include <metal_math>
+#include <metal_texture>
+using namespace metal;
+struct pixelOutput_0
+{
+float4 output_0 [[color(0)]];
+};
+struct pixelInput_0
+{
+float4 color_0 [[user(COLOR)]];
+float2 uv_0 [[user(UV)]];
+};
+struct KernelContext_0
+{
+texture2d<float, access::sample> Texture_0;
+sampler Sampler_0;
+};
+[[fragment]] pixelOutput_0 PS(pixelInput_0 _S1 [[stage_in]], float4 position_0 [[position]], texture2d<float, access::sample> Texture_1 [[texture(3)]], sampler Sampler_1 [[sampler(4)]])
+{
+thread KernelContext_0 kernelContext_0;
+(&kernelContext_0)->Texture_0 = Texture_1;
+(&kernelContext_0)->Sampler_0 = Sampler_1;
+pixelOutput_0 _S2 = { _S1.color_0 * ((Texture_1).sample((Sampler_1), (_S1.uv_0))) };
+return _S2;
+}
+)";
+
+static const char GL_IMGUI_VERT[591] = R"(#version 410
+layout(std140) uniform UniformBuffer_std140
+{
+layout(row_major) mat4 ProjectionMatrix;
+} UniformBuffer;
+layout(location = 0) in vec2 inp_position;
+layout(location = 1) in vec4 inp_color;
+layout(location = 2) in vec2 inp_uv;
+layout(location = 0) out vec4 entryPointParam_VS_color;
+layout(location = 1) out vec2 entryPointParam_VS_uv;
+mat4 spvWorkaroundRowMajor(mat4 wrap) { return wrap; }
+void main()
+{
+gl_Position = vec4(inp_position.xy, 0.0, 1.0) * spvWorkaroundRowMajor(UniformBuffer.ProjectionMatrix);
+entryPointParam_VS_color = inp_color;
+entryPointParam_VS_uv = inp_uv;
+}
+)";
+
+static const char GL_IMGUI_FRAG[225] = R"(#version 410
+uniform sampler2D Texture;
+layout(location = 0) in vec4 inp_color;
+layout(location = 1) in vec2 inp_uv;
+layout(location = 0) out vec4 fragColor;
+void main()
+{
+fragColor = inp_color * texture(Texture, inp_uv);
+}
+)";
+
 static const char D3D11_LINE_VERT[1988] = R"(#pragma pack_matrix(column_major)
 #ifdef SLANG_HLSL_ENABLE_NVAPI
 #include "nvHLSLExtns.h"
@@ -2537,6 +2701,16 @@ static inline ShaderSourceCode GetFontShaderSourceCode(const sge::RenderBackend 
         case sge::RenderBackend::D3D12: return ShaderSourceCode(D3D11_FONT_VERT, sizeof(D3D11_FONT_VERT), D3D11_FONT_FRAG, sizeof(D3D11_FONT_FRAG));
         case sge::RenderBackend::Metal: return ShaderSourceCode(METAL_FONT_VERT, sizeof(METAL_FONT_VERT), METAL_FONT_FRAG, sizeof(METAL_FONT_FRAG));
         case sge::RenderBackend::OpenGL: return ShaderSourceCode(GL_FONT_VERT, sizeof(GL_FONT_VERT), GL_FONT_FRAG, sizeof(GL_FONT_FRAG));
+        default: SGE_UNREACHABLE();
+    }
+}
+static inline ShaderSourceCode GetImguiShaderSourceCode(const sge::RenderBackend backend) {
+    switch (backend) {
+        case sge::RenderBackend::Vulkan: return ShaderSourceCode(VULKAN_IMGUI_VERT, sizeof(VULKAN_IMGUI_VERT), VULKAN_IMGUI_FRAG, sizeof(VULKAN_IMGUI_FRAG));
+        case sge::RenderBackend::D3D11:
+        case sge::RenderBackend::D3D12: return ShaderSourceCode(D3D11_IMGUI_VERT, sizeof(D3D11_IMGUI_VERT), D3D11_IMGUI_FRAG, sizeof(D3D11_IMGUI_FRAG));
+        case sge::RenderBackend::Metal: return ShaderSourceCode(METAL_IMGUI_VERT, sizeof(METAL_IMGUI_VERT), METAL_IMGUI_FRAG, sizeof(METAL_IMGUI_FRAG));
+        case sge::RenderBackend::OpenGL: return ShaderSourceCode(GL_IMGUI_VERT, sizeof(GL_IMGUI_VERT), GL_IMGUI_FRAG, sizeof(GL_IMGUI_FRAG));
         default: SGE_UNREACHABLE();
     }
 }

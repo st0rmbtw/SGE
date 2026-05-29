@@ -18,6 +18,7 @@
 #include "app.hpp"
 #include "SGE/renderer/context.hpp"
 #include "SGE/types/shape.hpp"
+#include "imgui.h"
 
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
@@ -303,6 +304,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         m_renderer->UploadBatchData();
         m_renderer->RenderBatch(*m_batch);
 
+    #ifdef SGE_IMGUI_ENABLED
         GetRenderContext()->BeginImGuiFrame(*window);
         {
             ImGui::NewFrame();
@@ -312,6 +314,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             ImGui::Render();
         }
         GetRenderContext()->EndImGuiFrame();
+    #endif
 
         m_batch->Reset();
     m_renderer->EndPass();

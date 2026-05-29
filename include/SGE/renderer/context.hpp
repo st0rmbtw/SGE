@@ -116,14 +116,15 @@ public:
 
 #if SGE_IMGUI_ENABLED
     ImGuiContext* GetOrCreateImGuiContext(GlfwWindow& window);
+    void ReleaseImGuiContext(const GlfwWindow& window);
 #endif
 
 #if SGE_IMGUI_ENABLED
     void BeginImGuiFrame(GlfwWindow& window);
     void EndImGuiFrame();
 #else
-    inline void BeginImGuiFrame(GlfwWindow& window) {}
-    inline void EndImGuiFrame(GlfwWindow& window) {}
+    inline void BeginImGuiFrame(GlfwWindow&) {}
+    inline void EndImGuiFrame() {}
 #endif
 
     void DeletePipeline(Handle<LLGL::PipelineState> handle);
@@ -140,6 +141,14 @@ public:
 
     inline void Release(Handle<LLGL::RenderTarget> renderTarget) {
         DeleteRenderTarget(renderTarget);
+    }
+
+    sge::Ref<Sampler>& GetLinearSampler() {
+        return m_linear_sampler;
+    }
+    
+    sge::Ref<Sampler>& GetNearestSampler() {
+        return m_nearest_sampler;
     }
     
     Raw<Sampler> CreateSampler(const LLGL::SamplerDescriptor& descriptor);
@@ -323,8 +332,11 @@ private:
     std::unordered_map<RenderPassKey, LLGL::RenderPass*> m_render_passes;
 
 #if SGE_IMGUI_ENABLED
-    std::unique_ptr<ImGuiBackend> m_imgui_backend;
+    std::unordered_map<uint32_t, ImGuiContext*> m_imgui_context_map;
 #endif
+
+    sge::Ref<Sampler> m_linear_sampler;
+    sge::Ref<Sampler> m_nearest_sampler;
 
     LLGL::RenderSystemPtr m_context = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;

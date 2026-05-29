@@ -16,7 +16,7 @@ public:
 
     virtual void ReleaseContext(const GlfwWindow& window);
     virtual void BeginFrame(GlfwWindow& window);
-    virtual void EndFrame() {}
+    virtual void EndFrame();
 
 protected:
     virtual void InitContext(ImGuiContext* context, GlfwWindow& window);

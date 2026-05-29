@@ -104,8 +104,9 @@ endif()
 target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_OPENGL_BACKEND_ENABLED=1)
 
 if(SGE_ENABLE_IMGUI)
+    message(STATUS "[SGE] ImGui: Enabled")
+
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_IMGUI_ENABLED=1)
-    target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui)
 
     list(APPEND SGE_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/imgui.cpp
@@ -115,31 +116,11 @@ if(SGE_ENABLE_IMGUI)
         ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/imgui_demo.cpp
 
         ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_glfw.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_opengl3.cpp
 
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/imgui/backend/backend.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/imgui_renderer.cpp
     )
-
-    if(WIN32)
-        list(APPEND SGE_SRC
-            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_dx11.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_dx12.cpp
-
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/imgui/backend/d3d11/d3d11_backend.cpp
-        )
-    endif()
-
-    if(APPLE)
-        list(APPEND SGE_SRC
-            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_metal.mm
-        )
-    endif()
-
-    if(SGE_BACKEND_VULKAN)
-        list(APPEND SGE_SRC
-            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
-        )
-    endif()
+else()
+    message(STATUS "[SGE] ImGui: Disabled")
 endif()
 
 if(SGE_ENABLE_PROFILE)
@@ -161,6 +142,7 @@ add_subdirectory(thirdparty/freetype-2.13.2)
 
 target_sources(${PROJECT_NAME} PRIVATE ${SGE_SRC})
 target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/include")
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui)
 
 if(NOT MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE "-Wall" "-Wextra" "-Wno-gnu-zero-variadic-macro-arguments")

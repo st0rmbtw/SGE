@@ -4,11 +4,13 @@
 sge::LLGLResourceRC::~LLGLResourceRC() {
     if (m_data) {
         m_render_context->ReleaseUntyped(*m_data);
+        m_data = nullptr;
     }
 }
 
-sge::LLGLResource::~LLGLResource() {
+void sge::LLGLResource::Destroy() {
     if (m_data) {
         m_render_context->ReleaseUntyped(*m_data);
+        m_data = nullptr;
     }
 }

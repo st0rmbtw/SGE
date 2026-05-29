@@ -58,7 +58,9 @@ public:
         m_data(data)
     {}
 
-    ~LLGLResource();
+    ~LLGLResource() {
+        Destroy();
+    }
 
     LLGLResource(const LLGLResource& other) = default;
     LLGLResource& operator=(const LLGLResource& other) = default;
@@ -73,6 +75,8 @@ public:
         other.m_data = nullptr;
         return *this;
     }
+
+    void Destroy();
 
     [[nodiscard]]
     inline LLGL::RenderSystemChild* Get() const noexcept {
@@ -128,6 +132,12 @@ public:
         other.IncrementRef();
         DecrementRef();
         m_data = other.m_data;
+        return *this;
+    }
+
+    Ref& operator=(std::nullptr_t) {
+        DecrementRef();
+        m_data = nullptr;
         return *this;
     }
     
@@ -322,6 +332,11 @@ public:
     }
     Unique& operator=(Unique&& other) noexcept {
         m_data = std::move(other.m_data);
+        return *this;
+    }
+
+    Unique& operator=(std::nullptr_t) noexcept {
+        m_data.Destroy();
         return *this;
     }
 
