@@ -46,6 +46,7 @@ endif()
 set(SGE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/engine.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/input.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/window_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/batch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/camera.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/context.cpp

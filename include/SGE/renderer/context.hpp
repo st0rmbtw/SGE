@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stack>
 #ifndef SGE_ENGINE_RENDERER_CONTEXT_HPP
 #define SGE_ENGINE_RENDERER_CONTEXT_HPP
 
@@ -94,15 +95,35 @@ struct std::hash<RenderPassKey> {
 
 namespace sge {
 
-#if SGE_IMGUI_ENABLED
-class ImGuiBackend;
-#endif
+struct ImGuiConfig {
+    int ConfigFlags = ImGuiConfigFlags_None;
+
+    bool ConfigNavSwapGamepadButtons = false;
+    bool ConfigNavMoveSetMousePos = false;
+    bool ConfigNavCaptureKeyboard = true;
+    bool ConfigNavEscapeClearFocusItem = true;
+    bool ConfigNavEscapeClearFocusWindow = false;
+    bool ConfigNavCursorVisibleAuto = true;
+    bool ConfigNavCursorVisibleAlways = false;
+
+    bool ConfigDockingNoSplit = false;
+    bool ConfigDockingNoDockingOver = false;
+    bool ConfigDockingWithShift = false;
+    bool ConfigDockingAlwaysTabBar = false;
+    bool ConfigDockingTransparentPayload = false;
+
+    bool ConfigViewportsNoAutoMerge = false;
+    bool ConfigViewportsNoTaskBarIcon = false;
+    bool ConfigViewportsNoDecoration = true;
+    bool ConfigViewportsNoDefaultParent = true;
+    bool ConfigViewportsPlatformFocusSetsImGuiFocus = true;
+};
 
 class RenderContext : public std::enable_shared_from_this<RenderContext> {
 public:
     RenderContext() = default;
 
-    bool Init(RenderBackend backend);
+    bool Init(RenderBackend backend, ImGuiConfig imguiConfig);
     void Destroy();
     ~RenderContext();
     
@@ -253,7 +274,15 @@ public:
         return Handle<LLGL::RenderTarget>(id);
     }
 
-    void SetCurrentRenderTarget(LLGL::RenderTarget* target);
+    void PushRenderTarget(LLGL::RenderTarget* target) {
+        m_target_stack.push(target);
+    }
+
+    LLGL::RenderTarget* PopRenderTarget() {
+        LLGL::RenderTarget* target = m_target_stack.top();
+        m_target_stack.pop();
+        return target;
+    }
 
     template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
     Ref<T> CreateRef(T* resource) {
@@ -304,6 +333,11 @@ public:
         return m_backend;
     }
 
+    [[nodiscard]]
+    inline LLGL::RenderTarget* GetCurrentTarget() const noexcept {
+        return m_target_stack.top();
+    }
+
 #if SGE_DEBUG
     [[nodiscard]]
     inline LLGL::RenderingDebugger* Debugger() const noexcept {
@@ -345,7 +379,7 @@ private:
     LLGL::RenderingDebugger* m_debugger = nullptr;
 #endif
 
-    LLGL::RenderTarget* m_current_target = nullptr;
+    std::stack<LLGL::RenderTarget*, std::vector<LLGL::RenderTarget*>> m_target_stack;
 
     uint32_t m_pipeline_config_index = 0;
     uint32_t m_render_target_config_index = 0;
@@ -353,6 +387,7 @@ private:
     uint32_t m_texture_index = 0;
 
     sge::RenderBackend m_backend;
+    sge::ImGuiConfig m_imgui_config;
 };
 
 

@@ -3,6 +3,8 @@
 #include <LLGL/PipelineStateFlags.h>
 #include <LLGL/ResourceFlags.h>
 #include <LLGL/TextureFlags.h>
+#include <LLGL/Surface.h>
+#include <LLGL/Platform/NativeHandle.h>
 #include <SGE/renderer/types.hpp>
 #include <SGE/types/binding_layout.hpp>
 #include <SGE/types/attributes.hpp>
@@ -10,13 +12,20 @@
 #include <SGE/defines.hpp>
 
 #include <GLFW/glfw3.h>
+#include <unordered_map>
 
 #if SGE_PLATFORM_WINDOWS
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
+    #define GLFW_EXPOSE_NATIVE_WIN32
+#elif SGE_PLATFORM_MACOS
+    #define GLFW_EXPOSE_NATIVE_COCOA
+#else
+    #if SGE_PLATFORM_LINUX
+        #define GLFW_EXPOSE_NATIVE_WAYLAND
+        #define GLFW_EXPOSE_NATIVE_X11
+    #endif
 #endif
-#include <windows.h>
-#endif
+
+#include <GLFW/glfw3native.h>
 
 #include <backends/imgui_impl_glfw.h>
 
@@ -25,44 +34,23 @@
 #include "shaders.hpp"
 
 struct BackendData {
-    LLGL::VertexFormat vertexFormat;
+    LLGL::VertexFormat VertexFormat;
 
-    std::vector<LLGL::SwapChainDescriptor> swapChainDescsForViewports;
-
-    std::shared_ptr<sge::RenderContext> context;
-    sge::Unique<LLGL::Buffer> constantBuffer;
-    sge::Unique<LLGL::Buffer> indexBuffer;
-    sge::Unique<LLGL::Buffer> vertexBuffer;
-    LLGL::CommandBuffer* commandBuffer = nullptr;
-
-    sge::Ref<LLGL::PipelineLayout> pipelineLayout;
-
-    sge::Handle<LLGL::PipelineState> pipelineHandle;
-
-    uint32_t vertexBufferSize = 0;
-    uint32_t indexBufferSize = 0;
-};
-
-struct FrameRenderBuffers
-{
-    sge::Unique<LLGL::Buffer> VertexBuffer;
+    std::shared_ptr<sge::RenderContext> Context;
+    sge::Unique<LLGL::Buffer> ConstantBuffer;
     sge::Unique<LLGL::Buffer> IndexBuffer;
-};
+    sge::Unique<LLGL::Buffer> VertexBuffer;
+    LLGL::CommandBuffer* CommandBuffer = nullptr;
 
-// Each viewport will hold 1 ImGui_ImplVulkanH_WindowRenderBuffers
-// [Please zero-clear before use!]
-struct WindowRenderBuffers
-{
-    uint32_t Index = 0;
-    uint32_t Count = 0;
-    std::vector<FrameRenderBuffers> FrameRenderBuffers;
-};
+    sge::Ref<LLGL::PipelineLayout> PipelineLayout;
 
-struct ViewportData
-{
-    sge::Ref<LLGL::SwapChain> SwapChain;
-    std::shared_ptr<sge::GlfwWindow> Window;
-    bool WindowOwned = false;
+    sge::Handle<LLGL::PipelineState> PipelineHandle;
+
+    uint32_t VertexBufferSize = 5000;
+    uint32_t IndexBufferSize = 10000;
+
+    uint32_t GlobalIdxOffset = 0;
+    uint32_t GlobalVtxOffset = 0;
 };
 
 struct TextureData
@@ -70,50 +58,95 @@ struct TextureData
     sge::Texture texture;
 };
 
+class GlfwSurface : public LLGL::Surface {
+public:
+    GlfwSurface(GLFWwindow* window, LLGL::Extent2D size) : m_wnd(window), m_size(size) {
+    }
+
+    [[nodiscard]]
+    LLGL::Display* FindResidentDisplay() const override {
+        return LLGL::Display::GetPrimary();
+    }
+
+    [[nodiscard]]
+    LLGL::Extent2D GetContentSize() const override {
+        return m_size;
+    }
+
+    bool GetNativeHandle(void *nativeHandle, std::size_t nativeHandleSize) override {
+        auto* handle = reinterpret_cast<LLGL::NativeHandle*>(nativeHandle);
+        #if defined(SGE_PLATFORM_WINDOWS)
+            handle->window = glfwGetWin32Window(m_wnd);
+        #elif defined(SGE_PLATFORM_MACOS)
+            handle->responder = glfwGetCocoaWindow(m_wnd);
+        #elif defined(SGE_PLATFORM_LINUX)
+            int platform = glfwGetPlatform();
+
+            if (platform == GLFW_PLATFORM_WAYLAND) {
+                handle->wayland.window = glfwGetWaylandWindow(m_wnd);
+                handle->wayland.display = glfwGetWaylandDisplay();
+                handle->type = LLGL::NativeType::Wayland;
+            } else {
+                handle->x11.window = glfwGetX11Window(m_wnd);
+                handle->x11.display = glfwGetX11Display();
+                handle->type = LLGL::NativeType::X11;
+            }
+
+        #endif
+        return true;
+    }
+
+    bool AdaptForVideoMode(LLGL::Extent2D *resolution, bool *fullscreen) override {
+        bool result = true;
+        if (resolution != nullptr) {
+            glfwSetWindowSize(m_wnd, resolution->width, resolution->height);
+            uint32_t width = 0;
+            uint32_t height = 0;
+            {
+                int w, h;
+                glfwGetWindowSize(m_wnd, &w, &h);
+                width = w;
+                height = h;
+            }
+            if (resolution->width != width || resolution->height != height) {
+                resolution->width = width;
+                resolution->height = height;
+                result = false;
+            }
+            m_size = *resolution;
+        }
+        if (fullscreen != nullptr) {
+            GLFWmonitor* monitor = *fullscreen ? glfwGetPrimaryMonitor() : nullptr;
+            glfwSetWindowMonitor(m_wnd, monitor, 0, 0, m_size.width, m_size.height, GLFW_DONT_CARE);
+            if (glfwGetWindowMonitor(m_wnd) != monitor) {
+                result = false;
+            }
+        }
+        return result;
+    }
+private:
+    LLGL::Extent2D m_size;
+    GLFWwindow* m_wnd = nullptr;
+};
+
+std::unordered_map<GLFWwindow*, sge::Unique<LLGL::SwapChain>> g_SwapChainMap;
+std::unordered_map<GLFWwindow*, std::shared_ptr<GlfwSurface>> g_WindowMap;
+
 static BackendData* GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (BackendData*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
-
 void DrawCallback_ResetRenderState(const ImDrawList*, const ImDrawCmd*) {}
 
 void DrawCallback_SetSamplerLinear(const ImDrawList* parent_list, const ImDrawCmd* cmd) {
     BackendData* bd = GetBackendData();
-    bd->commandBuffer->SetResource(2, *bd->context->GetLinearSampler());
+    bd->CommandBuffer->SetResource(2, *bd->Context->GetLinearSampler());
 }
 
 void DrawCallback_SetSamplerNearest(const ImDrawList* parent_list, const ImDrawCmd* cmd) {
     BackendData* bd = GetBackendData();
-    bd->commandBuffer->SetResource(2, *bd->context->GetNearestSampler());
-}
-
-static std::shared_ptr<sge::GlfwWindow> CreateGlfwWindow(sge::WindowSettings window_settings) {
-    glfwWindowHint(GLFW_FOCUSED, 1);
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_VISIBLE, window_settings.hidden ? GLFW_FALSE : GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, 1);
-    glfwWindowHint(GLFW_RESIZABLE, window_settings.resizable ? GLFW_TRUE : GLFW_FALSE);
-
-    GLFWmonitor* primary_monitor = window_settings.fullscreen ? glfwGetPrimaryMonitor() : nullptr;
-
-    GLFWwindow *window = glfwCreateWindow(window_settings.width, window_settings.height, window_settings.title, primary_monitor, nullptr);
-    if (window == nullptr) {
-        return nullptr;
-    }
-
-    glfwSetInputMode(window, GLFW_CURSOR, static_cast<int>(window_settings.cursor_mode));
-
-    int width, height;
-    glfwGetWindowSize(window, &width, &height);
-
-    glm::ivec2 position;
-    glfwGetWindowPos(window, &position.x, &position.y);
-
-    const uint8_t vsync_interval = window_settings.vsync;
-
-    std::shared_ptr<sge::GlfwWindow> instance = std::make_shared<sge::GlfwWindow>(window, LLGL::Extent2D(width, height), position, window_settings.cursor_mode, window_settings.samples, vsync_interval, window_settings.fullscreen);
-    return instance;
+    bd->CommandBuffer->SetResource(2, *bd->Context->GetNearestSampler());
 }
 
 static void UpdateTexture(ImTextureData* tex) {
@@ -151,7 +184,7 @@ static void UpdateTexture(ImTextureData* tex) {
 
         uint8_t* data = static_cast<uint8_t*>(tex->GetPixels());
 
-        backend_tex->texture = bd->context->CreateTexture(textureDesc.type, imageView.format, LLGL::DataType::UInt8, textureDesc.extent.width, textureDesc.extent.height, textureDesc.extent.depth, bd->context->GetNearestSampler(), data);
+        backend_tex->texture = bd->Context->CreateTexture(textureDesc.type, imageView.format, LLGL::DataType::UInt8, textureDesc.extent.width, textureDesc.extent.height, textureDesc.extent.depth, bd->Context->GetNearestSampler(), data);
 
         // Store your data, and acknowledge creation.
         tex->SetTexID((ImTextureID)(intptr_t)&backend_tex->texture); // Specify backend-specific ImTextureID identifier which will be stored in ImDrawCmd.
@@ -177,7 +210,7 @@ static void UpdateTexture(ImTextureData* tex) {
         srcImageView.rowStride = tex->GetPitch();
         srcImageView.dataSize = tex->UpdateRect.w * tex->UpdateRect.h * tex->BytesPerPixel;
 
-        bd->context->GetLLGLContext()->WriteTexture(*backend_tex->texture.internal(), region, srcImageView);
+        bd->Context->GetLLGLContext()->WriteTexture(*backend_tex->texture.internal(), region, srcImageView);
 
         // Acknowledge update
         tex->SetStatus(ImTextureStatus_OK);
@@ -204,21 +237,21 @@ static bool CreatePipelineObjects() {
         sge::BindingLayoutItem::Texture(3, "Texture", LLGL::StageFlags::FragmentStage),
         sge::BindingLayoutItem::Sampler(4, "Sampler", LLGL::StageFlags::FragmentStage),
     });
-    bd->pipelineLayout = bd->context->CreatePipelineLayout(layoutDesc);
+    bd->PipelineLayout = bd->Context->CreatePipelineLayout(layoutDesc);
 
-    bd->vertexFormat = sge::Attributes(bd->context->Backend(), {
+    bd->VertexFormat = sge::Attributes(bd->Context->Backend(), {
         sge::Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
         sge::Attribute::Vertex(LLGL::Format::RG32Float, "a_uv", "UV"),
         sge::Attribute::Vertex(LLGL::Format::RGBA8UNorm, "a_color", "Color"),
     });
 
-    ShaderSourceCode shader = GetImguiShaderSourceCode(bd->context->Backend());
-    sge::Ref<LLGL::Shader> vertexShader = bd->context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, bd->vertexFormat.attributes);
-    sge::Ref<LLGL::Shader> pixelShader = bd->context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+    ShaderSourceCode shader = GetImguiShaderSourceCode(bd->Context->Backend());
+    sge::Ref<LLGL::Shader> vertexShader = bd->Context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, bd->VertexFormat.attributes);
+    sge::Ref<LLGL::Shader> pixelShader = bd->Context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
 
     sge::GraphicsPipelineConfig config;
     {
-        config.layout = bd->pipelineLayout;
+        config.layout = bd->PipelineLayout;
         config.vertexShader = std::move(vertexShader);
         config.pixelShader = std::move(pixelShader);
         config.indexFormat = sizeof(ImDrawIdx) == 2 ? LLGL::Format::R16UInt : LLGL::Format::R32UInt;
@@ -226,25 +259,96 @@ static bool CreatePipelineObjects() {
         config.scissorTestEnabled = true;
         config.depth.testEnabled = false;
         config.depth.writeEnabled = false;
+        config.depth.compareOp = LLGL::CompareOp::AlwaysPass;
         config.blend.targets[0] = LLGL::BlendTargetDescriptor {
-            .blendEnabled = true
+            .blendEnabled = true,
+            .srcColor = LLGL::BlendOp::SrcAlpha,
+            .dstColor = LLGL::BlendOp::InvSrcAlpha,
+            .srcAlpha = LLGL::BlendOp::SrcAlpha,
+            .dstAlpha = LLGL::BlendOp::InvSrcAlpha,
         };
     }
 
-    bd->pipelineHandle = bd->context->CreatePipelineState(config);
-    bd->constantBuffer = bd->context->CreateConstantBuffer(sizeof(glm::mat4));
+    bd->PipelineHandle = bd->Context->CreatePipelineState(config);
+    bd->ConstantBuffer = bd->Context->CreateConstantBuffer(sizeof(glm::mat4));
 
     return true;
 }
 
 static void DestroyPipelineObjects() {
     BackendData* bd = GetBackendData();
-    bd->context->DeletePipeline(bd->pipelineHandle);
+    bd->Context->DeletePipeline(bd->PipelineHandle);
 }
 
-static void ImGui_ImplGlfw_SwapBuffers(ImGuiViewport* viewport, void*)
-{
-    glfwSwapBuffers((GLFWwindow*)viewport->PlatformHandle);
+static void Renderer_CreateWindow(ImGuiViewport* viewport) {
+    BackendData* bd = GetBackendData();
+    
+    GLFWwindow* glfwHandle = (GLFWwindow*)viewport->PlatformHandle;
+
+    std::shared_ptr<GlfwSurface> surface = std::make_shared<GlfwSurface>(glfwHandle, LLGL::Extent2D(viewport->Size.x, viewport->Size.y));
+    
+    LLGL::SwapChainDescriptor swapChainDesc;
+    swapChainDesc.resolution.width = viewport->Size.x;
+    swapChainDesc.resolution.height = viewport->Size.y;
+    swapChainDesc.depthBits = 0;
+    LLGL::SwapChain* swapChain = bd->Context->GetLLGLContext()->CreateSwapChain(swapChainDesc, surface);
+    swapChain->SetVsyncInterval(0);
+    
+    g_SwapChainMap[glfwHandle] = bd->Context->CreateUnique(swapChain);
+    g_WindowMap[glfwHandle] = surface;
+}
+
+static void Renderer_DestroyWindow(ImGuiViewport* viewport) {
+    BackendData* bd = GetBackendData();
+    GLFWwindow* glfwHandle = (GLFWwindow*)viewport->PlatformHandle;
+
+    g_SwapChainMap.erase(glfwHandle);
+    g_WindowMap.erase(glfwHandle);
+}
+
+static void Renderer_SwapBuffers(ImGuiViewport* viewport, void*) {
+    auto it = g_SwapChainMap.find((GLFWwindow*)viewport->PlatformHandle);
+    if (it == g_SwapChainMap.end()) {
+        return;
+    }
+
+    it->second->Present();
+}
+
+static void Renderer_ResizeWindow(ImGuiViewport* viewport, ImVec2 size) {
+    auto it = g_SwapChainMap.find((GLFWwindow*)viewport->PlatformHandle);
+    if (it == g_SwapChainMap.end()) {
+        return;
+    }
+
+    it->second->ResizeBuffers(LLGL::Extent2D(size.x, size.y));
+}
+
+static void Renderer_RenderWindow(ImGuiViewport* viewport, void*) {
+    auto it = g_SwapChainMap.find((GLFWwindow*)viewport->PlatformHandle);
+    if (it == g_SwapChainMap.end()) {
+        return;
+    }
+
+    BackendData* bd = GetBackendData();
+
+    bd->CommandBuffer->BeginRenderPass(*it->second);
+        bd->Context->PushRenderTarget(it->second);
+        {
+            bd->CommandBuffer->Clear(LLGL::ClearFlags::Color, LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+            ImGuiRenderer::RenderDrawData(viewport->DrawData);
+        }
+        bd->Context->PopRenderTarget();
+    bd->CommandBuffer->EndRenderPass();
+}
+
+static void InitMultiViewportSupport() {
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+    platform_io.Renderer_CreateWindow = Renderer_CreateWindow;
+    platform_io.Renderer_DestroyWindow = Renderer_DestroyWindow;
+    platform_io.Renderer_SetWindowSize = Renderer_ResizeWindow;
+    platform_io.Renderer_RenderWindow = Renderer_RenderWindow;
+    platform_io.Renderer_SwapBuffers = Renderer_SwapBuffers;
 }
 
 bool ImGuiRenderer::Init(std::shared_ptr<sge::RenderContext> context) {
@@ -261,18 +365,21 @@ bool ImGuiRenderer::Init(std::shared_ptr<sge::RenderContext> context) {
     io.BackendFlags |= ImGuiBackendFlags_RendererHasViewports;  // We can create multi-viewports on the Renderer side (optional)
 
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+
     platform_io.Renderer_TextureMaxWidth = context->GetRenderingCaps().limits.max2DTextureSize;
     platform_io.Renderer_TextureMaxHeight = context->GetRenderingCaps().limits.max2DTextureSize;
     platform_io.DrawCallback_ResetRenderState = DrawCallback_ResetRenderState;
     platform_io.DrawCallback_SetSamplerLinear = DrawCallback_SetSamplerLinear;
     platform_io.DrawCallback_SetSamplerNearest = DrawCallback_SetSamplerNearest;
-    platform_io.Platform_SwapBuffers = ImGui_ImplGlfw_SwapBuffers;
 
-    bd->commandBuffer = context->GetCommandBuffer();
-    bd->context = std::move(context);
+    bd->CommandBuffer = context->GetCommandBuffer();
+    bd->Context = std::move(context);
 
     if (!CreatePipelineObjects())
         return false;
+
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        InitMultiViewportSupport();
 
     return true;
 }
@@ -297,9 +404,12 @@ void ImGuiRenderer::NewFrame() {
     BackendData* bd = GetBackendData();
     IM_ASSERT(bd != nullptr && "Context or backend not initialized! Did you call ImGui_ImplDX11_Init()?");
 
-    if (!bd->pipelineHandle.IsValid())
+    if (!bd->PipelineHandle.IsValid())
         if (!CreatePipelineObjects())
             IM_ASSERT(0 && "ImGui_ImplDX11_CreateDeviceObjects() failed!");
+
+    bd->GlobalVtxOffset = 0;
+    bd->GlobalIdxOffset = 0;
 }
 
 static void SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height) {
@@ -309,6 +419,7 @@ static void SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height)
     float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
     float T = draw_data->DisplayPos.y;
     float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+
     float mvp[4][4] =
     {
         { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
@@ -317,13 +428,12 @@ static void SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height)
         { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
     };
 
-    bd->commandBuffer->UpdateBuffer(*bd->constantBuffer, 0, mvp, sizeof(mvp));
-
-    bd->commandBuffer->SetViewport(LLGL::Extent2D(fb_width, fb_height));
-    bd->commandBuffer->SetPipelineState(bd->context->GetOrCreatePipeline(bd->pipelineHandle));
-    bd->commandBuffer->SetVertexBuffer(*bd->vertexBuffer);
-    bd->commandBuffer->SetIndexBuffer(*bd->indexBuffer);
-    bd->commandBuffer->SetResource(0, *bd->constantBuffer);
+    bd->CommandBuffer->UpdateBuffer(*bd->ConstantBuffer, 0, mvp, sizeof(mvp));
+    bd->CommandBuffer->SetPipelineState(bd->Context->GetOrCreatePipeline(bd->PipelineHandle));
+    bd->CommandBuffer->SetViewport(LLGL::Extent2D(fb_width, fb_height));
+    bd->CommandBuffer->SetVertexBuffer(*bd->VertexBuffer);
+    bd->CommandBuffer->SetIndexBuffer(*bd->IndexBuffer);
+    bd->CommandBuffer->SetResource(0, *bd->ConstantBuffer);
 }
 
 void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
@@ -339,45 +449,45 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
 
     BackendData* bd = GetBackendData();
 
-    if (!bd->vertexBuffer || bd->vertexBufferSize < draw_data->TotalVtxCount)
+    if (!bd->VertexBuffer || bd->VertexBufferSize < bd->GlobalVtxOffset + draw_data->TotalVtxCount)
     {
-        bd->vertexBufferSize = draw_data->TotalVtxCount + 5000;
+        bd->VertexBufferSize = bd->GlobalVtxOffset + draw_data->TotalVtxCount + 5000;
 
         LLGL::BufferDescriptor desc;
         desc.miscFlags = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
-        desc.size = bd->vertexBufferSize * sizeof(ImDrawVert);
+        desc.size = bd->VertexBufferSize * sizeof(ImDrawVert);
         desc.bindFlags = LLGL::BindFlags::VertexBuffer;
         desc.cpuAccessFlags = LLGL::CPUAccessFlags::Write;
-        desc.vertexAttribs = bd->vertexFormat.attributes;
+        desc.vertexAttribs = bd->VertexFormat.attributes;
 
-        bd->vertexBuffer = bd->context->CreateBuffer(desc);
+        bd->VertexBuffer = bd->Context->CreateBuffer(desc);
     }
-    if (!bd->indexBuffer || bd->indexBufferSize < draw_data->TotalIdxCount)
+    if (!bd->IndexBuffer || bd->IndexBufferSize < bd->GlobalIdxOffset + draw_data->TotalIdxCount)
     {
-        bd->indexBufferSize = draw_data->TotalIdxCount + 10000;
+        bd->IndexBufferSize = bd->GlobalIdxOffset + draw_data->TotalIdxCount + 10000;
 
         LLGL::BufferDescriptor desc;
         desc.miscFlags = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
-        desc.size = bd->indexBufferSize * sizeof(ImDrawIdx);
+        desc.size = bd->IndexBufferSize * sizeof(ImDrawIdx);
         desc.bindFlags = LLGL::BindFlags::IndexBuffer;
         desc.cpuAccessFlags = LLGL::CPUAccessFlags::Write;
         desc.format = sizeof(ImDrawIdx) == 2 ? LLGL::Format::R16UInt : LLGL::Format::R32UInt;
         
-        bd->indexBuffer = bd->context->CreateBuffer(desc);
+        bd->IndexBuffer = bd->Context->CreateBuffer(desc);
     }
 
-    void* vtxData = bd->context->GetLLGLContext()->MapBuffer(*bd->vertexBuffer, LLGL::CPUAccess::WriteDiscard);
+    void* vtxData = bd->Context->GetLLGLContext()->MapBuffer(*bd->VertexBuffer, LLGL::CPUAccess::WriteDiscard);
     if (!vtxData)
         return;
 
-    void* idxData = bd->context->GetLLGLContext()->MapBuffer(*bd->indexBuffer, LLGL::CPUAccess::WriteDiscard);
+    void* idxData = bd->Context->GetLLGLContext()->MapBuffer(*bd->IndexBuffer, LLGL::CPUAccess::WriteDiscard);
     if (!idxData) {
-        bd->context->GetLLGLContext()->UnmapBuffer(*bd->vertexBuffer);
+        bd->Context->GetLLGLContext()->UnmapBuffer(*bd->VertexBuffer);
         return;
     }
 
-    ImDrawVert* vtx_dst = static_cast<ImDrawVert*>(vtxData);
-    ImDrawIdx* idx_dst = static_cast<ImDrawIdx*>(idxData);
+    ImDrawVert* vtx_dst = static_cast<ImDrawVert*>(vtxData) + bd->GlobalVtxOffset;
+    ImDrawIdx* idx_dst = static_cast<ImDrawIdx*>(idxData) + bd->GlobalIdxOffset;
     for (const ImDrawList* draw_list : draw_data->CmdLists)
     {
         memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
@@ -385,15 +495,13 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
         vtx_dst += draw_list->VtxBuffer.Size;
         idx_dst += draw_list->IdxBuffer.Size;
     }
-    bd->context->GetLLGLContext()->UnmapBuffer(*bd->vertexBuffer);
-    bd->context->GetLLGLContext()->UnmapBuffer(*bd->indexBuffer);
+    bd->Context->GetLLGLContext()->UnmapBuffer(*bd->VertexBuffer);
+    bd->Context->GetLLGLContext()->UnmapBuffer(*bd->IndexBuffer);
 
     SetupRenderState(draw_data, fb_width, fb_height);
 
     // Render command lists
     // (Because we merged all buffers into a single one, we maintain our own offset into them)
-    int global_idx_offset = 0;
-    int global_vtx_offset = 0;
     ImVec2 clip_off = draw_data->DisplayPos;
     ImVec2 clip_scale = draw_data->FramebufferScale;
     for (const ImDrawList* draw_list : draw_data->CmdLists)
@@ -430,24 +538,24 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
                 const float clip_width = clip_max.x - clip_min.x;
                 const float clip_height = clip_max.y - clip_min.y;
 
-                bd->commandBuffer->SetScissor(LLGL::Scissor(clip_min.x, clip_min.y, clip_width, clip_height));
+                bd->CommandBuffer->SetScissor(LLGL::Scissor(clip_min.x, clip_min.y, clip_width, clip_height));
 
                 // The texture for the draw call is specified by pcmd->GetTexID().
                 // The vast majority of draw calls will use the Dear ImGui texture atlas, which value you have set yourself during initialization.
                 sge::Texture* texture = reinterpret_cast<sge::Texture*>(pcmd->GetTexID());
 
-                bd->commandBuffer->SetResource(1, *texture->internal());
-                bd->commandBuffer->SetResource(2, *texture->sampler());
+                bd->CommandBuffer->SetResource(1, *texture->internal());
+                bd->CommandBuffer->SetResource(2, *texture->sampler());
 
                 // Render 'pcmd->ElemCount/3' indexed triangles.
                 // By default the indices ImDrawIdx are 16-bit, you can change them to 32-bit in imconfig.h if your engine doesn't support 16-bit indices.
-                bd->commandBuffer->DrawIndexed(pcmd->ElemCount, pcmd->IdxOffset + global_idx_offset, pcmd->VtxOffset + global_vtx_offset);
+                bd->CommandBuffer->DrawIndexed(pcmd->ElemCount, pcmd->IdxOffset + bd->GlobalIdxOffset, pcmd->VtxOffset + bd->GlobalVtxOffset);
             }
         }
 
-        global_idx_offset += draw_list->IdxBuffer.Size;
-        global_vtx_offset += draw_list->VtxBuffer.Size;
+        bd->GlobalIdxOffset += draw_list->IdxBuffer.Size;
+        bd->GlobalVtxOffset += draw_list->VtxBuffer.Size;
     }
     
-    bd->commandBuffer->SetScissor(LLGL::Scissor(0, 0, (uint32_t)fb_width, (uint32_t)fb_height));
+    bd->CommandBuffer->SetScissor(LLGL::Scissor(0, 0, (uint32_t)fb_width, (uint32_t)fb_height));
 }

@@ -15,14 +15,16 @@
 namespace sge {
 
 class GlfwWindow : public LLGL::Surface {
+    friend class IEngine;
+
+public:
     enum class Flags : uint8_t {
         Minimized = 0,
         Maximized,
         Fullscreen,
         Focused,
     };
-
-public:
+    
     class EventListener {
     public:
         virtual void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) = 0;
@@ -37,9 +39,6 @@ public:
         virtual void OnWindowResizeEvent(GLFWwindow* window, int width, int height) = 0;
         virtual void OnWindowRefreshEvent(GLFWwindow* window) = 0;
     };
-
-    friend class IEngine;
-
 public:
     GlfwWindow(GLFWwindow* wnd, LLGL::Extent2D size, glm::ivec2 position, sge::CursorMode cursor_mode, uint8_t samples, uint8_t vsync, bool fullscreen) :
         m_size(size),

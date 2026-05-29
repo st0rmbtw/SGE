@@ -28,6 +28,8 @@ bool App::OnInit() {
     if (!InitRenderContext(m_config.backend))
         return false;
 
+    SetAutoPresent(true);
+
     WindowSettings window_settings;
     window_settings.width = 1280;
     window_settings.height = 720;
@@ -316,7 +318,6 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
     m_renderer->EndPass();
 
     m_renderer->End();
-    GetRenderContext()->Present(*window);
 }
 
 void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) {

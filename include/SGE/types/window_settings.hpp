@@ -14,6 +14,8 @@ struct WindowSettings {
     CursorMode cursor_mode = CursorMode::Normal;
     uint8_t samples = 4;
     bool resizable = true;
+    bool decorated = true;
+    bool focused = true;
     bool fullscreen = false;
     bool hidden = false;
     bool vsync = false;

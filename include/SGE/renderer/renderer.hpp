@@ -125,6 +125,7 @@ public:
     }
 
     inline void EndPass() {
+        m_context->PopRenderTarget();
         m_command_buffer->EndRenderPass();
     }
 

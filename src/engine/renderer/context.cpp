@@ -18,8 +18,9 @@
 
 namespace fs = std::filesystem;
 
-bool sge::RenderContext::Init(sge::RenderBackend backend) {
+bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfig) {
     m_backend = backend;
+    m_imgui_config = imguiConfig;
 
     LLGL::Report report;
 
@@ -182,10 +183,6 @@ void sge::RenderContext::UnregisterWindow(const GlfwWindow& window) {
 #endif
 }
 
-void sge::RenderContext::SetCurrentRenderTarget(LLGL::RenderTarget* target) {
-    m_current_target = target;
-}
-
 LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<GlfwWindow>& window) {
     LLGL::SwapChain* swap_chain = nullptr;
 
@@ -227,7 +224,7 @@ void sge::RenderContext::Present(const sge::GlfwWindow& window) {
 }
 
 LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::PipelineState> handle) {
-    SGE_ASSERT(m_current_target != nullptr);
+    SGE_ASSERT(GetCurrentTarget() != nullptr);
 
     const auto it_config = m_pipeline_configs.find(handle.ID());
     SGE_ASSERT(it_config != m_pipeline_configs.end());
@@ -236,14 +233,14 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
 
     LLGL::PipelineState* pipeline_state = nullptr;
 
-    const PipelineConfigKey key = {.render_target=m_current_target, .config_id=handle.ID()};
+    const PipelineConfigKey key = {.render_target=GetCurrentTarget(), .config_id=handle.ID()};
     const auto it_pipeline = m_pipeline_states.find(key);
     if (it_pipeline != m_pipeline_states.end()) {
         pipeline_state = it_pipeline->second;
     } else {
         LLGL::RenderPass* renderPass = nullptr;
         if (config.renderPass.IsValid()) {
-            renderPass = &GetOrCreateRenderPass(config.renderPass, m_current_target->GetSamples());
+            renderPass = &GetOrCreateRenderPass(config.renderPass, GetCurrentTarget()->GetSamples());
         } 
 
         LLGL::GraphicsPipelineDescriptor pipelineDesc;
@@ -260,10 +257,10 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
         pipelineDesc.rasterizer.cullMode = config.cullMode;
         pipelineDesc.rasterizer.frontCCW = config.frontCCW;
         pipelineDesc.rasterizer.scissorTestEnabled = config.scissorTestEnabled;
-        pipelineDesc.rasterizer.multiSampleEnabled = (m_current_target->GetSamples() > 1);
+        pipelineDesc.rasterizer.multiSampleEnabled = (GetCurrentTarget()->GetSamples() > 1);
         
         if (pipelineDesc.renderPass == nullptr) {
-            pipelineDesc.renderPass = m_current_target->GetRenderPass();
+            pipelineDesc.renderPass = GetCurrentTarget()->GetRenderPass();
         }
 
         pipeline_state = m_context->CreatePipelineState(pipelineDesc);
@@ -400,8 +397,24 @@ ImGuiContext* sge::RenderContext::GetOrCreateImGuiContext(GlfwWindow& window) {
         context = ImGui::CreateContext();
         {
             ImGuiIO& io = ImGui::GetIO();
-            io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            io.ConfigFlags = m_imgui_config.ConfigFlags;
+            io.ConfigNavSwapGamepadButtons = m_imgui_config.ConfigNavSwapGamepadButtons;
+            io.ConfigNavMoveSetMousePos = m_imgui_config.ConfigNavMoveSetMousePos;
+            io.ConfigNavCaptureKeyboard = m_imgui_config.ConfigNavCaptureKeyboard;
+            io.ConfigNavEscapeClearFocusItem = m_imgui_config.ConfigNavEscapeClearFocusItem;
+            io.ConfigNavEscapeClearFocusWindow = m_imgui_config.ConfigNavEscapeClearFocusWindow;
+            io.ConfigNavCursorVisibleAuto = m_imgui_config.ConfigNavCursorVisibleAuto;
+            io.ConfigNavCursorVisibleAlways = m_imgui_config.ConfigNavCursorVisibleAlways;
+            io.ConfigDockingNoSplit = m_imgui_config.ConfigDockingNoSplit;
+            io.ConfigDockingNoDockingOver = m_imgui_config.ConfigDockingNoDockingOver;
+            io.ConfigDockingWithShift = m_imgui_config.ConfigDockingWithShift;
+            io.ConfigDockingAlwaysTabBar = m_imgui_config.ConfigDockingAlwaysTabBar;
+            io.ConfigDockingTransparentPayload = m_imgui_config.ConfigDockingTransparentPayload;
+            io.ConfigViewportsNoAutoMerge = m_imgui_config.ConfigViewportsNoAutoMerge;
+            io.ConfigViewportsNoTaskBarIcon = m_imgui_config.ConfigViewportsNoTaskBarIcon;
+            io.ConfigViewportsNoDecoration = m_imgui_config.ConfigViewportsNoDecoration;
+            io.ConfigViewportsNoDefaultParent = m_imgui_config.ConfigViewportsNoDefaultParent;
+            io.ConfigViewportsPlatformFocusSetsImGuiFocus = m_imgui_config.ConfigViewportsPlatformFocusSetsImGuiFocus;
         }
         ImGui::SetCurrentContext(context);
         ImGui::StyleColorsDark();
@@ -410,8 +423,8 @@ ImGuiContext* sge::RenderContext::GetOrCreateImGuiContext(GlfwWindow& window) {
         window.GetNativeHandle(&nativeHandle, sizeof(nativeHandle));
 
         ImGui_ImplGlfw_InitForOther(window.GetGlfwHandle(), false);
-
         ImGuiRenderer::Init(shared_from_this());
+    
         m_imgui_context_map.try_emplace(window.GetID(), context);
     } else {
         context = it->second;

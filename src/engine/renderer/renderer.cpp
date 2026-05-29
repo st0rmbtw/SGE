@@ -586,7 +586,8 @@ void Renderer::Begin() {
 }
 
 void Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) {
-    m_context->SetCurrentRenderTarget(&target);
+    m_context->PushRenderTarget(&target);
+
     m_viewport = target.GetResolution();
 
     auto global_uniforms = GlobalUniforms {

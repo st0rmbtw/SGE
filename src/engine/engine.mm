@@ -9,6 +9,7 @@
 #include <SGE/time/time.hpp>
 #include <memory>
 
+#include "SGE/window_manager.hpp"
 #include "defines.hpp"
 #include "utils.hpp"
 
@@ -66,12 +67,14 @@ void IEngine::Run() {
     while (m_running) {
         glfwPollEvents();
 
-        for (auto it = m_window_map.begin(); it != m_window_map.end();) {
+        auto& window_map = WindowManager::GetWindowMap();
+
+        for (auto it = window_map.begin(); it != window_map.end();) {
             const auto& window = it->second;
             if (window->ShouldBeClosed()) {
                 OnWindowDestroy(*window);
                 m_context->UnregisterWindow(*window);
-                it = m_window_map.erase(it);
+                it = window_map.erase(it);
             } else {
                 ++it;
             }
@@ -79,7 +82,7 @@ void IEngine::Run() {
 
         MACOS_AUTORELEASEPOOL_OPEN
             Update();
-            for (const auto& [glfw, window] : m_window_map) {
+            for (const auto& [glfw, window] : window_map) {
                 Render(window);
             }
         MACOS_AUTORELEASEPOOL_CLOSE
@@ -124,39 +127,29 @@ void IEngine::Update() {
 void IEngine::Render(const std::shared_ptr<sge::GlfwWindow>& window) {
     const LLGL::Extent2D size = window->GetContentSize();
 
-    if (!window->IsMinimized() && (size.width > 0 && size.height > 0)) {
-        OnRender(window);
-        OnPostRender(window);
-    }
-}
-
-std::expected<std::shared_ptr<sge::GlfwWindow>, const char*> IEngine::CreateWindow(const WindowSettings& window_settings) {
-    glfwWindowHint(GLFW_FOCUSED, 1);
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_VISIBLE, window_settings.hidden ? GLFW_FALSE : GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, 1);
-    glfwWindowHint(GLFW_RESIZABLE, window_settings.resizable ? GLFW_TRUE : GLFW_FALSE);
-
-    GLFWmonitor* primary_monitor = window_settings.fullscreen ? glfwGetPrimaryMonitor() : nullptr;
-
-    GLFWwindow *window = glfwCreateWindow(window_settings.width, window_settings.height, window_settings.title, primary_monitor, nullptr);
-    if (window == nullptr) {
-        return std::unexpected(glfwGetErrorString());
+    if (window->IsMinimized() || size.width <= 0 || size.height <= 0) {
+        return;
     }
 
-    glfwSetInputMode(window, GLFW_CURSOR, static_cast<int>(window_settings.cursor_mode));
+    OnRender(window);
+    OnPostRender(window);
 
-    int width, height;
-    glfwGetWindowSize(window, &width, &height);
+    if (m_auto_present) {
+        GetRenderContext()->Present(*window);
 
-    glm::ivec2 position;
-    glfwGetWindowPos(window, &position.x, &position.y);
+        #if SGE_IMGUI_ENABLED
+        ImGuiIO& io = ImGui::GetIO();
+        ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
 
-    const uint8_t vsync_interval = window_settings.vsync;
-
-    std::shared_ptr<GlfwWindow> instance = std::make_shared<GlfwWindow>(window, LLGL::Extent2D(width, height), position, window_settings.cursor_mode, window_settings.samples, vsync_interval, window_settings.fullscreen);
-    instance->Listen(*this);
-
-    m_window_map.try_emplace(window, instance);
-    return instance;
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            for (int i = 1; i < platform_io.Viewports.Size; i++) {
+                ImGuiViewport* viewport = platform_io.Viewports[i];
+                if (viewport->Flags & ImGuiViewportFlags_IsMinimized)
+                    continue;
+                if (platform_io.Platform_SwapBuffers) platform_io.Platform_SwapBuffers(viewport, nullptr);
+                if (platform_io.Renderer_SwapBuffers) platform_io.Renderer_SwapBuffers(viewport, nullptr);
+            }
+        }
+        #endif
+    }
 }

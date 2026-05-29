@@ -26,8 +26,15 @@ static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 using namespace sge;
 
 bool App::OnInit() {
-    if (!InitRenderContext(m_config.backend))
+    ImGuiConfig imguiConfig;
+    imguiConfig.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    imguiConfig.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    imguiConfig.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+    if (!InitRenderContext(m_config.backend, imguiConfig))
         return false;
+
+    SetAutoPresent(true);
 
     WindowSettings window_settings;
     window_settings.width = 800;
@@ -111,7 +118,7 @@ void App::OnUpdate() {
     m_t.minutes = std::fmod(mins, 60.0f);
     m_t.seconds = std::fmod(secs, 60.0f);
 
-    sge::GlfwWindow* window = GetFocusedWindow();
+    sge::GlfwWindow* window = WindowManager::GetFocusedWindow();
     if (!window)
         return;
 
@@ -309,6 +316,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         {
             ImGui::NewFrame();
             {
+                ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
                 ImGui::ShowDemoWindow();
             }
             ImGui::Render();
@@ -319,8 +327,25 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         m_batch->Reset();
     m_renderer->EndPass();
 
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        GLFWwindow* saved_context = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        for (int i = 1; i < platform_io.Viewports.Size; i++)
+        {
+            ImGuiViewport* viewport = platform_io.Viewports[i];
+            if (viewport->Flags & ImGuiViewportFlags_IsMinimized)
+                continue;
+            if (platform_io.Platform_RenderWindow) platform_io.Platform_RenderWindow(viewport, nullptr);
+            if (platform_io.Renderer_RenderWindow) platform_io.Renderer_RenderWindow(viewport, nullptr);
+        }
+        glfwMakeContextCurrent(saved_context);
+    }
+
     m_renderer->End();
-    GetRenderContext()->Present(*window);
 }
 
 void App::OnPostRender(const std::shared_ptr<GlfwWindow>& window) {
