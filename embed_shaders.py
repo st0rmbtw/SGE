@@ -69,24 +69,32 @@ def compile_vulkan_shader(executable: str, item_path: Path, flags: tuple[str]):
     result = ""
     
     fd, path = tempfile.mkstemp(suffix=".spv")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            subprocess.Popen(
+                (executable, str(item_path), "-entry", "VS") + flags,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
+        
+        with open(path, "rb") as f:
+            result += write_bytes(f, f"{var_name}_VERT")
+    finally:
+        os.remove(path)
 
-    ps = subprocess.Popen(
-        (executable, str(item_path), "-entry", "VS") + flags + ("-o", str(path)),
-    )
-    ps.wait()
-    
-    with os.fdopen(fd, "rb") as f:
-        result += write_bytes(f, f"{var_name}_VERT")
-    
     fd, path = tempfile.mkstemp(suffix=".spv")
-    
-    ps = subprocess.Popen(
-        (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path)),
-    )
-    ps.wait()
+    try:
+        with os.fdopen(fd, "wb") as f:
+            subprocess.Popen(
+                (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path)),
+                stdout=sys.stdout,
+                stderr=sys.stderr
+            ).wait()
 
-    with os.fdopen(fd, "rb") as f:
-        result += write_bytes(f, f"{var_name}_FRAG")
+        with open(path, "rb") as f:
+            result += write_bytes(f, f"{var_name}_FRAG")
+    finally:
+        os.remove(path)
         
     return result
 
@@ -97,29 +105,33 @@ def compile_d3d_shader(executable: str, item_path: Path, flags: tuple[str]):
     
     result = ""
 
-    fd, path = tempfile.mkstemp(suffix=".hlsl")
+    fd, path = tempfile.mkstemp(suffix=".hlsl", text=True)
+    try:
+        with os.fdopen(fd, "w") as f:
+            subprocess.Popen(
+                (executable, str(item_path), "-entry", "VS") + flags,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
+        
+        with open(path, "r") as f:
+            result += write_constant(f, f"{var_name}_VERT")
+    finally:
+        os.remove(path)
     
-    ps = subprocess.Popen(
-        (executable, str(item_path), "-entry", "VS") + flags + ("-o", str(path)),
-        stdout=sys.stdout,
-        stderr=sys.stderr
-    )
-    ps.wait()
-    
-    with os.fdopen(fd, "r") as f:
-        result += write_constant(f, f"{var_name}_VERT")
-    
-    fd, path = tempfile.mkstemp(suffix=".hlsl")
-    
-    ps = subprocess.Popen(
-        (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path)),
-        stdout=sys.stdout,
-        stderr=sys.stderr
-    )
-    ps.wait()
+    fd, path = tempfile.mkstemp(suffix=".hlsl", text=True)
+    try:
+        with os.fdopen(fd, "w") as f:
+            subprocess.Popen(
+                (executable, str(item_path), "-entry", "PS") + flags,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
 
-    with os.fdopen(fd, "r") as f:
-        result += write_constant(f, f"{var_name}_FRAG")
+        with open(path, "r") as f:
+            result += write_constant(f, f"{var_name}_FRAG")
+    finally:
+        os.remove(path)
         
     return result
 
@@ -130,29 +142,36 @@ def compile_metal_shader(executable: str, item_path: Path, flags: tuple[str]):
     
     result = ""
     
-    fd, path = tempfile.mkstemp(suffix=".metal")
+    fd, path = tempfile.mkstemp(suffix=".metal", text=True)
+    try:
+        with os.fdopen(fd, "w") as f:
+            subprocess.Popen(
+                (executable, str(item_path), "-entry", "VS") + flags,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
+        
+        with open(path, "r") as f:
+            result += write_constant(f, f"{var_name}_VERT")
+    finally:
+        os.remove(path)
+    
+    fd, path = tempfile.mkstemp(suffix=".metal", text=True)
+    try:
+        with os.fdopen(fd, "w") as f:
+            subprocess.Popen(
+                (executable, str(item_path), "-entry", "PS") + flags,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
 
-    ps = subprocess.Popen(
-        (executable, str(item_path), "-entry", "VS") + flags + ("-o", str(path)),
-        stdout=sys.stdout,
-        stderr=sys.stderr
-    )
-    ps.wait()
-    
-    with os.fdopen(fd, "r") as f:
-        result += write_constant(f, f"{var_name}_VERT")
-    
-    fd, path = tempfile.mkstemp(suffix=".metal")
-    
-    ps = subprocess.Popen(
-        (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path)),
-        stdout=sys.stdout,
-        stderr=sys.stderr
-    )
-    ps.wait()
-
-    with os.fdopen(fd, "r") as f:
-        result += write_constant(f, f"{var_name}_FRAG")
+        with open(path, "r") as f:
+            result += write_constant(f, f"{var_name}_FRAG")
+    finally:
+        os.remove(path)
+        
+    result = result.replace('[[vertex]]', 'vertex')
+    result = result.replace('[[fragment]]', 'fragment')
         
     return result
 
@@ -163,43 +182,50 @@ def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]):
     
     result = ""
     
-    _, path_spv = tempfile.mkstemp(suffix=".spv")
-    ps = subprocess.Popen(
-        (executable, str(item_path), "-entry", "VS") + flags + ("-o", str(path_spv)),
-        stdout=sys.stdout,
-        stderr=sys.stderr
-    )
-    ps.wait()
+    fd1, path_spv = tempfile.mkstemp(suffix=".spv")
+    fd2, path_glsl = tempfile.mkstemp(suffix=".glsl", text=True)
+    try:
+        with os.fdopen(fd1, "wb") as f:
+            subprocess.Popen(
+                (executable, str(item_path), "-entry", "VS") + flags,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
+            
+        with os.fdopen(fd2, "w") as f:
+            subprocess.Popen(
+                ("spirv-cross", str(path_spv), "--stage", "vert") + SPIRV_CROSS_FLAGS,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
+        
+        with open(path_glsl, "r") as f:
+            result += write_constant(f, f"{var_name}_VERT", True)
+    finally:
+        os.remove(path_glsl)
+        os.remove(path_spv)
     
-    fd, path_glsl = tempfile.mkstemp(suffix=".glsl")
-    ps = subprocess.Popen(
-        ("spirv-cross", str(path_spv), "--stage", "vert") + SPIRV_CROSS_FLAGS + ("--output", str(path_glsl)),
-        stdout=sys.stdout,
-        stderr=sys.stderr
-    )
-    ps.wait()
-    
-    with os.fdopen(fd, "r") as f:
-        result += write_constant(f, f"{var_name}_VERT", True)
-    
-    _, path_spv = tempfile.mkstemp(suffix=".spv")
-    ps = subprocess.Popen(
-        (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path_spv)),
-        stdout=sys.stdout,
-        stderr=sys.stderr
-    )
-    ps.wait()
-    
-    fd, path_glsl = tempfile.mkstemp(suffix=".glsl")
-    ps = subprocess.Popen(
-        ("spirv-cross", str(path_spv), "--stage", "frag", "--rename-interface-variable", "out", "0", "fragColor") + SPIRV_CROSS_FLAGS + ("--output", str(path_glsl)),
-        stdout=sys.stdout,
-        stderr=sys.stderr
-    )
-    ps.wait()
-    
-    with os.fdopen(fd, "r") as f:
-        result += write_constant(f, f"{var_name}_FRAG", True)
+    fd1, path_spv = tempfile.mkstemp(suffix=".spv")
+    fd2, path_glsl = tempfile.mkstemp(suffix=".glsl", text=True)
+    try:
+        with os.fdopen(fd1, "wb") as f:
+            subprocess.Popen(
+                (executable, str(item_path), "-entry", "PS") + flags,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
+
+        with os.fdopen(fd2, "w") as f:
+            subprocess.Popen(("spirv-cross", str(path_spv), "--stage", "frag", "--rename-interface-variable", "out", "0", "fragColor") + SPIRV_CROSS_FLAGS,
+                stdout=f,
+                stderr=sys.stderr
+            ).wait()
+        
+        with open(path_glsl, "r") as f:
+            result += write_constant(f, f"{var_name}_FRAG", True)
+    finally:
+        os.remove(path_spv)
+        os.remove(path_glsl)
         
     return result
 

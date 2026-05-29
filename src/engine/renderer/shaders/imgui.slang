@@ -7,8 +7,8 @@ cbuffer UniformBuffer : register( b2 )
 struct VSInput
 {
     float2 position : Position;
-    float4 color : Color;
     float2 uv  : UV;
+    float4 color : Color;
 };
 
 struct VSOutput
