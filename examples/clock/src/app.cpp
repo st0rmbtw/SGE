@@ -11,15 +11,14 @@
 #include <SGE/log.hpp>
 #include <SGE/time/stopwatch.hpp>
 #include <SGE/math/consts.hpp>
+#include <SGE/renderer/context.hpp>
+#include <SGE/types/shape.hpp>
 
 #include <chrono>
 #include <glm/trigonometric.hpp>
+#include <imgui.h>
 
 #include "app.hpp"
-#include "SGE/renderer/context.hpp"
-#include "SGE/types/shape.hpp"
-#include "imgui.h"
-
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
@@ -29,7 +28,7 @@ bool App::OnInit() {
     ImGuiConfig imguiConfig;
     imguiConfig.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     imguiConfig.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    imguiConfig.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    // imguiConfig.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     if (!InitRenderContext(m_config.backend, imguiConfig))
         return false;
@@ -311,7 +310,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         m_renderer->UploadBatchData();
         m_renderer->RenderBatch(*m_batch);
 
-    #ifdef SGE_IMGUI_ENABLED
+    #if SGE_IMGUI_ENABLED
         GetRenderContext()->BeginImGuiFrame(*window);
         {
             ImGui::NewFrame();
@@ -327,7 +326,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         m_batch->Reset();
     m_renderer->EndPass();
 
-    #ifdef SGE_IMGUI_ENABLED
+    #if SGE_IMGUI_ENABLED
     ImGuiIO& io = ImGui::GetIO();
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
 

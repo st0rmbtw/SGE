@@ -6,6 +6,7 @@
 #include <LLGL/Surface.h>
 #include <LLGL/Platform/NativeHandle.h>
 #include <SGE/renderer/types.hpp>
+#include <SGE/renderer/utils.hpp>
 #include <SGE/types/binding_layout.hpp>
 #include <SGE/types/attributes.hpp>
 #include <SGE/types/window_settings.hpp>
@@ -51,6 +52,9 @@ struct BackendData {
 
     uint32_t GlobalIdxOffset = 0;
     uint32_t GlobalVtxOffset = 0;
+
+    uint8_t* VertexDataBuffer = nullptr;
+    uint8_t* IndexDataBuffer = nullptr;
 };
 
 struct TextureData
@@ -459,10 +463,10 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
         desc.miscFlags = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
         desc.size = bd->VertexBufferSize * sizeof(ImDrawVert);
         desc.bindFlags = LLGL::BindFlags::VertexBuffer;
-        desc.cpuAccessFlags = LLGL::CPUAccessFlags::Write;
         desc.vertexAttribs = bd->VertexFormat.attributes;
 
         bd->VertexBuffer = bd->Context->CreateBuffer(desc);
+        bd->VertexDataBuffer = new uint8_t[bd->VertexBufferSize * sizeof(ImDrawVert)];
     }
     if (!bd->IndexBuffer || bd->IndexBufferSize < bd->GlobalIdxOffset + draw_data->TotalIdxCount)
     {
@@ -472,24 +476,17 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
         desc.miscFlags = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
         desc.size = bd->IndexBufferSize * sizeof(ImDrawIdx);
         desc.bindFlags = LLGL::BindFlags::IndexBuffer;
-        desc.cpuAccessFlags = LLGL::CPUAccessFlags::Write;
         desc.format = sizeof(ImDrawIdx) == 2 ? LLGL::Format::R16UInt : LLGL::Format::R32UInt;
         
         bd->IndexBuffer = bd->Context->CreateBuffer(desc);
+        bd->IndexDataBuffer = new uint8_t[bd->IndexBufferSize * sizeof(ImDrawIdx)];
     }
 
-    void* vtxData = bd->Context->GetLLGLContext()->MapBuffer(*bd->VertexBuffer, LLGL::CPUAccess::WriteDiscard);
-    if (!vtxData)
-        return;
+    ImDrawVert* vtxStart = reinterpret_cast<ImDrawVert*>(bd->VertexDataBuffer) + bd->GlobalVtxOffset;
+    ImDrawIdx* idxStart = reinterpret_cast<ImDrawIdx*>(bd->IndexDataBuffer) + bd->GlobalIdxOffset;
 
-    void* idxData = bd->Context->GetLLGLContext()->MapBuffer(*bd->IndexBuffer, LLGL::CPUAccess::WriteDiscard);
-    if (!idxData) {
-        bd->Context->GetLLGLContext()->UnmapBuffer(*bd->VertexBuffer);
-        return;
-    }
-
-    ImDrawVert* vtx_dst = static_cast<ImDrawVert*>(vtxData) + bd->GlobalVtxOffset;
-    ImDrawIdx* idx_dst = static_cast<ImDrawIdx*>(idxData) + bd->GlobalIdxOffset;
+    ImDrawVert* vtx_dst = vtxStart;
+    ImDrawIdx* idx_dst = idxStart;
     for (const ImDrawList* draw_list : draw_data->CmdLists)
     {
         memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
@@ -497,8 +494,15 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
         vtx_dst += draw_list->VtxBuffer.Size;
         idx_dst += draw_list->IdxBuffer.Size;
     }
-    bd->Context->GetLLGLContext()->UnmapBuffer(*bd->VertexBuffer);
-    bd->Context->GetLLGLContext()->UnmapBuffer(*bd->IndexBuffer);
+
+    uintptr_t vtxLength = (vtx_dst - vtxStart) * sizeof(ImDrawVert);
+    uintptr_t idxLength = (idx_dst - idxStart) * sizeof(ImDrawIdx);
+
+    uintptr_t vtxOffset = bd->GlobalVtxOffset * sizeof(ImDrawVert);
+    uintptr_t idxOffset = bd->GlobalIdxOffset * sizeof(ImDrawIdx);
+
+    sge::UpdateBufferChunked(*bd->CommandBuffer, *bd->VertexBuffer, vtxOffset, bd->VertexDataBuffer, vtxLength);
+    sge::UpdateBufferChunked(*bd->CommandBuffer, *bd->IndexBuffer, idxOffset, bd->IndexDataBuffer, idxLength);
 
     SetupRenderState(draw_data, fb_width, fb_height);
 

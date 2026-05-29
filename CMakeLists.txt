@@ -121,6 +121,8 @@ if(SGE_ENABLE_IMGUI)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/imgui_renderer.cpp
     )
 else()
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_IMGUI_ENABLED=0)
+
     message(STATUS "[SGE] ImGui: Disabled")
 endif()
 

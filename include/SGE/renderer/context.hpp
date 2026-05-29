@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stack>
 #ifndef SGE_ENGINE_RENDERER_CONTEXT_HPP
 #define SGE_ENGINE_RENDERER_CONTEXT_HPP
 
@@ -8,6 +7,7 @@
 #include <SGE/renderer/glfw_window.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/resource.hpp>
+#include <SGE/renderer/utils.hpp>
 
 #include <SGE/types/sampler.hpp>
 #include <SGE/types/texture.hpp>
@@ -22,6 +22,7 @@
 
 #include <filesystem>
 #include <concepts>
+#include <stack>
 
 struct PipelineConfigKey {
     LLGL::RenderTarget* render_target;
@@ -342,17 +343,6 @@ public:
         return m_debugger;
     }
 #endif
-
-private:
-    template <typename Container>
-    std::size_t GetArraySize(const Container& container) const {
-        return (container.size() * sizeof(typename Container::value_type));
-    }
-
-    template <typename T, std::size_t N>
-    std::size_t GetArraySize(const T (&)[N]) const {
-        return (N * sizeof(T));
-    }
 
 private:
     std::unordered_map<uint32_t, LLGL::SwapChain*> m_swapchain_map;
