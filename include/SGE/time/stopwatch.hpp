@@ -19,6 +19,16 @@ namespace Duration {
     constexpr inline _To Cast(const std::chrono::duration<_Rep, _Period>& _Dur) {
         return std::chrono::duration_cast<_To>(_Dur);
     }
+
+    template <class _ToRep, class _ToPeriod, class _Rep, class _Period>
+    constexpr inline std::chrono::duration<_ToRep, _ToPeriod> Cast(const std::chrono::duration<_Rep, _Period>& _Dur) {
+        return std::chrono::duration_cast<std::chrono::duration<_ToRep, _ToPeriod>>(_Dur);
+    }
+
+    template <class _ToRep, class _ToPeriod, class _Rep, class _Period>
+    constexpr inline _ToRep GetAs(const std::chrono::duration<_Rep, _Period>& _Dur) {
+        return std::chrono::duration_cast<std::chrono::duration<_ToRep, _ToPeriod>>(_Dur).count();
+    }
 };
 
 class Stopwatch {
