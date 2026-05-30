@@ -15,20 +15,6 @@ static struct InputState {
     glm::vec2 mouse_delta;
 } input_state;
 
-void sge::Input::Press(sge::Key key, uint8_t modifiers) {
-    const sge::KeyWithModifiers value = sge::KeyWithModifiers(key, modifiers);
-    if (input_state.keyboard_pressed.insert(value).second) {
-        input_state.keyboard_just_pressed.insert(value);
-    }
-}
-
-void sge::Input::Release(sge::Key key, uint8_t modifiers) {
-    const sge::KeyWithModifiers value = sge::KeyWithModifiers(key, modifiers);
-    if (input_state.keyboard_pressed.erase(value) > 0) {
-        input_state.keyboard_just_released.insert(value);
-    }
-}
-
 void sge::Input::Clear() {
     input_state.keyboard_just_pressed.clear();
     input_state.keyboard_just_released.clear();
@@ -41,37 +27,54 @@ void sge::Input::Clear() {
     input_state.codepoint_queue.clear();
 }
 
-void sge::Input::PushCodePoint(uint32_t codepoint) {
-    input_state.codepoint_queue.push_back(codepoint);
-}
+void sge::Input::ProcessEvent(const InputEvent& inputEvent) {
+    switch (inputEvent.Type) {
+    case InputEventType::Key: {
+        KeyInputEvent event = inputEvent.KeyEvent;
+        if (event.Pressed) {
+            const sge::KeyWithModifiers value = sge::KeyWithModifiers(event.Key, event.Mods);
+            if (input_state.keyboard_pressed.insert(value).second) {
+                input_state.keyboard_just_pressed.insert(value);
+            }
+        } else {
+            const sge::KeyWithModifiers value = sge::KeyWithModifiers(event.Key, event.Mods);
+            if (input_state.keyboard_pressed.erase(value) > 0) {
+                input_state.keyboard_just_released.insert(value);
+            }
+        }
+    }
+    break;
+    case InputEventType::MouseButton: {
+        MouseButtonInputEvent event = inputEvent.MouseButtonEvent;
+        if (event.Pressed) {
+            if (input_state.mouse_pressed.insert(event.Button).second) {
+                input_state.mouse_just_pressed.insert(event.Button);
+            }
+        } else {
+            if (input_state.mouse_pressed.erase(event.Button) > 0) {
+                input_state.mouse_just_released.insert(event.Button);
+            }
+        }
+    }
+    break;
+    case InputEventType::CursorMove: {
+        const glm::vec2 newPosition = inputEvent.CursorMoveEvent.Pos;
+        const glm::vec2 delta = input_state.cursor_position - newPosition;
 
-void sge::Input::Press(MouseButton button) {
-    if (input_state.mouse_pressed.insert(button).second) {
-        input_state.mouse_just_pressed.insert(button);
+        input_state.mouse_delta += delta;
+        input_state.cursor_position = newPosition;
+    }
+    break;
+    case InputEventType::Scroll: {
+        input_state.mouse_scroll_events.push_back(inputEvent.ScrollEvent.ScrollY);
+    }
+    break;
+    case InputEventType::CodePoint: {
+        input_state.codepoint_queue.push_back(inputEvent.CodePointEvent.CodePoint);
+    }
+    break;
     }
 }
-
-void sge::Input::Release(MouseButton button) {
-    if (input_state.mouse_pressed.erase(button) > 0) {
-        input_state.mouse_just_released.insert(button);
-    }
-}
-
-void sge::Input::PushMouseScrollEvent(float y) noexcept {
-    input_state.mouse_scroll_events.push_back(y);
-}
-
-void sge::Input::SetCursorPosition(glm::vec2 position) noexcept {    
-    input_state.cursor_position = position;
-}
-
-void sge::Input::SetMouseDelta(glm::vec2 delta) noexcept {
-    input_state.mouse_delta = delta;
-}
-
-
-// ----------------- Public -----------------
-
 
 bool sge::Input::Pressed(Key key) {
     return input_state.keyboard_pressed.find(key) != input_state.keyboard_pressed.end();

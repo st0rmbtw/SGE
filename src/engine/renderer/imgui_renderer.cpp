@@ -77,7 +77,7 @@ public:
         return m_size;
     }
 
-    bool GetNativeHandle(void *nativeHandle, std::size_t nativeHandleSize) override {
+    bool GetNativeHandle(void *nativeHandle, std::size_t) override {
         auto* handle = reinterpret_cast<LLGL::NativeHandle*>(nativeHandle);
         #if defined(SGE_PLATFORM_WINDOWS)
             handle->window = glfwGetWin32Window(m_wnd);
@@ -143,12 +143,12 @@ static BackendData* GetBackendData()
 
 void DrawCallback_ResetRenderState(const ImDrawList*, const ImDrawCmd*) {}
 
-void DrawCallback_SetSamplerLinear(const ImDrawList* parent_list, const ImDrawCmd* cmd) {
+void DrawCallback_SetSamplerLinear(const ImDrawList*, const ImDrawCmd*) {
     BackendData* bd = GetBackendData();
     bd->CommandBuffer->SetResource(2, *bd->Context->GetLinearSampler());
 }
 
-void DrawCallback_SetSamplerNearest(const ImDrawList* parent_list, const ImDrawCmd* cmd) {
+void DrawCallback_SetSamplerNearest(const ImDrawList*, const ImDrawCmd*) {
     BackendData* bd = GetBackendData();
     bd->CommandBuffer->SetResource(2, *bd->Context->GetNearestSampler());
 }
@@ -168,27 +168,25 @@ static void UpdateTexture(ImTextureData* tex) {
 
         TextureData* backend_tex = IM_NEW(TextureData)();
 
-        LLGL::TextureDescriptor textureDesc;
-        textureDesc.type = LLGL::TextureType::Texture2D;
-        textureDesc.miscFlags = LLGL::MiscFlags::FixedSamples;
-        textureDesc.extent.width = tex->Width;
-        textureDesc.extent.height = tex->Height;
+        sge::TextureConfig textureConfig;
+        textureConfig.textureType = LLGL::TextureType::Texture2D;
+        textureConfig.extent.width = tex->Width;
+        textureConfig.extent.height = tex->Height;
+        textureConfig.sampler = bd->Context->GetNearestSampler();
         
         LLGL::ImageView imageView;
         imageView.data = tex->GetPixels();
         imageView.dataSize = tex->GetSizeInBytes();
 
         if (tex->Format == ImTextureFormat_RGBA32) {
-            textureDesc.format = LLGL::Format::RGBA8UNorm;
+            textureConfig.format = LLGL::Format::RGBA8UNorm;
             imageView.format = LLGL::ImageFormat::RGBA;
         } else if (tex->Format == ImTextureFormat_Alpha8) {
-            textureDesc.format = LLGL::Format::A8UNorm;
+            textureConfig.format = LLGL::Format::A8UNorm;
             imageView.format = LLGL::ImageFormat::Alpha;
         }
 
-        uint8_t* data = static_cast<uint8_t*>(tex->GetPixels());
-
-        backend_tex->texture = bd->Context->CreateTexture(textureDesc.type, imageView.format, LLGL::DataType::UInt8, textureDesc.extent.width, textureDesc.extent.height, textureDesc.extent.depth, bd->Context->GetNearestSampler(), data);
+        backend_tex->texture = bd->Context->CreateTexture(textureConfig, &imageView);
 
         // Store your data, and acknowledge creation.
         tex->SetTexID((ImTextureID)(intptr_t)&backend_tex->texture); // Specify backend-specific ImTextureID identifier which will be stored in ImDrawCmd.

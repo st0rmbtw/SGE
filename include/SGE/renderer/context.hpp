@@ -173,18 +173,10 @@ public:
     
     Raw<Sampler> CreateSampler(const LLGL::SamplerDescriptor& descriptor);
 
-    Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const Ref<sge::Sampler>& sampler, const void* data, bool generate_mip_maps = false);
+    Texture CreateTexture(const sge::TextureConfig& config, const LLGL::ImageView* initialData = nullptr);
 
     Raw<LLGL::Texture> CreateTexture(const LLGL::TextureDescriptor& desc, const LLGL::ImageView* initialImage = nullptr) {
         return Raw<LLGL::Texture>::Create(shared_from_this(), m_context->CreateTexture(desc, initialImage));
-    }
-
-    inline sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const Ref<sge::Sampler>& sampler, const uint8_t* data, bool generate_mip_maps = false) {
-        return CreateTexture(type, image_format, LLGL::DataType::UInt8, width, height, layers, sampler, data, generate_mip_maps);
-    }
-
-    inline sge::Texture CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, uint32_t width, uint32_t height, uint32_t layers, const Ref<sge::Sampler>& sampler, const int8_t* data, bool generate_mip_maps = false) {
-        return CreateTexture(type, image_format, LLGL::DataType::Int8, width, height, layers, sampler, data, generate_mip_maps);
     }
 
     inline sge::Texture CopyTextureWithSampler(const sge::Texture& texture, const Ref<sge::Sampler>& sampler) {

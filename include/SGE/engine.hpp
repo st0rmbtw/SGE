@@ -76,6 +76,26 @@ protected: // Callbacks
         (void)window;
     }
 
+    virtual void OnInputEvent(const InputEvent& event) {
+    #if SGE_IMGUI_ENABLED
+        ImGuiIO& io = ImGui::GetIO();
+
+        if (io.WantCaptureMouse && (event.Type == sge::InputEventType::MouseButton ||
+                                    event.Type == sge::InputEventType::Scroll)) {
+            return;
+        }
+
+        if (io.WantCaptureKeyboard && event.Type == sge::InputEventType::Key) {
+            return;
+        }
+
+        if (io.WantTextInput && event.Type == sge::InputEventType::CodePoint) {
+            return;
+        }
+    #endif
+        Input::ProcessEvent(event);
+    }
+
 protected:
     bool InitRenderContext(RenderBackend backend, ImGuiConfig imguiConfig = {}) {
         if (!m_context) {
@@ -149,13 +169,10 @@ protected:
         auto window = WindowManager::FindByHandle(handle);
         SGE_ASSERT(window != nullptr);
 
-        const glm::vec2 prev_pos = Input::CursorPosition();
-        const glm::vec2 current_pos = glm::vec2(xpos, ypos);
-
-        const glm::vec2 delta = current_pos - prev_pos;
-
-        Input::SetMouseDelta(Input::MouseDelta() + delta);
-        Input::SetCursorPosition(current_pos);
+        sge::InputEvent inputEvent;
+        inputEvent.Type = sge::InputEventType::CursorMove;
+        inputEvent.CursorMoveEvent.Pos = glm::vec2(xpos, ypos);
+        OnInputEvent(inputEvent);
     }
 
     void OnFramebufferResizeEvent(GLFWwindow* handle, int width, int height) final {
@@ -176,56 +193,52 @@ protected:
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
-
-
-        if (ImGui::GetIO().WantCaptureKeyboard)
-            return;
     #endif
 
-        if (action == GLFW_PRESS) {
-            Input::Press(static_cast<Key>(key), mods);
-        } else if (action == GLFW_RELEASE) {
-            Input::Release(static_cast<Key>(key), mods);
-        }
+        sge::InputEvent inputEvent;
+        inputEvent.Type = sge::InputEventType::Key;
+        inputEvent.KeyEvent.Key = static_cast<Key>(key);
+        inputEvent.KeyEvent.Pressed = action != GLFW_RELEASE;
+        inputEvent.KeyEvent.Mods = mods;
+        OnInputEvent(inputEvent);
     }
 
     void OnCharacterEvent(GLFWwindow* window, uint32_t codepoint) final {
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_CharCallback(window, codepoint);
-
-        if (ImGui::GetIO().WantCaptureKeyboard)
-            return;
     #endif
-    
-        Input::PushCodePoint(codepoint);
+
+        sge::InputEvent inputEvent;
+        inputEvent.Type = sge::InputEventType::CodePoint;
+        inputEvent.CodePointEvent.CodePoint = codepoint;
+        OnInputEvent(inputEvent);
     }
 
     void OnMouseButtonEvent(GLFWwindow* window, const int button, const int action, const int mods) final {
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())    
             ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-
-        if (ImGui::GetIO().WantCaptureMouse)
-            return;
     #endif
-        if (action == GLFW_PRESS) {
-            Input::Press(static_cast<MouseButton>(button));
-        } else if (action == GLFW_RELEASE) {
-            Input::Release(static_cast<MouseButton>(button));
-        }
+
+        sge::InputEvent inputEvent;
+        inputEvent.Type = sge::InputEventType::MouseButton;
+        inputEvent.MouseButtonEvent.Button = static_cast<MouseButton>(button);
+        inputEvent.MouseButtonEvent.Pressed = action == GLFW_PRESS;
+        OnInputEvent(inputEvent);
     }
 
     void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) final {
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
-
-        if (ImGui::GetIO().WantCaptureMouse)
-            return;
     #endif
 
-        Input::PushMouseScrollEvent(yoffset);
+        sge::InputEvent inputEvent;
+        inputEvent.Type = sge::InputEventType::Scroll;
+        inputEvent.ScrollEvent.ScrollX = xoffset;
+        inputEvent.ScrollEvent.ScrollY = yoffset;
+        OnInputEvent(inputEvent);
     }
 
     void OnWindowRefreshEvent(GLFWwindow* handle) override {

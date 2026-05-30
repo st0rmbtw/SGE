@@ -9,6 +9,7 @@
 #include <SGE/assert.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/resource.hpp>
+#include <SGE/types/sampler.hpp>
 
 namespace sge {
 
@@ -146,6 +147,15 @@ struct RenderPassConfig {
     LLGL::AttachmentFormatDescriptor colorAttachments[LLGL_MAX_NUM_COLOR_ATTACHMENTS];
     LLGL::AttachmentFormatDescriptor depthAttachment;
     LLGL::AttachmentFormatDescriptor stencilAttachment;
+};
+
+struct TextureConfig {
+    LLGL::TextureType textureType = LLGL::TextureType::Texture2D;
+    LLGL::Extent3D extent = LLGL::Extent3D(1, 1, 1);
+    sge::Ref<sge::Sampler> sampler;
+    LLGL::Format format = LLGL::Format::RGBA8UNorm;
+    uint32_t arrayLayers = 1;
+    bool generateMipMaps = false;
 };
 
 struct SpriteBatchPipeline {

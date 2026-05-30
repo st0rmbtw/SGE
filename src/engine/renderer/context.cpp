@@ -497,32 +497,28 @@ sge::Raw<sge::Sampler> sge::RenderContext::CreateSampler(const LLGL::SamplerDesc
     return Raw<sge::Sampler>::Create(new Sampler(CreateUnique(sampler), descriptor));
 }
 
-sge::Texture sge::RenderContext::CreateTexture(LLGL::TextureType type, LLGL::ImageFormat image_format, LLGL::DataType data_type, uint32_t width, uint32_t height, uint32_t layers, const Ref<Sampler>& sampler, const void* data, bool generate_mip_maps) {
+sge::Texture sge::RenderContext::CreateTexture(const sge::TextureConfig& config, const LLGL::ImageView* initialData) {
     ZoneScoped;
 
     LLGL::TextureDescriptor texture_desc;
-    texture_desc.type = type;
-    texture_desc.extent = LLGL::Extent3D(width, height, 1);
-    texture_desc.arrayLayers = layers;
+    texture_desc.type = config.textureType;
+    texture_desc.extent = config.extent;
+    texture_desc.arrayLayers = config.arrayLayers;
     texture_desc.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::ColorAttachment;
     texture_desc.cpuAccessFlags = 0;
-    texture_desc.miscFlags = LLGL::MiscFlags::GenerateMips * generate_mip_maps;
-    texture_desc.mipLevels = generate_mip_maps ? 0 : 1;
+    texture_desc.mipLevels = config.generateMipMaps ? 0 : 1;
+    texture_desc.miscFlags = LLGL::MiscFlags::GenerateMips * config.generateMipMaps;
 
-    uint32_t components = LLGL::ImageFormatSize(image_format);
-
-    LLGL::ImageView image_view;
-    image_view.format = image_format;
-    image_view.dataType = data_type;
-    image_view.data = data;
-    image_view.dataSize = width * height * layers * components;
+    if (initialData == nullptr) {
+        texture_desc.miscFlags |= LLGL::MiscFlags::NoInitialData;
+    }
 
     uint32_t id = m_texture_index++;
 
-    LLGL::Texture* texture = m_context->CreateTexture(texture_desc, &image_view);
+    LLGL::Texture* texture = m_context->CreateTexture(texture_desc, initialData);
     SGE_ASSERT(texture != nullptr);
 
-    return sge::Texture(id, sge::Size(width, height), sampler, Ref<LLGL::Texture>(shared_from_this(), texture));
+    return sge::Texture(id, sge::Size(config.extent.width, config.extent.height), config.sampler, Ref<LLGL::Texture>(shared_from_this(), texture));
 }
 
 sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
