@@ -337,12 +337,18 @@ public:
 #endif
 
 private:
+    struct CachedRenderTarget {
+        LLGL::RenderTarget* handle = nullptr;
+        LLGL::Texture* colorAttachmentTextures[LLGL_MAX_NUM_COLOR_ATTACHMENTS] = {};
+    };
+
+private:
     std::unordered_map<uint32_t, LLGL::SwapChain*> m_swapchain_map;
     std::unordered_map<uint32_t, GraphicsPipelineConfig> m_pipeline_configs;
     std::unordered_map<uint32_t, RenderTargetConfig> m_render_target_configs;
     std::unordered_map<uint32_t, RenderPassConfig> m_render_pass_configs;
     std::unordered_map<PipelineConfigKey, LLGL::PipelineState*> m_pipeline_states;
-    std::unordered_map<RenderTargetKey, LLGL::RenderTarget*> m_render_targets;
+    std::unordered_map<RenderTargetKey, CachedRenderTarget> m_render_targets;
     std::unordered_map<RenderPassKey, LLGL::RenderPass*> m_render_passes;
 
 #if SGE_IMGUI_ENABLED

@@ -111,7 +111,7 @@ void sge::RenderContext::Destroy() {
     }
 
     for (auto& [key, renderTarget] : m_render_targets) {
-        Release(*renderTarget);
+        Release(*renderTarget.handle);
     }
 
     for (auto& [key, pipelineState] : m_pipeline_states) {
@@ -290,8 +290,10 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
 
     const auto it_target = m_render_targets.find(key);
     if (it_target != m_render_targets.end()) {
-        renderTarget = it_target->second;
+        renderTarget = it_target->second.handle;
     } else {
+        CachedRenderTarget cachedRenderTarget;
+
         LLGL::RenderPass* renderPass = nullptr;
         if (config.renderPass.IsValid()) {
             renderPass = &GetOrCreateRenderPass(config.renderPass, samples);
@@ -328,7 +330,9 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
                 
                 if (attachmentFormat != LLGL::Format::Undefined) {
                     textureDesc.format = attachmentFormat;
-                    targetDesc.colorAttachments[i].texture = m_context->CreateTexture(textureDesc);
+                    LLGL::Texture* texture = m_context->CreateTexture(textureDesc);
+                    targetDesc.colorAttachments[i].texture = texture;
+                    cachedRenderTarget.colorAttachmentTextures[i] = texture;
                 }
             }
         } else {
@@ -346,8 +350,9 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
         targetDesc.depthStencilAttachment.arrayLayer = config.depthStencilAttachment.arrayLayer;
 
         renderTarget = m_context->CreateRenderTarget(targetDesc);
+        cachedRenderTarget.handle = renderTarget;
 
-        m_render_targets.try_emplace(key, renderTarget);
+        m_render_targets.try_emplace(key, cachedRenderTarget);
     }
 
     return *renderTarget;
@@ -464,30 +469,63 @@ void sge::RenderContext::EndImGuiFrame() {
 void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
     if (!handle.IsValid()) return;
 
-    for (auto it = m_pipeline_states.begin(); it != m_pipeline_states.end(); ++it) {
+    for (auto it = m_pipeline_states.begin(); it != m_pipeline_states.end();) {
         auto key = it->first;
         auto value = it->second;
 
         if (key.config_id == handle.ID()) {
             Release(*value);
-            m_pipeline_states.erase(it);
-            break;
+            it = m_pipeline_states.erase(it);
+            continue;
         }
+
+        ++it;
+    }
+
+    for (auto it = m_pipeline_configs.begin(); it != m_pipeline_configs.end();) {
+        auto key = it->first;
+        auto value = it->second;
+
+        if (key == handle.ID()) {
+            it = m_pipeline_configs.erase(it);
+            continue;
+        }
+
+        ++it;
     }
 }
 
 void sge::RenderContext::DeleteRenderTarget(Handle<LLGL::RenderTarget> handle) {
     if (!handle.IsValid()) return;
 
-    for (auto it = m_render_targets.begin(); it != m_render_targets.end(); ++it) {
+    for (auto it = m_render_targets.begin(); it != m_render_targets.end();) {
         auto key = it->first;
         auto value = it->second;
 
         if (key.config_id == handle.ID()) {
-            Release(*value);
-            m_render_targets.erase(it);
-            break;
+            Release(*value.handle);
+            for (LLGL::Texture* texture : value.colorAttachmentTextures) {
+                if (texture != nullptr) {
+                    Release(*texture);
+                }
+            }
+
+            it = m_render_targets.erase(it);
+            continue;
         }
+
+        ++it;
+    }
+
+    for (auto it = m_render_target_configs.begin(); it != m_render_target_configs.end();) {
+        auto key = it->first;
+
+        if (key == handle.ID()) {
+            it = m_render_target_configs.erase(it);
+            continue;
+        }
+
+        ++it;
     }
 }
 

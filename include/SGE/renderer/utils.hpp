@@ -7,7 +7,7 @@
 namespace sge {
 
 /**
- * @brief Copies the data to the buffer in chunks the size of maximum 2^16 - 1 (65535) bytes each.
+ * @brief Copies the data to the buffer in chunks the size of maximum `2^16 - 1` (`65535`) bytes each.
  * 
  * @param commandBuffer The command buffer.
  * @param buffer The destination buffer.
@@ -32,13 +32,18 @@ inline void UpdateBufferChunked(LLGL::CommandBuffer& commandBuffer, LLGL::Buffer
 }
 
 template <typename Container>
-inline std::size_t GetArraySize(const Container& container) noexcept {
+inline constexpr std::size_t GetArraySize(const Container& container) noexcept {
     return (container.size() * sizeof(typename Container::value_type));
 }
 
 template <typename T, std::size_t N>
-inline std::size_t GetArraySize(const T (&)[N]) noexcept {
+inline consteval std::size_t GetArraySize(const T (&)[N]) noexcept {
     return (N * sizeof(T));
+}
+
+template <typename T, std::size_t N>
+inline consteval std::size_t GetArrayLength(const T (&)[N]) noexcept {
+    return N;
 }
 
 };
