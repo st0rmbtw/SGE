@@ -92,6 +92,6 @@ private:
     long m_stage = 0;
 };
 
-}
+} // namespace sge
 
 #endif

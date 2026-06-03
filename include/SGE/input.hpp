@@ -6,8 +6,8 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <stdint.h>
-#include <vector>
 #include <unordered_set>
+#include <vector>
 
 namespace sge {
 
@@ -26,7 +26,9 @@ enum class MouseButton : uint8_t {
     Right = GLFW_MOUSE_BUTTON_RIGHT,
 };
 
-enum class Key : uint16_t {
+enum class Key : int16_t {
+    Unknown = GLFW_KEY_UNKNOWN,
+
     Q = GLFW_KEY_Q,
     W = GLFW_KEY_W,
     E = GLFW_KEY_E,
@@ -121,10 +123,8 @@ enum class Key : uint16_t {
 };
 
 struct KeyWithModifiers {
-    sge::Key key;
-    uint8_t modifiers;
-
-    constexpr KeyWithModifiers(sge::Key k, uint8_t mods = 0) : key(k), modifiers(mods) {}
+    sge::Key key = sge::Key::Unknown;
+    uint8_t modifiers = 0;
 };
 
 constexpr inline bool operator==(const sge::KeyWithModifiers a, const sge::KeyWithModifiers b) {
@@ -155,19 +155,19 @@ struct ScrollInputEvent {
     float ScrollY;
 };
 
-struct CodePointEvent {
+struct CodePointInputEvent {
     uint32_t CodePoint;
 };
 
-struct CursorMoveEvent {
+struct CursorMoveInputEvent {
     glm::vec2 Pos;
 };
 
 struct InputEvent {
     union {
         ScrollInputEvent ScrollEvent;
-        CursorMoveEvent CursorMoveEvent;
-        CodePointEvent CodePointEvent;
+        CursorMoveInputEvent CursorMoveEvent;
+        CodePointInputEvent CodePointEvent;
         KeyInputEvent KeyEvent;
         MouseButtonInputEvent MouseButtonEvent;
     };
@@ -196,9 +196,9 @@ namespace Input {
     const std::unordered_set<KeyWithModifiers>& GetJustReleasedKeys() noexcept;
 
     void Clear();
-}
+} // namespace Input
 
-}
+} // namespace sge
 
 template <>
 struct std::hash<sge::KeyWithModifiers> {

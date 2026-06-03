@@ -17,6 +17,6 @@ struct ShaderPipeline {
     Ref<LLGL::Shader> cs = nullptr; // Compute shader
 };
 
-}
+} // namespace sge
 
 #endif

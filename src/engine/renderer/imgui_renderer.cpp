@@ -1,16 +1,18 @@
 #include "imgui_renderer.hpp"
 
 #include <LLGL/PipelineStateFlags.h>
-#include <LLGL/ResourceFlags.h>
-#include <LLGL/TextureFlags.h>
-#include <LLGL/Surface.h>
 #include <LLGL/Platform/NativeHandle.h>
+#include <LLGL/ResourceFlags.h>
+#include <LLGL/Surface.h>
+#include <LLGL/TextureFlags.h>
+
+#include <SGE/assert.hpp>
+#include <SGE/defines.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
-#include <SGE/types/binding_layout.hpp>
 #include <SGE/types/attributes.hpp>
+#include <SGE/types/binding_layout.hpp>
 #include <SGE/types/window_settings.hpp>
-#include <SGE/defines.hpp>
 
 #include <GLFW/glfw3.h>
 #include <unordered_map>
@@ -34,6 +36,10 @@
 
 #include "shaders.hpp"
 
+// Undefine the Status macro defined in Xlib
+#undef Status
+
+namespace {
 struct BackendData {
     LLGL::VertexFormat VertexFormat;
 
@@ -133,12 +139,12 @@ private:
     GLFWwindow* m_wnd = nullptr;
 };
 
-std::unordered_map<GLFWwindow*, sge::Unique<LLGL::SwapChain>> g_SwapChainMap;
-std::unordered_map<GLFWwindow*, std::shared_ptr<GlfwSurface>> g_WindowMap;
+std::unordered_map<GLFWwindow*, sge::Unique<LLGL::SwapChain>> g_SwapChainMap = {};
+std::unordered_map<GLFWwindow*, std::shared_ptr<GlfwSurface>> g_WindowMap = {};
 
-static BackendData* GetBackendData()
+BackendData* GetBackendData()
 {
-    return ImGui::GetCurrentContext() ? (BackendData*)ImGui::GetIO().BackendRendererUserData : nullptr;
+    return (ImGui::GetCurrentContext() != nullptr) ? static_cast<BackendData*>(ImGui::GetIO().BackendRendererUserData) : nullptr;
 }
 
 void DrawCallback_ResetRenderState(const ImDrawList*, const ImDrawCmd*) {}
@@ -153,7 +159,7 @@ void DrawCallback_SetSamplerNearest(const ImDrawList*, const ImDrawCmd*) {
     bd->CommandBuffer->SetResource(2, *bd->Context->GetNearestSampler());
 }
 
-static void UpdateTexture(ImTextureData* tex) {
+void UpdateTexture(ImTextureData* tex) {
     BackendData* bd = GetBackendData();
 
     if (tex->Status == ImTextureStatus_WantCreate)
@@ -166,7 +172,7 @@ static void UpdateTexture(ImTextureData* tex) {
         // - Read from our CPU-side copy of the texture and copy to your graphics API.
         // - Use tex->Width, tex->Height, tex->GetPixels(), tex->GetPixelsAt(), tex->GetPitch() as needed.
 
-        TextureData* backend_tex = IM_NEW(TextureData)();
+        auto* backend_tex = IM_NEW(TextureData)();
 
         sge::TextureConfig textureConfig;
         textureConfig.textureType = LLGL::TextureType::Texture2D;
@@ -203,7 +209,7 @@ static void UpdateTexture(ImTextureData* tex) {
         // - Read from our CPU-side copy of the texture and copy to your graphics API.
         // - Use tex->Width, tex->Height, tex->GetPixels(), tex->GetPixelsAt(), tex->GetPitch() as needed.
 
-        TextureData* backend_tex = static_cast<TextureData*>(tex->BackendUserData);
+        auto* backend_tex = static_cast<TextureData*>(tex->BackendUserData);
 
         LLGL::TextureRegion region(LLGL::Offset3D(tex->UpdateRect.x, tex->UpdateRect.y, 0), LLGL::Extent3D(tex->UpdateRect.w, tex->UpdateRect.h, 1));
 
@@ -221,7 +227,7 @@ static void UpdateTexture(ImTextureData* tex) {
     {
         // If you use staged rendering and have in-flight renders, changed tex->UnusedFrames > 0 check to higher count as needed e.g. > 2
 
-        TextureData* backend_tex = static_cast<TextureData*>(tex->BackendUserData);
+        auto* backend_tex = static_cast<TextureData*>(tex->BackendUserData);
         IM_DELETE(backend_tex);
 
         // Acknowledge destruction
@@ -230,7 +236,7 @@ static void UpdateTexture(ImTextureData* tex) {
     }
 }
 
-static bool CreatePipelineObjects() {
+bool CreatePipelineObjects() {
     BackendData* bd = GetBackendData();
 
     LLGL::PipelineLayoutDescriptor layoutDesc;
@@ -280,15 +286,15 @@ static bool CreatePipelineObjects() {
     return true;
 }
 
-static void DestroyPipelineObjects() {
+void DestroyPipelineObjects() {
     BackendData* bd = GetBackendData();
     bd->Context->DeletePipeline(bd->PipelineHandle);
 }
 
-static void Renderer_CreateWindow(ImGuiViewport* viewport) {
+void Renderer_CreateWindow(ImGuiViewport* viewport) {
     BackendData* bd = GetBackendData();
     
-    GLFWwindow* glfwHandle = (GLFWwindow*)viewport->PlatformHandle;
+    auto* glfwHandle = static_cast<GLFWwindow*>(viewport->PlatformHandle);
 
     std::shared_ptr<GlfwSurface> surface = std::make_shared<GlfwSurface>(glfwHandle, LLGL::Extent2D(viewport->Size.x, viewport->Size.y));
     
@@ -303,14 +309,14 @@ static void Renderer_CreateWindow(ImGuiViewport* viewport) {
     g_WindowMap[glfwHandle] = surface;
 }
 
-static void Renderer_DestroyWindow(ImGuiViewport* viewport) {
-    GLFWwindow* glfwHandle = (GLFWwindow*)viewport->PlatformHandle;
+void Renderer_DestroyWindow(ImGuiViewport* viewport) {
+    auto* glfwHandle = static_cast<GLFWwindow*>(viewport->PlatformHandle);
 
     g_SwapChainMap.erase(glfwHandle);
     g_WindowMap.erase(glfwHandle);
 }
 
-static void Renderer_SwapBuffers(ImGuiViewport* viewport, void*) {
+void Renderer_SwapBuffers(ImGuiViewport* viewport, void*) {
     auto it = g_SwapChainMap.find((GLFWwindow*)viewport->PlatformHandle);
     if (it == g_SwapChainMap.end()) {
         return;
@@ -319,7 +325,7 @@ static void Renderer_SwapBuffers(ImGuiViewport* viewport, void*) {
     it->second->Present();
 }
 
-static void Renderer_ResizeWindow(ImGuiViewport* viewport, ImVec2 size) {
+void Renderer_ResizeWindow(ImGuiViewport* viewport, ImVec2 size) {
     auto it = g_SwapChainMap.find((GLFWwindow*)viewport->PlatformHandle);
     if (it == g_SwapChainMap.end()) {
         return;
@@ -328,7 +334,7 @@ static void Renderer_ResizeWindow(ImGuiViewport* viewport, ImVec2 size) {
     it->second->ResizeBuffers(LLGL::Extent2D(size.x, size.y));
 }
 
-static void Renderer_RenderWindow(ImGuiViewport* viewport, void*) {
+void Renderer_RenderWindow(ImGuiViewport* viewport, void*) {
     auto it = g_SwapChainMap.find((GLFWwindow*)viewport->PlatformHandle);
     if (it == g_SwapChainMap.end()) {
         return;
@@ -346,7 +352,7 @@ static void Renderer_RenderWindow(ImGuiViewport* viewport, void*) {
     bd->CommandBuffer->EndRenderPass();
 }
 
-static void InitMultiViewportSupport() {
+void InitMultiViewportSupport() {
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
     platform_io.Renderer_CreateWindow = Renderer_CreateWindow;
     platform_io.Renderer_DestroyWindow = Renderer_DestroyWindow;
@@ -355,14 +361,40 @@ static void InitMultiViewportSupport() {
     platform_io.Renderer_SwapBuffers = Renderer_SwapBuffers;
 }
 
+void SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height) {
+    BackendData* bd = GetBackendData();
+
+    float L = draw_data->DisplayPos.x;
+    float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+    float T = draw_data->DisplayPos.y;
+    float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+
+    float mvp[4][4] =
+    {
+        { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
+        { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
+        { 0.0f,         0.0f,           0.5f,       0.0f },
+        { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
+    };
+
+    bd->CommandBuffer->UpdateBuffer(*bd->ConstantBuffer, 0, mvp, sizeof(mvp));
+    bd->CommandBuffer->SetPipelineState(bd->Context->GetOrCreatePipeline(bd->PipelineHandle));
+    bd->CommandBuffer->SetViewport(LLGL::Extent2D(fb_width, fb_height));
+    bd->CommandBuffer->SetVertexBuffer(*bd->VertexBuffer);
+    bd->CommandBuffer->SetIndexBuffer(*bd->IndexBuffer);
+    bd->CommandBuffer->SetResource(0, *bd->ConstantBuffer);
+}
+
+} // namespace
+
 bool ImGuiRenderer::Init(std::shared_ptr<sge::RenderContext> context) {
     ImGuiIO& io = ImGui::GetIO();
     IMGUI_CHECKVERSION();
-    IM_ASSERT(io.BackendRendererUserData == nullptr && "Already initialized a renderer backend!");
+    SGE_ASSERT_M(io.BackendRendererUserData == nullptr, "Already initialized a renderer backend!");
 
     // Setup backend capabilities flags
     BackendData* bd = IM_NEW(BackendData)();
-    io.BackendRendererUserData = (void*)bd;
+    io.BackendRendererUserData = static_cast<void*>(bd);
     io.BackendRendererName = "imgui_impl_sge";
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;   // We can honor ImGuiPlatformIO::Textures[] requests during render.
@@ -406,38 +438,15 @@ void ImGuiRenderer::Shutdown() {
 
 void ImGuiRenderer::NewFrame() {
     BackendData* bd = GetBackendData();
-    IM_ASSERT(bd != nullptr && "Context or backend not initialized! Did you call ImGui_ImplDX11_Init()?");
+    SGE_ASSERT_M(bd != nullptr, "Context or backend not initialized! Did you call ImGuiRenderer::Init()?");
 
-    if (!bd->PipelineHandle.IsValid())
-        if (!CreatePipelineObjects())
-            IM_ASSERT(0 && "ImGui_ImplDX11_CreateDeviceObjects() failed!");
+    if (!bd->PipelineHandle.IsValid()) {
+        bool result = CreatePipelineObjects();
+        SGE_ASSERT_M(result, "CreatePipelineObjects failed!");
+    }
 
     bd->GlobalVtxOffset = 0;
     bd->GlobalIdxOffset = 0;
-}
-
-static void SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height) {
-    BackendData* bd = GetBackendData();
-
-    float L = draw_data->DisplayPos.x;
-    float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
-    float T = draw_data->DisplayPos.y;
-    float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
-
-    float mvp[4][4] =
-    {
-        { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
-        { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
-        { 0.0f,         0.0f,           0.5f,       0.0f },
-        { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
-    };
-
-    bd->CommandBuffer->UpdateBuffer(*bd->ConstantBuffer, 0, mvp, sizeof(mvp));
-    bd->CommandBuffer->SetPipelineState(bd->Context->GetOrCreatePipeline(bd->PipelineHandle));
-    bd->CommandBuffer->SetViewport(LLGL::Extent2D(fb_width, fb_height));
-    bd->CommandBuffer->SetVertexBuffer(*bd->VertexBuffer);
-    bd->CommandBuffer->SetIndexBuffer(*bd->IndexBuffer);
-    bd->CommandBuffer->SetResource(0, *bd->ConstantBuffer);
 }
 
 void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
@@ -544,7 +553,7 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
 
                 // The texture for the draw call is specified by pcmd->GetTexID().
                 // The vast majority of draw calls will use the Dear ImGui texture atlas, which value you have set yourself during initialization.
-                sge::Texture* texture = reinterpret_cast<sge::Texture*>(pcmd->GetTexID());
+                auto* texture = reinterpret_cast<sge::Texture*>(pcmd->GetTexID());
 
                 bd->CommandBuffer->SetResource(1, *texture->internal());
                 bd->CommandBuffer->SetResource(2, *texture->sampler());

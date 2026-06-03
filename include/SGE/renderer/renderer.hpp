@@ -1,16 +1,16 @@
 #ifndef _SGE_RENDERER_HPP_
 #define _SGE_RENDERER_HPP_
 
-#include "LLGL/PipelineStateFlags.h"
 #include <GLFW/glfw3.h>
 
-#include <LLGL/Shader.h>
-#include <LLGL/RenderSystem.h>
-#include <LLGL/Utils/Utility.h>
 #include <LLGL/CommandBufferFlags.h>
-#include <LLGL/SamplerFlags.h>
 #include <LLGL/PipelineState.h>
+#include <LLGL/PipelineStateFlags.h>
+#include <LLGL/RenderSystem.h>
 #include <LLGL/RenderSystemFlags.h>
+#include <LLGL/SamplerFlags.h>
+#include <LLGL/Shader.h>
+#include <LLGL/Utils/Utility.h>
 
 #include <SGE/types/backend.hpp>
 #include <SGE/types/texture.hpp>
@@ -112,7 +112,7 @@ class Renderer {
     friend class Batch;
 
 public:
-    Renderer(const std::shared_ptr<RenderContext>& context);
+    explicit Renderer(const std::shared_ptr<RenderContext>& context);
 
     void Begin();
     void BeginPass(LLGL::RenderTarget& target, const Camera& camera);
@@ -212,6 +212,6 @@ private:
 
 };
 
-}
+} // namespace sge
 
 #endif

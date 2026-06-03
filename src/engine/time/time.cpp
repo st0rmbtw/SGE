@@ -1,58 +1,60 @@
 #include <SGE/time/time.hpp>
 
-using namespace sge;
+namespace {
 
-static struct TimeState {
-    delta_time_t delta = delta_time_t(0.0);
-    delta_time_t fixed_delta = delta_time_t(1.0 / 60.0);
+struct TimeState {
+    sge::delta_time_t delta = sge::delta_time_t(0.0);
+    sge::delta_time_t fixed_delta = sge::delta_time_t(1.0 / 60.0);
     double elapsed_seconds = 0.0;
     double fixed_elapsed_seconds = 0.0;
     double overstep = 0.0;
 } state;
 
-void Time::SetFixedTimestepSeconds(const double seconds) noexcept {
+} // namespace
+
+void sge::Time::SetFixedTimestepSeconds(const double seconds) noexcept {
     state.fixed_delta = delta_time_t(seconds);
 }
 
-void Time::AdvanceBy(const delta_time_t& delta) noexcept {
+void sge::Time::AdvanceBy(const delta_time_t& delta) noexcept {
     state.delta = delta;
     state.elapsed_seconds += delta.count();
     state.overstep += delta.count();
 }
 
-void Time::AdvanceFixed() noexcept {
+void sge::Time::AdvanceFixed() noexcept {
     state.fixed_elapsed_seconds += state.fixed_delta.count();
     state.overstep -= state.fixed_delta.count();
 }
 
-const delta_time_t& Time::Delta() noexcept {
+const sge::delta_time_t& sge::Time::Delta() noexcept {
     return state.delta;
 }
 
-double Time::DeltaSeconds() noexcept {
+double sge::Time::DeltaSeconds() noexcept {
     return state.delta.count();
 }
 
-double Time::ElapsedSeconds() noexcept {
+double sge::Time::ElapsedSeconds() noexcept {
     return state.elapsed_seconds;
 }
 
-const delta_time_t Time::FixedDelta() noexcept {
+const sge::delta_time_t sge::Time::FixedDelta() noexcept {
     return state.fixed_delta;
 }
 
-double Time::FixedDeltaSeconds() noexcept {
+double sge::Time::FixedDeltaSeconds() noexcept {
     return state.fixed_delta.count();
 }
 
-double Time::FixedElapsedSeconds() noexcept {
+double sge::Time::FixedElapsedSeconds() noexcept {
     return state.fixed_elapsed_seconds;
 }
 
-double Time::Overstep() noexcept {
+double sge::Time::Overstep() noexcept {
     return state.overstep;
 }
 
-double Time::OverstepFraction() noexcept {
+double sge::Time::OverstepFraction() noexcept {
     return state.overstep / state.fixed_delta.count();
 }

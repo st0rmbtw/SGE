@@ -11,10 +11,10 @@ struct Glyph {
     glm::ivec2 size;
     glm::vec2 tex_size;
     glm::ivec2 bearing;
-    signed long advance;
+    int64_t advance;
     glm::vec2 texture_coords;
 };
 
-}
+} // namespace sge
 
 #endif

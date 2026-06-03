@@ -16,6 +16,6 @@ struct Order {
     bool advance = true;
 };
 
-}
+} // namespace sge
 
 #endif

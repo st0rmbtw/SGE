@@ -6,11 +6,11 @@
 #include <utility>
 #include <vector>
 
-#include "texture.hpp"
 #include "size.hpp"
+#include "texture.hpp"
 
-#include "../math/rect.hpp"
 #include "../assert.hpp"
+#include "../math/rect.hpp"
 
 namespace sge {
 
@@ -65,6 +65,6 @@ private:
     uint32_t m_rows = 0;
 };
 
-}
+} // namespace sge
 
 #endif

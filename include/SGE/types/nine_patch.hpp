@@ -140,6 +140,6 @@ private:
     Anchor m_anchor = Anchor::Center;
 };
 
-}
+} // namespace sge
 
 #endif

@@ -25,7 +25,7 @@ public:
     };
 
     constexpr Anchor() = default;
-    constexpr Anchor(Type backend) : m_value(backend) {}
+    constexpr Anchor(Type value) : m_value(value) {}
 
     constexpr operator Type() const { return m_value; }
     explicit operator bool() const = delete;
@@ -55,6 +55,6 @@ private:
     Type m_value = Type::Center;
 };
 
-}
+} // namespace sge
 
 #endif

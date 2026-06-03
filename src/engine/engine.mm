@@ -1,25 +1,21 @@
-#include <LLGL/Types.h>
-#include <LLGL/Log.h>
+#include <memory>
+
 #include <GLFW/glfw3.h>
+
+#include <LLGL/Log.h>
+#include <LLGL/Types.h>
 
 #include <SGE/engine.hpp>
 #include <SGE/input.hpp>
 #include <SGE/log.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/time/time.hpp>
-#include <memory>
+#include <SGE/window_manager.hpp>
 
-#include "SGE/window_manager.hpp"
 #include "defines.hpp"
 #include "utils.hpp"
 
-#if SGE_IMGUI_ENABLED
-    #include <SGE/renderer/imgui/backend/backend.hpp>
-#endif
-
-using namespace sge;
-
-bool IEngine::Init() {
+bool sge::IEngine::Init() {
     if (m_initialized) {
         SGE_LOG_ERROR("Engine::Init was called twice!");
         std::abort();
@@ -47,14 +43,14 @@ bool IEngine::Init() {
     return true;
 }
 
-IEngine::~IEngine() {
+sge::IEngine::~IEngine() {
     if (m_context)
         m_context->Destroy();
 
     glfwTerminate();
 }
 
-void IEngine::Run() {
+void sge::IEngine::Run() {
     if (!m_initialized) {
         SGE_LOG_ERROR("Engine is not initialized. Did you forget to call `IEngine::Init` function?");
         return;
@@ -99,7 +95,7 @@ void IEngine::Run() {
     }
 }
 
-void IEngine::Update() {
+void sge::IEngine::Update() {
     const double current_tick = glfwGetTime();
     double delta_time = (current_tick - m_prev_tick);
     m_prev_tick = current_tick;
@@ -124,7 +120,7 @@ void IEngine::Update() {
     Input::Clear();
 }
 
-void IEngine::Render(const std::shared_ptr<sge::GlfwWindow>& window) {
+void sge::IEngine::Render(const std::shared_ptr<sge::GlfwWindow>& window) {
     const LLGL::Extent2D size = window->GetContentSize();
 
     if (window->IsMinimized() || size.width <= 0 || size.height <= 0) {

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include <GLFW/glfw3.h>
 #include <LLGL/Surface.h>
 

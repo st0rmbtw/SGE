@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include "../assert.hpp"
 
 namespace sge {
@@ -19,7 +20,7 @@ public:
     };
 
     constexpr RenderBackend() noexcept = default;
-    constexpr RenderBackend(Value backend) noexcept : m_value(backend) {}
+    constexpr RenderBackend(Value value) noexcept : m_value(value) {}
 
     constexpr operator Value() const noexcept { return m_value; }
     explicit operator bool() const = delete;
@@ -40,7 +41,7 @@ public:
     inline constexpr const char* AssetFolder() const noexcept {
         switch (m_value) {
             case Value::Vulkan: return "assets/shaders/vulkan/";
-            case Value::D3D11: return "assets/shaders/d3d11/";
+            case Value::D3D11:
             case Value::D3D12: return "assets/shaders/d3d11/";
             case Value::Metal: return "assets/shaders/metal/";
             case Value::OpenGL: return "assets/shaders/opengl/";
@@ -96,6 +97,6 @@ private:
     Value m_value = Value::Vulkan;
 };
 
-}
+} // namespace sge
 
 #endif

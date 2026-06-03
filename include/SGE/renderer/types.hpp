@@ -1,11 +1,12 @@
 #ifndef _SGE_RENDERER_TYPES_HPP_
 #define _SGE_RENDERER_TYPES_HPP_
 
+#include <LLGL/LLGL.h>
 #include <LLGL/PipelineStateFlags.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include <LLGL/LLGL.h>
 #include <SGE/assert.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/resource.hpp>
@@ -170,6 +171,6 @@ struct SpriteBatchPipeline {
     sge::Handle<LLGL::PipelineState> depth_premultiplied_alpha;
 };
 
-}
+} // namespace sge
 
 #endif

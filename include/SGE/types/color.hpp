@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include <type_traits>
 #include <algorithm>
+#include <type_traits>
 
-#include <glm/vec4.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 #include "../math/math.hpp"
 
@@ -47,7 +47,7 @@ namespace detail {
             
         return p;
     }
-}
+} // namespace detail
 
 struct LinearRgba {
     LinearRgba() = default;
@@ -249,9 +249,9 @@ struct Srgba {
 
         if (value <= 0.04045f) {
             return value / 12.92f; // linear falloff in dark values
-        } else {
-            return std::powf((value + 0.055f) / 1.055f, 2.4f); // gamma curve in other area
         }
+
+        return std::powf((value + 0.055f) / 1.055f, 2.4f); // gamma curve in other area
     }
 
     // https://en.wikipedia.org/wiki/Gamma_correction
@@ -260,9 +260,9 @@ struct Srgba {
 
         if (value <= 0.0031308f) {
             return value * 12.92f; // linear falloff in dark values
-        } else {
-            return (1.055f * std::powf(value, 1.0f / 2.4f)) - 0.055f; // gamma curve in other area
         }
+
+        return (1.055f * std::powf(value, 1.0f / 2.4f)) - 0.055f; // gamma curve in other area
     }
 
     [[nodiscard]]
@@ -474,6 +474,6 @@ inline Srgba detail::linear_rgba_to_srgba(const LinearRgba& rgba) {
     );
 }
 
-}
+} // namespace sge
 
 #endif

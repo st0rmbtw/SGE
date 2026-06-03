@@ -1,7 +1,9 @@
-#include <unordered_set>
 #include <SGE/input.hpp>
+#include <unordered_set>
 
-static struct InputState {
+namespace {
+
+struct InputState {
     std::unordered_set<sge::KeyWithModifiers> keyboard_pressed;
     std::unordered_set<sge::KeyWithModifiers> keyboard_just_pressed;
     std::unordered_set<sge::KeyWithModifiers> keyboard_just_released;
@@ -14,6 +16,8 @@ static struct InputState {
     glm::vec2 cursor_position;
     glm::vec2 mouse_delta;
 } input_state;
+
+} // namespace
 
 void sge::Input::Clear() {
     input_state.keyboard_just_pressed.clear();
@@ -32,12 +36,12 @@ void sge::Input::ProcessEvent(const InputEvent& inputEvent) {
     case InputEventType::Key: {
         KeyInputEvent event = inputEvent.KeyEvent;
         if (event.Pressed) {
-            const sge::KeyWithModifiers value = sge::KeyWithModifiers(event.Key, event.Mods);
+            const auto value = sge::KeyWithModifiers{.key = event.Key, .modifiers = static_cast<uint8_t>(event.Mods)};
             if (input_state.keyboard_pressed.insert(value).second) {
                 input_state.keyboard_just_pressed.insert(value);
             }
         } else {
-            const sge::KeyWithModifiers value = sge::KeyWithModifiers(event.Key, event.Mods);
+            const auto value = sge::KeyWithModifiers{.key = event.Key, .modifiers = static_cast<uint8_t>(event.Mods)};
             if (input_state.keyboard_pressed.erase(value) > 0) {
                 input_state.keyboard_just_released.insert(value);
             }
@@ -77,21 +81,25 @@ void sge::Input::ProcessEvent(const InputEvent& inputEvent) {
 }
 
 bool sge::Input::Pressed(Key key) {
-    return input_state.keyboard_pressed.find(key) != input_state.keyboard_pressed.end();
+    const auto key_with_mods = KeyWithModifiers{ .key = key };
+    return input_state.keyboard_pressed.find(key_with_mods) != input_state.keyboard_pressed.end();
 }
 
 bool sge::Input::JustPressed(Key key) {
-    return input_state.keyboard_just_pressed.find(key) != input_state.keyboard_just_pressed.end();
+    const auto key_with_mods = KeyWithModifiers{ .key = key };
+    return input_state.keyboard_just_pressed.find(key_with_mods) != input_state.keyboard_just_pressed.end();
 }
 
 bool sge::Input::Pressed(Key key, uint8_t modifiers) {
-    const auto entry = input_state.keyboard_pressed.find(key);
+    const auto key_with_mods = KeyWithModifiers{ .key = key };
+    const auto entry = input_state.keyboard_pressed.find(key_with_mods);
     if (entry == input_state.keyboard_pressed.end()) return false;
     return entry->modifiers == modifiers;
 }
 
 bool sge::Input::JustPressed(Key key, uint8_t modifiers) {
-    const auto entry = input_state.keyboard_just_pressed.find(key);
+    const auto key_with_mods = KeyWithModifiers{ .key = key };
+    const auto entry = input_state.keyboard_just_pressed.find(key_with_mods);
     if (entry == input_state.keyboard_just_pressed.end()) return false;
     return entry->modifiers == modifiers;
 }

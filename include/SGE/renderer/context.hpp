@@ -3,16 +3,16 @@
 #ifndef SGE_ENGINE_RENDERER_CONTEXT_HPP
 #define SGE_ENGINE_RENDERER_CONTEXT_HPP
 
-#include <SGE/types/backend.hpp>
 #include <SGE/renderer/glfw_window.hpp>
-#include <SGE/renderer/types.hpp>
 #include <SGE/renderer/resource.hpp>
+#include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
+#include <SGE/types/backend.hpp>
 
 #include <SGE/types/sampler.hpp>
-#include <SGE/types/texture.hpp>
-#include <SGE/types/shader_path.hpp>
 #include <SGE/types/shader_def.hpp>
+#include <SGE/types/shader_path.hpp>
+#include <SGE/types/texture.hpp>
 #include <SGE/utils/hash.hpp>
 
 #include <LLGL/RenderSystemChild.h>
@@ -20,8 +20,8 @@
 
 #include <imgui.h>
 
-#include <filesystem>
 #include <concepts>
+#include <filesystem>
 #include <stack>
 
 struct PipelineConfigKey {
@@ -378,6 +378,6 @@ private:
 
 
 
-};
+} // namespace sge
 
 #endif

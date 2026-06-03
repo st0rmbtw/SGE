@@ -1,18 +1,18 @@
 #include <SGE/engine.hpp>
-#include <SGE/renderer/renderer.hpp>
-#include <SGE/renderer/camera.hpp>
-#include <SGE/renderer/glfw_window.hpp>
 #include <SGE/input.hpp>
+#include <SGE/log.hpp>
+#include <SGE/math/consts.hpp>
+#include <SGE/renderer/camera.hpp>
+#include <SGE/renderer/context.hpp>
+#include <SGE/renderer/glfw_window.hpp>
+#include <SGE/renderer/renderer.hpp>
+#include <SGE/time/stopwatch.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
-#include <SGE/types/color.hpp>
-#include <SGE/types/window_settings.hpp>
 #include <SGE/types/blend_mode.hpp>
-#include <SGE/log.hpp>
-#include <SGE/time/stopwatch.hpp>
-#include <SGE/math/consts.hpp>
-#include <SGE/renderer/context.hpp>
+#include <SGE/types/color.hpp>
 #include <SGE/types/shape.hpp>
+#include <SGE/types/window_settings.hpp>
 
 #include <chrono>
 #include <glm/trigonometric.hpp>
@@ -22,10 +22,15 @@
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
-using namespace sge;
+namespace Input = sge::Input;
+namespace Time = sge::Time;
+namespace Duration = sge::Duration;
+namespace consts = sge::consts;
+using Key = sge::Key;
+using MouseButton = sge::MouseButton;
 
 bool App::OnInit() {
-    ImGuiConfig imguiConfig;
+    sge::ImGuiConfig imguiConfig;
     imguiConfig.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     imguiConfig.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     // imguiConfig.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
@@ -35,7 +40,7 @@ bool App::OnInit() {
 
     SetAutoPresent(true);
 
-    WindowSettings window_settings;
+    sge::WindowSettings window_settings;
     window_settings.width = 800;
     window_settings.height = 800;
     window_settings.fullscreen = m_config.fullscreen;
@@ -53,10 +58,10 @@ bool App::OnInit() {
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
-    m_cameras[window->GetID()] = sge::Camera(resolution, sge::CameraConfig { .origin = CameraOrigin::TopLeft });
+    m_cameras[window->GetID()] = sge::Camera(resolution, sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });
     m_cameras[window->GetID()].set_samples(m_config.samples);
 
-    m_renderer = std::make_unique<Renderer>(GetRenderContext());
+    m_renderer = std::make_unique<sge::Renderer>(GetRenderContext());
 
     m_batch = m_renderer->CreateBatch();
 
@@ -89,7 +94,7 @@ void App::OnUpdate() {
     }
 
     if (Input::JustPressed(Key::W)) {
-        auto window = CreateWindow(WindowSettings {
+        auto window = CreateWindow(sge::WindowSettings {
             .width = 500,
             .height = 500,
             .samples = 1,
@@ -99,8 +104,8 @@ void App::OnUpdate() {
         if (window.has_value()) {
             const uint32_t id = window.value()->GetID();
             const LLGL::Extent2D size = window.value()->GetContentSize();
-            m_cameras[id] = sge::Camera(sge::CameraConfig { .origin = CameraOrigin::TopLeft });
-            m_cameras[id].set_viewport({size.width, size.height});
+            m_cameras[id] = sge::Camera(sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });
+            m_cameras[id].set_viewport(size.width, size.height);
             m_cameras[id].update();
         }
     }
@@ -117,7 +122,7 @@ void App::OnUpdate() {
     m_t.minutes = std::fmod(mins, 60.0f);
     m_t.seconds = std::fmod(secs, 60.0f);
 
-    sge::GlfwWindow* window = WindowManager::GetFocusedWindow();
+    sge::GlfwWindow* window = sge::WindowManager::GetFocusedWindow();
     if (!window)
         return;
 
@@ -134,7 +139,7 @@ void App::OnUpdate() {
         const glm::vec2 scaledLength = length * zoom_factor;
         const glm::vec2 deltaLength = length - scaledLength;
 
-        const Rect& area = camera.get_projection_area();
+        const sge::Rect& area = camera.get_projection_area();
         const glm::uvec2 window_size = camera.viewport();
 
         const glm::vec2 new_position = camera.position() + deltaLength;
@@ -142,7 +147,7 @@ void App::OnUpdate() {
     }
 
     if (Input::Pressed(MouseButton::Left)) {
-        const Rect& area = camera.get_projection_area();
+        const sge::Rect& area = camera.get_projection_area();
 
         const glm::vec2 dir = glm::vec2(camera.right(), camera.down());
 
@@ -159,7 +164,7 @@ void App::OnUpdate() {
     camera.update();
 }
 
-void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
+void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     sge::Camera& camera = m_cameras[window->GetID()];
     camera.set_viewport(window->GetSize());
 
@@ -190,7 +195,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         .color = sge::LinearRgba(0.0f, 0.0f, 0.0f),
         .border_thickness = CLOCK_BORDER_WIDTH * background_size.x / 2.0f,
         .border_color = sge::LinearRgba(0x3B, 0x40, 0x43),
-        .border_radius = BorderRadius::Absolute(radius)
+        .border_radius = sge::BorderRadius::Absolute(radius)
     });
 
     {
@@ -202,7 +207,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
         m_batch->DrawRect(center, {
             .size = size,
             .color = sge::LinearRgba(0x05, 0x0C, 0x0B),
-            .border_radius = BorderRadius::Absolute(radius - padding)
+            .border_radius = sge::BorderRadius::Absolute(radius - padding)
         });
 
         m_batch->DrawCircle(center, {
@@ -225,7 +230,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f - (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH - (size * CLOCK_TICKS_LENGTH) * 0.2f);
 
-            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), BorderRadius::Relative(50.0f));
+            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), sge::BorderRadius::Relative(50.0f));
         }
 
         for (int i = 0; i < 12; ++i) {
@@ -240,7 +245,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f + (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH);
 
-            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), BorderRadius::Relative(50.0f));
+            m_batch->DrawLine(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), sge::BorderRadius::Relative(50.0f));
         }
         m_batch->EndOrderMode();
 
@@ -272,7 +277,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), BorderRadius::Relative(50.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), sge::BorderRadius::Relative(50.0f));
         }
 
         // Minute hand
@@ -284,7 +289,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), BorderRadius::Relative(50.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), sge::BorderRadius::Relative(50.0f));
         }
 
         // Second hand
@@ -296,7 +301,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
             const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
             const float length = hand_length - CLOCK_SECOND_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), BorderRadius::Relative(50.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), sge::BorderRadius::Relative(50.0f));
         }
     }
 
@@ -349,7 +354,7 @@ void App::OnRender(const std::shared_ptr<GlfwWindow>& window) {
     m_renderer->End();
 }
 
-void App::OnPostRender(const std::shared_ptr<GlfwWindow>& window) {
+void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow>&) {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
         LLGL::FrameProfile profile = GetRenderContext()->GetDebugInfo();

@@ -9,6 +9,6 @@ namespace ImGuiRenderer {
     void Shutdown();
     void NewFrame();
     void RenderDrawData(ImDrawData* data);
-}
+} // namespace ImGuiRenderer
 
 #endif // ENGINE_RENDERER_IMGUI_RENDERER_HPP_

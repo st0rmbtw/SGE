@@ -6,8 +6,8 @@
 #include <vector>
 
 #include <LLGL/Format.h>
-#include <LLGL/VertexAttribute.h>
 #include <LLGL/Utils/VertexFormat.h>
+#include <LLGL/VertexAttribute.h>
 
 #include <SGE/types/backend.hpp>
 
@@ -93,6 +93,6 @@ private:
     uint32_t m_start_location = 0;
 };
 
-}
+} // namespace sge
 
 #endif

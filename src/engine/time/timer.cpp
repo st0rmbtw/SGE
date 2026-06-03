@@ -1,9 +1,7 @@
-#include <SGE/time/timer.hpp>
 #include <SGE/time/stopwatch.hpp>
+#include <SGE/time/timer.hpp>
 
-using namespace sge;
-
-void Timer::tick_impl(const duration_t& delta) {
+void sge::Timer::tick_impl(const duration_t& delta) {
     if (paused()) {
         m_times_finished_this_tick = 0;
         if (m_mode == TimerMode::Repeating) {
@@ -22,8 +20,8 @@ void Timer::tick_impl(const duration_t& delta) {
 
     if (finished()) {
         if (m_mode == TimerMode::Repeating) {
-            const Duration::Nanos e = Duration::Cast<Duration::Nanos>(elapsed());
-            const Duration::Nanos d = Duration::Cast<Duration::Nanos>(duration());
+            const auto e = Duration::Cast<Duration::Nanos>(elapsed());
+            const auto d = Duration::Cast<Duration::Nanos>(duration());
 
             if (d.count() == 0) {
                 m_times_finished_this_tick = UINT32_MAX;

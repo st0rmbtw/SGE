@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include <LLGL/ShaderFlags.h>
 
 #include "backend.hpp"
@@ -56,15 +57,7 @@ public:
         case RenderBackend::OpenGL:
         case RenderBackend::Vulkan: return nullptr;
 
-        case RenderBackend::D3D11: switch (m_value) {
-            case Value::Vertex: return "vs_5_0";
-            case Value::Fragment: return "ps_5_0";
-            case Value::Geometry: return "gs_5_0";
-            case Value::Compute: return "cs_5_0";
-            default: return nullptr;
-        };
-        break;
-
+        case RenderBackend::D3D11:
         case RenderBackend::D3D12: switch (m_value) {
             case Value::Vertex: return "vs_5_0";
             case Value::Fragment: return "ps_5_0";
@@ -126,6 +119,6 @@ private:
     Value m_value = Value::Vertex;
 };
 
-}
+} // namespace sge
 
 #endif

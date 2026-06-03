@@ -69,6 +69,6 @@ private:
     RepeatStrategy m_repeat = RepeatStrategy::Repeat;
 };
 
-}
+} // namespace sge
 
 #endif

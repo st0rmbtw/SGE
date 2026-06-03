@@ -1,1 +1,14 @@
-Checks: 'clang-diagnostic-*,clang-analyzer-*,performance-*,modernize-*,-modernize-use-trailing-return-type,-modernize-avoid-c-arrays,-modernize-use-auto,-modernize-use-designated-initializers,-modernize-return-braced-init-list'
+Checks: >
+    *,
+    -llvmlibc-*,
+    -fuchsia-*,
+    -modernize-use-trailing-return-type,
+    -cppcoreguidelines-*,
+    -readability-*,
+    -google-readability-*,
+    -hicpp-*,
+    -altera-*,
+    -bugprone-narrowing-conversions,
+    -bugprone-easily-swappable-parameters,
+    -misc-non-private-member-variables-in-classes,
+    readability-static-definition-in-anonymous-namespace,

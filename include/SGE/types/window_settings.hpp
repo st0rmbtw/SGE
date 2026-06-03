@@ -22,6 +22,6 @@ struct WindowSettings {
     bool transparent = false;
 };
 
-}
+} // namespace sge
 
 #endif

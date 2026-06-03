@@ -1,14 +1,14 @@
 #include <filesystem>
 
-#include <LLGL/ResourceFlags.h>
 #include <LLGL/Constants.h>
-#include <SGE/renderer/types.hpp>
-#include <SGE/renderer/context.hpp>
-#include <SGE/profile.hpp>
-#include <SGE/defines.hpp>
-#include <SGE/assert.hpp>
-
 #include <LLGL/Platform/NativeHandle.h>
+#include <LLGL/ResourceFlags.h>
+
+#include <SGE/assert.hpp>
+#include <SGE/defines.hpp>
+#include <SGE/profile.hpp>
+#include <SGE/renderer/context.hpp>
+#include <SGE/renderer/types.hpp>
 
 #if SGE_IMGUI_ENABLED
     #include <imgui.h>
@@ -470,8 +470,8 @@ void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
     if (!handle.IsValid()) return;
 
     for (auto it = m_pipeline_states.begin(); it != m_pipeline_states.end();) {
-        auto key = it->first;
-        auto value = it->second;
+        PipelineConfigKey key = it->first;
+        LLGL::PipelineState* value = it->second;
 
         if (key.config_id == handle.ID()) {
             Release(*value);

@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+
 #include <SGE/types/backend.hpp>
 
 inline constexpr sge::RenderBackend GetDefaultBackend() {
@@ -44,7 +45,7 @@ inline bool ParseCommandLineArguments(int argc, char** argv, ExampleConfig& conf
     for (int i = 1; i < argc; i++) {
         if (strequal(argv[i], "--pause")) {
             printf("Initialization is paused. Press any key to continue...\n");
-            getchar();
+            (void)getchar();
         } else if (strequal(argv[i], "--backend")) {
             if (i >= argc-1) {
                 printf("Specify a render backend. ");

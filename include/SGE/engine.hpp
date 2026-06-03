@@ -8,13 +8,14 @@
 #include <glm/vec2.hpp>
 
 #include <SGE/input.hpp>
-#include <SGE/window_manager.hpp>
+#include <SGE/macros.hpp>
+#include <SGE/renderer/context.hpp>
 #include <SGE/renderer/glfw_window.hpp>
 #include <SGE/types/backend.hpp>
-#include <SGE/types/window_settings.hpp>
 #include <SGE/types/cursor_mode.hpp>
-#include <SGE/renderer/context.hpp>
+#include <SGE/types/window_settings.hpp>
 #include <SGE/utils/containers/swapbackvector.hpp>
+#include <SGE/window_manager.hpp>
 
 #if SGE_IMGUI_ENABLED
     #include <backends/imgui_impl_glfw.h>
@@ -190,6 +191,9 @@ protected:
     }
 
     void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) final {
+        SGE_UNUSED(window);
+        SGE_UNUSED(scancode);
+
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
@@ -204,6 +208,8 @@ protected:
     }
 
     void OnCharacterEvent(GLFWwindow* window, uint32_t codepoint) final {
+        SGE_UNUSED(window);
+
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_CharCallback(window, codepoint);
@@ -216,6 +222,9 @@ protected:
     }
 
     void OnMouseButtonEvent(GLFWwindow* window, const int button, const int action, const int mods) final {
+        SGE_UNUSED(window);
+        SGE_UNUSED(mods);
+
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())    
             ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
@@ -229,6 +238,8 @@ protected:
     }
 
     void OnMouseScrollEvent(GLFWwindow* window, double xoffset, double yoffset) final {
+        SGE_UNUSED(window);
+
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
@@ -265,6 +276,6 @@ private:
     bool m_auto_present = true;
 };
 
-}
+} // namespace sge
 
 #endif

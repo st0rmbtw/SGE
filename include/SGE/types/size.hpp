@@ -4,8 +4,10 @@
 #define SGE_TYPES_SHAPE_HPP_
 
 #include <cstdint>
-#include <glm/vec2.hpp>
+
 #include <LLGL/Types.h>
+
+#include <glm/vec2.hpp>
 
 namespace sge {
 
@@ -13,8 +15,9 @@ struct Size {
     uint32_t width = 0;
     uint32_t height = 0;
 
-    Size(uint32_t value) : width(value), height(value) {}
-    Size(uint32_t w, uint32_t h) : width(w), height(h) {}
+    explicit Size(uint32_t value) : width(value), height(value) {}
+    explicit Size(uint32_t w, uint32_t h) : width(w), height(h) {}
+
     Size(glm::uvec2 v) : width(v.x), height(v.y) {}
     Size(LLGL::Extent2D e) : width(e.width), height(e.height) {}
 
@@ -31,7 +34,7 @@ struct Size {
     }
 };
 
-}
+} // namespace sge
 
 
 

@@ -1,6 +1,6 @@
+#include <SGE/profile.hpp>
 #include <SGE/utils/text.hpp>
 #include <SGE/utils/utf8.hpp>
-#include <SGE/profile.hpp>
 
 glm::vec2 sge::calculate_text_bounds(const sge::Font& font, float size, const char* text, size_t length) {
     ZoneScoped;

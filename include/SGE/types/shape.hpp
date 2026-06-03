@@ -120,6 +120,6 @@ struct ShapeLine {
 
 };
 
-}
+} // namespace sge
 
 #endif

@@ -19,6 +19,6 @@ struct Font {
     int16_t ascender;
 };
 
-}
+} // namespace sge
 
 #endif

@@ -12,6 +12,6 @@ enum class CursorMode : int {
     Captured = GLFW_CURSOR_CAPTURED,
 };
 
-}
+} // namespace sge
 
 #endif

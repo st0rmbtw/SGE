@@ -2,9 +2,7 @@
 #include <SGE/renderer/renderer.hpp>
 #include <SGE/utils/utf8.hpp>
 
-using namespace sge;
-
-Batch::Batch(Renderer& renderer, const BatchDesc& desc) : m_scissor_enabled(desc.enable_scissor) {
+sge::Batch::Batch(Renderer& renderer, const BatchDesc& desc) : m_scissor_enabled(desc.enable_scissor) {
     m_draw_commands.reserve(500);
     m_flush_queue.reserve(100);
 
@@ -15,7 +13,7 @@ Batch::Batch(Renderer& renderer, const BatchDesc& desc) : m_scissor_enabled(desc
     m_line_pipeline = renderer.CreateLineBatchPipeline(desc.enable_scissor);
 }
 
-uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order custom_order) {
+uint32_t sge::Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order custom_order) {
     const sge::Rect& rect = sprite.atlas().get_rect(sprite.index());
 
     glm::vec4 uv_offset_scale = glm::vec4(
@@ -38,7 +36,7 @@ uint32_t Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order c
     return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.atlas().texture(), custom_order);
 }
 
-inline uint32_t Batch::GetOrder(sge::Order custom_order) {
+inline uint32_t sge::Batch::GetOrder(sge::Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);
@@ -52,7 +50,7 @@ inline uint32_t Batch::GetOrder(sge::Order custom_order) {
     return order;
 }
 
-uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm::vec2& position, const Font& font, struct Order custom_order) {
+uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, const glm::vec2& position, const Font& font, struct Order custom_order) {
     float x = position.x;
     float y = position.y;
 
@@ -94,7 +92,7 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            internal::DrawCommandGlyph command = internal::DrawCommandGlyph {
+            auto command = internal::DrawCommandGlyph {
                 .texture = internal::TextureWithSampler {
                     .ptr = font.texture.internal().Get(),
                     .sampler = font.texture.sampler()->internal().Get(),
@@ -118,7 +116,7 @@ uint32_t Batch::DrawText(const RichTextSection* sections, size_t size, const glm
     return order;
 }
 
-uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const Texture& texture, struct Order custom_order) {
+uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const Texture& texture, struct Order custom_order) {
     const internal::DrawCommandSprite draw_command = internal::DrawCommandSprite {
         .texture = internal::TextureWithSampler {
             .ptr = texture.internal().Get(),
@@ -146,7 +144,7 @@ uint32_t Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& 
     return order;
 }
 
-uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::vec4& uv_offset_scale, struct Order custom_order) {
+uint32_t sge::Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::vec4& uv_offset_scale, struct Order custom_order) {
     const internal::DrawCommandNinePatch draw_command = internal::DrawCommandNinePatch {
         .texture = internal::TextureWithSampler {
             .ptr = ninepatch.texture().internal().Get(),
@@ -173,7 +171,7 @@ uint32_t Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::v
     return order;
 }
 
-uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, BorderRadius border_radius, Anchor anchor, struct Order custom_order) {
+uint32_t sge::Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, BorderRadius border_radius, Anchor anchor, struct Order custom_order) {
     float length = glm::min(size.x, size.y);
 
     const glm::vec4 radius = border_radius.is_relative()
@@ -201,7 +199,7 @@ uint32_t Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size,
     return order;
 }
 
-uint32_t Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius, sge::Order custom_order) {
+uint32_t sge::Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius, sge::Order custom_order) {
     float length = glm::min(glm::sqrt(glm::dot(start, end)), thickness);
 
     const glm::vec4 radius = border_radius.is_relative()

@@ -2,7 +2,9 @@
 #define _SGE_TYPES_SAMPLER_HPP_
 
 #include <utility>
+
 #include <SGE/renderer/resource.hpp>
+
 #include <LLGL/Sampler.h>
 #include <LLGL/SamplerFlags.h>
 
@@ -36,6 +38,6 @@ private:
     Unique<LLGL::Sampler> m_internal = nullptr;
 };
 
-}
+} // namespace sge
 
 #endif

@@ -7,8 +7,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <SGE/assert.hpp>
-#include <SGE/math/rect.hpp>
 #include <SGE/defines.hpp>
+#include <SGE/math/rect.hpp>
 #include <SGE/types/size.hpp>
 
 namespace sge {
@@ -87,9 +87,14 @@ public:
     }
 
     inline void set_viewport(Size viewport) {
+        set_viewport(viewport.width, viewport.height);
+    }
+
+    inline void set_viewport(uint32_t width, uint32_t height) {
         m_changed = true;
-        m_viewport = viewport;
-        m_screen_projection_matrix = glm::ortho(0.0f, static_cast<float>(viewport.width), static_cast<float>(viewport.height), 0.0f);
+        m_viewport.width = width;
+        m_viewport.height = height;
+        m_screen_projection_matrix = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f);
         update_projection_area();
     }
 
@@ -302,6 +307,6 @@ private:
     bool m_changed = false;
 };
 
-}
+} // namespace sge
 
 #endif

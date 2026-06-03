@@ -1,5 +1,5 @@
-#include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/context.hpp>
+#include <SGE/renderer/resource.hpp>
 
 sge::LLGLResourceRC::~LLGLResourceRC() {
     if (m_data) {

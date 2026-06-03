@@ -8,19 +8,19 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include <SGE/math/rect.hpp>
-#include <SGE/types/texture.hpp>
-#include <SGE/types/sprite.hpp>
-#include <SGE/types/nine_patch.hpp>
-#include <SGE/types/rich_text.hpp>
-#include <SGE/types/order.hpp>
-#include <SGE/types/font.hpp>
-#include <SGE/types/shape.hpp>
-#include <SGE/types/color.hpp>
-#include <SGE/types/blend_mode.hpp>
 #include <SGE/defines.hpp>
-#include <SGE/renderer/types.hpp>
+#include <SGE/math/rect.hpp>
 #include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/types.hpp>
+#include <SGE/types/blend_mode.hpp>
+#include <SGE/types/color.hpp>
+#include <SGE/types/font.hpp>
+#include <SGE/types/nine_patch.hpp>
+#include <SGE/types/order.hpp>
+#include <SGE/types/rich_text.hpp>
+#include <SGE/types/shape.hpp>
+#include <SGE/types/sprite.hpp>
+#include <SGE/types/texture.hpp>
 
 namespace sge {
 
@@ -530,6 +530,6 @@ private:
     sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
 };
 
-}
+} // namespace sge
 
 #endif

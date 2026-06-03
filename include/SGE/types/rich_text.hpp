@@ -3,8 +3,9 @@
 #ifndef _SGE_RICH_TEXT_HPP_
 #define _SGE_RICH_TEXT_HPP_
 
-#include <string_view>
 #include <string>
+#include <string_view>
+
 #include <glm/vec3.hpp>
 
 #include "color.hpp"
@@ -33,17 +34,17 @@ struct RichText {
 };
 
 inline RichText<1> rich_text(std::string_view text, float size, sge::LinearRgba color) {
-    return RichText<1>{{ {text, color, size} }};
+    return RichText<1>{{ {.text=text, .color=color, .size=size} }};
 }
 
 inline RichText<1> rich_text(const std::string& text, float size, sge::LinearRgba color) {
-    return RichText<1>{{ {std::string_view(text), color, size} }};
+    return RichText<1>{{ {.text=std::string_view(text), .color=color, .size=size} }};
 }
 
 inline RichText<1> rich_text(const char* text, float size, sge::LinearRgba color) {
-    return RichText<1>{{ {text, color, size} }};
+    return RichText<1>{{ {.text=text, .color=color, .size=size} }};
 }
 
-}
+} // namespace sge
 
 #endif

@@ -14,6 +14,6 @@ struct ShaderDef {
         value(std::move(value)) {}
 };
 
-}
+} // namespace sge
 
 #endif

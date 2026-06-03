@@ -14,6 +14,6 @@ enum class BlendMode : uint8_t {
     PremultipliedAlpha
 };
 
-}
+} // namespace sge
 
 #endif

@@ -1,24 +1,26 @@
 #include "app.hpp"
 
 #include <SGE/engine.hpp>
-#include <SGE/renderer/renderer.hpp>
-#include <SGE/renderer/camera.hpp>
 #include <SGE/input.hpp>
+#include <SGE/renderer/camera.hpp>
+#include <SGE/renderer/renderer.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
-#include <SGE/types/color.hpp>
-#include <SGE/types/window_settings.hpp>
 #include <SGE/types/blend_mode.hpp>
+#include <SGE/types/color.hpp>
 #include <SGE/types/shape.hpp>
+#include <SGE/types/window_settings.hpp>
 
 #include <glm/trigonometric.hpp>
 
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
 
-static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
+namespace Input = sge::Input;
+namespace Time = sge::Time;
+using Key = sge::Key;
 
-using namespace sge;
+static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
 static void HandleClayErrors(Clay_ErrorData errorData) {
     printf("%s", errorData.errorText.chars);
@@ -30,7 +32,7 @@ bool App::OnInit() {
 
     SetAutoPresent(true);
 
-    WindowSettings window_settings;
+    sge::WindowSettings window_settings;
     window_settings.width = 1280;
     window_settings.height = 720;
     window_settings.fullscreen = m_config.fullscreen;
@@ -44,14 +46,14 @@ bool App::OnInit() {
         return false;
     }
 
-    std::shared_ptr<GlfwWindow> window = result.value();
+    std::shared_ptr<sge::GlfwWindow> window = result.value();
     m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
-    m_camera = sge::Camera(sge::CameraConfig { .origin = CameraOrigin::TopLeft });
-    m_camera.set_viewport({resolution.width, resolution.height});
+    m_camera = sge::Camera(sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });
+    m_camera.set_viewport(resolution.width, resolution.height);
 
-    m_renderer = std::make_unique<Renderer>(GetRenderContext());
+    m_renderer = std::make_unique<sge::Renderer>(GetRenderContext());
 
     m_batch = m_renderer->CreateBatch();
     m_batch->SetIsUi(true);
@@ -95,14 +97,14 @@ void App::OnUpdate() {
         const glm::vec2 scaledLength = length * zoom_factor;
         const glm::vec2 deltaLength = length - scaledLength;
 
-        const Rect& area = m_camera.get_projection_area();
+        const sge::Rect& area = m_camera.get_projection_area();
 
         const glm::vec2 new_position = m_camera.position() + deltaLength;
         m_camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size) - area.size()));
     }
 
-    if (Input::Pressed(MouseButton::Left)) {
-        const Rect& area = m_camera.get_projection_area();
+    if (Input::Pressed(sge::MouseButton::Left)) {
+        const sge::Rect& area = m_camera.get_projection_area();
         const glm::vec2 half_screen_size = glm::vec2(window_size) / 2.0f;
 
         const glm::vec2 dir = glm::vec2(m_camera.right(), m_camera.down());
@@ -160,8 +162,8 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
             Clay_RectangleRenderData *config = &drawCommand->renderData.rectangle;
             const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y);
             const glm::vec2 size = glm::vec2(boundingBox.width, boundingBox.height);
-            const LinearRgba color = LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
-            const BorderRadius cornerRadius = BorderRadius::Absolute(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
+            const sge::LinearRgba color = sge::LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
+            const sge::BorderRadius cornerRadius = sge::BorderRadius::Absolute(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
             m_batch->DrawRect(position, {
                 .size = size,
@@ -169,15 +171,15 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                 .border_thickness = 0.0f,
                 .border_color = color,
                 .border_radius = cornerRadius,
-                .anchor = Anchor::TopLeft
+                .anchor = sge::Anchor::TopLeft
             });
         } break;
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
             Clay_BorderRenderData *config = &drawCommand->renderData.border;
 
-            const LinearRgba color = LinearRgba(config->color.r / 255.0f, config->color.g / 255.0f, config->color.b / 255.0f, config->color.a / 255.0f);
+            const sge::LinearRgba color = sge::LinearRgba(config->color.r / 255.0f, config->color.g / 255.0f, config->color.b / 255.0f, config->color.a / 255.0f);
 
-            const BorderRadius cornerRadius = BorderRadius::Absolute(0.0f);
+            const sge::BorderRadius cornerRadius = sge::BorderRadius::Absolute(0.0f);
 
             // Left border
             if (config->width.left > 0) {
@@ -188,9 +190,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
-                    .border_color = LinearRgba::black(),
+                    .border_color = sge::LinearRgba::black(),
                     .border_radius = cornerRadius,
-                    .anchor = Anchor::TopLeft
+                    .anchor = sge::Anchor::TopLeft
                 });
             }
             // Right border
@@ -202,9 +204,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
-                    .border_color = LinearRgba::black(),
+                    .border_color = sge::LinearRgba::black(),
                     .border_radius = cornerRadius,
-                    .anchor = Anchor::TopLeft
+                    .anchor = sge::Anchor::TopLeft
                 });
             }
             // Top border
@@ -216,9 +218,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
-                    .border_color = LinearRgba::black(),
+                    .border_color = sge::LinearRgba::black(),
                     .border_radius = cornerRadius,
-                    .anchor = Anchor::TopLeft
+                    .anchor = sge::Anchor::TopLeft
                 });
             }
 
@@ -231,9 +233,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
-                    .border_color = LinearRgba::black(),
+                    .border_color = sge::LinearRgba::black(),
                     .border_radius = cornerRadius,
-                    .anchor = Anchor::TopLeft
+                    .anchor = sge::Anchor::TopLeft
                 });
             }
 
@@ -245,7 +247,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .start_angle = glm::radians(90.0f),
                     .end_angle = glm::radians(180.0f),
                     .color = color,
-                    .anchor = Anchor::TopLeft
+                    .anchor = sge::Anchor::TopLeft
                 });
             }
 
@@ -257,7 +259,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .start_angle = glm::radians(0.0f),
                     .end_angle = glm::radians(90.0f),
                     .color = color,
-                    .anchor = Anchor::TopLeft
+                    .anchor = sge::Anchor::TopLeft
                 });
             }
 
@@ -269,7 +271,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .start_angle = glm::radians(180.0f),
                     .end_angle = glm::radians(270.0f),
                     .color = color,
-                    .anchor = Anchor::TopLeft
+                    .anchor = sge::Anchor::TopLeft
                 });
             }
 
@@ -281,7 +283,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .start_angle = glm::radians(270.0f),
                     .end_angle = glm::radians(360.0f),
                     .color = color,
-                    .anchor = Anchor::TopLeft
+                    .anchor = sge::Anchor::TopLeft
                 });
             }
         }
@@ -304,7 +306,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
         .border_thickness = 2.0f,
         .border_color = sge::LinearRgba::blue(),
-        .border_radius = BorderRadius::Absolute(14.0f)
+        .border_radius = sge::BorderRadius::Absolute(14.0f)
     });
 
     m_renderer->BeginPass(window, m_camera);
@@ -320,7 +322,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
     m_renderer->End();
 }
 
-void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow> &window) {
+void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow>&) {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
         LLGL::FrameProfile profile = GetRenderContext()->GetDebugInfo();

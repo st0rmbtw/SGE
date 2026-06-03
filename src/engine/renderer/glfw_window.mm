@@ -1,6 +1,7 @@
 #include <LLGL/Platform/NativeHandle.h>
-#include <SGE/renderer/glfw_window.hpp>
+
 #include <SGE/defines.hpp>
+#include <SGE/renderer/glfw_window.hpp>
 
 #if SGE_PLATFORM_WINDOWS
     #define GLFW_EXPOSE_NATIVE_WIN32
@@ -15,9 +16,7 @@
 
 #include <GLFW/glfw3native.h>
 
-using namespace sge;
-
-bool GlfwWindow::GetNativeHandle(void* nativeHandle, std::size_t) {
+bool sge::GlfwWindow::GetNativeHandle(void* nativeHandle, std::size_t) {
     auto* handle = reinterpret_cast<LLGL::NativeHandle*>(nativeHandle);
 #if defined(SGE_PLATFORM_WINDOWS)
     handle->window = glfwGetWin32Window(m_wnd);
@@ -40,7 +39,7 @@ bool GlfwWindow::GetNativeHandle(void* nativeHandle, std::size_t) {
     return true;
 }
 
-bool GlfwWindow::AdaptForVideoMode(LLGL::Extent2D* resolution, bool* fullscreen) {
+bool sge::GlfwWindow::AdaptForVideoMode(LLGL::Extent2D* resolution, bool* fullscreen) {
     bool result = true;
 
     if (resolution != nullptr) {
