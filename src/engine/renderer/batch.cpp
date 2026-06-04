@@ -2,7 +2,9 @@
 #include <SGE/renderer/renderer.hpp>
 #include <SGE/utils/utf8.hpp>
 
-sge::Batch::Batch(Renderer& renderer, const BatchDesc& desc) : m_scissor_enabled(desc.enable_scissor) {
+sge::Batch::Batch(Renderer& renderer, const BatchDesc& desc) :
+    m_scissor_enabled(desc.enable_scissor)
+{
     m_draw_commands.reserve(500);
     m_flush_queue.reserve(100);
 
@@ -36,7 +38,7 @@ uint32_t sge::Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Or
     return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.atlas().texture(), custom_order);
 }
 
-inline uint32_t sge::Batch::GetOrder(sge::Order custom_order) {
+uint32_t sge::Batch::GetOrder(sge::Order custom_order) {
     const uint32_t order = m_order_mode
         ? m_global_order.value + std::max(custom_order.value, 0)
         : (custom_order.value >= 0 ? custom_order.value : m_order);

@@ -22,7 +22,6 @@
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
-namespace Input = sge::Input;
 namespace Time = sge::Time;
 namespace Duration = sge::Duration;
 using Key = sge::Key;
@@ -75,101 +74,129 @@ App::~App() {
     m_renderer->DestroyBatch(*m_batch);
 }
 
-void App::OnUpdate() {
-    if (Input::JustPressed(Key::Space)) {
-        m_paused = !m_paused;
-    }
-
-    if (m_paused) return;
-
-    sge::GlfwWindow* window = sge::WindowManager::GetFocusedWindow();
-    if (!window)
-        return;
-
-    for (const float scroll : Input::ScrollEvents()) {
-        const float zoom_factor = glm::pow(0.75f, scroll);
-        const float new_zoom = m_camera.zoom() * zoom_factor;
-
-        m_camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
-
-        const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::CursorPosition());
-        const glm::vec2 length = mouse_pos - m_camera.position();
-        const glm::vec2 scaledLength = length * zoom_factor;
-        const glm::vec2 deltaLength = length - scaledLength;
-
-        const sge::Rect& area = m_camera.get_projection_area();
-        const glm::uvec2 window_size = m_camera.viewport();
-
-        const glm::vec2 new_position = m_camera.position() + deltaLength;
-        m_camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size) - area.size()));
-    }
-
-    if (Input::Pressed(MouseButton::Left)) {
-        const sge::Rect& area = m_camera.get_projection_area();
-
-        const glm::vec2 dir = glm::vec2(m_camera.right(), m_camera.down());
-
-        const glm::vec2 new_position = m_camera.position() - Input::MouseDelta() * m_camera.zoom() * dir;
-        m_camera.set_position(glm::clamp(new_position, -area.min, area.max));
-        m_camera.set_position(new_position);
-    }
-
-    if (Input::JustPressed(Key::Escape)) {
-        m_camera.set_position(glm::vec2(0.0f));
-        m_camera.set_zoom(1.0f);
-    }
-
-    m_camera.update();
-}
-
-void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-    m_camera.set_viewport(window->GetSize());
-
+void App::DrawContent(LLGL::Extent2D viewport) {
     if (m_batch_type == BatchType::Line) {
         if (m_coloring == Coloring::Random) {
             for (uint32_t i = 0; i < m_instance_count; ++i) {
-                const glm::vec2 start = glm::vec2(sge::random::rand_int(0, window->GetWidth()), sge::random::rand_int(0, window->GetHeight()));
-                const glm::vec2 end = start + glm::vec2(sge::random::rand_int(-500, 500), sge::random::rand_int(-500, 500));
+                const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
+                const glm::vec2 start = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
+                const glm::vec2 end = start + size;
 
                 sge::LinearRgba color;
-                color.r = sge::random::rand_float(0.0f, 1.0f);
-                color.g = sge::random::rand_float(0.0f, 1.0f);
-                color.b = sge::random::rand_float(0.0f, 1.0f);
+                color.r = sge::Random::Float(0.0f, 1.0f);
+                color.g = sge::Random::Float(0.0f, 1.0f);
+                color.b = sge::Random::Float(0.0f, 1.0f);
 
                 m_batch->DrawLine(start, end, 1.0f, color);
             }
         } else {
             for (uint32_t i = 0; i < m_instance_count; ++i) {
-                const glm::vec2 start = glm::vec2(sge::random::rand_int(0, window->GetWidth()), sge::random::rand_int(0, window->GetHeight()));
-                const glm::vec2 end = start + glm::vec2(sge::random::rand_int(-500, 500), sge::random::rand_int(-500, 500));
+                const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
+                const glm::vec2 start = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
+                const glm::vec2 end = start + size;
                 m_batch->DrawLine(start, end, 1.0f, m_custom_color);
             }
         }
     } else if (m_batch_type == BatchType::Shape) {
-        for (uint32_t i = 0; i < m_instance_count; ++i) {
+        if (m_coloring == Coloring::Random) {
+            for (uint32_t i = 0; i < m_instance_count; ++i) {
+                const glm::vec2 position = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
+                
+                sge::LinearRgba color;
+                color.r = sge::Random::Float(0.0f, 1.0f);
+                color.g = sge::Random::Float(0.0f, 1.0f);
+                color.b = sge::Random::Float(0.0f, 1.0f);
+                
+                if (m_shape_type == sge::Shape::Rect) {
+                    const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
+
+                    m_batch->DrawRect(position, sge::ShapeRect {
+                        .size = size,
+                        .color = color
+                    });
+                } else if (m_shape_type == sge::Shape::Circle) {
+                    const float radius = sge::Random::Float(1.0f, 250.0f);
+
+                    m_batch->DrawCircle(position, sge::ShapeCircle {
+                        .radius = radius,
+                        .color = color
+                    });
+                } else if (m_shape_type == sge::Shape::Arc) {
+                    const float radius = sge::Random::Float(1.0f, 250.0f);
+                    const float start_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
+                    const float end_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
+
+                    m_batch->DrawArc(position, sge::ShapeArc {
+                        .outer_radius = radius + 20.0f,
+                        .inner_radius = radius,
+                        .start_angle = start_angle,
+                        .end_angle = end_angle,
+                        .color = color
+                    });
+                }
+            }
+        } else {
+            for (uint32_t i = 0; i < m_instance_count; ++i) {
+                const glm::vec2 position = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
+                
+                if (m_shape_type == sge::Shape::Rect) {
+                    const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
+
+                    m_batch->DrawRect(position, sge::ShapeRect {
+                        .size = size,
+                        .color = m_custom_color
+                    });
+                } else if (m_shape_type == sge::Shape::Circle) {
+                    const float radius = sge::Random::Float(1.0f, 250.0f);
+
+                    m_batch->DrawCircle(position, sge::ShapeCircle {
+                        .radius = radius,
+                        .color = m_custom_color
+                    });
+                } else if (m_shape_type == sge::Shape::Arc) {
+                    const float radius = sge::Random::Float(1.0f, 250.0f);
+                    const float start_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
+                    const float end_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
+
+                    m_batch->DrawArc(position, sge::ShapeArc {
+                        .outer_radius = radius + 20.0f,
+                        .inner_radius = radius,
+                        .start_angle = start_angle,
+                        .end_angle = end_angle,
+                        .color = m_custom_color
+                    });
+                }
+            }
         }
     } else if (m_batch_type == BatchType::NinePatch) {
-        for (uint32_t i = 0; i < m_instance_count; ++i) {
-        }
+        // TODO
     } else if (m_batch_type == BatchType::Sprite) {
-        for (uint32_t i = 0; i < m_instance_count; ++i) {
-        }
+        // TODO
     }
+}
+
+void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
+    m_camera.set_viewport(window->GetSize());
+
+    m_batch->BeginOrderMode();
+    {
+        DrawContent(window->GetSize());
+    }
+    m_batch->EndOrderMode();
 
     m_renderer->Begin();
     {
+        m_renderer->PrepareBatch(*m_batch);
+
         m_renderer->BeginPass(window, m_camera);
         {
-            float red = ((float)0xC5) / 255.0f;
-            float green = ((float)0xC8) / 255.0f;
-            float blue = ((float)0xD3) / 255.0f;
+            static constexpr float red = ((float)0xC5) / 255.0f;
+            static constexpr float green = ((float)0xC8) / 255.0f;
+            static constexpr float blue = ((float)0xD3) / 255.0f;
             m_renderer->Clear(LLGL::ClearValue(red, green, blue, 1.0f));
 
-            m_renderer->PrepareBatch(*m_batch);
-            m_renderer->UploadBatchData();
             m_renderer->RenderBatch(*m_batch);
 
-            #if SGE_IMGUI_ENABLED
             GetRenderContext()->BeginImGuiFrame(*window);
             {
                 ImGui::NewFrame();
@@ -178,34 +205,55 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                     
                     ImGui::Begin("Stress Test");
                     {
-                        if (ImGui::CollapsingHeader("Settings")) {
-                            ImGui::Checkbox("Paused", &m_paused);
+                        ImGui::Text("Renderer: %s", GetRenderContext()->GetRendererInfo().rendererName.c_str());
 
+                        if (ImGui::CollapsingHeader("Settings")) {
+                            if (ImGui::DragScalar("Batch Limit", ImGuiDataType_U32, &m_batch_limit, 100.0f)) {
+                                m_batch->SetMaxCount((m_batch_limit == 0) ? UINT32_MAX : m_batch_limit);
+                            }
+                            ImGui::DragScalar("Instance Count", ImGuiDataType_U32, &m_instance_count);
+                            
                             static const char* batch_names[] = { "Line", "Shape", "Ninepatch", "Sprite" };
                             static int selected_batch_type = 0;
-
-                            static const char* coloring_names[] = { "Random", "Custom" };
-                            static int selected_coloring_type = 0;
-
-                            ImGui::DragScalar("Instance Count", ImGuiDataType_U32, &m_instance_count);
-
                             if (ImGui::Combo("Batch Type", &selected_batch_type, batch_names, IM_ARRAYSIZE(batch_names))) {
                                 m_batch_type = static_cast<BatchType>(selected_batch_type);
                             }
 
-                            if (m_batch_type == BatchType::Line) {
-                                if (ImGui::Combo("Coloring", &selected_coloring_type, coloring_names, IM_ARRAYSIZE(coloring_names))) {
-                                    m_coloring = static_cast<Coloring>(selected_coloring_type);
-                                }
-
-                                if (m_coloring == Coloring::Custom) {
-                                    ImGui::ColorPicker4("Custom Color", &m_custom_color.r);
+                            if (m_batch_type == BatchType::Shape) {
+                                static const char* shape_names[] = { "Rect", "Circle", "Arc" };
+                                static int selected_shape_type = 0;
+                                if (ImGui::Combo("Shape Type", &selected_shape_type, shape_names, IM_ARRAYSIZE(shape_names))) {
+                                    m_shape_type = static_cast<sge::Shape::Type>(selected_shape_type);
                                 }
                             }
+
+                            static const char* property_names[] = { "Random", "Custom" };
+                            static int selected_coloring_type = 0;
+                            if (ImGui::Combo("Coloring", &selected_coloring_type, property_names, IM_ARRAYSIZE(property_names))) {
+                                m_coloring = static_cast<Coloring>(selected_coloring_type);
+                            }
+                            if (m_coloring == Coloring::Custom) {
+                                ImGui::ColorPicker4("Custom Color", &m_custom_color.r);
+                            }
+
+                            ImGui::SeparatorText("Size From");
+                            ImGui::DragScalar("X##1", ImGuiDataType_U32, &m_size_from.x);
+                            ImGui::DragScalar("Y##1", ImGuiDataType_U32, &m_size_from.y);
+
+                            ImGui::SeparatorText("Size To");
+                            ImGui::DragScalar("X##2", ImGuiDataType_U32, &m_size_to.x);
+                            ImGui::DragScalar("Y##2", ImGuiDataType_U32, &m_size_to.y);
                         }
 
                         if (ImGui::CollapsingHeader("Statistics")) {
                             ImGui::Text("Frame time: %.3f ms/frame (%.0f FPS)", Duration::GetAs<float, std::milli>(Time::Delta()), 1.0 / sge::Time::DeltaSeconds());
+                            
+                            #if SGE_DEBUG
+                            LLGL::FrameProfile profile;
+                            GetRenderContext()->GetDebugInfo(&profile);
+
+                            ImGui::Text("Draw commands: %d", profile.commandBufferRecord.drawCommands);
+                            #endif
                         }
                     }
                     ImGui::End();
@@ -213,13 +261,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                 ImGui::Render();
             }
             GetRenderContext()->EndImGuiFrame();
-            #endif
-
-            m_batch->Reset();
         }
         m_renderer->EndPass();
 
-        #if SGE_IMGUI_ENABLED
         ImGuiIO& io = ImGui::GetIO();
         ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
 
@@ -237,7 +281,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             }
             glfwMakeContextCurrent(saved_context);
         }
-        #endif
     }
     m_renderer->End();
+    m_batch->Reset();
 }

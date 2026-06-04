@@ -12,20 +12,23 @@
 #include <LLGL/Shader.h>
 #include <LLGL/Utils/Utility.h>
 
-#include <SGE/types/backend.hpp>
-#include <SGE/types/texture.hpp>
-#include <SGE/types/shader_path.hpp>
-#include <SGE/types/shader_def.hpp>
-#include <SGE/types/window_settings.hpp>
-#include <SGE/types/attributes.hpp>
-#include <SGE/renderer/glfw_window.hpp>
+#include <SGE/defines.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
-#include <SGE/renderer/types.hpp>
-#include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/context.hpp>
-#include <SGE/defines.hpp>
+#include <SGE/renderer/glfw_window.hpp>
+#include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/types.hpp>
+#include <SGE/renderer/utils.hpp>
+#include <SGE/types/attributes.hpp>
+#include <SGE/types/backend.hpp>
+#include <SGE/types/shader_def.hpp>
+#include <SGE/types/shader_path.hpp>
+#include <SGE/types/texture.hpp>
+#include <SGE/types/window_settings.hpp>
+
 #include <memory>
+#include <utility>
 
 namespace sge {
 
@@ -48,10 +51,13 @@ public:
     BatchData& operator=(BatchData&& other) noexcept {
         m_buffer = other.m_buffer;
         m_buffer_ptr = other.m_buffer_ptr;
-        m_count = other.m_count;
         m_vertex_buffer = std::move(other.m_vertex_buffer);
         m_instance_buffer = std::move(other.m_instance_buffer);
+        m_instance_format = std::move(other.m_instance_format);
         m_buffer_array = std::move(other.m_buffer_array);
+        m_max_count = other.m_max_count;
+        m_count = other.m_count;
+
         other.m_buffer = nullptr;
         other.m_buffer_ptr = nullptr;
         other.m_count = 0;
@@ -60,10 +66,17 @@ public:
 
     BatchData& operator=(const BatchData& other) = default;
 
-    void Init(sge::RenderContext& context, uint32_t size, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
+    void Init(sge::RenderContext& context, uint32_t count, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
+
+    void CreateDynamicBuffers(sge::RenderContext& context, uint32_t count);
+
+    inline void ResizeBuffersIfNeeded(sge::RenderContext& context, uint32_t count) {
+        if (count < m_max_count) return;
+        CreateDynamicBuffers(context, count + 2500);
+    }
 
     inline void Update(LLGL::CommandBuffer& command_buffer) {
-        command_buffer.UpdateBuffer(*m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
+        UpdateBufferChunked(command_buffer, *m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
     }
 
     inline void Reset() {
@@ -87,6 +100,11 @@ public:
         return m_count;
     }
 
+    [[nodiscard]]
+    inline uint32_t MaxCount() const {
+        return m_max_count;
+    }
+
 private:
     T* m_buffer = nullptr;
     T* m_buffer_ptr = nullptr;
@@ -94,7 +112,10 @@ private:
     sge::Unique<LLGL::Buffer> m_vertex_buffer;
     sge::Unique<LLGL::Buffer> m_instance_buffer;
     sge::Unique<LLGL::BufferArray> m_buffer_array;
+    
+    LLGL::VertexFormat m_instance_format;
 
+    uint32_t m_max_count = 0;
     uint32_t m_count = 0;
 };
 
@@ -140,7 +161,6 @@ public:
     void End();
 
     void PrepareBatch(sge::Batch& batch);
-    void UploadBatchData();
     void RenderBatch(sge::Batch& batch);
 
     [[nodiscard]]
@@ -155,7 +175,7 @@ public:
 
     [[nodiscard]]
     inline const Unique<LLGL::Buffer>& GlobalUniformBuffer() const noexcept {
-        return m_constant_buffer;
+        return m_uniform_buffer;
     }
 
     [[nodiscard]]
@@ -185,6 +205,7 @@ private:
     void SortBatchDrawCommands(sge::Batch& batch);
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
     void ApplyBatchDrawCommands(sge::Batch& batch);
+    void UploadBatchData();
 
 private:
     BatchData<SpriteInstance> m_sprite_batch_data;
@@ -193,11 +214,12 @@ private:
     BatchData<ShapeInstance> m_shape_batch_data;
     BatchData<LineInstance> m_line_batch_data;
 
+    Unique<LLGL::Buffer> m_uniform_buffer;
+    
     std::shared_ptr<RenderContext> m_context;
     
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;
-    Unique<LLGL::Buffer> m_constant_buffer;
 
     Ref<LLGL::Shader> m_sprite_vertex_shader;
     Ref<LLGL::Shader> m_glyph_vertex_shader;
@@ -208,7 +230,7 @@ private:
 
     LLGL::Extent2D m_viewport = LLGL::Extent2D(0, 0);
 
-    size_t m_batch_instance_count = 0;
+    uint32_t m_batch_instance_count = 0;
 
 };
 

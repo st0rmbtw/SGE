@@ -1,4 +1,5 @@
 #include <memory>
+#include <random>
 
 #include <GLFW/glfw3.h>
 
@@ -10,6 +11,7 @@
 #include <SGE/log.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/time/time.hpp>
+#include <SGE/utils/random.hpp>
 #include <SGE/window_manager.hpp>
 
 #include "defines.hpp"
@@ -37,6 +39,9 @@ bool sge::IEngine::Init() {
 
     if (!OnInit())
         return false;
+
+    std::random_device rd;
+    Random::Seed(rd());
 
     m_initialized = true;
     

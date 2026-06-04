@@ -8,6 +8,7 @@ namespace sge::consts {
     inline constexpr float LOG2_E = std::numbers::log2e_v<float>;
     inline constexpr float LOG10_E = std::numbers::log10e_v<float>;
     inline constexpr float PI = std::numbers::pi_v<float>;
+    inline constexpr float TAU = std::numbers::pi_v<float> * 2.0f;
     inline constexpr float FRAC_PI_2 = PI / 2.0f;
     inline constexpr float FRAC_PI_4 = PI / 4.0f;
     inline constexpr float FRAC_PI_6 = PI / 6.0f;

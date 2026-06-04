@@ -16,7 +16,7 @@
 #include <SGE/utils/hash.hpp>
 
 #include <LLGL/RenderSystemChild.h>
-#include <LLGL/Utils/Utility.h>
+#include <LLGL/Utils/VertexFormat.h>
 
 #include <imgui.h>
 
@@ -200,27 +200,39 @@ public:
 
     template <typename Container>
     inline Raw<LLGL::Buffer> CreateVertexBuffer(const Container& vertices, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) {
-        LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(GetArraySize(vertices), vertexFormat);
-        bufferDesc.debugName = debug_name;
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = GetArraySize(vertices);
+        bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
+        bufferDesc.vertexAttribs  = vertexFormat.attributes;
+        bufferDesc.debugName      = debug_name;
         return CreateBuffer(bufferDesc, &vertices[0]);
     }
 
     inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t size, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) {
-        LLGL::BufferDescriptor bufferDesc = LLGL::VertexBufferDesc(size, vertexFormat);
-        bufferDesc.debugName = debug_name;
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = size;
+        bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
+        bufferDesc.vertexAttribs  = vertexFormat.attributes;
+        bufferDesc.debugName      = debug_name;
         return CreateBuffer(bufferDesc);
     }
 
     template <typename Container>
     inline Raw<LLGL::Buffer> CreateIndexBuffer(const Container& indices, const LLGL::Format format, const char* debug_name = nullptr) {
-        LLGL::BufferDescriptor bufferDesc = LLGL::IndexBufferDesc(GetArraySize(indices), format);
-        bufferDesc.debugName = debug_name;
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = GetArraySize(indices);
+        bufferDesc.bindFlags      = LLGL::BindFlags::IndexBuffer;
+        bufferDesc.format         = format;
+        bufferDesc.debugName      = debug_name;
         return CreateBuffer(bufferDesc, &indices[0]);
     }
 
     inline Raw<LLGL::Buffer> CreateConstantBuffer(const size_t size, const char* debug_name = nullptr) {
-        LLGL::BufferDescriptor bufferDesc = LLGL::ConstantBufferDesc(size);
-        bufferDesc.debugName = debug_name;
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = size;
+        bufferDesc.bindFlags      = LLGL::BindFlags::ConstantBuffer;
+        bufferDesc.miscFlags      = LLGL::MiscFlags::DynamicUsage;
+        bufferDesc.debugName      = debug_name;
         return CreateBuffer(bufferDesc);
     }
 
@@ -286,7 +298,7 @@ public:
     }
 
 #if SGE_DEBUG
-    LLGL::FrameProfile GetDebugInfo();
+    void GetDebugInfo(LLGL::FrameProfile* profile);
 #endif
 
     [[nodiscard]]

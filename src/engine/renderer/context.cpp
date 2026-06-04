@@ -719,9 +719,7 @@ void sge::RenderContext::ReleaseUntyped(LLGL::RenderSystemChild& resource) {
 }
 
 #if SGE_DEBUG
-LLGL::FrameProfile sge::RenderContext::GetDebugInfo() {
-    LLGL::FrameProfile profile;
-    m_debugger->FlushProfile(&profile);
-    return profile;
+void sge::RenderContext::GetDebugInfo(LLGL::FrameProfile* profile) {
+    m_debugger->FlushProfile(profile);
 }
 #endif

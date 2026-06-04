@@ -305,17 +305,18 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         }
     }
 
+    m_renderer->PrepareBatch(*m_batch);
+
     m_renderer->BeginPass(window, camera);
+    {
         float red = ((float)0xC5) / 255.0f;
         float green = ((float)0xC8) / 255.0f;
         float blue = ((float)0xD3) / 255.0f;
         m_renderer->Clear(LLGL::ClearValue(red, green, blue, 1.0f));
 
-        m_renderer->PrepareBatch(*m_batch);
-        m_renderer->UploadBatchData();
         m_renderer->RenderBatch(*m_batch);
 
-    #if SGE_IMGUI_ENABLED
+        #if SGE_IMGUI_ENABLED
         GetRenderContext()->BeginImGuiFrame(*window);
         {
             ImGui::NewFrame();
@@ -326,9 +327,8 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             ImGui::Render();
         }
         GetRenderContext()->EndImGuiFrame();
-    #endif
-
-        m_batch->Reset();
+        #endif
+    }
     m_renderer->EndPass();
 
     #if SGE_IMGUI_ENABLED
@@ -352,12 +352,14 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     #endif
 
     m_renderer->End();
+    m_batch->Reset();
 }
 
 void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow>&) {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
-        LLGL::FrameProfile profile = GetRenderContext()->GetDebugInfo();
+        LLGL::FrameProfile profile;
+        GetRenderContext()->GetDebugInfo(&profile);
         SGE_LOG_DEBUG("Draw commands count: {}", profile.commandBufferRecord.drawCommands);
     }
 #endif

@@ -61,6 +61,7 @@ set(SGE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/texture_atlas.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/text.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/random.cpp
 )
 
 if(NOT APPLE)

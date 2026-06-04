@@ -309,23 +309,24 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         .border_radius = sge::BorderRadius::Absolute(14.0f)
     });
 
+    m_renderer->PrepareBatch(*m_batch);
+
     m_renderer->BeginPass(window, m_camera);
+    {
         m_renderer->Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
-
-        m_renderer->PrepareBatch(*m_batch);
-        m_renderer->UploadBatchData();
         m_renderer->RenderBatch(*m_batch);
-
-        m_batch->Reset();
+    }
     m_renderer->EndPass();
-
+    
     m_renderer->End();
+    m_batch->Reset();
 }
 
 void App::OnPostRender(const std::shared_ptr<sge::GlfwWindow>&) {
 #if SGE_DEBUG
     if (Input::Pressed(Key::C)) {
-        LLGL::FrameProfile profile = GetRenderContext()->GetDebugInfo();
+        LLGL::FrameProfile profile;
+        GetRenderContext()->GetDebugInfo(&profile);
         SGE_LOG_DEBUG("Draw commands count: {}", profile.commandBufferRecord.drawCommands);
     }
 #endif

@@ -5,6 +5,7 @@
 #include <SGE/renderer/renderer.hpp>
 #include <SGE/time/stopwatch.hpp>
 #include <SGE/types/color.hpp>
+#include <SGE/types/shape.hpp>
 
 #include "../../common.hpp"
 
@@ -20,6 +21,7 @@ enum class Coloring : uint8_t {
     Custom
 };
 
+
 class App : public sge::IEngine {
 public:
     App(const ExampleConfig& config) : m_config(config) {}
@@ -27,7 +29,6 @@ public:
 
 protected:
     bool OnInit() override;
-    void OnUpdate() override;
     void OnRender(const std::shared_ptr<sge::GlfwWindow> &window) override;
 
     void OnWindowResized(const std::shared_ptr<sge::GlfwWindow> &window, int width, int height) override {
@@ -43,6 +44,9 @@ protected:
     }
 
 private:
+    void DrawContent(LLGL::Extent2D viewport);
+
+private:
     sge::Camera m_camera;
     std::unique_ptr<sge::Renderer> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
@@ -50,12 +54,15 @@ private:
 
     sge::LinearRgba m_custom_color = sge::LinearRgba::white();
 
-    size_t m_instance_count = 0;
+    uint32_t m_instance_count = 0;
+    uint32_t m_batch_limit = 0;
     uint32_t m_primary_window_id = 0;
 
     BatchType m_batch_type = BatchType::Line;
+    sge::Shape::Type m_shape_type = sge::Shape::Rect;
     Coloring m_coloring = Coloring::Random;
-    bool m_paused = false;
+    glm::uvec2 m_size_from = glm::uvec2(0);
+    glm::uvec2 m_size_to = glm::uvec2(500);
 };
 
 #endif

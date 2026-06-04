@@ -45,7 +45,7 @@ struct TextureWithSampler {
 };
 
 struct FlushData {
-    std::optional<TextureWithSampler> texture;
+    TextureWithSampler texture = {};
     sge::IRect scissor;
     uint32_t offset;
     uint32_t count;
@@ -214,7 +214,7 @@ inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
     return uv_offset_scale;
 }
 
-};
+} // namespace internal
 
 struct BatchDesc {
     /**
@@ -229,6 +229,7 @@ struct BatchDesc {
      * @note If null, the default font fragment shader is used
      */
     Ref<LLGL::Shader> font_shader = nullptr;
+
     bool enable_scissor = false;
 };
 
@@ -267,6 +268,10 @@ public:
 
     inline void SetBlendMode(sge::BlendMode blend_mode) noexcept {
         m_blend_mode = blend_mode;
+    }
+
+    inline void SetMaxCount(uint32_t max_count) noexcept {
+        m_max_count = max_count;
     }
 
     inline void BeginBlendMode(sge::BlendMode blend_mode) noexcept {
@@ -364,6 +369,8 @@ public:
         m_draw_commands_done = 0;
     }
 
+    uint32_t GetOrder(sge::Order custom_order = {});
+
     [[nodiscard]]
     inline bool DepthEnabled() const noexcept {
         return m_depth_enabled;
@@ -377,6 +384,11 @@ public:
     [[nodiscard]]
     inline bool ScissorEnabled() const noexcept {
         return m_scissor_enabled;
+    }
+
+    [[nodiscard]]
+    inline uint32_t MaxCount() const noexcept {
+        return m_max_count;
     }
 
     [[nodiscard]]
@@ -433,8 +445,6 @@ public:
     inline sge::Handle<LLGL::PipelineState> LinePipeline() const noexcept {
         return m_line_pipeline;
     }
-
-    inline uint32_t GetOrder(sge::Order custom_order = {});
 private:
     uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, BorderRadius border_radius = BorderRadius(), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
 
@@ -518,6 +528,7 @@ private:
     uint32_t m_order = 0;
 
     uint32_t m_draw_commands_done = 0;
+    uint32_t m_max_count = UINT32_MAX;
 
     sge::Order m_global_order;
 

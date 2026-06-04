@@ -79,19 +79,23 @@ protected: // Callbacks
 
     virtual void OnInputEvent(const InputEvent& event) {
     #if SGE_IMGUI_ENABLED
-        ImGuiIO& io = ImGui::GetIO();
+        sge::GlfwWindow* window = WindowManager::GetFocusedWindow();
+        if (window != nullptr) {
+            ImGui::SetCurrentContext(GetRenderContext()->GetOrCreateImGuiContext(*window));
+            ImGuiIO& io = ImGui::GetIO();
 
-        if (io.WantCaptureMouse && (event.Type == sge::InputEventType::MouseButton ||
-                                    event.Type == sge::InputEventType::Scroll)) {
-            return;
-        }
+            if (io.WantCaptureMouse && (event.Type == sge::InputEventType::MouseButton ||
+                                        event.Type == sge::InputEventType::Scroll)) {
+                return;
+            }
 
-        if (io.WantCaptureKeyboard && event.Type == sge::InputEventType::Key) {
-            return;
-        }
+            if (io.WantCaptureKeyboard && event.Type == sge::InputEventType::Key) {
+                return;
+            }
 
-        if (io.WantTextInput && event.Type == sge::InputEventType::CodePoint) {
-            return;
+            if (io.WantTextInput && event.Type == sge::InputEventType::CodePoint) {
+                return;
+            }
         }
     #endif
         Input::ProcessEvent(event);
@@ -141,13 +145,13 @@ protected:
     }
 
     void OnWindowFocusEvent(GLFWwindow* handle, bool focused) final {
+        auto window = WindowManager::FindByHandle(handle);
+        SGE_ASSERT(window != nullptr);
+
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_WindowFocusCallback(handle, focused);
     #endif
-
-        auto window = WindowManager::FindByHandle(handle);
-        SGE_ASSERT(window != nullptr);
 
         window->m_flags.set(GlfwWindow::Flags::Focused, focused);
     }
@@ -162,13 +166,13 @@ protected:
     }
 
     void OnCursorPosEvent(GLFWwindow* handle, double xpos, double ypos) final {
+        auto window = WindowManager::FindByHandle(handle);
+        SGE_ASSERT(window != nullptr);
+
     #if SGE_IMGUI_ENABLED
         if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_CursorPosCallback(handle, xpos, ypos);
     #endif
-
-        auto window = WindowManager::FindByHandle(handle);
-        SGE_ASSERT(window != nullptr);
 
         sge::InputEvent inputEvent;
         inputEvent.Type = sge::InputEventType::CursorMove;
