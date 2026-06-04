@@ -4,3 +4,4 @@ project(SGE_EXAMPLES)
 
 add_subdirectory(clay_integration)
 add_subdirectory(clock)
+add_subdirectory(stresstest)
