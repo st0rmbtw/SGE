@@ -129,6 +129,9 @@ public:
     }
 
     Ref& operator=(const Ref& other) {
+        if (this == &other)
+            return *this;
+
         other.IncrementRef();
         DecrementRef();
         m_data = other.m_data;
@@ -220,6 +223,9 @@ public:
     }
 
     Ref& operator=(const Ref& other) {
+        if (this == &other)
+            return *this;
+
         other.IncrementRef();
         DecrementRef();
         m_data = other.m_data;
@@ -229,8 +235,8 @@ public:
     T* Get() const noexcept {
         if (m_data)
             return static_cast<T*>(m_data->Get());
-        else
-            return nullptr;
+        
+        return nullptr;
     }
 
     operator T*() const noexcept {
@@ -285,8 +291,8 @@ public:
     T* Get() const noexcept {
         if (m_data)
             return static_cast<T*>(m_data->Get());
-        else
-            return nullptr;
+        
+        return nullptr;
     }
 
     [[nodiscard]]
@@ -343,8 +349,8 @@ public:
     T* Get() const noexcept {
         if (m_data.IsValid())
             return static_cast<T*>(m_data.Get());
-        else
-            return nullptr;
+        
+        return nullptr;
     }
 
     operator T*() const noexcept {

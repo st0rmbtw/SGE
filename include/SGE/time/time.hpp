@@ -29,8 +29,8 @@ namespace Time {
     
     void AdvanceBy(const delta_time_t& delta) noexcept;
     void AdvanceFixed() noexcept;
-};
+} // namespace Time
 
-}
+} // namespace sge
 
 #endif

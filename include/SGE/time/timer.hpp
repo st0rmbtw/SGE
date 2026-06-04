@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <cstdint>
+
 #include "stopwatch.hpp"
 
 namespace sge {
@@ -116,6 +117,6 @@ private:
     bool m_finished = false;
 };
 
-}
+} // namespace sge
 
 #endif

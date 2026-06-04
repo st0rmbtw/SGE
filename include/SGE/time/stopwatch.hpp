@@ -15,21 +15,21 @@ namespace Duration {
     using Minutes = std::chrono::duration<uint32_t, std::ratio<60>>;
     using Hours = std::chrono::duration<uint32_t, std::ratio<3600>>;
 
-    template <class _To, class _Rep, class _Period>
-    constexpr inline _To Cast(const std::chrono::duration<_Rep, _Period>& _Dur) {
-        return std::chrono::duration_cast<_To>(_Dur);
+    template <class TTo, class TRep, class TPeriod>
+    constexpr inline TTo Cast(const std::chrono::duration<TRep, TPeriod>& duration) {
+        return std::chrono::duration_cast<TTo>(duration);
     }
 
-    template <class _ToRep, class _ToPeriod, class _Rep, class _Period>
-    constexpr inline std::chrono::duration<_ToRep, _ToPeriod> Cast(const std::chrono::duration<_Rep, _Period>& _Dur) {
-        return std::chrono::duration_cast<std::chrono::duration<_ToRep, _ToPeriod>>(_Dur);
+    template <class TToRep, class TToPeriod, class TRep, class TPeriod>
+    constexpr inline std::chrono::duration<TToRep, TToPeriod> Cast(const std::chrono::duration<TRep, TPeriod>& duration) {
+        return std::chrono::duration_cast<std::chrono::duration<TToRep, TToPeriod>>(duration);
     }
 
-    template <class _ToRep, class _ToPeriod, class _Rep, class _Period>
-    constexpr inline _ToRep GetAs(const std::chrono::duration<_Rep, _Period>& _Dur) {
-        return std::chrono::duration_cast<std::chrono::duration<_ToRep, _ToPeriod>>(_Dur).count();
+    template <class TToRep, class TToPeriod, class TRep, class TPeriod>
+    constexpr inline TToRep GetAs(const std::chrono::duration<TRep, TPeriod>& duration) {
+        return std::chrono::duration_cast<std::chrono::duration<TToRep, TToPeriod>>(duration).count();
     }
-};
+} // namespace Duration
 
 class Stopwatch {
 public:
@@ -78,6 +78,6 @@ private:
     bool m_paused = false;
 };
 
-}
+} // namespace sge
 
 #endif
