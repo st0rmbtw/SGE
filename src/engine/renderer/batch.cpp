@@ -1,6 +1,33 @@
+#include <SGE/profile.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/types.hpp>
 #include <SGE/utils/utf8.hpp>
+
+namespace SpriteFlags {
+    enum : uint8_t {
+        UI = 0,
+        IgnoreCameraZoom,
+    };
+};
+
+namespace GlyphFlags {
+    enum : uint8_t {
+        UI = 0,
+    };
+};
+
+namespace NinePatchFlags {
+    enum : uint8_t {
+        UI = 0,
+    };
+};
+
+namespace ShapeFlags {
+    enum : uint8_t {
+        UI = 0,
+    };
+};
 
 sge::Batch::Batch(Renderer& renderer, const BatchDesc& desc) :
     m_scissor_enabled(desc.enable_scissor)
@@ -16,6 +43,8 @@ sge::Batch::Batch(Renderer& renderer, const BatchDesc& desc) :
 }
 
 uint32_t sge::Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order custom_order) {
+    ZoneScoped;
+    
     const sge::Rect& rect = sprite.atlas().get_rect(sprite.index());
 
     glm::vec4 uv_offset_scale = glm::vec4(
@@ -53,11 +82,13 @@ uint32_t sge::Batch::GetOrder(sge::Order custom_order) {
 }
 
 uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, const glm::vec2& position, const Font& font, struct Order custom_order) {
+    ZoneScoped;
+
     float x = position.x;
     float y = position.y;
 
     const uint32_t order = GetOrder(custom_order);
-    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
     for (size_t i = 0; i < size; ++i) {
         const RichTextSection section = sections[i];
@@ -94,22 +125,25 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, cons
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            auto command = internal::DrawCommandGlyph {
-                .texture = internal::TextureWithSampler {
-                    .ptr = font.texture.internal().Get(),
-                    .sampler = font.texture.sampler()->internal().Get(),
-                    .id = font.texture.id()
-                },
+            const auto texture = internal::TextureWithSampler {
+                .ptr = font.texture.internal().Get(),
+                .sampler = font.texture.sampler()->internal().Get(),
+                .id = font.texture.id()
+            };
+
+            uint8_t flags = 0;
+            flags |= IsUi() << ShapeFlags::UI;
+
+            m_glyph_buffer.push_back(GlyphInstance {
                 .color = color,
                 .pos = pos,
                 .size = size,
                 .tex_size = ch.tex_size,
-                .tex_uv = ch.texture_coords,
-            };
+                .uv = ch.texture_coords,
+                .flags = flags
+            });
 
-            m_draw_commands.emplace_back(command, scissor, m_glyph_data.count, order, m_blend_mode);
-
-            ++m_glyph_data.count;
+            m_draw_commands.emplace_back(internal::DrawCommand::DrawGlyph, texture, scissor, m_glyph_data.count, order, m_blend_mode);
 
             x += (ch.advance >> 6) * scale;
         }
@@ -119,12 +153,22 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, cons
 }
 
 uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::vec4& uv_offset_scale, const Texture& texture, struct Order custom_order) {
-    const internal::DrawCommandSprite draw_command = internal::DrawCommandSprite {
-        .texture = internal::TextureWithSampler {
-            .ptr = texture.internal().Get(),
-            .sampler = texture.sampler()->internal().Get(),
-            .id = texture.id()
-        },
+    ZoneScoped;
+
+    const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
+
+    const auto texture_with_sampler = internal::TextureWithSampler {
+        .ptr = texture.internal().Get(),
+        .sampler = texture.sampler()->internal().Get(),
+        .id = texture.id()
+    };
+
+    uint8_t flags = 0;
+    flags |= sprite.ignore_camera_zoom() << SpriteFlags::IgnoreCameraZoom;
+    flags |= IsUi() << SpriteFlags::UI;
+
+    m_sprite_buffer.push_back(SpriteInstance {
         .rotation = sprite.rotation(),
         .uv_offset_scale = uv_offset_scale,
         .color = sprite.color().to_vec4(),
@@ -133,95 +177,103 @@ uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::v
         .size = sprite.size(),
         .offset = sprite.anchor().to_vec2(),
         .outline_thickness = sprite.outline_thickness(),
-        .ignore_camera_zoom = sprite.ignore_camera_zoom(),
-    };
+        .flags = flags,
+    });
 
-    const uint32_t order = GetOrder(custom_order);
-    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
-
-    m_draw_commands.emplace_back(draw_command, scissor, m_sprite_data.count, order, m_blend_mode);
-
-    ++m_sprite_data.count;
+    m_draw_commands.emplace_back(internal::DrawCommand::DrawSprite, texture_with_sampler, scissor, m_sprite_data.count, order, m_blend_mode);
 
     return order;
 }
 
 uint32_t sge::Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const glm::vec4& uv_offset_scale, struct Order custom_order) {
-    const internal::DrawCommandNinePatch draw_command = internal::DrawCommandNinePatch {
-        .texture = internal::TextureWithSampler {
-            .ptr = ninepatch.texture().internal().Get(),
-            .sampler = ninepatch.texture().sampler()->internal().Get(),
-            .id = ninepatch.texture().id()
-        },
+    ZoneScoped;
+
+    const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
+
+    const auto texture = internal::TextureWithSampler {
+        .ptr = ninepatch.texture().internal().Get(),
+        .sampler = ninepatch.texture().sampler()->internal().Get(),
+        .id = ninepatch.texture().id()
+    };
+
+    uint8_t flags = 0;
+    flags |= IsUi() << SpriteFlags::UI;
+
+    m_ninepatch_buffer.push_back(NinePatchInstance {
         .rotation = ninepatch.rotation(),
-        .uv_offset_scale = uv_offset_scale,
         .color = ninepatch.color().to_vec4(),
+        .uv_offset_scale = uv_offset_scale,
         .margin = ninepatch.margin(),
         .position = ninepatch.position(),
         .offset = ninepatch.anchor().to_vec2(),
         .source_size = glm::vec2(ninepatch.texture().size()),
         .output_size = ninepatch.size(),
-    };
+        .flags = flags
+    });
 
-    const uint32_t order = GetOrder(custom_order);
-    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
-
-    m_draw_commands.emplace_back(draw_command, scissor, m_ninepatch_data.count, order, m_blend_mode);
-
-    ++m_ninepatch_data.count;
+    m_draw_commands.emplace_back(internal::DrawCommand::DrawNinePatch, texture, scissor, m_ninepatch_data.count, order, m_blend_mode);
 
     return order;
 }
 
 uint32_t sge::Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, BorderRadius border_radius, Anchor anchor, struct Order custom_order) {
-    float length = glm::min(size.x, size.y);
+    ZoneScoped;
+
+    const float length = glm::min(size.x, size.y);
 
     const glm::vec4 radius = border_radius.is_relative()
         ? glm::vec4(border_radius.values()) / 100.0f * length
         : glm::vec4(border_radius.values());
 
-    const internal::DrawCommandShape command = {
-        .position = position,
+    uint8_t flags = 0;
+    flags |= IsUi() << ShapeFlags::UI;
+
+    m_shape_buffer.push_back(ShapeInstance {
+        .position = glm::vec3(position, 0.0f),
         .size = size,
         .offset = anchor.to_vec2(),
-        .color = color,
-        .border_color = border_color,
+        .color = color.to_vec4(),
+        .border_color = border_color.to_vec4(),
         .border_radius = radius,
         .border_thickness = border_thickness,
         .shape = shape,
-    };
+        .flags = flags
+    }); 
 
     const uint32_t order = GetOrder(custom_order);
-    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
-    m_draw_commands.emplace_back(command, scissor, m_shape_data.count, order, m_blend_mode);
-
-    ++m_shape_data.count;
+    m_draw_commands.emplace_back(internal::DrawCommand::DrawShape, internal::TextureWithSampler{}, scissor, m_shape_data.count, order, m_blend_mode);
 
     return order;
 }
 
 uint32_t sge::Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius, sge::Order custom_order) {
-    float length = glm::min(glm::sqrt(glm::dot(start, end)), thickness);
+    ZoneScoped;
+
+    const float length = glm::min(glm::sqrt(glm::dot(start, end)), thickness);
 
     const glm::vec4 radius = border_radius.is_relative()
         ? glm::vec4(border_radius.values()) * length / 100.0f
         : glm::vec4(border_radius.values());
 
-    const internal::DrawCommandLine command = {
+    uint8_t flags = 0;
+    flags |= IsUi() << ShapeFlags::UI;
+
+    m_line_buffer.push_back(LineInstance {
         .start = start,
         .end = end,
-        .color = color,
+        .color = color.to_vec4(),
         .border_radius = radius,
-        .thickness = thickness
-    };
+        .thickness = thickness,
+        .flags = flags
+    });
 
     const uint32_t order = GetOrder(custom_order);
-    const sge::IRect scissor = !m_scissors.empty() ? m_scissors[m_scissors.size() - 1] : sge::IRect();
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
-    m_draw_commands.emplace_back(command, scissor, m_shape_data.count, order, m_blend_mode);
-
-    ++m_line_data.count;
+    m_draw_commands.emplace_back(internal::DrawCommand::DrawLine, internal::TextureWithSampler{}, scissor, m_shape_data.count, order, m_blend_mode);
 
     return order;
 }

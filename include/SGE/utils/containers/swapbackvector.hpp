@@ -1,5 +1,5 @@
-#ifndef CONTAINERS_SWAPBACK_VECTOR_
-#define CONTAINERS_SWAPBACK_VECTOR_
+#ifndef SGE_UTILS_CONTAINERS_SWAPBACK_VECTOR_HPP_
+#define SGE_UTILS_CONTAINERS_SWAPBACK_VECTOR_HPP_
 
 #include <utility>
 #include <vector>
@@ -132,6 +132,6 @@ private:
     std::vector<T, Alloc> m_vector;
 };
 
-}
+} // namespace sge
 
 #endif

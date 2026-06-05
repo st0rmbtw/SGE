@@ -7,6 +7,7 @@
 #include <glm/vec3.hpp>
 
 #include <cstdint>
+#include <random>
 
 namespace sge {
 
@@ -17,16 +18,35 @@ namespace Random {
      * 
      * @param seed The seed.
      */
-    void Seed(std::uint32_t seed) noexcept;
+    void Seed(std::uint64_t seed) noexcept;
 
     /**
+    * @brief Generates a random integer using specified distribution.
+    * 
+    * @param distribution The distribution.
+    * @return Generated random integer.
+    */
+    int Int(std::uniform_int_distribution<int>& distribution) noexcept;
+
+        /**
     * @brief Generates a random integer within a given range.
     * 
     * @param from Specifies the start of the range (inclusive).
     * @param to Specifies the end of the range (inclusive).
     * @return Generated random integer.
     */
-    int Int(int from, int to) noexcept;
+    inline int Int(int from, int to) noexcept {
+        std::uniform_int_distribution<int> distribution(from, to);
+        return Int(distribution);
+    }
+
+    /**
+    * @brief Generates a random unsigned integer using specified distribution.
+    * 
+    * @param distribution The distribution.
+    * @return Generated unsigned random integer.
+    */
+    std::uint32_t UInt(std::uniform_int_distribution<std::uint32_t>& distribution) noexcept;
 
     /**
     * @brief Generates a random unsigned integer within a given range.
@@ -58,10 +78,17 @@ namespace Random {
     /**
     * @brief Generates a random boolean with a given probability of being true.
     * 
-    * @param probability The probability that the generated random boolean is true (0.5 by default).
+    * @param probability The probability that the generated random boolean is true.
     * @return Generated random boolean.
     */
-    bool Bool(float probability = 0.5f) noexcept;
+    bool Bool(float probability) noexcept;
+
+    /**
+    * @brief Generates a random boolean.
+    * 
+    * @return Generated random boolean.
+    */
+    bool Bool() noexcept;
 
     /**
     * @brief Generates a random glm::vec2 within a given range.

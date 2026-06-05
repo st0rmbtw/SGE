@@ -54,26 +54,26 @@ struct LineInstance {
 };
 
 struct SpriteInstance {
-    glm::vec3 position;
     glm::quat rotation;
-    glm::vec2 size;
-    glm::vec2 offset;
     glm::vec4 uv_offset_scale;
     glm::vec4 color;
     glm::vec4 outline_color;
+    glm::vec3 position;
+    glm::vec2 size;
+    glm::vec2 offset;
     float outline_thickness;
     uint8_t flags;
 };
 
 struct NinePatchInstance {
-    glm::vec2 position;
     glm::quat rotation;
+    glm::vec4 color;
+    glm::vec4 uv_offset_scale;
+    glm::uvec4 margin;
+    glm::vec2 position;
     glm::vec2 offset;
     glm::vec2 source_size;
     glm::vec2 output_size;
-    glm::uvec4 margin;
-    glm::vec4 uv_offset_scale;
-    glm::vec4 color;
     uint8_t flags;
 };
 

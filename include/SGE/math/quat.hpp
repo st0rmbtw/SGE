@@ -5,6 +5,8 @@
 
 #include <glm/gtx/quaternion.hpp>
 
+namespace sge {
+
 namespace Quat {
     [[nodiscard]]
     inline glm::quat from_rotation_z(float angle) noexcept {
@@ -13,5 +15,7 @@ namespace Quat {
         return {c, 0.0f, 0.0f, -s};
     }
 }
+
+} // namespace sge
 
 #endif

@@ -2,6 +2,7 @@
 #include <SGE/input.hpp>
 #include <SGE/log.hpp>
 #include <SGE/math/consts.hpp>
+#include <SGE/profile.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/context.hpp>
 #include <SGE/renderer/glfw_window.hpp>
@@ -75,6 +76,8 @@ App::~App() {
 }
 
 void App::DrawContent(LLGL::Extent2D viewport) {
+    ZoneScoped;
+
     if (m_batch_type == BatchType::Line) {
         if (m_coloring == Coloring::Random) {
             for (uint32_t i = 0; i < m_instance_count; ++i) {

@@ -22,7 +22,7 @@ namespace sge::consts {
     inline constexpr float INV_SQRT_3 = std::numbers::inv_sqrt3_v<float>;
     inline constexpr float E_GAMMA = std::numbers::egamma_v<float>;
     inline constexpr float PHI = std::numbers::phi_v<float>;
-}
+} // namespace sge::consts
 
 
 

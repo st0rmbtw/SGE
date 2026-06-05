@@ -28,7 +28,6 @@
 #include <SGE/types/window_settings.hpp>
 
 #include <memory>
-#include <utility>
 
 namespace sge {
 
@@ -36,35 +35,9 @@ template <typename T>
 class BatchData {
 public:
     BatchData() = default;
-    ~BatchData() {
-        if (m_buffer) free(m_buffer);
-    }
-
-    BatchData(BatchData&& other) noexcept {
-        operator=(std::move(other));
-    }
-
-    BatchData(const BatchData& other) {
-        operator=(other);
-    }
-
-    BatchData& operator=(BatchData&& other) noexcept {
-        m_buffer = other.m_buffer;
-        m_buffer_ptr = other.m_buffer_ptr;
-        m_vertex_buffer = std::move(other.m_vertex_buffer);
-        m_instance_buffer = std::move(other.m_instance_buffer);
-        m_instance_format = std::move(other.m_instance_format);
-        m_buffer_array = std::move(other.m_buffer_array);
-        m_max_count = other.m_max_count;
-        m_count = other.m_count;
-
-        other.m_buffer = nullptr;
-        other.m_buffer_ptr = nullptr;
-        other.m_count = 0;
-        return *this;
-    }
-
-    BatchData& operator=(const BatchData& other) = default;
+    
+    BatchData(BatchData&&) = default;
+    BatchData& operator=(BatchData&&) = default;
 
     void Init(sge::RenderContext& context, uint32_t count, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
 
@@ -75,19 +48,8 @@ public:
         CreateDynamicBuffers(context, count + 2500);
     }
 
-    inline void Update(LLGL::CommandBuffer& command_buffer) {
-        UpdateBufferChunked(command_buffer, *m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
-    }
-
-    inline void Reset() {
-        m_count = 0;
-        m_buffer_ptr = m_buffer;
-    }
-
-    [[nodiscard]]
-    inline T* GetBufferAndAdvance() {
-        m_count++;
-        return m_buffer_ptr++;
+    inline void Update(LLGL::CommandBuffer& command_buffer, uint32_t offset, const T* buffer, uint32_t count) {
+        UpdateBufferChunked(command_buffer, *m_instance_buffer, offset * sizeof(T), buffer, count * sizeof(T));
     }
 
     [[nodiscard]]
@@ -96,19 +58,11 @@ public:
     }
 
     [[nodiscard]]
-    inline uint32_t Count() const {
-        return m_count;
-    }
-
-    [[nodiscard]]
     inline uint32_t MaxCount() const {
         return m_max_count;
     }
 
 private:
-    T* m_buffer = nullptr;
-    T* m_buffer_ptr = nullptr;
-
     sge::Unique<LLGL::Buffer> m_vertex_buffer;
     sge::Unique<LLGL::Buffer> m_instance_buffer;
     sge::Unique<LLGL::BufferArray> m_buffer_array;
@@ -116,7 +70,6 @@ private:
     LLGL::VertexFormat m_instance_format;
 
     uint32_t m_max_count = 0;
-    uint32_t m_count = 0;
 };
 
 struct SGE_ALIGN(16) GlobalUniforms {
@@ -205,7 +158,7 @@ private:
     void SortBatchDrawCommands(sge::Batch& batch);
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
     void ApplyBatchDrawCommands(sge::Batch& batch);
-    void UploadBatchData();
+    void UploadBatchData(sge::Batch& batch);
 
 private:
     BatchData<SpriteInstance> m_sprite_batch_data;

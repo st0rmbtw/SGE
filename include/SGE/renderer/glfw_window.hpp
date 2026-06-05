@@ -340,6 +340,6 @@ private:
     static std::atomic<uint32_t> s_id;
 };
 
-}
+} // namespace sge
 
 #endif

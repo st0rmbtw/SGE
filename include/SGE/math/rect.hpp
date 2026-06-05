@@ -194,6 +194,6 @@ using Rect = rect<glm::float32>;
 using URect = rect<glm::uint32>;
 using IRect = rect<glm::int32>;
 
-}
+} // namespace sge
 
 #endif

@@ -184,6 +184,8 @@ void sge::RenderContext::UnregisterWindow(const GlfwWindow& window) {
 }
 
 LLGL::SwapChain& sge::RenderContext::GetOrCreateSwapChain(const std::shared_ptr<GlfwWindow>& window) {
+    ZoneScoped;
+
     LLGL::SwapChain* swap_chain = nullptr;
 
     auto it = m_swapchain_map.find(window->GetID());
@@ -217,6 +219,8 @@ LLGL::SwapChain* sge::RenderContext::GetSwapChain(const GlfwWindow& window) {
 }
 
 void sge::RenderContext::Present(const sge::GlfwWindow& window) {
+    ZoneScoped;
+
     auto it = m_swapchain_map.find(window.GetID());
     SGE_ASSERT(it != m_swapchain_map.end());
 
@@ -224,6 +228,8 @@ void sge::RenderContext::Present(const sge::GlfwWindow& window) {
 }
 
 LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::PipelineState> handle) {
+    ZoneScoped;
+
     SGE_ASSERT(GetCurrentTarget() != nullptr);
 
     const auto it_config = m_pipeline_configs.find(handle.ID());
@@ -273,6 +279,8 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
 }
 
 LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::RenderTarget> handle, uint8_t samples) {
+    ZoneScoped;
+
     const auto it_config = m_render_target_configs.find(handle.ID());
     SGE_ASSERT(it_config != m_render_target_configs.end());
 
@@ -359,6 +367,8 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
 }
 
 LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderPass> handle, uint8_t samples) {
+    ZoneScoped;
+
     const auto it_config = m_render_pass_configs.find(handle.ID());
     SGE_ASSERT(it_config != m_render_pass_configs.end());
 
@@ -395,6 +405,8 @@ LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderP
 #if SGE_IMGUI_ENABLED
 
 ImGuiContext* sge::RenderContext::GetOrCreateImGuiContext(GlfwWindow& window) {
+    ZoneScoped;
+
     ImGuiContext* context = nullptr;
 
     auto it = m_imgui_context_map.find(window.GetID());
@@ -455,12 +467,16 @@ void sge::RenderContext::ReleaseImGuiContext(const GlfwWindow& window) {
 }
 
 void sge::RenderContext::BeginImGuiFrame(GlfwWindow& window) {
+    ZoneScoped;
+
     ImGui::SetCurrentContext(GetOrCreateImGuiContext(window));
     ImGui_ImplGlfw_NewFrame();
     ImGuiRenderer::NewFrame();
 }
 
 void sge::RenderContext::EndImGuiFrame() {
+    ZoneScoped;
+
     ImGuiRenderer::RenderDrawData(ImGui::GetDrawData());
 }
 
@@ -668,49 +684,49 @@ sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_t
 }
 
 void sge::RenderContext::ReleaseUntyped(LLGL::RenderSystemChild& resource) {
-    if (LLGL::Buffer* r = LLGL::CastTo<LLGL::Buffer>(&resource)) {
+    if (auto* r = LLGL::CastTo<LLGL::Buffer>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::BufferArray* r = LLGL::CastTo<LLGL::BufferArray>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::BufferArray>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::Texture* r = LLGL::CastTo<LLGL::Texture>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::Texture>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::Sampler* r = LLGL::CastTo<LLGL::Sampler>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::Sampler>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::Shader* r = LLGL::CastTo<LLGL::Shader>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::Shader>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::PipelineLayout* r = LLGL::CastTo<LLGL::PipelineLayout>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::PipelineLayout>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::PipelineState* r = LLGL::CastTo<LLGL::PipelineState>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::PipelineState>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::RenderPass* r = LLGL::CastTo<LLGL::RenderPass>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::RenderPass>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::ResourceHeap* r = LLGL::CastTo<LLGL::ResourceHeap>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::ResourceHeap>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::PipelineCache* r = LLGL::CastTo<LLGL::PipelineCache>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::PipelineCache>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::QueryHeap* r = LLGL::CastTo<LLGL::QueryHeap>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::QueryHeap>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::Fence* r = LLGL::CastTo<LLGL::Fence>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::Fence>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::SwapChain* r = LLGL::CastTo<LLGL::SwapChain>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::SwapChain>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::RenderTarget* r = LLGL::CastTo<LLGL::RenderTarget>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::RenderTarget>(&resource)) {
         m_context->Release(*r);
     }
-    else if (LLGL::CommandBuffer* r = LLGL::CastTo<LLGL::CommandBuffer>(&resource)) {
+    else if (auto* r = LLGL::CastTo<LLGL::CommandBuffer>(&resource)) {
         m_context->Release(*r);
     }
     else {

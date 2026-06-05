@@ -16,6 +16,6 @@ inline constexpr float approx_equals(float a, float b, float eps = 0.001f) noexc
     return std::abs(a-b) < eps;
 }
 
-}
+} // namespace sge
 
 #endif
