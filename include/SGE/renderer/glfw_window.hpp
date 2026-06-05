@@ -6,12 +6,14 @@
 #include <atomic>
 
 #include <GLFW/glfw3.h>
+
 #include <LLGL/Surface.h>
 
+#include <SGE/log.hpp>
 #include <SGE/types/cursor_mode.hpp>
 #include <SGE/types/window_settings.hpp>
 #include <SGE/utils/bitflags.hpp>
-#include <SGE/log.hpp>
+
 #include <glm/vec2.hpp>
 
 namespace sge {

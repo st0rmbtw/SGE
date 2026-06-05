@@ -1,11 +1,12 @@
 #ifndef SGE_RENDERER_RESOURCE_HPP_
 #define SGE_RENDERER_RESOURCE_HPP_
 
-#include <LLGL/RenderSystemChild.h>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+
+#include <LLGL/RenderSystemChild.h>
 
 namespace sge {
 
