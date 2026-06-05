@@ -117,7 +117,7 @@ public:
     void RenderBatch(sge::Batch& batch);
 
     [[nodiscard]]
-    inline const LLGL::CommandBuffer* CommandBuffer() const noexcept {
+    inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
         return m_command_buffer;
     }
 
