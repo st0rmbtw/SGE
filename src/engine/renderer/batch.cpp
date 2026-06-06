@@ -219,11 +219,11 @@ uint32_t sge::Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 
 uint32_t sge::Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius, sge::Order custom_order) {
     ZoneScoped;
 
-    const float length = glm::min(glm::sqrt(glm::dot(start, end)), thickness);
-
-    const glm::vec4 radius = border_radius.is_relative()
-        ? glm::vec4(border_radius.values()) * length / 100.0f
-        : glm::vec4(border_radius.values());
+    glm::vec4 radius = glm::vec4(border_radius.values());
+    if (border_radius.is_relative()) {
+        const float length = glm::min(glm::length(glm::dot(start, end)), thickness);
+        radius = glm::vec4(border_radius.values()) * length / 100.0f;
+    }
 
     const auto command = internal::DrawCommandLine {
         .color = color,

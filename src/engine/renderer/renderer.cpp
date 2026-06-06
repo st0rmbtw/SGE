@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <execution>
 
 #include <SGE/assert.hpp>
 #include <SGE/log.hpp>
@@ -767,8 +768,10 @@ void sge::Renderer::SortBatchDrawCommands(sge::Batch& batch) {
 
     sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
 
-    std::ranges::sort(
-        draw_commands,
+    std::sort(
+        std::execution::par,
+        draw_commands.begin(),
+        draw_commands.end(),
         [](const DrawCommand& a, const DrawCommand& b) {
             const uint32_t a_order = a.order();
             const uint32_t b_order = b.order();

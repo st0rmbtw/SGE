@@ -63,8 +63,8 @@ public:
         m_items(items),
         m_stage(stage) {}
 
-    inline void AddItem(const BindingLayoutItem& item) {
-        m_items.push_back(item);
+    inline void AddItem(BindingLayoutItem item) {
+        m_items.push_back(std::move(item));
     }
 
     std::vector<LLGL::BindingDescriptor> ToLLGL() {

@@ -71,5 +71,3 @@ if(PARENT_DIR)
     list(APPEND parent_options ${CURRENT_FLAGS})
     set_property(DIRECTORY "${PARENT_DIR}" PROPERTY COMPILE_OPTIONS "${parent_options}")
 endif()
-
-set(LLGL_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR} CACHE STRING "" FORCE)
