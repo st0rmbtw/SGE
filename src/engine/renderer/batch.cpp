@@ -4,31 +4,6 @@
 #include <SGE/renderer/types.hpp>
 #include <SGE/utils/utf8.hpp>
 
-namespace SpriteFlags {
-    enum : uint8_t {
-        UI = 0,
-        IgnoreCameraZoom,
-    };
-};
-
-namespace GlyphFlags {
-    enum : uint8_t {
-        UI = 0,
-    };
-};
-
-namespace NinePatchFlags {
-    enum : uint8_t {
-        UI = 0,
-    };
-};
-
-namespace ShapeFlags {
-    enum : uint8_t {
-        UI = 0,
-    };
-};
-
 sge::Batch::Batch(Renderer& renderer, const BatchDesc& desc) :
     m_scissor_enabled(desc.enable_scissor)
 {
@@ -131,19 +106,17 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, cons
                 .id = font.texture.id()
             };
 
-            uint8_t flags = 0;
-            flags |= IsUi() << ShapeFlags::UI;
-
-            m_glyph_buffer.push_back(GlyphInstance {
+            const auto command = internal::DrawCommandGlyph {
                 .color = color,
                 .pos = pos,
                 .size = size,
                 .tex_size = ch.tex_size,
-                .uv = ch.texture_coords,
-                .flags = flags
-            });
+                .tex_uv = ch.texture_coords,
+            };
 
-            m_draw_commands.emplace_back(internal::DrawCommand::DrawGlyph, texture, scissor, m_glyph_data.count, order, m_blend_mode);
+            m_draw_commands.emplace_back(command, texture, scissor, m_glyph_data.count, order, m_blend_mode);
+
+            ++m_glyph_data.count;
 
             x += (ch.advance >> 6) * scale;
         }
@@ -164,11 +137,7 @@ uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::v
         .id = texture.id()
     };
 
-    uint8_t flags = 0;
-    flags |= sprite.ignore_camera_zoom() << SpriteFlags::IgnoreCameraZoom;
-    flags |= IsUi() << SpriteFlags::UI;
-
-    m_sprite_buffer.push_back(SpriteInstance {
+    const auto command = internal::DrawCommandSprite {
         .rotation = sprite.rotation(),
         .uv_offset_scale = uv_offset_scale,
         .color = sprite.color().to_vec4(),
@@ -177,10 +146,12 @@ uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::v
         .size = sprite.size(),
         .offset = sprite.anchor().to_vec2(),
         .outline_thickness = sprite.outline_thickness(),
-        .flags = flags,
-    });
+        .ignore_camera_zoom = sprite.ignore_camera_zoom(),
+    };
 
-    m_draw_commands.emplace_back(internal::DrawCommand::DrawSprite, texture_with_sampler, scissor, m_sprite_data.count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, texture_with_sampler, scissor, m_sprite_data.count, order, m_blend_mode);
+
+    ++m_sprite_data.count;
 
     return order;
 }
@@ -197,22 +168,20 @@ uint32_t sge::Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const g
         .id = ninepatch.texture().id()
     };
 
-    uint8_t flags = 0;
-    flags |= IsUi() << SpriteFlags::UI;
-
-    m_ninepatch_buffer.push_back(NinePatchInstance {
+    const auto command = internal::DrawCommandNinePatch {
         .rotation = ninepatch.rotation(),
-        .color = ninepatch.color().to_vec4(),
         .uv_offset_scale = uv_offset_scale,
+        .color = ninepatch.color().to_vec4(),
         .margin = ninepatch.margin(),
         .position = ninepatch.position(),
         .offset = ninepatch.anchor().to_vec2(),
         .source_size = glm::vec2(ninepatch.texture().size()),
         .output_size = ninepatch.size(),
-        .flags = flags
-    });
+    };
 
-    m_draw_commands.emplace_back(internal::DrawCommand::DrawNinePatch, texture, scissor, m_ninepatch_data.count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, texture, scissor, m_ninepatch_data.count, order, m_blend_mode);
+
+    ++m_ninepatch_data.count;
 
     return order;
 }
@@ -226,25 +195,23 @@ uint32_t sge::Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 
         ? glm::vec4(border_radius.values()) / 100.0f * length
         : glm::vec4(border_radius.values());
 
-    uint8_t flags = 0;
-    flags |= IsUi() << ShapeFlags::UI;
-
-    m_shape_buffer.push_back(ShapeInstance {
+    const auto command = internal::DrawCommandShape {
+        .color = color,
+        .border_color = border_color,
+        .border_radius = radius,
         .position = glm::vec3(position, 0.0f),
         .size = size,
         .offset = anchor.to_vec2(),
-        .color = color.to_vec4(),
-        .border_color = border_color.to_vec4(),
-        .border_radius = radius,
         .border_thickness = border_thickness,
-        .shape = shape,
-        .flags = flags
-    }); 
+        .shape = shape
+    }; 
 
     const uint32_t order = GetOrder(custom_order);
     const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
-    m_draw_commands.emplace_back(internal::DrawCommand::DrawShape, internal::TextureWithSampler{}, scissor, m_shape_data.count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, scissor, m_shape_data.count, order, m_blend_mode);
+
+    ++m_shape_data.count;
 
     return order;
 }
@@ -258,22 +225,20 @@ uint32_t sge::Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, c
         ? glm::vec4(border_radius.values()) * length / 100.0f
         : glm::vec4(border_radius.values());
 
-    uint8_t flags = 0;
-    flags |= IsUi() << ShapeFlags::UI;
-
-    m_line_buffer.push_back(LineInstance {
+    const auto command = internal::DrawCommandLine {
+        .color = color,
+        .border_radius = radius,
         .start = start,
         .end = end,
-        .color = color.to_vec4(),
-        .border_radius = radius,
         .thickness = thickness,
-        .flags = flags
-    });
+    };
 
     const uint32_t order = GetOrder(custom_order);
     const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
-    m_draw_commands.emplace_back(internal::DrawCommand::DrawLine, internal::TextureWithSampler{}, scissor, m_shape_data.count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, scissor, m_shape_data.count, order, m_blend_mode);
+
+    ++m_line_data.count;
 
     return order;
 }

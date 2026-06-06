@@ -48,8 +48,19 @@ public:
         CreateDynamicBuffers(context, count + 2500);
     }
 
-    inline void Update(LLGL::CommandBuffer& command_buffer, uint32_t offset, const T* buffer, uint32_t count) {
-        UpdateBufferChunked(command_buffer, *m_instance_buffer, offset * sizeof(T), buffer, count * sizeof(T));
+    inline void Update(LLGL::CommandBuffer& command_buffer) {
+        UpdateBufferChunked(command_buffer, *m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
+    }
+
+    inline void Reset() {
+        m_count = 0;
+        m_buffer_ptr = m_buffer;
+    }
+
+    [[nodiscard]]
+    inline T* GetBufferAndAdvance() {
+        m_count++;
+        return m_buffer_ptr++;
     }
 
     [[nodiscard]]
@@ -58,17 +69,26 @@ public:
     }
 
     [[nodiscard]]
+    inline uint32_t Count() const {
+        return m_count;
+    }
+
+    [[nodiscard]]
     inline uint32_t MaxCount() const {
         return m_max_count;
     }
 
 private:
+    T* m_buffer = nullptr;
+    T* m_buffer_ptr = nullptr;
+
     sge::Unique<LLGL::Buffer> m_vertex_buffer;
     sge::Unique<LLGL::Buffer> m_instance_buffer;
     sge::Unique<LLGL::BufferArray> m_buffer_array;
     
     LLGL::VertexFormat m_instance_format;
 
+    uint32_t m_count = 0;
     uint32_t m_max_count = 0;
 };
 
@@ -158,7 +178,7 @@ private:
     void SortBatchDrawCommands(sge::Batch& batch);
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
     void ApplyBatchDrawCommands(sge::Batch& batch);
-    void UploadBatchData(sge::Batch& batch);
+    void UploadBatchData();
 
 private:
     BatchData<SpriteInstance> m_sprite_batch_data;

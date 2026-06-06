@@ -55,6 +55,56 @@ struct FlushData {
     sge::BlendMode blend_mode;
 };
 
+struct DrawCommandSprite {
+    glm::quat rotation;
+    glm::vec4 uv_offset_scale;
+    glm::vec4 color;
+    glm::vec4 outline_color;
+    glm::vec3 position;
+    glm::vec2 size;
+    glm::vec2 offset;
+    float outline_thickness;
+    bool ignore_camera_zoom;
+};
+
+struct DrawCommandNinePatch {
+    glm::quat rotation;
+    glm::vec4 uv_offset_scale;
+    glm::vec4 color;
+    glm::uvec4 margin;
+    glm::vec2 position;
+    glm::vec2 offset;
+    glm::vec2 source_size;
+    glm::vec2 output_size;
+};
+
+struct DrawCommandGlyph {
+    glm::vec3 color;
+    glm::vec2 pos;
+    glm::vec2 size;
+    glm::vec2 tex_size;
+    glm::vec2 tex_uv;
+};
+
+struct DrawCommandShape {
+    sge::LinearRgba color;
+    sge::LinearRgba border_color;
+    glm::vec4 border_radius;
+    glm::vec2 position;
+    glm::vec2 size;
+    glm::vec2 offset;
+    float border_thickness;
+    uint8_t shape;
+};
+
+struct DrawCommandLine {
+    sge::LinearRgba color;
+    glm::vec4 border_radius;
+    glm::vec2 start;
+    glm::vec2 end;
+    float thickness;
+};
+
 class DrawCommand {
 public:
     enum Type : uint8_t {
@@ -65,12 +115,47 @@ public:
         DrawLine
     };
 
-    DrawCommand(Type type, TextureWithSampler texture, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandSprite sprite_data, TextureWithSampler texture, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+        m_sprite_data(sprite_data),
         m_texture(texture),
         m_scissor(scissor),
         m_id(id),
         m_order(order),
-        m_type(type),
+        m_type(Type::DrawSprite),
+        m_blend_mode(blend_mode) {}
+
+    DrawCommand(DrawCommandGlyph glyph_data, TextureWithSampler texture, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+        m_glyph_data(glyph_data),
+        m_texture(texture),
+        m_scissor(scissor),
+        m_id(id),
+        m_order(order),
+        m_type(Type::DrawGlyph),
+        m_blend_mode(blend_mode) {}
+
+    DrawCommand(DrawCommandNinePatch ninepatch_data, TextureWithSampler texture, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+        m_ninepatch_data(ninepatch_data),
+        m_texture(texture),
+        m_scissor(scissor),
+        m_id(id),
+        m_order(order),
+        m_type(Type::DrawNinePatch),
+        m_blend_mode(blend_mode) {}
+
+    DrawCommand(DrawCommandShape shape_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+        m_shape_data(shape_data),
+        m_scissor(scissor),
+        m_id(id),
+        m_order(order),
+        m_type(Type::DrawShape),
+        m_blend_mode(blend_mode) {}
+
+    DrawCommand(DrawCommandLine line_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+        m_line_data(line_data),
+        m_scissor(scissor),
+        m_id(id),
+        m_order(order),
+        m_type(Type::DrawLine),
         m_blend_mode(blend_mode) {}
 
     [[nodiscard]]
@@ -99,11 +184,44 @@ public:
     }
 
     [[nodiscard]]
+    inline const DrawCommandSprite& sprite_data() const {
+        return m_sprite_data;
+    }
+
+    [[nodiscard]]
+    inline const DrawCommandGlyph& glyph_data() const {
+        return m_glyph_data;
+    }
+
+    [[nodiscard]]
+    inline const DrawCommandNinePatch& ninepatch_data() const {
+        return m_ninepatch_data;
+    }
+
+    [[nodiscard]]
+    inline const DrawCommandShape& shape_data() const {
+        return m_shape_data;
+    }
+
+    [[nodiscard]]
+    inline const DrawCommandLine& line_data() const {
+        return m_line_data;
+    }
+
+    [[nodiscard]]
     inline const TextureWithSampler& texture() const {
         return m_texture;
     }
 
 private:
+    union {
+        DrawCommandNinePatch m_ninepatch_data;
+        DrawCommandSprite m_sprite_data;
+        DrawCommandGlyph m_glyph_data;
+        DrawCommandShape m_shape_data;
+        DrawCommandLine m_line_data;
+    };
+
     TextureWithSampler m_texture = {};
 
     sge::IRect m_scissor;
@@ -280,12 +398,6 @@ public:
         m_shape_data.Reset();
         m_line_data.Reset();
         
-        m_sprite_buffer.clear();
-        m_glyph_buffer.clear();
-        m_ninepatch_buffer.clear();
-        m_shape_buffer.clear();
-        m_line_buffer.clear();
-        
         m_order = 0;
         m_order_mode = false;
         m_draw_commands_done = 0;
@@ -367,31 +479,6 @@ public:
     inline sge::Handle<LLGL::PipelineState> LinePipeline() const noexcept {
         return m_line_pipeline;
     }
-
-    [[nodiscard]]
-    inline const std::vector<SpriteInstance>& SpriteBuffer() const noexcept {
-        return m_sprite_buffer;
-    }
-
-    [[nodiscard]]
-    inline const std::vector<GlyphInstance>& GlyphBuffer() const noexcept {
-        return m_glyph_buffer;
-    }
-
-    [[nodiscard]]
-    inline const std::vector<NinePatchInstance>& NinePatchBuffer() const noexcept {
-        return m_ninepatch_buffer;
-    }
-
-    [[nodiscard]]
-    inline const std::vector<ShapeInstance>& ShapeBuffer() const noexcept {
-        return m_shape_buffer;
-    }
-
-    [[nodiscard]]
-    inline const std::vector<LineInstance>& LineBuffer() const noexcept {
-        return m_line_buffer;
-    }
 private:
     uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, BorderRadius border_radius = BorderRadius(), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
 
@@ -466,12 +553,6 @@ private:
     Data m_ninepatch_data;
     Data m_shape_data;
     Data m_line_data;
-
-    std::vector<SpriteInstance> m_sprite_buffer;
-    std::vector<LineInstance> m_line_buffer;
-    std::vector<GlyphInstance> m_glyph_buffer;
-    std::vector<NinePatchInstance> m_ninepatch_buffer;
-    std::vector<ShapeInstance> m_shape_buffer;
 
     sge::Handle<LLGL::PipelineState> m_ninepatch_pipeline;
     sge::Handle<LLGL::PipelineState> m_glyph_pipeline;
