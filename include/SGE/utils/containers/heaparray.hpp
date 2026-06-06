@@ -56,6 +56,27 @@ public:
     }
 
     /**
+     * @brief Reallocates the array with the new size and moves the elements.
+     * 
+     * @param new_count New size of the array.
+     */
+    void resize(std::size_t new_count) {
+        if (new_count > 0) {
+            T* new_data = new T[new_count * sizeof(T)];
+            if (m_data != nullptr) {
+                memcpy(new_data, m_data, std::min(m_count, new_count) * sizeof(T));
+            }
+            delete[] m_data;
+            m_data = new_data;
+        } else {
+            delete[] m_data;
+            m_data = nullptr;
+        }
+
+        m_count = new_count;
+    }
+
+    /**
      * @brief Returns the number of elements in the array.
      */
     [[nodiscard]]
