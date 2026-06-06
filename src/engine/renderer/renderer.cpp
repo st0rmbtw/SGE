@@ -78,13 +78,13 @@ BatchVertexFormats SpriteBatchVertexFormats(const sge::RenderBackend backend) {
         sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
     });
     LLGL::VertexFormat instance_format = sge::Attributes(backend, vertex_format.attributes.size(), {
-        sge::Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_position", "I_Position", 1),
         sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_rotation", "I_Rotation", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
         sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
         sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
         sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_outline_color", "I_OutlineColor", 1),
+        sge::Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_position", "I_Position", 1),
+        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
+        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
         sge::Attribute::Instance(LLGL::Format::R32Float, "inp_i_outline_thickness", "I_OutlineThickness", 1),
         sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
     });
@@ -100,14 +100,14 @@ BatchVertexFormats NinepatchBatchVertexFormats(const sge::RenderBackend backend)
         sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
     });
     LLGL::VertexFormat instance_format = sge::Attributes(backend, vertex_format.attributes.size(), {
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_position", "I_Position", 1),
         sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_rotation", "I_Rotation", 1),
+        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
+        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(LLGL::Format::RGBA32UInt, "inp_i_margin", "I_Margin", 1),
+        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_position", "I_Position", 1),
         sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
         sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_source_size", "I_SourceSize", 1),
         sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_output_size", "I_OutputSize", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32UInt, "inp_i_margin", "I_Margin", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
         sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
     });
 
@@ -141,12 +141,12 @@ BatchVertexFormats ShapeBatchVertexFormats(const sge::RenderBackend backend) {
         sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
     });
     LLGL::VertexFormat instance_format = sge::Attributes(backend, vertex_format.attributes.size(), {
-        sge::Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_position", "I_Position", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
         sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
         sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_border_color", "I_BorderColor", 1),
         sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_border_radius", "I_BorderRadius", 1),
+        sge::Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_position", "I_Position", 1),
+        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
+        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
         sge::Attribute::Instance(LLGL::Format::R32Float, "inp_i_border_thickness", "I_BorderThickness", 1),
         sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_shape", "I_Shape", 1),
         sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1)
@@ -958,13 +958,13 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             flags |= batch.IsUi() << SpriteFlags::UI;
 
             SpriteInstance* buffer = m_sprite_batch_data.GetBufferAndAdvance();
-            buffer->position = sprite_data.position;
             buffer->rotation = sprite_data.rotation;
-            buffer->size = sprite_data.size;
-            buffer->offset = sprite_data.offset;
             buffer->uv_offset_scale = sprite_data.uv_offset_scale;
             buffer->color = sprite_data.color;
             buffer->outline_color = sprite_data.outline_color;
+            buffer->position = sprite_data.position;
+            buffer->size = sprite_data.size;
+            buffer->offset = sprite_data.offset;
             buffer->outline_thickness = sprite_data.outline_thickness;
             buffer->flags = flags;
 
@@ -1043,14 +1043,14 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             flags |= batch.IsUi() << SpriteFlags::UI;
 
             NinePatchInstance* buffer = m_ninepatch_batch_data.GetBufferAndAdvance();
-            buffer->position = ninepatch_data.position;
             buffer->rotation = ninepatch_data.rotation;
+            buffer->uv_offset_scale = ninepatch_data.uv_offset_scale;
+            buffer->color = ninepatch_data.color;
             buffer->margin = ninepatch_data.margin;
+            buffer->position = ninepatch_data.position;
             buffer->offset = ninepatch_data.offset;
             buffer->source_size = ninepatch_data.source_size;
             buffer->output_size = ninepatch_data.output_size;
-            buffer->uv_offset_scale = ninepatch_data.uv_offset_scale;
-            buffer->color = ninepatch_data.color;
             buffer->flags = flags;
 
             ++ninepatch_count;
@@ -1065,13 +1065,13 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             flags |= batch.IsUi() << ShapeFlags::UI;
 
             ShapeInstance* buffer = m_shape_batch_data.GetBufferAndAdvance();
+            buffer->color = shape_data.color.to_vec4();
+            buffer->border_color = shape_data.border_color.to_vec4();
+            buffer->border_radius = shape_data.border_radius;
             buffer->position = glm::vec3(shape_data.position, 0.0f);
             buffer->size = shape_data.size;
             buffer->offset = shape_data.offset;
-            buffer->color = shape_data.color.to_vec4();
-            buffer->border_color = shape_data.border_color.to_vec4();
             buffer->border_thickness = shape_data.border_thickness;
-            buffer->border_radius = shape_data.border_radius;
             buffer->shape = shape_data.shape;
             buffer->flags = flags;
 

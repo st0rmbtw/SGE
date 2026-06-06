@@ -67,8 +67,8 @@ struct SpriteInstance {
 
 struct NinePatchInstance {
     glm::quat rotation;
-    glm::vec4 color;
     glm::vec4 uv_offset_scale;
+    glm::vec4 color;
     glm::uvec4 margin;
     glm::vec2 position;
     glm::vec2 offset;
@@ -87,12 +87,12 @@ struct GlyphInstance {
 };
 
 struct ShapeInstance {
-    glm::vec3 position;
-    glm::vec2 size;
-    glm::vec2 offset;
     glm::vec4 color;
     glm::vec4 border_color;
     glm::vec4 border_radius;
+    glm::vec3 position;
+    glm::vec2 size;
+    glm::vec2 offset;
     float border_thickness;
     uint8_t shape;
     uint8_t flags;

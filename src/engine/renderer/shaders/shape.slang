@@ -10,12 +10,12 @@ struct VSInput
 {
     float2 position : Position;
 
-    float3 i_position : I_Position;
-    float2 i_size : I_Size;
-    float2 i_offset : I_Offset;
     float4 i_color : I_Color;
     float4 i_border_color : I_BorderColor;
     float4 i_border_radius: I_BorderRadius;
+    float3 i_position : I_Position;
+    float2 i_size : I_Size;
+    float2 i_offset : I_Offset;
     float i_border_thickness : I_BorderThickness;
     uint i_shape : I_Shape;
     uint i_flags : I_Flags;
