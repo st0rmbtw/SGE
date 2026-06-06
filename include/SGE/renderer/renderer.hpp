@@ -135,6 +135,7 @@ public:
 
     void PrepareBatch(sge::Batch& batch);
     void RenderBatch(sge::Batch& batch);
+    void UploadBatchData();
 
     [[nodiscard]]
     inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
@@ -178,7 +179,6 @@ private:
     void SortBatchDrawCommands(sge::Batch& batch);
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
     void ApplyBatchDrawCommands(sge::Batch& batch);
-    void UploadBatchData();
 
 private:
     BatchData<SpriteInstance> m_sprite_batch_data;

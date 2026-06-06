@@ -310,6 +310,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
     });
 
     m_renderer->PrepareBatch(*m_batch);
+    m_renderer->UploadBatchData();
 
     m_renderer->BeginPass(window, m_camera);
     {

@@ -860,7 +860,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
                     .scissor = prev_scissor,
                     .offset = sprite_offset,
                     .count = sprite_count,
-                    .order = prev_order,
                     .type = FlushDataType::Sprite,
                     .blend_mode = sprite_prev_blend_mode
                 });
@@ -874,7 +873,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
                     .scissor = prev_scissor,
                     .offset = glyph_offset,
                     .count = glyph_count,
-                    .order = prev_order,
                     .type = FlushDataType::Glyph,
                     .blend_mode = draw_command.blend_mode()
                 });
@@ -888,7 +886,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
                     .scissor = prev_scissor,
                     .offset = ninepatch_offset,
                     .count = ninepatch_count,
-                    .order = prev_order,
                     .type = FlushDataType::NinePatch,
                     .blend_mode = draw_command.blend_mode()
                 });
@@ -901,7 +898,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
                     .scissor = prev_scissor,
                     .offset = shape_offset,
                     .count = shape_count,
-                    .order = prev_order,
                     .type = FlushDataType::Shape,
                     .blend_mode = draw_command.blend_mode()
                 });
@@ -914,7 +910,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
                     .scissor = prev_scissor,
                     .offset = line_offset,
                     .count = line_count,
-                    .order = prev_order,
                     .type = FlushDataType::Line,
                     .blend_mode = draw_command.blend_mode()
                 });
@@ -945,12 +940,11 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
                     .scissor = draw_command.scissor(),
                     .offset = sprite_offset,
                     .count = sprite_count,
-                    .order = draw_command.order(),
                     .type = FlushDataType::Sprite,
                     .blend_mode = sprite_prev_blend_mode
                 });
                 sprite_count = 0;
-                sprite_offset = shape_total_count;
+                sprite_offset = sprite_total_count;
             }
 
             uint8_t flags = 0;
@@ -989,7 +983,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
                     .scissor = draw_command.scissor(),
                     .offset = glyph_offset,
                     .count = glyph_count,
-                    .order = draw_command.order(),
                     .type = FlushDataType::Glyph,
                     .blend_mode = draw_command.blend_mode()
                 });
@@ -1031,7 +1024,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
                     .scissor = draw_command.scissor(),
                     .offset = ninepatch_offset,
                     .count = ninepatch_count,
-                    .order = draw_command.order(),
                     .type = FlushDataType::NinePatch,
                     .blend_mode = draw_command.blend_mode()
                 });
@@ -1110,7 +1102,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             .scissor = prev_scissor,
             .offset = sprite_offset,
             .count = sprite_count,
-            .order = prev_order,
             .type = FlushDataType::Sprite,
             .blend_mode = sprite_prev_blend_mode
         });
@@ -1122,7 +1113,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             .scissor = prev_scissor,
             .offset = glyph_offset,
             .count = glyph_count,
-            .order = prev_order,
             .type = FlushDataType::Glyph,
             .blend_mode = draw_commands[i - 1].blend_mode()
         });
@@ -1134,7 +1124,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             .scissor = prev_scissor,
             .offset = ninepatch_offset,
             .count = ninepatch_count,
-            .order = prev_order,
             .type = FlushDataType::NinePatch,
             .blend_mode = draw_commands[i - 1].blend_mode()
         });
@@ -1145,7 +1134,6 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             .scissor = prev_scissor,
             .offset = shape_offset,
             .count = shape_count,
-            .order = prev_order,
             .type = FlushDataType::Shape,
             .blend_mode = draw_commands[i - 1].blend_mode()
         });
@@ -1156,40 +1144,44 @@ void sge::Renderer::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             .scissor = prev_scissor,
             .offset = line_offset,
             .count = line_count,
-            .order = prev_order,
             .type = FlushDataType::Line,
             .blend_mode = draw_commands[i - 1].blend_mode()
         });
     }
 
     batch.set_draw_commands_done(i);
-    
-    batch.sprite_data().count = sprite_total_count;
-    batch.glyph_data().count = glyph_total_count;
-    batch.ninepatch_data().count = ninepatch_total_count;
-    batch.shape_data().count = shape_total_count;
-    batch.line_data().count = line_total_count;
+
+    batch.sprite_data().total_count -= sprite_total_count;
+    batch.glyph_data().total_count -= glyph_total_count;
+    batch.ninepatch_data().total_count -= ninepatch_total_count;
+    batch.shape_data().total_count -= shape_total_count;
+    batch.line_data().total_count -= line_total_count;
 }
 
 
 void sge::Renderer::PrepareBatch(sge::Batch& batch) {
     if (batch.draw_commands().empty()) return;
 
-    const uint32_t sprite_count = std::min<uint32_t>(batch.sprite_data().count, batch.MaxCount());
-    const uint32_t glyph_count = std::min<uint32_t>(batch.glyph_data().count, batch.MaxCount());
-    const uint32_t ninepatch_count = std::min<uint32_t>(batch.ninepatch_data().count, batch.MaxCount());
-    const uint32_t shape_count = std::min<uint32_t>(batch.shape_data().count, batch.MaxCount());
-    const uint32_t line_count = std::min<uint32_t>(batch.line_data().count, batch.MaxCount());
+    const uint32_t sprite_count = std::min<uint32_t>(batch.sprite_data().total_count, batch.MaxCount());
+    const uint32_t glyph_count = std::min<uint32_t>(batch.glyph_data().total_count, batch.MaxCount());
+    const uint32_t ninepatch_count = std::min<uint32_t>(batch.ninepatch_data().total_count, batch.MaxCount());
+    const uint32_t shape_count = std::min<uint32_t>(batch.shape_data().total_count, batch.MaxCount());
+    const uint32_t line_count = std::min<uint32_t>(batch.line_data().total_count, batch.MaxCount());
 
-    m_sprite_batch_data.ResizeBuffersIfNeeded(*m_context, sprite_count);
-    m_glyph_batch_data.ResizeBuffersIfNeeded(*m_context, glyph_count);
-    m_ninepatch_batch_data.ResizeBuffersIfNeeded(*m_context, ninepatch_count);
-    m_shape_batch_data.ResizeBuffersIfNeeded(*m_context, shape_count);
-    m_line_batch_data.ResizeBuffersIfNeeded(*m_context, line_count);
+    m_sprite_batch_data.ResizeBuffersIfNeeded(*m_context, m_sprite_batch_data.Count() + sprite_count);
+    m_glyph_batch_data.ResizeBuffersIfNeeded(*m_context, m_glyph_batch_data.Count() + glyph_count);
+    m_ninepatch_batch_data.ResizeBuffersIfNeeded(*m_context, m_ninepatch_batch_data.Count() + ninepatch_count);
+    m_shape_batch_data.ResizeBuffersIfNeeded(*m_context, m_shape_batch_data.Count() + shape_count);
+    m_line_batch_data.ResizeBuffersIfNeeded(*m_context, m_line_batch_data.Count() + line_count);
+
+    batch.sprite_data().offset = m_sprite_batch_data.Count();
+    batch.glyph_data().offset = m_glyph_batch_data.Count();
+    batch.ninepatch_data().offset = m_ninepatch_batch_data.Count();
+    batch.shape_data().offset = m_shape_batch_data.Count();
+    batch.line_data().offset = m_line_batch_data.Count();
 
     SortBatchDrawCommands(batch);
     UpdateBatchBuffers(batch);
-    UploadBatchData();
 }
 
 void sge::Renderer::UploadBatchData() {
@@ -1224,22 +1216,22 @@ void sge::Renderer::RenderBatch(sge::Batch& batch) {
     ApplyBatchDrawCommands(batch);
 
     while (batch.draw_commands_done() < draw_commands.size()) {
-        batch.sprite_data().offset += batch.sprite_data().count;
-        batch.sprite_data().count = 0;
-
-        batch.glyph_data().offset += batch.glyph_data().count;
-        batch.glyph_data().count = 0;
-
-        batch.ninepatch_data().offset += batch.ninepatch_data().count;
-        batch.ninepatch_data().count = 0;
-
-        batch.shape_data().offset += batch.shape_data().count;
-        batch.shape_data().count = 0;
-
-        batch.line_data().offset += batch.line_data().count;
-        batch.line_data().count = 0;
-
         m_batch_instance_count = 0;
+
+        m_sprite_batch_data.Reset();
+        batch.sprite_data().offset = 0;
+
+        m_glyph_batch_data.Reset();
+        batch.glyph_data().offset = 0;
+
+        m_ninepatch_batch_data.Reset();
+        batch.ninepatch_data().offset = 0;
+
+        m_shape_batch_data.Reset();
+        batch.shape_data().offset = 0;
+
+        m_line_batch_data.Reset();
+        batch.line_data().offset = 0;
         
         UpdateBatchBuffers(batch, batch.draw_commands_done());
         UploadBatchData();

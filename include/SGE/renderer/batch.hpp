@@ -50,7 +50,6 @@ struct FlushData {
     sge::IRect scissor;
     uint32_t offset;
     uint32_t count;
-    uint32_t order;
     FlushDataType type;
     sge::BlendMode blend_mode;
 };
@@ -275,11 +274,11 @@ public:
     struct Data {
         void Reset() {
             offset = 0;
-            count = 0;
+            total_count = 0;
         }
 
         uint32_t offset = 0;
-        uint32_t count = 0;
+        uint32_t total_count = 0;
     };
 
     using DrawCommands = std::vector<internal::DrawCommand>;
