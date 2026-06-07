@@ -114,7 +114,7 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, cons
                 .tex_uv = ch.texture_coords,
             };
 
-            m_draw_commands.emplace_back(command, texture, scissor, m_glyph_data.total_count, order, m_blend_mode);
+            m_draw_commands.emplace_back(command, texture, scissor, order, m_blend_mode);
 
             ++m_glyph_data.total_count;
 
@@ -149,7 +149,7 @@ uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::v
         .ignore_camera_zoom = sprite.ignore_camera_zoom(),
     };
 
-    m_draw_commands.emplace_back(command, texture_with_sampler, scissor, m_sprite_data.total_count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, texture_with_sampler, scissor, order, m_blend_mode);
 
     ++m_sprite_data.total_count;
 
@@ -179,7 +179,7 @@ uint32_t sge::Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const g
         .output_size = ninepatch.size(),
     };
 
-    m_draw_commands.emplace_back(command, texture, scissor, m_ninepatch_data.total_count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, texture, scissor, order, m_blend_mode);
 
     ++m_ninepatch_data.total_count;
 
@@ -209,7 +209,7 @@ uint32_t sge::Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 
     const uint32_t order = GetOrder(custom_order);
     const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
-    m_draw_commands.emplace_back(command, scissor, m_shape_data.total_count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, scissor, order, m_blend_mode);
 
     ++m_shape_data.total_count;
 
@@ -236,7 +236,7 @@ uint32_t sge::Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, c
     const uint32_t order = GetOrder(custom_order);
     const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
-    m_draw_commands.emplace_back(command, scissor, m_line_data.total_count, order, m_blend_mode);
+    m_draw_commands.emplace_back(command, scissor, order, m_blend_mode);
 
     ++m_line_data.total_count;
 

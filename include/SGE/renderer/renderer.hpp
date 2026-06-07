@@ -49,12 +49,12 @@ public:
     }
 
     inline void Update(LLGL::CommandBuffer& command_buffer) {
-        UpdateBufferChunked(command_buffer, *m_instance_buffer, 0, m_buffer, m_count * sizeof(T));
+        UpdateBufferChunked(command_buffer, *m_instance_buffer, 0, m_buffer.data(), m_count * sizeof(T));
     }
 
     inline void Reset() {
         m_count = 0;
-        m_buffer_ptr = m_buffer;
+        m_buffer_ptr = m_buffer.data();
     }
 
     [[nodiscard]]
@@ -79,7 +79,7 @@ public:
     }
 
 private:
-    T* m_buffer = nullptr;
+    sge::HeapArray<T> m_buffer;
     T* m_buffer_ptr = nullptr;
 
     sge::Unique<LLGL::Buffer> m_vertex_buffer;

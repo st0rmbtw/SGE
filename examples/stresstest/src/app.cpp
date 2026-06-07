@@ -118,20 +118,21 @@ void App::DrawContent(LLGL::Extent2D viewport) {
                         .color = color
                     });
                 } else if (m_shape_type == sge::Shape::Circle) {
-                    const float radius = sge::Random::Float(1.0f, 250.0f);
+                    const float radius = sge::Random::Float(m_radius_from, m_radius_to);
 
                     m_batch->DrawCircle(position, sge::ShapeCircle {
                         .radius = radius,
                         .color = color
                     });
                 } else if (m_shape_type == sge::Shape::Arc) {
-                    const float radius = sge::Random::Float(1.0f, 250.0f);
+                    const float outer_radius = sge::Random::Float(m_outer_radius_from, m_outer_radius_to);
+                    const float inner_radius = sge::Random::Float(m_inner_radius_from, m_inner_radius_to);
                     const float start_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
                     const float end_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
 
                     m_batch->DrawArc(position, sge::ShapeArc {
-                        .outer_radius = radius + 20.0f,
-                        .inner_radius = radius,
+                        .outer_radius = outer_radius,
+                        .inner_radius = inner_radius,
                         .start_angle = start_angle,
                         .end_angle = end_angle,
                         .color = color
@@ -150,20 +151,21 @@ void App::DrawContent(LLGL::Extent2D viewport) {
                         .color = m_custom_color
                     });
                 } else if (m_shape_type == sge::Shape::Circle) {
-                    const float radius = sge::Random::Float(1.0f, 250.0f);
+                    const float radius = sge::Random::Float(m_radius_from, m_radius_to);
 
                     m_batch->DrawCircle(position, sge::ShapeCircle {
                         .radius = radius,
                         .color = m_custom_color
                     });
                 } else if (m_shape_type == sge::Shape::Arc) {
-                    const float radius = sge::Random::Float(1.0f, 250.0f);
+                    const float outer_radius = sge::Random::Float(m_outer_radius_from, m_outer_radius_to);
+                    const float inner_radius = sge::Random::Float(m_inner_radius_from, m_inner_radius_to);
                     const float start_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
                     const float end_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
 
                     m_batch->DrawArc(position, sge::ShapeArc {
-                        .outer_radius = radius + 20.0f,
-                        .inner_radius = radius,
+                        .outer_radius = outer_radius,
+                        .inner_radius = inner_radius,
                         .start_angle = start_angle,
                         .end_angle = end_angle,
                         .color = m_custom_color
@@ -229,6 +231,37 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                                 if (ImGui::Combo("Shape Type", &selected_shape_type, shape_names, IM_ARRAYSIZE(shape_names))) {
                                     m_shape_type = static_cast<sge::Shape::Type>(selected_shape_type);
                                 }
+
+                                if (m_shape_type == sge::Shape::Rect) {
+                                    ImGui::SeparatorText("Size From");
+                                    ImGui::DragScalar("X##1", ImGuiDataType_U32, &m_size_from.x);
+                                    ImGui::DragScalar("Y##1", ImGuiDataType_U32, &m_size_from.y);
+
+                                    ImGui::SeparatorText("Size To");
+                                    ImGui::DragScalar("X##2", ImGuiDataType_U32, &m_size_to.x);
+                                    ImGui::DragScalar("Y##2", ImGuiDataType_U32, &m_size_to.y);
+                                } else if (m_shape_type == sge::Shape::Circle) {
+                                    ImGui::SeparatorText("Radius");
+                                    ImGui::DragFloat("From##Radius", &m_radius_from, 1.0f, 0.0f, FLT_MAX);
+                                    ImGui::DragFloat("To##Radius", &m_radius_to, 1.0f, 0.0f, FLT_MAX);
+                                } else if (m_shape_type == sge::Shape::Arc) {
+                                    ImGui::SeparatorText("Inner Radius");
+                                    ImGui::DragFloat("From##InnerRadius", &m_inner_radius_from, 1.0f, 0.0f, FLT_MAX);
+                                    ImGui::DragFloat("To##InnerRadius", &m_inner_radius_to, 1.0f, 0.0f, FLT_MAX);
+                                    ImGui::SeparatorText("Outer Radius");
+                                    ImGui::DragFloat("From##OuterRadius", &m_outer_radius_from, 1.0f, 0.0f, FLT_MAX);
+                                    ImGui::DragFloat("To##OuterRadius", &m_outer_radius_to, 1.0f, 0.0f, FLT_MAX);
+                                }
+                            }
+
+                            if (m_batch_type == BatchType::Line) {
+                                ImGui::SeparatorText("Size From");
+                                ImGui::DragScalar("X##1", ImGuiDataType_U32, &m_size_from.x);
+                                ImGui::DragScalar("Y##1", ImGuiDataType_U32, &m_size_from.y);
+
+                                ImGui::SeparatorText("Size To");
+                                ImGui::DragScalar("X##2", ImGuiDataType_U32, &m_size_to.x);
+                                ImGui::DragScalar("Y##2", ImGuiDataType_U32, &m_size_to.y);
                             }
 
                             static const char* property_names[] = { "Random", "Custom" };
@@ -239,14 +272,6 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                             if (m_coloring == Coloring::Custom) {
                                 ImGui::ColorPicker4("Custom Color", &m_custom_color.r);
                             }
-
-                            ImGui::SeparatorText("Size From");
-                            ImGui::DragScalar("X##1", ImGuiDataType_U32, &m_size_from.x);
-                            ImGui::DragScalar("Y##1", ImGuiDataType_U32, &m_size_from.y);
-
-                            ImGui::SeparatorText("Size To");
-                            ImGui::DragScalar("X##2", ImGuiDataType_U32, &m_size_to.x);
-                            ImGui::DragScalar("Y##2", ImGuiDataType_U32, &m_size_to.y);
                         }
 
                         if (ImGui::CollapsingHeader("Statistics")) {

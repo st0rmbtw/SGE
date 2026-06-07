@@ -114,45 +114,40 @@ public:
         DrawLine
     };
 
-    DrawCommand(DrawCommandSprite sprite_data, TextureWithSampler texture, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandSprite sprite_data, TextureWithSampler texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
         m_sprite_data(sprite_data),
         m_texture(texture),
         m_scissor(scissor),
-        m_id(id),
         m_order(order),
         m_type(Type::DrawSprite),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandGlyph glyph_data, TextureWithSampler texture, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandGlyph glyph_data, TextureWithSampler texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
         m_glyph_data(glyph_data),
         m_texture(texture),
         m_scissor(scissor),
-        m_id(id),
         m_order(order),
         m_type(Type::DrawGlyph),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandNinePatch ninepatch_data, TextureWithSampler texture, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandNinePatch ninepatch_data, TextureWithSampler texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
         m_ninepatch_data(ninepatch_data),
         m_texture(texture),
         m_scissor(scissor),
-        m_id(id),
         m_order(order),
         m_type(Type::DrawNinePatch),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandShape shape_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandShape shape_data, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
         m_shape_data(shape_data),
         m_scissor(scissor),
-        m_id(id),
         m_order(order),
         m_type(Type::DrawShape),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandLine line_data, sge::Rect scissor, uint32_t id, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandLine line_data, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
         m_line_data(line_data),
         m_scissor(scissor),
-        m_id(id),
         m_order(order),
         m_type(Type::DrawLine),
         m_blend_mode(blend_mode) {}
@@ -160,11 +155,6 @@ public:
     [[nodiscard]]
     inline Type type() const {
         return m_type;
-    }
-
-    [[nodiscard]]
-    inline uint32_t id() const {
-        return m_id;
     }
 
     [[nodiscard]]
@@ -225,7 +215,6 @@ private:
 
     sge::IRect m_scissor;
 
-    uint32_t m_id;
     uint32_t m_order;
 
     Type m_type;

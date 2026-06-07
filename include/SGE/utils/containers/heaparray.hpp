@@ -37,10 +37,14 @@ public:
         if (this == &other)
             return *this;
 
-        const std::size_t size = other.m_count * sizeof(T);
-        m_data = new T[size];
-        m_count = other.m_count;
-        std::memcpy(m_data, other.m_data, size);
+        if (m_count != other.m_count) {
+            if (m_data != nullptr) {
+                free(m_data);
+            }
+            m_data = sge::checked_alloc<T>(other.m_count);
+            m_count = other.m_count;
+        }
+        std::memcpy(m_data, other.m_data, other.m_count * sizeof(T));
     }
 
     HeapArray(HeapArray&& other) noexcept {
@@ -48,6 +52,13 @@ public:
     }
 
     HeapArray& operator=(HeapArray&& other) noexcept {
+        if (this == &other)
+            return *this;
+
+        if (m_data != nullptr) {
+            free(m_data);
+        }
+
         m_data = other.m_data;
         m_count = other.m_count;
         other.m_data = nullptr;
@@ -62,14 +73,14 @@ public:
      */
     void resize(std::size_t new_count) {
         if (new_count > 0) {
-            T* new_data = new T[new_count * sizeof(T)];
+            T* new_data = sge::checked_alloc<T>(new_count);
             if (m_data != nullptr) {
                 memcpy(new_data, m_data, std::min(m_count, new_count) * sizeof(T));
             }
-            delete[] m_data;
+            free(m_data);
             m_data = new_data;
         } else {
-            delete[] m_data;
+            free(m_data);
             m_data = nullptr;
         }
 

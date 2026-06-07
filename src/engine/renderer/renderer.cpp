@@ -225,11 +225,9 @@ void sge::BatchData<T>::CreateDynamicBuffers(sge::RenderContext& context, uint32
         context.Release(*m_instance_buffer);
     if (m_buffer_array)
         context.Release(*m_buffer_array);
-    if (m_buffer)
-        free(m_buffer);
 
-    m_buffer = checked_alloc<T>(count);
-    m_buffer_ptr = m_buffer;
+    m_buffer = sge::HeapArray<T>(count);
+    m_buffer_ptr = m_buffer.data();
     
     m_instance_buffer = context.CreateVertexBuffer(count * sizeof(T), m_instance_format, "Batch InstanceBuffer");
     m_buffer_array = context.CreateBufferArray({ m_vertex_buffer.Get(), m_instance_buffer.Get() });
@@ -791,19 +789,14 @@ void sge::Renderer::SortBatchDrawCommands(sge::Batch& batch) {
             const TextureWithSampler& a_texture = a.texture();
             const TextureWithSampler& b_texture = b.texture();
 
-            if (a_texture.is_valid() && b_texture.is_valid()) {
-                if (a_texture.id < b_texture.id) return true;
-                if (a_texture.id > b_texture.id) return false;
-            }
+            if (a_texture.id < b_texture.id) return true;
+            if (a_texture.id > b_texture.id) return false;
 
             uint8_t a_bm = static_cast<uint8_t>(a.blend_mode());
             uint8_t b_bm = static_cast<uint8_t>(b.blend_mode());
 
             if (a_bm < b_bm) return true;
             if (a_bm > b_bm) return false;
-
-            if (a.id() < b.id()) return true;
-            if (a.id() > b.id()) return false;
 
             return false;
         }
