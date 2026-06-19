@@ -2,7 +2,7 @@
 #define APP_HPP
 
 #include <SGE/engine.hpp>
-#include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/renderer2d.hpp>
 #include <SGE/time/stopwatch.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/shape.hpp>
@@ -48,7 +48,7 @@ private:
 
 private:
     sge::Camera m_camera;
-    std::unique_ptr<sge::Renderer> m_renderer;
+    std::unique_ptr<sge::Renderer2D> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
     ExampleConfig m_config;
 

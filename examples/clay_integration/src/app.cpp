@@ -3,7 +3,7 @@
 #include <SGE/engine.hpp>
 #include <SGE/input.hpp>
 #include <SGE/renderer/camera.hpp>
-#include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/renderer2d.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
 #include <SGE/types/blend_mode.hpp>
@@ -53,7 +53,7 @@ bool App::OnInit() {
     m_camera = sge::Camera(sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });
     m_camera.set_viewport(resolution.width, resolution.height);
 
-    m_renderer = std::make_unique<sge::Renderer>(GetRenderContext());
+    m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
 
     m_batch = m_renderer->CreateBatch();
     m_batch->SetIsUi(true);

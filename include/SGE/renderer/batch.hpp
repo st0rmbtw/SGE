@@ -25,7 +25,7 @@
 
 namespace sge {
 
-class Renderer;
+class Renderer2D;
 
 namespace internal {
 
@@ -257,7 +257,7 @@ struct BatchDesc {
 };
 
 class Batch {
-    friend class sge::Renderer;
+    friend class sge::Renderer2D;
 
 public:
     struct Data {
@@ -273,7 +273,7 @@ public:
     using DrawCommands = std::vector<internal::DrawCommand>;
     using FlushQueue = std::vector<internal::FlushData>;
 
-    Batch(Renderer& renderer, const BatchDesc& desc);
+    Batch(Renderer2D& renderer, const BatchDesc& desc);
 
     Batch(const Batch&) = delete;
     Batch& operator=(const Batch&) = delete;

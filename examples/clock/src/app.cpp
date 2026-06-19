@@ -61,7 +61,7 @@ bool App::OnInit() {
     m_cameras[window->GetID()] = sge::Camera(resolution, sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });
     m_cameras[window->GetID()].set_samples(m_config.samples);
 
-    m_renderer = std::make_unique<sge::Renderer>(GetRenderContext());
+    m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
 
     m_batch = m_renderer->CreateBatch();
 

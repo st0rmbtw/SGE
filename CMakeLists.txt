@@ -52,6 +52,7 @@ set(SGE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/context.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/glfw_window.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/renderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/renderer2d.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/resource.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/time/time.cpp

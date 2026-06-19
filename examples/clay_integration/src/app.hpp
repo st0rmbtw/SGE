@@ -5,7 +5,7 @@
 
 #include <SGE/engine.hpp>
 #include <SGE/types/backend.hpp>
-#include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/renderer2d.hpp>
 
 #include "../../common.hpp"
 
@@ -32,7 +32,7 @@ protected:
         }
     }
 private:
-    std::unique_ptr<sge::Renderer> m_renderer;
+    std::unique_ptr<sge::Renderer2D> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
     sge::Camera m_camera;
     ExampleConfig m_config;

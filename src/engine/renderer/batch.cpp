@@ -1,10 +1,10 @@
 #include <SGE/profile.hpp>
 #include <SGE/renderer/batch.hpp>
-#include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/renderer2d.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/utils/utf8.hpp>
 
-sge::Batch::Batch(Renderer& renderer, const BatchDesc& desc) :
+sge::Batch::Batch(Renderer2D& renderer, const BatchDesc& desc) :
     m_scissor_enabled(desc.enable_scissor)
 {
     m_draw_commands.reserve(500);

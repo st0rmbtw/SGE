@@ -2,7 +2,7 @@
 #define APP_HPP
 
 #include <SGE/engine.hpp>
-#include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/renderer2d.hpp>
 #include <SGE/time/stopwatch.hpp>
 
 #include "../../common.hpp"
@@ -43,7 +43,7 @@ private:
 
 private:
     std::unordered_map<uint32_t, sge::Camera> m_cameras;
-    std::unique_ptr<sge::Renderer> m_renderer;
+    std::unique_ptr<sge::Renderer2D> m_renderer;
     std::unique_ptr<sge::Batch> m_batch;
     CurrentTime m_t;
     ExampleConfig m_config;
