@@ -54,11 +54,21 @@ public:
         m_command_queue->Submit(*m_command_buffer);
     }
 
-    void BeginPass(LLGL::RenderTarget& target, const Camera& camera);
+    inline void BeginPass(LLGL::RenderTarget& target) {
+        m_context->PushRenderTarget(&target);
+        m_command_buffer->BeginRenderPass(target);
+    }
+    inline void BeginPass(const std::shared_ptr<GlfwWindow>& window) {
+        BeginPass(m_context->GetOrCreateSwapChain(window));
+    }
 
+    void BeginPass(LLGL::RenderTarget& target, const Camera& camera);
     inline void BeginPass(const std::shared_ptr<GlfwWindow>& window, const Camera& camera) {
         BeginPass(m_context->GetOrCreateSwapChain(window), camera);
     }
+
+    void TonemapPass(sge::Framebuffer& framebuffer);
+    void BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSettings& settings = {});
 
     inline void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
         m_command_buffer->Clear(clear_flags, clear_value);
@@ -97,10 +107,67 @@ public:
         return m_context;
     }
 
+    [[nodiscard]]
+    inline const Ref<LLGL::Buffer>& FullscreenTriangleVertexBuffer() const noexcept {
+        return m_fullscreen_triangle_vertex_buffer;
+    }
+
+    [[nodiscard]]
+    inline const LLGL::VertexFormat& FullscreenTriangleVertexFormat() const noexcept {
+        return m_fullscreen_triangle_vertex_format;
+    }
+
+    [[nodiscard]]
+    inline const Ref<LLGL::Shader>& FullscreenTriangleVertexShader() const noexcept {
+        return m_fullscreen_triangle_vertex_shader;
+    }
+
+    [[nodiscard]]
+    inline const Ref<LLGL::Shader>& BlitShader() const noexcept {
+        return m_blit_pixel_shader;
+    }
+
+    [[nodiscard]]
+    inline const Ref<LLGL::PipelineLayout>& BlitPipelineLayout() const noexcept {
+        return m_blit_pipeline_layout;
+    }
+
+    [[nodiscard]]
+    inline const Ref<LLGL::PipelineState>& BlitPipeline() const noexcept {
+        return m_blit_pipeline;
+    }
+
+private:
+    void InitBloomTargets(LLGL::Extent2D resolution);
+    void InitBloomPipelines();
+
+    void InitTonemapTargets(LLGL::Extent2D resolution);
+    void InitTonemapPipelines();
+
 protected:
+    LLGL::VertexFormat m_fullscreen_triangle_vertex_format;
+
     Unique<LLGL::Buffer> m_uniform_buffer;
+    Unique<LLGL::Buffer> m_bloom_cb;
+
+    Unique<LLGL::PipelineState> m_bloom_prefilter_pipeline;
+    Unique<LLGL::PipelineState> m_bloom_downsample_pipeline;
+    Unique<LLGL::PipelineState> m_bloom_upsample_pipeline;
+    Unique<LLGL::PipelineState> m_bloom_composite_pipeline;
+
+    Unique<LLGL::PipelineState> m_tonemap_aces_pipeline;
+    
+    Ref<LLGL::Buffer> m_fullscreen_triangle_vertex_buffer;
+    Ref<LLGL::Shader> m_fullscreen_triangle_vertex_shader;
+
+    Ref<LLGL::Shader> m_blit_pixel_shader;
+    Ref<LLGL::PipelineLayout> m_blit_pipeline_layout;
+    Ref<LLGL::PipelineState> m_blit_pipeline;
     
     std::shared_ptr<RenderContext> m_context;
+    
+    std::vector<sge::Framebuffer> m_bloom_framebuffers;
+    std::unique_ptr<sge::Framebuffer> m_tonemap_framebuffer;
     
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;

@@ -165,9 +165,6 @@ public:
     void SetCursorMode(CursorMode cursor_mode) {
         glfwSetInputMode(m_wnd, GLFW_CURSOR, static_cast<int>(cursor_mode));
         m_cursor_mode = cursor_mode;
-        double xpos, ypos;
-        glfwGetCursorPos(m_wnd, &xpos, &ypos);
-        HandleCursorPosEvents(m_wnd, xpos, ypos);
     }
 
     void SetRawMouseInput(bool raw) {

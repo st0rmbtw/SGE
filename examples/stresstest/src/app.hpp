@@ -24,7 +24,7 @@ enum class Coloring : uint8_t {
 
 class App : public sge::IEngine {
 public:
-    App(const ExampleConfig& config) : m_config(config) {}
+    explicit App(const ExampleConfig& config) : m_config(config) {}
     ~App();
 
 protected:
@@ -35,12 +35,6 @@ protected:
         m_camera.set_viewport(glm::uvec2(width, height));
         m_camera.update();
         OnRender(window);
-    }
-
-    void OnWindowDestroy(sge::GlfwWindow &window) override {
-        if (window.GetID() == m_primary_window_id) {
-            Stop();
-        }
     }
 
 private:
@@ -56,7 +50,6 @@ private:
 
     uint32_t m_instance_count = 0;
     uint32_t m_batch_limit = 0;
-    uint32_t m_primary_window_id = 0;
 
     BatchType m_batch_type = BatchType::Line;
     sge::Shape::Type m_shape_type = sge::Shape::Rect;

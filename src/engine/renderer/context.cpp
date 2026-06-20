@@ -1,6 +1,7 @@
 #include <filesystem>
 
 #include <LLGL/Constants.h>
+#include <LLGL/Format.h>
 #include <LLGL/Platform/NativeHandle.h>
 #include <LLGL/ResourceFlags.h>
 
@@ -573,6 +574,43 @@ sge::Texture sge::RenderContext::CreateTexture(const sge::TextureConfig& config,
     SGE_ASSERT(texture != nullptr);
 
     return sge::Texture(id, sge::Size(config.extent.width, config.extent.height), config.sampler, Ref<LLGL::Texture>(shared_from_this(), texture));
+}
+
+sge::Framebuffer sge::RenderContext::CreateFramebuffer(const sge::FramebufferConfig& config) {
+    LLGL::RenderTargetDescriptor targetDesc;
+    targetDesc.debugName = config.debugName;
+    targetDesc.resolution = config.resolution;
+    targetDesc.renderPass = config.renderPass;
+    targetDesc.samples = 1;
+
+    std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> textures;
+
+    LLGL::TextureDescriptor textureDesc;
+    textureDesc.type = LLGL::TextureType::Texture2D;
+    textureDesc.extent.width = config.resolution.width;
+    textureDesc.extent.height = config.resolution.height;
+    textureDesc.format = config.format;
+    textureDesc.mipLevels = 1;
+
+    for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
+        const sge::AttachmentConfig& attachment = config.colorAttachments[i];
+
+        sge::Ref<LLGL::Texture> texture = attachment.texture;
+        if (!texture && attachment.format != LLGL::Format::Undefined) {
+            textureDesc.bindFlags = attachment.bindFlags;
+            texture = CreateTexture(textureDesc);
+        }
+
+        textures[i] = texture;
+        targetDesc.colorAttachments[i].format = attachment.format;
+        targetDesc.colorAttachments[i].texture = texture;
+        targetDesc.colorAttachments[i].mipLevel = attachment.mipLevel;
+        targetDesc.colorAttachments[i].arrayLayer = attachment.arrayLayer;
+    }
+
+    sge::Ref<LLGL::RenderTarget> renderTarget = CreateRenderTarget(targetDesc);
+
+    return sge::Framebuffer(textures, renderTarget, config.renderPass);
 }
 
 sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {

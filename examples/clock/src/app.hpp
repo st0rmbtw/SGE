@@ -16,7 +16,7 @@ struct CurrentTime {
 
 class App : public sge::IEngine {
 public:
-    App(const ExampleConfig& config) : m_config(config) {}
+    explicit App(const ExampleConfig& config) : m_config(config) {}
     ~App();
 
 protected:
@@ -31,13 +31,6 @@ protected:
         OnRender(window);
     }
 
-    void OnWindowDestroy(sge::GlfwWindow &window) override {
-        if (window.GetID() == m_primary_window_id) {
-            Stop();
-        }
-        m_cameras.erase(window.GetID());
-    }
-
 private:
     void sync_time();
 
@@ -47,7 +40,6 @@ private:
     std::unique_ptr<sge::Batch> m_batch;
     CurrentTime m_t;
     ExampleConfig m_config;
-    uint32_t m_primary_window_id = 0;
     bool m_paused = false;
 };
 

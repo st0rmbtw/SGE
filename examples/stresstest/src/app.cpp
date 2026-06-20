@@ -54,7 +54,6 @@ bool App::OnInit() {
     }
 
     std::shared_ptr<sge::GlfwWindow> window = result.value();
-    m_primary_window_id = window->GetID();
 
     LLGL::Extent2D resolution = window->GetContentSize();
     m_camera = sge::Camera(resolution, sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });

@@ -77,7 +77,7 @@ protected: // Callbacks
         (void)window;
     }
 
-    virtual void OnInputEvent(const InputEvent& event) {
+    virtual void OnInputEvent(const sge::InputEvent& event) {
     #if SGE_IMGUI_ENABLED
         sge::GlfwWindow* window = WindowManager::GetFocusedWindow();
         if (window != nullptr) {
@@ -85,7 +85,14 @@ protected: // Callbacks
             ImGuiIO& io = ImGui::GetIO();
 
             if (io.WantCaptureMouse && (event.Type == sge::InputEventType::MouseButton ||
-                                        event.Type == sge::InputEventType::Scroll)) {
+                                        event.Type == sge::InputEventType::Scroll)
+            ) {
+                return;
+            }
+
+            if (io.WantCaptureMouse && (event.Type == sge::InputEventType::CursorMove &&
+                                        window->GetCursorMode() != sge::CursorMode::Disabled)
+            ) {
                 return;
             }
 
@@ -120,13 +127,21 @@ protected:
     }
 
     void DestroyWindow(const std::shared_ptr<sge::GlfwWindow>& window) {
+        if (m_exit_on_main_window_destroy && window->GetID() == 0) {
+            Stop();
+        }
+
         OnWindowDestroy(*window);
         m_context->UnregisterWindow(*window);
         WindowManager::DestroyWindow(window);
     }
 
-    inline void SetAutoPresent(bool auto_swap) noexcept {
-        m_auto_present = auto_swap;
+    inline void SetAutoPresent(bool auto_present) noexcept {
+        m_auto_present = auto_present;
+    }
+
+    inline void SetExitOnMainWindowClose(bool exit) noexcept {
+        m_exit_on_main_window_destroy = exit;
     }
 
 protected:
@@ -278,6 +293,7 @@ private:
     bool m_running = false;
     bool m_initialized = false;
     bool m_auto_present = true;
+    bool m_exit_on_main_window_destroy = true;
 };
 
 } // namespace sge

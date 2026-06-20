@@ -58,6 +58,7 @@ endif()
 
 get_directory_property(CURRENT_FLAGS COMPILE_OPTIONS)
 
+add_subdirectory(bloom)
 add_subdirectory(clay_integration)
 add_subdirectory(clock)
 add_subdirectory(stresstest)

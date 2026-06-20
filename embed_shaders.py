@@ -18,6 +18,12 @@ COMBINED_SAMPLER_PATTERN = re.compile(
 SLANG_FLAGS = ("-matrix-layout-column-major", "-O3", "-line-directive-mode", "none", "-g0")
 SPIRV_CROSS_FLAGS = ("--no-es", "--remove-unused-variables", "--no-420pack-extension", "--version", "410")
 
+class CompileResults:
+    d3d: dict[str, tuple[bool, bool]] = {}
+    vk: dict[str, tuple[bool, bool]] = {}
+    metal: dict[str, tuple[bool, bool]] = {}
+    gl: dict[str, tuple[bool, bool]] = {}
+
 def comment_remover(text):
     def replacer(match):
         s = match.group(0)
@@ -61,147 +67,178 @@ SHADER_SOURCE_STRUCTURE_CODE = """struct ShaderSourceCode {
 };
 """
 
-def compile_vulkan_shader(executable: str, item_path: Path, flags: tuple[str]):
+def compile_vulkan_shader(executable: str, item_path: Path, flags: tuple[str]) -> tuple[str, bool, bool]:
     basename = item_path.stem.upper()
     var_name = f"VULKAN_{basename}"
     flags = ("-target", "spirv") + flags
     
     result = ""
+    has_vertex = False
+    has_fragment = False
     
     fd, path = tempfile.mkstemp(suffix=".spv")
     try:
         with os.fdopen(fd, "wb") as f:
-            subprocess.Popen(
+            code = subprocess.Popen(
                 (executable, str(item_path), "-entry", "VS") + flags,
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
         
-        with open(path, "rb") as f:
-            result += write_bytes(f, f"{var_name}_VERT")
+        if code == 0:
+            has_vertex = True
+            with open(path, "rb") as f:
+                result += write_bytes(f, f"{var_name}_VERT")
     finally:
         os.remove(path)
 
     fd, path = tempfile.mkstemp(suffix=".spv")
     try:
         with os.fdopen(fd, "wb") as f:
-            subprocess.Popen(
+            code = subprocess.Popen(
                 (executable, str(item_path), "-entry", "PS") + flags + ("-o", str(path)),
                 stdout=sys.stdout,
                 stderr=sys.stderr
             ).wait()
-
-        with open(path, "rb") as f:
-            result += write_bytes(f, f"{var_name}_FRAG")
+            
+        if code == 0:
+            has_fragment = True
+            with open(path, "rb") as f:
+                result += write_bytes(f, f"{var_name}_FRAG")
     finally:
         os.remove(path)
         
-    return result
+    return result, has_vertex, has_fragment
 
-def compile_d3d_shader(executable: str, item_path: Path, flags: tuple[str]):
+def compile_d3d_shader(executable: str, item_path: Path, flags: tuple[str]) -> tuple[str, bool, bool]:
     basename = item_path.stem.upper()
     var_name = f"D3D11_{basename}"
     flags = ("-target", "hlsl") + flags
     
     result = ""
+    has_vertex = False
+    has_fragment = False
 
     fd, path = tempfile.mkstemp(suffix=".hlsl", text=True)
     try:
         with os.fdopen(fd, "w") as f:
-            subprocess.Popen(
+            code = subprocess.Popen(
                 (executable, str(item_path), "-entry", "VS") + flags,
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-        
-        with open(path, "r") as f:
-            result += write_constant(f, f"{var_name}_VERT")
+
+        if code == 0:
+            has_vertex = True
+            with open(path, "r") as f:
+                result += write_constant(f, f"{var_name}_VERT")
     finally:
         os.remove(path)
     
     fd, path = tempfile.mkstemp(suffix=".hlsl", text=True)
     try:
         with os.fdopen(fd, "w") as f:
-            subprocess.Popen(
+            code = subprocess.Popen(
                 (executable, str(item_path), "-entry", "PS") + flags,
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-
-        with open(path, "r") as f:
-            result += write_constant(f, f"{var_name}_FRAG")
+            
+        if code == 0:
+            has_fragment = True
+            with open(path, "r") as f:
+                result += write_constant(f, f"{var_name}_FRAG")
     finally:
         os.remove(path)
         
-    return result
+    return result, has_vertex, has_fragment
 
-def compile_metal_shader(executable: str, item_path: Path, flags: tuple[str]):
+def compile_metal_shader(executable: str, item_path: Path, flags: tuple[str]) -> tuple[str, bool, bool]:
     basename = item_path.stem.upper()
     var_name = f"METAL_{basename}"
     flags = ("-target", "metal") + flags
     
     result = ""
+    has_vertex = False
+    has_fragment = False
     
     fd, path = tempfile.mkstemp(suffix=".metal", text=True)
     try:
         with os.fdopen(fd, "w") as f:
-            subprocess.Popen(
+            code = subprocess.Popen(
                 (executable, str(item_path), "-entry", "VS") + flags,
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-        
-        with open(path, "r") as f:
-            result += write_constant(f, f"{var_name}_VERT")
+            
+        if code == 0:
+            has_vertex = True
+            with open(path, "r") as f:
+                result += write_constant(f, f"{var_name}_VERT")
     finally:
         os.remove(path)
     
     fd, path = tempfile.mkstemp(suffix=".metal", text=True)
     try:
         with os.fdopen(fd, "w") as f:
-            subprocess.Popen(
+            code = subprocess.Popen(
                 (executable, str(item_path), "-entry", "PS") + flags,
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-
-        with open(path, "r") as f:
-            result += write_constant(f, f"{var_name}_FRAG")
+            
+        if code == 0:
+            has_fragment = True
+            with open(path, "r") as f:
+                result += write_constant(f, f"{var_name}_FRAG")
     finally:
         os.remove(path)
         
     result = result.replace('[[vertex]]', 'vertex')
     result = result.replace('[[fragment]]', 'fragment')
         
-    return result
+    return result, has_vertex, has_fragment
 
-def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]):
+def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]) -> tuple[str, bool, bool]:
     basename = item_path.stem.upper()
     var_name = f"GL_{basename}"
     flags = ("-target", "spirv") + flags
     
     result = ""
+    has_vertex = False
+    has_fragment = False
     
     fd1, path_spv = tempfile.mkstemp(suffix=".spv")
     fd2, path_glsl = tempfile.mkstemp(suffix=".glsl", text=True)
     try:
         with os.fdopen(fd1, "wb") as f:
-            subprocess.Popen(
+            code = subprocess.Popen(
                 (executable, str(item_path), "-entry", "VS") + flags,
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
             
-        with os.fdopen(fd2, "w") as f:
-            subprocess.Popen(
-                ("spirv-cross", str(path_spv), "--stage", "vert") + SPIRV_CROSS_FLAGS,
-                stdout=f,
-                stderr=sys.stderr
-            ).wait()
-        
-        with open(path_glsl, "r") as f:
-            result += write_constant(f, f"{var_name}_VERT", True)
+        if code == 0:
+            has_vertex = True
+            with os.fdopen(fd2, "w") as f:
+                subprocess.Popen(
+                    ("spirv-cross", str(path_spv), "--stage", "vert") + SPIRV_CROSS_FLAGS,
+                    stdout=f,
+                    stderr=sys.stderr
+                ).wait()
+            
+            with open(path_glsl, "r") as f:
+                result += write_constant(f, f"{var_name}_VERT", True)
     finally:
+        try:
+            os.close(fd1)
+        except:
+            pass
+        try:
+            os.close(fd2)
+        except:
+            pass
+        
         os.remove(path_glsl)
         os.remove(path_spv)
     
@@ -209,43 +246,110 @@ def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]):
     fd2, path_glsl = tempfile.mkstemp(suffix=".glsl", text=True)
     try:
         with os.fdopen(fd1, "wb") as f:
-            subprocess.Popen(
+            code = subprocess.Popen(
                 (executable, str(item_path), "-entry", "PS") + flags,
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
 
-        with os.fdopen(fd2, "w") as f:
-            subprocess.Popen(("spirv-cross", str(path_spv), "--stage", "frag", "--rename-interface-variable", "out", "0", "fragColor") + SPIRV_CROSS_FLAGS,
-                stdout=f,
-                stderr=sys.stderr
-            ).wait()
-        
-        with open(path_glsl, "r") as f:
-            result += write_constant(f, f"{var_name}_FRAG", True)
+        if code == 0:
+            has_fragment = True
+            with os.fdopen(fd2, "w") as f:
+                subprocess.Popen(("spirv-cross", str(path_spv), "--stage", "frag", "--rename-interface-variable", "out", "0", "fragColor") + SPIRV_CROSS_FLAGS,
+                    stdout=f,
+                    stderr=sys.stderr
+                ).wait()
+            
+            with open(path_glsl, "r") as f:
+                result += write_constant(f, f"{var_name}_FRAG", True)
     finally:
+        try:
+            os.close(fd1)
+        except:
+            pass
+        try:
+            os.close(fd2)
+        except:
+            pass
+        
         os.remove(path_spv)
         os.remove(path_glsl)
         
-    return result
+    return result, has_vertex, has_fragment
 
-def generate_getter_function(name):
+def snake_to_pascal(snake_str):
+    return "".join(word.capitalize() for word in snake_str.split("_"))
+
+def generate_getter_function(name, results: CompileResults):
     upper = name.upper()
+    
+    d3d_has_vertex, d3d_has_fragment = results.d3d[name]
+    vk_has_vertex, vk_has_fragment = results.vk[name]
+    metal_has_vertex, metal_has_fragment = results.metal[name]
+    gl_has_vertex, gl_has_fragment = results.gl[name]
 
     code = ""
-    code += f"static inline ShaderSourceCode Get{name.capitalize()}ShaderSourceCode(const sge::RenderBackend backend) {{\n"
+    code += f"static inline ShaderSourceCode Get{snake_to_pascal(name)}ShaderSourceCode(const sge::RenderBackend backend) {{\n"
     code += ' ' * 4
     code += "switch (backend) {\n"
     code += ' ' * 8
-    code += f"case sge::RenderBackend::Vulkan: return ShaderSourceCode(VULKAN_{upper}_VERT, sizeof(VULKAN_{upper}_VERT), VULKAN_{upper}_FRAG, sizeof(VULKAN_{upper}_FRAG));\n"
+    
+    code += "case sge::RenderBackend::Vulkan: return ShaderSourceCode("
+    if vk_has_vertex:
+        code += f"VULKAN_{upper}_VERT, sizeof(VULKAN_{upper}_VERT)"
+    else:
+        code += "nullptr, 0"
+    code += ', '
+    if vk_has_fragment:
+        code += f"VULKAN_{upper}_FRAG, sizeof(VULKAN_{upper}_FRAG)"
+    else:
+        code += "nullptr, 0"
+    code += ');\n'
+    
     code += ' ' * 8
     code += "case sge::RenderBackend::D3D11:\n"
     code += ' ' * 8
-    code += f"case sge::RenderBackend::D3D12: return ShaderSourceCode(D3D11_{upper}_VERT, sizeof(D3D11_{upper}_VERT), D3D11_{upper}_FRAG, sizeof(D3D11_{upper}_FRAG));\n"
+    code += "case sge::RenderBackend::D3D12: return ShaderSourceCode("
+    
+    if d3d_has_vertex:
+        code += f"D3D11_{upper}_VERT, sizeof(D3D11_{upper}_VERT)"
+    else:
+        code += "nullptr, 0"
+    code += ', '
+    if d3d_has_fragment:
+        code += f"D3D11_{upper}_FRAG, sizeof(D3D11_{upper}_FRAG)"
+    else:
+        code += "nullptr, 0"
+    code += ');\n'
+    
     code += ' ' * 8
-    code += f"case sge::RenderBackend::Metal: return ShaderSourceCode(METAL_{upper}_VERT, sizeof(METAL_{upper}_VERT), METAL_{upper}_FRAG, sizeof(METAL_{upper}_FRAG));\n"
+    code += "case sge::RenderBackend::Metal: return ShaderSourceCode("
+
+    if metal_has_vertex:
+        code += f"METAL_{upper}_VERT, sizeof(METAL_{upper}_VERT)"
+    else:
+        code += "nullptr, 0"
+    code += ', '
+    if metal_has_fragment:
+        code += f"METAL_{upper}_FRAG, sizeof(METAL_{upper}_FRAG)"
+    else:
+        code += "nullptr, 0"
+    code += ');\n'
+    
     code += ' ' * 8
-    code += f"case sge::RenderBackend::OpenGL: return ShaderSourceCode(GL_{upper}_VERT, sizeof(GL_{upper}_VERT), GL_{upper}_FRAG, sizeof(GL_{upper}_FRAG));\n"
+    code += "case sge::RenderBackend::OpenGL: return ShaderSourceCode("
+    
+    if gl_has_vertex:
+        code += f"GL_{upper}_VERT, sizeof(GL_{upper}_VERT)"
+    else:
+        code += "nullptr, 0"
+    code += ', '
+    if gl_has_fragment:
+        code += f"GL_{upper}_FRAG, sizeof(GL_{upper}_FRAG)"
+    else:
+        code += "nullptr, 0"
+    code += ');\n'
+    
     code += ' ' * 8
     code += "default: SGE_UNREACHABLE();\n"
     code += ' ' * 4
@@ -254,7 +358,9 @@ def generate_getter_function(name):
     return code
 
 def main():
-    cwd = sys.argv[1]
+    shader_dir_path = sys.argv[1]
+    output_file_path = sys.argv[2]
+    guard_name = sys.argv[3]
     ext = ""
 
     compile_d3d = True
@@ -283,17 +389,16 @@ def main():
     if platform.system() == "Windows":
         ext = ".exe"
 
-    renderer_dir = Path(cwd, "src/engine/renderer/")
+    shaders_dir = Path(shader_dir_path)
+    output_file = Path(output_file_path)
 
-    if not renderer_dir.exists(): return
-
-    shaders_hpp_file = Path(renderer_dir, "shaders.hpp")
-
-    shaders_dir = Path(renderer_dir, "shaders")
+    if not shaders_dir.exists():
+        print(f"Directory '{shader_dir_path}' doesn't exist")
+        return
 
     shaders_hpp_content = (
-        "#ifndef _SGE_RENDERER_SHADERS_HPP_\n"
-        "#define _SGE_RENDERER_SHADERS_HPP_\n\n"
+        f"#ifndef {guard_name}\n"
+        f"#define {guard_name}\n\n"
         "#include <cstdlib>\n"
         "#include <SGE/types/backend.hpp>\n"
         "#include <SGE/assert.hpp>\n\n"
@@ -301,6 +406,11 @@ def main():
 
     shader_names = set()
 
+    slang_executable = f"slangc{ext}"
+    slang_flags = SLANG_FLAGS + ("-I", str(shaders_dir))
+    
+    results: CompileResults = CompileResults()
+    
     for item in sorted(shaders_dir.iterdir()):
         if not item.is_file(): continue
         if item.name == "common.slang": continue
@@ -308,47 +418,40 @@ def main():
         shader_names.add(item.stem)
         
         item_path = item.resolve()
-        basename = item_path.stem.upper()
-        
-        executable = f"slangc{ext}"
-        
-        slang_flags = SLANG_FLAGS + ("-I", str(shaders_dir))
         
         if compile_d3d:
             print(f"Compiling {item} for D3D11 ...")
-            shaders_hpp_content += compile_d3d_shader(executable, item_path, slang_flags)
-        else:
-            shaders_hpp_content += f"static const char D3D11_{basename}_VERT[1] = {{'\\0'}};\n\n"
-            shaders_hpp_content += f"static const char D3D11_{basename}_FRAG[1] = {{'\\0'}};\n\n"
+            result, has_vertex, has_fragment = compile_d3d_shader(slang_executable, item_path, slang_flags)
+            shaders_hpp_content += result
+            results.d3d[item.stem] = (has_vertex, has_fragment)
             
         if compile_vulkan:
             print(f"Compiling {item} for Vulkan ...")
-            shaders_hpp_content += compile_vulkan_shader(executable, item_path, slang_flags)
-        else:
-            shaders_hpp_content += f"static const char VULKAN_{basename}_VERT[1] = {{'\\0'}};\n\n"
-            shaders_hpp_content += f"static const char VULKAN_{basename}_FRAG[1] = {{'\\0'}};\n\n"
+            result, has_vertex, has_fragment = compile_vulkan_shader(slang_executable, item_path, slang_flags)
+            shaders_hpp_content += result
+            results.vk[item.stem] = (has_vertex, has_fragment)
+            
         if compile_metal:
             print(f"Compiling {item} for Metal ...")
-            shaders_hpp_content += compile_metal_shader(executable, item_path, slang_flags)
-        else:
-            shaders_hpp_content += f"static const char METAL_{basename}_VERT[1] = {{'\\0'}};\n\n"
-            shaders_hpp_content += f"static const char METAL_{basename}_FRAG[1] = {{'\\0'}};\n\n"
+            result, has_vertex, has_fragment = compile_metal_shader(slang_executable, item_path, slang_flags)
+            shaders_hpp_content += result
+            results.metal[item.stem] = (has_vertex, has_fragment)
+            
         if compile_gl:
             print(f"Compiling {item} for OpenGL ...")
-            shaders_hpp_content += compile_opengl_shader(executable, item_path, slang_flags)
-        else:
-            shaders_hpp_content += f"static const char GL_{basename}_VERT[1] = {{'\\0'}};\n\n"
-            shaders_hpp_content += f"static const char GL_{basename}_FRAG[1] = {{'\\0'}};\n\n"
+            result, has_vertex, has_fragment = compile_opengl_shader(slang_executable, item_path, slang_flags)
+            shaders_hpp_content += result
+            results.gl[item.stem] = (has_vertex, has_fragment)
         
     shaders_hpp_content += SHADER_SOURCE_STRUCTURE_CODE
     shaders_hpp_content += '\n'
 
     for name in sorted(shader_names):
-        shaders_hpp_content += generate_getter_function(name)
+        shaders_hpp_content += generate_getter_function(name, results)
 
-    shaders_hpp_content += "#endif"
+    shaders_hpp_content += f"#endif // {guard_name}"
 
-    with open(shaders_hpp_file, "w") as f:
+    with open(output_file, "w") as f:
         f.write(shaders_hpp_content)
 
 if __name__ == "__main__":

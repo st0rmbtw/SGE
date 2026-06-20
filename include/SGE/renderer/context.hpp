@@ -13,6 +13,7 @@
 #include <SGE/types/shader_def.hpp>
 #include <SGE/types/shader_path.hpp>
 #include <SGE/types/texture.hpp>
+#include <SGE/types/framebuffer.hpp>
 #include <SGE/utils/hash.hpp>
 
 #include <LLGL/RenderSystemChild.h>
@@ -175,6 +176,8 @@ public:
 
     Texture CreateTexture(const sge::TextureConfig& config, const LLGL::ImageView* initialData = nullptr);
 
+    Framebuffer CreateFramebuffer(const sge::FramebufferConfig& config);
+
     Raw<LLGL::Texture> CreateTexture(const LLGL::TextureDescriptor& desc, const LLGL::ImageView* initialImage = nullptr) {
         return Raw<LLGL::Texture>::Create(shared_from_this(), m_context->CreateTexture(desc, initialImage));
     }
@@ -189,12 +192,26 @@ public:
     LLGL::PipelineCache* ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::filesystem::path& dir, const std::string& name, LLGL::PipelineCache& pipelineCache);
 
+    inline Raw<LLGL::RenderTarget> CreateRenderTarget(const LLGL::RenderTargetDescriptor& desc) {
+        return Raw<LLGL::RenderTarget>::Create(shared_from_this(), m_context->CreateRenderTarget(desc));
+    }
 
-    Raw<LLGL::Buffer> CreateBuffer(const LLGL::BufferDescriptor& desc, const void* initial_data = nullptr) {
+    Raw<LLGL::RenderTarget> CreateRenderTargetFromTexture(LLGL::Texture& texture) {
+        const LLGL::TextureDescriptor& textureDesc = texture.GetDesc();
+
+        LLGL::RenderTargetDescriptor targetDesc;
+        targetDesc.resolution.width = textureDesc.extent.width;
+        targetDesc.resolution.height = textureDesc.extent.height;
+        targetDesc.samples = textureDesc.samples;
+        targetDesc.colorAttachments[0] = &texture;
+        return CreateRenderTarget(targetDesc);
+    }
+
+    inline Raw<LLGL::Buffer> CreateBuffer(const LLGL::BufferDescriptor& desc, const void* initial_data = nullptr) {
         return Raw<LLGL::Buffer>::Create(shared_from_this(), m_context->CreateBuffer(desc, initial_data));
     }
 
-    Raw<LLGL::BufferArray> CreateBufferArray(std::initializer_list<LLGL::Buffer*> buffers) {
+    inline Raw<LLGL::BufferArray> CreateBufferArray(std::initializer_list<LLGL::Buffer*> buffers) {
         return Raw<LLGL::BufferArray>::Create(shared_from_this(), m_context->CreateBufferArray(buffers.size(), buffers.begin()));
     }
 
@@ -242,6 +259,10 @@ public:
 
     inline Raw<LLGL::PipelineLayout> CreatePipelineLayout(const LLGL::PipelineLayoutDescriptor& desc) {
         return Raw<LLGL::PipelineLayout>::Create(shared_from_this(), m_context->CreatePipelineLayout(desc));
+    }
+
+    inline Raw<LLGL::PipelineState> CreatePipelineState(const LLGL::GraphicsPipelineDescriptor& desc) {
+        return Raw<LLGL::PipelineState>::Create(shared_from_this(), m_context->CreatePipelineState(desc));
     }
 
     inline Raw<LLGL::ResourceHeap> CreateResourceHeap(LLGL::PipelineLayout* pipelineLayout, LLGL::ArrayView<LLGL::ResourceViewDescriptor> resource_views) {

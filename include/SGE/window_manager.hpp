@@ -64,8 +64,8 @@ namespace WindowManager {
     std::shared_ptr<sge::GlfwWindow> FindByHandle(GLFWwindow* handle);
 
     WindowMap& GetWindowMap();
-};
-
 }
+
+} // namespace sge
 
 #endif // SGE_WINDOW_MANAGER_HPP_

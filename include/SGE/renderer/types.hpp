@@ -129,6 +129,7 @@ struct AttachmentConfig {
 
     LLGL::Format format = LLGL::Format::Undefined;
     sge::Ref<LLGL::Texture> texture = nullptr;
+    long bindFlags = (LLGL::BindFlags::Sampled | LLGL::BindFlags::ColorAttachment);
     uint32_t mipLevel = 0;
     uint32_t arrayLayer = 0;
 };
@@ -157,6 +158,24 @@ struct TextureConfig {
     LLGL::Format format = LLGL::Format::RGBA8UNorm;
     uint32_t arrayLayers = 1;
     bool generateMipMaps = false;
+};
+
+struct FramebufferConfig {
+    const char* debugName = nullptr; 
+    sge::Ref<LLGL::RenderPass> renderPass;
+    LLGL::Extent2D resolution;
+    LLGL::Format format;
+
+    sge::AttachmentConfig colorAttachments[LLGL_MAX_NUM_COLOR_ATTACHMENTS];
+    sge::AttachmentConfig depthStencilAttachment;
+};
+
+struct BloomSettings {
+    float threshold = 1.0f;
+    float knee = 0.5f;
+    float intensity = 1.0f;
+    float scatter = 1.0f;
+    uint8_t maxIterations = 6;
 };
 
 struct SpriteBatchPipeline {
