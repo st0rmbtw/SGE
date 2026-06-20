@@ -166,6 +166,10 @@ void App::InitFramebuffer(LLGL::Extent2D resolution) {
 }
 
 void App::OnUpdate() {
+    if (Input::JustPressed(Key::I)) {
+        m_render_imgui = !m_render_imgui;
+    }
+
     sge::GlfwWindow* window = sge::WindowManager::GetFocusedWindow();
     if (window != nullptr) {
         const bool cursorDisabled = window->GetCursorMode() == sge::CursorMode::Disabled;
@@ -276,26 +280,28 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             commands->Draw(3, 0);
 
             #if SGE_IMGUI_ENABLED
-            GetRenderContext()->BeginImGuiFrame(*window);
-            {
-                ImGui::NewFrame();
+            if (m_render_imgui) {
+                GetRenderContext()->BeginImGuiFrame(*window);
                 {
-                    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
-                    ImGui::Begin("Bloom");
+                    ImGui::NewFrame();
                     {
-                        ImGui::DragFloat("Threshold", &m_bloom_settings.threshold, 0.05f, 0.0f, 1.0f);
-                        ImGui::DragFloat("Knee", &m_bloom_settings.knee, 0.01f, 0.0001f, 1.0f);
-                        ImGui::DragFloat("Intensity", &m_bloom_settings.intensity, 0.01f, 0.0f, 10.0f);
-                        ImGui::DragFloat("Scatter", &m_bloom_settings.scatter, 0.1f, 0.0f, 10.0f);
-                        ImGui::DragScalar("Max Iterations", ImGuiDataType_U8, &m_bloom_settings.maxIterations);
-                        ImGui::ColorPicker3("Clear Color", &m_clear_color.r);
-                        ImGui::ColorPicker3("Object Color", &m_uniforms.object_color.r, ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoPicker);
+                        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+                        ImGui::Begin("Bloom");
+                        {
+                            ImGui::DragFloat("Threshold", &m_bloom_settings.threshold, 0.05f, 0.0f, 1.0f);
+                            ImGui::DragFloat("Knee", &m_bloom_settings.knee, 0.01f, 0.0001f, 1.0f);
+                            ImGui::DragFloat("Intensity", &m_bloom_settings.intensity, 0.01f, 0.0f, 10.0f);
+                            ImGui::DragFloat("Scatter", &m_bloom_settings.scatter, 0.1f, 0.0f, 10.0f);
+                            ImGui::DragScalar("Max Iterations", ImGuiDataType_U8, &m_bloom_settings.maxIterations);
+                            ImGui::ColorPicker3("Clear Color", &m_clear_color.r);
+                            ImGui::ColorPicker3("Object Color", &m_uniforms.object_color.r, ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoPicker);
+                        }
+                        ImGui::End();
                     }
-                    ImGui::End();
+                    ImGui::Render();
                 }
-                ImGui::Render();
+                GetRenderContext()->EndImGuiFrame();
             }
-            GetRenderContext()->EndImGuiFrame();
             #endif
         }
         m_renderer->EndPass();

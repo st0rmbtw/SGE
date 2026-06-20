@@ -136,28 +136,16 @@ void sge::Renderer::InitTonemapPipelines() {
     m_tonemap_aces_pipeline = m_context->CreatePipelineState(pipelineDesc);
 }
 
-void sge::Renderer::InitTonemapTargets(LLGL::Extent2D resolution) {
-    sge::FramebufferConfig framebufferConfig;
-    framebufferConfig.format = LLGL::Format::RG11B10Float;
-    framebufferConfig.debugName = "Tonemap Framebuffer";
-    framebufferConfig.resolution.width = resolution.width;
-    framebufferConfig.resolution.height = resolution.height;
-    framebufferConfig.colorAttachments[0].format = framebufferConfig.format;
-    framebufferConfig.colorAttachments[0].bindFlags |= LLGL::BindFlags::CopyDst | LLGL::BindFlags::CopySrc;
-    m_tonemap_framebuffer = std::make_unique<sge::Framebuffer>(m_context->CreateFramebuffer(framebufferConfig));
-}
-
 void sge::Renderer::TonemapPass(sge::Framebuffer& framebuffer) {
     if (!m_tonemap_aces_pipeline)
         InitTonemapPipelines();
 
     LLGL::Extent2D resolution = framebuffer.GetResolution();
 
-    if (!m_tonemap_framebuffer || ExtentIsLessThan(m_tonemap_framebuffer->GetResolution(), resolution))
-        InitTonemapTargets(resolution);
+    auto tonemap_framebuffer = m_context->GetTemporaryFramebuffer(resolution, LLGL::Format::RG11B10Float);
 
-    m_command_buffer->SetViewport(m_tonemap_framebuffer->GetResolution());
-    BeginPass(*m_tonemap_framebuffer->GetRenderTarget());
+    m_command_buffer->SetViewport(resolution);
+    BeginPass(*tonemap_framebuffer.GetRenderTarget());
     {
         m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
         m_command_buffer->SetPipelineState(*BlitPipeline());
@@ -172,7 +160,7 @@ void sge::Renderer::TonemapPass(sge::Framebuffer& framebuffer) {
     {
         m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
         m_command_buffer->SetPipelineState(*m_tonemap_aces_pipeline);
-        m_command_buffer->SetResource(0, *m_tonemap_framebuffer->GetTexture(0));
+        m_command_buffer->SetResource(0, *tonemap_framebuffer.GetTexture(0));
         m_command_buffer->SetResource(1, *m_context->GetLinearSampler());
         m_command_buffer->Draw(3, 0);
     }
@@ -229,52 +217,40 @@ void sge::Renderer::InitBloomPipelines() {
     m_bloom_composite_pipeline = m_context->CreatePipelineState(pipelineDesc);
 }
 
-void sge::Renderer::InitBloomTargets(LLGL::Extent2D resolution) {
-    resolution.width /= 2;
-    resolution.height /= 2;
-
-    const auto maxSize = std::max(resolution.width, resolution.height);
-    const auto log2Size = static_cast<uint32_t>(std::log2(maxSize));
-    const auto mipLevels = (1u + log2Size);
-
-    sge::FramebufferConfig framebufferConfig;
-    framebufferConfig.format = LLGL::Format::RG11B10Float;
-    
-    for (uint32_t i = 0; i < mipLevels; ++i) {
-        if (resolution.width < 8 || resolution.height < 8) break;
-
-        framebufferConfig.debugName = "Bloom Framebuffer";
-        framebufferConfig.resolution.width = resolution.width;
-        framebufferConfig.resolution.height = resolution.height;
-        framebufferConfig.colorAttachments[0].format = framebufferConfig.format;
-        m_bloom_framebuffers.push_back(m_context->CreateFramebuffer(framebufferConfig));
-
-        resolution.width >>= 1;
-        resolution.height >>= 1;
-    }
-}
-
 void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSettings& settings) {
-    if (m_bloom_framebuffers.empty())
-        InitBloomTargets(framebuffer.GetResolution());
-
-    uint8_t iterations = std::min<uint8_t>(settings.maxIterations, m_bloom_framebuffers.size());
-    if (iterations == 0)
+    if (settings.maxIterations <= 0)
         return;
 
-    auto uniforms = BloomUniforms {
-        .threshold = settings.threshold,
-        .knee = settings.knee,
-        .filterRadius = settings.scatter,
-        .intensity = settings.intensity
-    };
+    if (m_prev_bloom_settings != settings) {
+        m_prev_bloom_settings = settings;
 
-    m_command_buffer->UpdateBuffer(*m_bloom_cb, 0, &uniforms, sizeof(uniforms));
+        auto uniforms = BloomUniforms {
+            .threshold = settings.threshold,
+            .knee = settings.knee,
+            .filterRadius = settings.scatter,
+            .intensity = settings.intensity
+        };
+
+        m_command_buffer->UpdateBuffer(*m_bloom_cb, 0, &uniforms, sizeof(uniforms));
+    }
 
     if (!m_bloom_prefilter_pipeline)
         InitBloomPipelines();
 
-    sge::Framebuffer& target = m_bloom_framebuffers[0];
+    LLGL::Extent2D resolution = framebuffer.GetResolution();
+    resolution.width /= 2;
+    resolution.height /= 2;
+
+    for (uint8_t i = 0; i < settings.maxIterations; ++i) {
+        if (resolution.width < 8 || resolution.height < 8) break;
+
+        m_bloom_framebuffers.emplace_back(m_context->GetTemporaryFramebuffer(resolution, LLGL::Format::RG11B10Float));
+
+        resolution.width /= 2;
+        resolution.height /= 2;
+    }
+
+    auto& target = m_bloom_framebuffers[0];
     
     m_command_buffer->SetViewport(target.GetResolution());
     BeginPass(*target.GetRenderTarget());
@@ -290,7 +266,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     EndPass();
 
     // Downsample
-    for (uint32_t i = 1; i < iterations; ++i) {  
+    for (uint32_t i = 1; i < m_bloom_framebuffers.size(); ++i) {  
         m_command_buffer->SetViewport(m_bloom_framebuffers[i].GetResolution());
         BeginPass(*m_bloom_framebuffers[i].GetRenderTarget());
         {
@@ -305,7 +281,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     }
 
     // Upsample
-    for (uint32_t i = iterations - 1; i --> 0;) {  
+    for (uint32_t i = m_bloom_framebuffers.size() - 1; i --> 0;) {  
         m_command_buffer->SetViewport(m_bloom_framebuffers[i].GetResolution());
         BeginPass(*m_bloom_framebuffers[i].GetRenderTarget());
         {
@@ -330,4 +306,6 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
         m_command_buffer->Draw(3, 0);
     }
     EndPass();
+
+    m_bloom_framebuffers.clear();
 }

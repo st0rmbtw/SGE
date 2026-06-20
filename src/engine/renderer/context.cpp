@@ -613,6 +613,29 @@ sge::Framebuffer sge::RenderContext::CreateFramebuffer(const sge::FramebufferCon
     return sge::Framebuffer(textures, renderTarget, config.renderPass);
 }
 
+sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, long bindFlags) {
+    auto key = TemporaryFramebufferKey {
+        .width = resolution.width,
+        .height = resolution.height,
+        .bindFlags = bindFlags,
+        .format = format
+    };
+
+    auto fb = m_temp_framebuffer_pool.Get(key);
+
+    if (!fb.IsValid()) {
+        sge::FramebufferConfig framebufferConfig;
+        framebufferConfig.resolution = resolution;
+        framebufferConfig.format = format;
+        framebufferConfig.colorAttachments[0].format = format;
+        framebufferConfig.colorAttachments[0].bindFlags = bindFlags;
+        fb = m_temp_framebuffer_pool.Add(key, CreateFramebuffer(framebufferConfig));
+        SGE_ASSERT(fb.IsValid());
+    }
+
+    return fb;
+}
+
 sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
     ZoneScoped;
 

@@ -16,6 +16,7 @@
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/context.hpp>
+#include <SGE/renderer/framebuffer_pool.hpp>
 #include <SGE/renderer/glfw_window.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/types.hpp>
@@ -52,6 +53,7 @@ public:
     inline void End() {
         m_command_buffer->End();
         m_command_queue->Submit(*m_command_buffer);
+        m_context->TickTemporaryFramebufferPool();
     }
 
     inline void BeginPass(LLGL::RenderTarget& target) {
@@ -138,10 +140,7 @@ public:
     }
 
 private:
-    void InitBloomTargets(LLGL::Extent2D resolution);
     void InitBloomPipelines();
-
-    void InitTonemapTargets(LLGL::Extent2D resolution);
     void InitTonemapPipelines();
 
 protected:
@@ -166,13 +165,14 @@ protected:
     
     std::shared_ptr<RenderContext> m_context;
     
-    std::vector<sge::Framebuffer> m_bloom_framebuffers;
-    std::unique_ptr<sge::Framebuffer> m_tonemap_framebuffer;
+    std::vector<sge::TemporaryFramebuffer> m_bloom_framebuffers;
     
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;
 
     LLGL::Extent2D m_viewport = LLGL::Extent2D(0, 0);
+
+    BloomSettings m_prev_bloom_settings;
 
 };
 

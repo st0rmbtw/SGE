@@ -202,6 +202,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
             m_renderer->RenderBatch(*m_batch);
 
+            #if SGE_IMGUI_ENABLED
             GetRenderContext()->BeginImGuiFrame(*window);
             {
                 ImGui::NewFrame();
@@ -289,9 +290,11 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                 ImGui::Render();
             }
             GetRenderContext()->EndImGuiFrame();
+            #endif
         }
         m_renderer->EndPass();
 
+        #if SGE_IMGUI_ENABLED
         ImGuiIO& io = ImGui::GetIO();
         ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
 
@@ -309,6 +312,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             }
             glfwMakeContextCurrent(saved_context);
         }
+        #endif
     }
     m_renderer->End();
     m_batch->Reset();

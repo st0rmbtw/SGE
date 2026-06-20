@@ -3,20 +3,21 @@
 #ifndef SGE_ENGINE_RENDERER_CONTEXT_HPP
 #define SGE_ENGINE_RENDERER_CONTEXT_HPP
 
+#include <SGE/renderer/framebuffer_pool.hpp>
 #include <SGE/renderer/glfw_window.hpp>
 #include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
 #include <SGE/types/backend.hpp>
-
+#include <SGE/types/framebuffer.hpp>
 #include <SGE/types/sampler.hpp>
 #include <SGE/types/shader_def.hpp>
 #include <SGE/types/shader_path.hpp>
 #include <SGE/types/texture.hpp>
-#include <SGE/types/framebuffer.hpp>
 #include <SGE/utils/hash.hpp>
 
 #include <LLGL/RenderSystemChild.h>
+#include <LLGL/ResourceFlags.h>
 #include <LLGL/Utils/VertexFormat.h>
 
 #include <imgui.h>
@@ -92,6 +93,7 @@ struct std::hash<RenderPassKey> {
         return seed;
     }
 };
+
 
 namespace sge {
 
@@ -318,6 +320,12 @@ public:
         return Unique<T>(shared_from_this(), resource);
     }
 
+    sge::TemporaryFramebuffer GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, long bindFlags = (LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled));
+
+    inline void TickTemporaryFramebufferPool(uint32_t max_unused_frames = 60) {
+        m_temp_framebuffer_pool.Tick(max_unused_frames);
+    }
+
 #if SGE_DEBUG
     void GetDebugInfo(LLGL::FrameProfile* profile);
 #endif
@@ -383,6 +391,8 @@ private:
     std::unordered_map<PipelineConfigKey, LLGL::PipelineState*> m_pipeline_states;
     std::unordered_map<RenderTargetKey, CachedRenderTarget> m_render_targets;
     std::unordered_map<RenderPassKey, LLGL::RenderPass*> m_render_passes;
+
+    TemporaryFramebufferPool m_temp_framebuffer_pool;
 
 #if SGE_IMGUI_ENABLED
     std::unordered_map<uint32_t, ImGuiContext*> m_imgui_context_map;

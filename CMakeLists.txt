@@ -50,6 +50,7 @@ set(SGE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/batch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/camera.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/framebuffer_pool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/glfw_window.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/renderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/renderer2d.cpp
@@ -161,19 +162,3 @@ endif()
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:Debug>:SGE_DEBUG>")
 
 target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw fmt LLGL freetype)
-
-# ========================= Embed Shaders =========================
-
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    file(GLOB_RECURSE SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders/*.*)
-
-    foreach(shader ${SHADERS})
-        add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp
-            COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.py ${CMAKE_CURRENT_SOURCE_DIR}
-            DEPENDS ${shader}
-        )
-    endforeach()
-
-    add_custom_target(EmbedShaders ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/shaders.hpp)
-endif()

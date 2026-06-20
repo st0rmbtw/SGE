@@ -178,6 +178,14 @@ struct BloomSettings {
     uint8_t maxIterations = 6;
 };
 
+inline constexpr bool operator==(const BloomSettings& a, const BloomSettings& b) noexcept {
+    return a.threshold == b.threshold &&
+           a.knee == b.knee &&
+           a.intensity == b.intensity &&
+           a.scatter == b.scatter &&
+           a.maxIterations == b.maxIterations;
+}
+
 struct SpriteBatchPipeline {
     sge::Handle<LLGL::PipelineState> additive;
     sge::Handle<LLGL::PipelineState> alpha_blend;
