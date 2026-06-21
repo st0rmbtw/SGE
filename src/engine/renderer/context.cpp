@@ -4,6 +4,7 @@
 #include <LLGL/Format.h>
 #include <LLGL/Platform/NativeHandle.h>
 #include <LLGL/ResourceFlags.h>
+#include <LLGL/TextureFlags.h>
 
 #include <SGE/assert.hpp>
 #include <SGE/defines.hpp>
@@ -565,7 +566,8 @@ sge::Texture sge::RenderContext::CreateTexture(const sge::TextureConfig& config,
     texture_desc.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::ColorAttachment;
     texture_desc.cpuAccessFlags = 0;
     texture_desc.mipLevels = config.generateMipMaps ? 0 : 1;
-    texture_desc.miscFlags = LLGL::MiscFlags::GenerateMips * config.generateMipMaps;
+    texture_desc.miscFlags = LLGL::MiscFlags::FixedSamples;
+    texture_desc.miscFlags |= LLGL::MiscFlags::GenerateMips * config.generateMipMaps;
 
     if (initialData == nullptr) {
         texture_desc.miscFlags |= LLGL::MiscFlags::NoInitialData;
@@ -584,52 +586,88 @@ sge::Framebuffer sge::RenderContext::CreateFramebuffer(const sge::FramebufferCon
     targetDesc.debugName = config.debugName;
     targetDesc.resolution = config.resolution;
     targetDesc.renderPass = config.renderPass;
-    targetDesc.samples = 1;
+    targetDesc.samples = config.samples;
 
     std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> textures;
+    std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> msTextures;
 
     LLGL::TextureDescriptor textureDesc;
     textureDesc.type = LLGL::TextureType::Texture2D;
     textureDesc.extent.width = config.resolution.width;
     textureDesc.extent.height = config.resolution.height;
-    textureDesc.format = config.format;
     textureDesc.mipLevels = 1;
 
-    for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
-        const sge::AttachmentConfig& attachment = config.colorAttachments[i];
+    if (config.samples > 1) {
+        LLGL::TextureDescriptor resolveTextureDesc = textureDesc;
 
-        sge::Ref<LLGL::Texture> texture = attachment.texture;
-        if (!texture && attachment.format != LLGL::Format::Undefined) {
-            textureDesc.bindFlags = attachment.bindFlags;
-            texture = CreateTexture(textureDesc);
+        textureDesc.type = LLGL::TextureType::Texture2DMS;
+        textureDesc.samples = config.samples;
+
+        for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
+            const sge::AttachmentConfig& attachment = config.colorAttachments[i];
+
+            sge::Ref<LLGL::Texture> resolveTexture = attachment.texture;
+            if (!resolveTexture && attachment.format != LLGL::Format::Undefined) {
+                resolveTextureDesc.format = attachment.format;
+                resolveTextureDesc.bindFlags = attachment.bindFlags;
+                resolveTexture = CreateTexture(resolveTextureDesc);
+            }
+
+            if (resolveTexture) {
+                textureDesc.format = attachment.format;
+                sge::Ref<LLGL::Texture> msTexture = CreateTexture(textureDesc);
+                
+                targetDesc.colorAttachments[i].format = attachment.format;
+                targetDesc.colorAttachments[i].texture = msTexture;
+                msTextures[i] = msTexture;
+            }
+            
+            targetDesc.resolveAttachments[i].format = attachment.format;
+            targetDesc.resolveAttachments[i].texture = resolveTexture;
+            targetDesc.resolveAttachments[i].mipLevel = attachment.mipLevel;
+            targetDesc.resolveAttachments[i].arrayLayer = attachment.arrayLayer;
+            textures[i] = resolveTexture;
         }
+    } else {
+        for (uint8_t i = 0; i < LLGL_MAX_NUM_COLOR_ATTACHMENTS; ++i) {
+            const sge::AttachmentConfig& attachment = config.colorAttachments[i];
 
-        textures[i] = texture;
-        targetDesc.colorAttachments[i].format = attachment.format;
-        targetDesc.colorAttachments[i].texture = texture;
-        targetDesc.colorAttachments[i].mipLevel = attachment.mipLevel;
-        targetDesc.colorAttachments[i].arrayLayer = attachment.arrayLayer;
+            sge::Ref<LLGL::Texture> texture = attachment.texture;
+            if (!texture && attachment.format != LLGL::Format::Undefined) {
+                textureDesc.format = attachment.format;
+                textureDesc.bindFlags = attachment.bindFlags;
+                texture = CreateTexture(textureDesc);
+            }
+
+            targetDesc.colorAttachments[i].format = attachment.format;
+            targetDesc.colorAttachments[i].texture = texture;
+            targetDesc.colorAttachments[i].mipLevel = attachment.mipLevel;
+            targetDesc.colorAttachments[i].arrayLayer = attachment.arrayLayer;
+
+            textures[i] = texture;
+        }
     }
 
-    return sge::Framebuffer(textures, CreateRenderTarget(targetDesc), config.renderPass);
+    return sge::Framebuffer(CreateRenderTarget(targetDesc), textures, msTextures, config.renderPass);
 }
 
-sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, long bindFlags) {
+sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, uint8_t samples, long bindFlags) {
     auto key = TemporaryFramebufferKey {
         .width = resolution.width,
         .height = resolution.height,
         .bindFlags = bindFlags,
-        .format = format
+        .format = format,
+        .samples = samples
     };
 
     auto fb = m_temp_framebuffer_pool.Get(key);
 
     if (!fb.IsValid()) {
         sge::FramebufferConfig framebufferConfig;
-        framebufferConfig.resolution = resolution;
-        framebufferConfig.format = format;
         framebufferConfig.colorAttachments[0].format = format;
         framebufferConfig.colorAttachments[0].bindFlags = bindFlags;
+        framebufferConfig.resolution = resolution;
+        framebufferConfig.samples = samples;
         fb = m_temp_framebuffer_pool.Add(key, CreateFramebuffer(framebufferConfig));
         SGE_ASSERT(fb.IsValid());
     }

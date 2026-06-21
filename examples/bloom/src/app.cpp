@@ -241,7 +241,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     {
         commands->UpdateBuffer(*m_uniform_buffer, 0, &m_uniforms, sizeof(UniformBuffer));
 
-        auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), LLGL::Format::RG11B10Float, LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled | LLGL::BindFlags::CopySrc | LLGL::BindFlags::CopyDst);
+        auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), LLGL::Format::RG11B10Float, m_config.samples, LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled | LLGL::BindFlags::CopySrc | LLGL::BindFlags::CopyDst);
 
         m_renderer->BeginPass(*framebuffer.GetRenderTarget());
         {

@@ -5,6 +5,7 @@
 
 #include <SGE/renderer/resource.hpp>
 
+#include <LLGL/Constants.h>
 #include <LLGL/RenderPass.h>
 #include <LLGL/RenderPassFlags.h>
 #include <LLGL/RenderTarget.h>
@@ -18,14 +19,21 @@ class Framebuffer {
 public:
     Framebuffer() = default;
 
-    explicit Framebuffer(sge::Ref<LLGL::Texture> texture, sge::Ref<LLGL::RenderTarget> target, sge::Ref<LLGL::RenderPass> renderPass = nullptr) :
+    explicit Framebuffer(sge::Ref<LLGL::RenderTarget> target, sge::Ref<LLGL::Texture> texture, sge::Ref<LLGL::RenderPass> renderPass = nullptr) :
         m_textures{ std::move(texture) },
         m_target(std::move(target)),
         m_render_pass(std::move(renderPass))
     {}
 
-    explicit Framebuffer(std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> textures, sge::Ref<LLGL::RenderTarget> target, sge::Ref<LLGL::RenderPass> renderPass = nullptr) :
+    explicit Framebuffer(sge::Ref<LLGL::RenderTarget> target, std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> textures, sge::Ref<LLGL::RenderPass> renderPass = nullptr) :
         m_textures(std::move(textures)),
+        m_target(std::move(target)),
+        m_render_pass(std::move(renderPass))
+    {}
+
+    explicit Framebuffer(sge::Ref<LLGL::RenderTarget> target, std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> textures, std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> msTextures, sge::Ref<LLGL::RenderPass> renderPass = nullptr) :
+        m_textures(std::move(textures)),
+        m_ms_textures(std::move(msTextures)),
         m_target(std::move(target)),
         m_render_pass(std::move(renderPass))
     {}
@@ -62,6 +70,7 @@ public:
 
 private:
     std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> m_textures;
+    std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> m_ms_textures;
     sge::Ref<LLGL::RenderTarget> m_target;
     sge::Ref<LLGL::RenderPass> m_render_pass;
 };

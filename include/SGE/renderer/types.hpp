@@ -164,13 +164,13 @@ struct TextureConfig {
 };
 
 struct FramebufferConfig {
+    sge::AttachmentConfig colorAttachments[LLGL_MAX_NUM_COLOR_ATTACHMENTS];
+    sge::AttachmentConfig depthStencilAttachment;
+
     const char* debugName = nullptr; 
     sge::Ref<LLGL::RenderPass> renderPass;
     LLGL::Extent2D resolution;
-    LLGL::Format format;
-
-    sge::AttachmentConfig colorAttachments[LLGL_MAX_NUM_COLOR_ATTACHMENTS];
-    sge::AttachmentConfig depthStencilAttachment;
+    uint8_t samples = 1;
 };
 
 struct ShaderConfig {

@@ -15,10 +15,17 @@ namespace sge {
         uint32_t height;
         long bindFlags;
         LLGL::Format format;
+        uint8_t samples;
     };
     
     inline constexpr bool operator==(const sge::TemporaryFramebufferKey& a, const sge::TemporaryFramebufferKey& b) {
-        return a.width == b.width && a.height == b.height && a.bindFlags == b.bindFlags && a.format == b.format;
+        return (
+            a.width == b.width &&
+            a.height == b.height &&
+            a.bindFlags == b.bindFlags &&
+            a.format == b.format &&
+            a.samples == b.samples
+        );
     }
 } // namespace sge
 
@@ -32,6 +39,7 @@ struct std::hash<sge::TemporaryFramebufferKey> {
         hash_combine(hash, key.width);
         hash_combine(hash, key.bindFlags);
         hash_combine(hash, static_cast<int>(key.format));
+        hash_combine(hash, key.samples);
         return hash;
     }
 };

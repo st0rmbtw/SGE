@@ -325,7 +325,7 @@ public:
         return Unique<T>(shared_from_this(), resource);
     }
 
-    sge::TemporaryFramebuffer GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, long bindFlags = (LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled));
+    sge::TemporaryFramebuffer GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, uint8_t samples = 1, long bindFlags = (LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled));
 
     inline void TickTemporaryFramebufferPool(uint32_t max_unused_frames = 60) {
         m_temp_framebuffer_pool.Tick(max_unused_frames);
