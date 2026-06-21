@@ -88,11 +88,6 @@ public:
         return m_flip_y;
     }
 
-    [[nodiscard]]
-    inline bool ignore_camera_zoom() const noexcept {
-        return m_ignore_camera_zoom;
-    }
-
     [[nodiscard]] virtual inline glm::vec2 size() const = 0;
 
     [[nodiscard]] inline sge::Rect calculate_aabb() const noexcept {
@@ -154,11 +149,6 @@ public:
         return *this;
     }
 
-    inline BaseSprite& set_ignore_camera_zoom(bool ignore) noexcept {
-        m_ignore_camera_zoom = ignore;
-        return *this;
-    }
-
     inline BaseSprite& set_z(float z) noexcept {
         m_z = z;
         return *this;
@@ -176,7 +166,6 @@ protected:
     Anchor m_anchor = Anchor::Center;
     bool m_flip_x = false;
     bool m_flip_y = false;
-    bool m_ignore_camera_zoom = false;
 };
 
 class Sprite : public BaseSprite {

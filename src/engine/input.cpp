@@ -63,7 +63,7 @@ void sge::Input::ProcessEvent(const InputEvent& inputEvent) {
     break;
     case InputEventType::CursorMove: {
         const glm::vec2 newPosition = inputEvent.CursorMoveEvent.Pos;
-        const glm::vec2 delta = input_state.cursor_position - newPosition;
+        const glm::vec2 delta = newPosition - input_state.cursor_position;
 
         input_state.mouse_delta += delta;
         input_state.cursor_position = newPosition;

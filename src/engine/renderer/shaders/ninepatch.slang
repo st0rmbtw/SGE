@@ -32,7 +32,6 @@ struct VSOutput
 };
 
 static const uint FLAG_UI = 1 << 0;
-static const uint FLAG_IGNORE_CAMERA_ZOOM = 1 << 1;
 
 [shader("vertex")]
 VSOutput VS(VSInput inp)
@@ -83,10 +82,9 @@ VSOutput VS(VSInput inp)
     transform[3][1] = transform[3][1] * inp.i_output_size[1];
 
     const int flags = inp.i_flags;
-    const bool ignore_camera_zoom = (flags & FLAG_IGNORE_CAMERA_ZOOM) == FLAG_IGNORE_CAMERA_ZOOM;
     const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
 
-    const float4x4 mvp = mul(is_ui ? uniforms.screen_projection : ignore_camera_zoom ? uniforms.nonscale_view_projection : uniforms.view_projection, transform);
+    const float4x4 mvp = mul(is_ui ? uniforms.screen_projection : uniforms.view_projection, transform);
     const float4 uv_offset_scale = inp.i_uv_offset_scale;
 
     VSOutput outp;

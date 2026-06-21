@@ -85,13 +85,8 @@ protected: // Callbacks
             ImGuiIO& io = ImGui::GetIO();
 
             if (io.WantCaptureMouse && (event.Type == sge::InputEventType::MouseButton ||
-                                        event.Type == sge::InputEventType::Scroll)
-            ) {
-                return;
-            }
-
-            if (io.WantCaptureMouse && (event.Type == sge::InputEventType::CursorMove &&
-                                        window->GetCursorMode() != sge::CursorMode::Disabled)
+                                        event.Type == sge::InputEventType::Scroll ||
+                                        event.Type == sge::InputEventType::CursorMove)
             ) {
                 return;
             }

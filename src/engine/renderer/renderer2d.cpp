@@ -14,7 +14,6 @@ namespace {
 namespace SpriteFlags {
     enum : uint8_t {
         UI = 0,
-        IgnoreCameraZoom,
     };
 };
 
@@ -153,7 +152,9 @@ BatchVertexFormats LineBatchVertexFormats(const sge::RenderBackend backend) {
 }
 
 SGE_FORCE_INLINE sge::Ref<LLGL::Shader> CreateBatchVertexShader(const std::shared_ptr<sge::RenderContext>& context, const ShaderSourceCode& source_code, const BatchVertexFormats& vertex_formats) {
-    return context->CreateShader(sge::ShaderType::Vertex, "VS", source_code.vs_source, source_code.vs_size, vertex_formats.total_attributes());
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = vertex_formats.total_attributes();
+    return context->CreateShader(sge::ShaderType::Vertex, "VS", source_code.vs_source, source_code.vs_size, shaderConfig);
 }
 
 SGE_FORCE_INLINE sge::Handle<LLGL::PipelineState> GetPipelineByBlendMode(sge::BlendMode blend_mode, const sge::SpriteBatchPipeline& pipeline) {
@@ -472,9 +473,12 @@ sge::Handle<LLGL::PipelineState> sge::Renderer2D::CreateShapeBatchPipeline(bool 
     ShaderSourceCode shader = GetShapeShaderSourceCode(backend);
     BatchVertexFormats vertex_formats = ShapeBatchVertexFormats(backend);
 
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = vertex_formats.total_attributes();
+
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "ShapeBatch Pipeline";
-    pipelineConfig.vertexShader = GetRenderContext()->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, vertex_formats.total_attributes());
+    pipelineConfig.vertexShader = GetRenderContext()->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
     pipelineConfig.pixelShader = GetRenderContext()->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     pipelineConfig.layout = GetRenderContext()->CreatePipelineLayout(pipelineLayoutDesc);
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
@@ -505,11 +509,14 @@ sge::Handle<LLGL::PipelineState> sge::Renderer2D::CreateLineBatchPipeline(bool e
 
     ShaderSourceCode shader = GetLineShaderSourceCode(backend);
     BatchVertexFormats vertex_formats = LineBatchVertexFormats(backend);
+    
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = vertex_formats.total_attributes();
 
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "LineBatch Pipeline";
     pipelineConfig.layout = GetRenderContext()->CreatePipelineLayout(pipelineLayoutDesc);
-    pipelineConfig.vertexShader = GetRenderContext()->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, vertex_formats.total_attributes());
+    pipelineConfig.vertexShader = GetRenderContext()->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
     pipelineConfig.pixelShader = GetRenderContext()->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineConfig.scissorTestEnabled = enable_scissor;
@@ -879,7 +886,6 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
             }
 
             uint8_t flags = 0;
-            flags |= sprite_data.ignore_camera_zoom << SpriteFlags::IgnoreCameraZoom;
             flags |= batch.IsUi() << SpriteFlags::UI;
 
             SpriteInstance* buffer = m_sprite_batch_data.GetBufferAndAdvance();

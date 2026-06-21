@@ -36,8 +36,6 @@ struct SGE_ALIGN(16) GlobalUniforms {
     glm::mat4 screen_projection_matrix;
     glm::mat4 view_projection_matrix;
     glm::mat4 inv_view_proj_matrix;
-    glm::mat4 nonscale_view_projection_matrix;
-    glm::mat4 nonscale_projection_matrix;
     glm::vec2 camera_position;
     glm::uvec2 window_size;
 };
@@ -149,11 +147,13 @@ protected:
     Unique<LLGL::Buffer> m_uniform_buffer;
     Unique<LLGL::Buffer> m_bloom_cb;
 
+    Unique<LLGL::RenderPass> m_bloom_render_pass;
     Unique<LLGL::PipelineState> m_bloom_prefilter_pipeline;
     Unique<LLGL::PipelineState> m_bloom_downsample_pipeline;
     Unique<LLGL::PipelineState> m_bloom_upsample_pipeline;
     Unique<LLGL::PipelineState> m_bloom_composite_pipeline;
 
+    Unique<LLGL::RenderPass> m_tonemap_render_pass;
     Unique<LLGL::PipelineState> m_tonemap_aces_pipeline;
     
     Ref<LLGL::Buffer> m_fullscreen_triangle_vertex_buffer;
@@ -162,6 +162,7 @@ protected:
     Ref<LLGL::Shader> m_blit_pixel_shader;
     Ref<LLGL::PipelineLayout> m_blit_pipeline_layout;
     Ref<LLGL::PipelineState> m_blit_pipeline;
+    Ref<LLGL::RenderPass> m_blit_render_pass;
     
     std::shared_ptr<RenderContext> m_context;
     
@@ -172,7 +173,7 @@ protected:
 
     LLGL::Extent2D m_viewport = LLGL::Extent2D(0, 0);
 
-    BloomSettings m_prev_bloom_settings;
+    BloomSettings m_prev_bloom_settings = { .maxIterations = 0 };
 
 };
 

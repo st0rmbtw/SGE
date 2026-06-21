@@ -257,7 +257,11 @@ bool CreatePipelineObjects() {
     });
 
     ShaderSourceCode shader = GetImguiShaderSourceCode(bd->Context->Backend());
-    sge::Ref<LLGL::Shader> vertexShader = bd->Context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, bd->VertexFormat.attributes);
+
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = bd->VertexFormat.attributes;
+
+    sge::Ref<LLGL::Shader> vertexShader = bd->Context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
     sge::Ref<LLGL::Shader> pixelShader = bd->Context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
 
     sge::GraphicsPipelineConfig config;

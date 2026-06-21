@@ -146,7 +146,6 @@ uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::v
         .size = sprite.size(),
         .offset = sprite.anchor().to_vec2(),
         .outline_thickness = sprite.outline_thickness(),
-        .ignore_camera_zoom = sprite.ignore_camera_zoom(),
     };
 
     m_draw_commands.emplace_back(command, texture_with_sampler, scissor, order, m_blend_mode);

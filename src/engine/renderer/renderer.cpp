@@ -39,11 +39,6 @@ struct BloomUniforms {
     float intensity;
 };
 
-
-inline bool ExtentIsLessThan(const LLGL::Extent2D& a, const LLGL::Extent2D& b) {
-    return a.width < b.width || a.height < b.height;
-}
-
 } // namespace
 
 sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_context(context) {
@@ -71,8 +66,11 @@ sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_conte
     };
     m_fullscreen_triangle_vertex_buffer = context->CreateVertexBuffer(vertices, m_fullscreen_triangle_vertex_format);
 
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = m_fullscreen_triangle_vertex_format.attributes;
+
     ShaderSourceCode shader = GetFullscreenTriangleShaderSourceCode(backend);
-    m_fullscreen_triangle_vertex_shader = context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, m_fullscreen_triangle_vertex_format.attributes);
+    m_fullscreen_triangle_vertex_shader = context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
     m_blit_pixel_shader = context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
 
     LLGL::PipelineLayoutDescriptor layoutDesc;
@@ -82,10 +80,16 @@ sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_conte
     });
     m_blit_pipeline_layout = m_context->CreatePipelineLayout(layoutDesc);
 
+    LLGL::RenderPassDescriptor renderPassDesc;
+    renderPassDesc.colorAttachments[0].format = LLGL::Format::RGBA8UNorm;
+    renderPassDesc.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
+    m_blit_render_pass = m_context->CreateRenderPass(renderPassDesc);
+
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.pipelineLayout = m_blit_pipeline_layout;
     pipelineDesc.vertexShader = m_fullscreen_triangle_vertex_shader;
     pipelineDesc.fragmentShader = m_blit_pixel_shader;
+    pipelineDesc.renderPass = m_blit_render_pass;
     pipelineDesc.indexFormat = LLGL::Format::Undefined;
     pipelineDesc.depth.testEnabled = false;
     pipelineDesc.depth.writeEnabled = false;
@@ -105,9 +109,7 @@ void sge::Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) 
         .screen_projection_matrix = camera.get_screen_projection_matrix(),
         .view_projection_matrix = camera.get_view_projection_matrix(),
         .inv_view_proj_matrix = camera.get_inv_view_projection_matrix(),
-        .nonscale_view_projection_matrix = camera.get_nonscale_view_projection_matrix(),
-        .nonscale_projection_matrix = camera.get_nonscale_projection_matrix(),
-        .camera_position = camera.position(),
+        .camera_position = camera.GetTransform().translation,
         .window_size = camera.viewport()
     };
 
@@ -124,8 +126,14 @@ void sge::Renderer::InitTonemapPipelines() {
         sge::BindingLayoutItem::Sampler(5, "MainSampler", LLGL::StageFlags::FragmentStage),
     });
 
+    LLGL::RenderPassDescriptor renderPassDesc;
+    renderPassDesc.colorAttachments[0].format = LLGL::Format::RG11B10Float;
+    renderPassDesc.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
+    m_tonemap_render_pass = m_context->CreateRenderPass(renderPassDesc);
+
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
+    pipelineDesc.renderPass = m_tonemap_render_pass;
     pipelineDesc.vertexShader = FullscreenTriangleVertexShader();
     pipelineDesc.indexFormat = LLGL::Format::Undefined;
     pipelineDesc.depth.testEnabled = false;
@@ -175,26 +183,37 @@ void sge::Renderer::InitBloomPipelines() {
         sge::BindingLayoutItem::Sampler(5, "MainSampler", LLGL::StageFlags::FragmentStage),
     });
 
+    LLGL::RenderPassDescriptor renderPassDesc;
+    renderPassDesc.colorAttachments[0].format = LLGL::Format::RG11B10Float;
+    renderPassDesc.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
+    m_bloom_render_pass = m_context->CreateRenderPass(renderPassDesc);
+    
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.fragment.outputAttribs = {
+        LLGL::FragmentAttribute{ "SV_Target", LLGL::Format::RG11B10Float, 0, LLGL::SystemValue::Color }
+    };
+
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
     pipelineDesc.pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
+    pipelineDesc.renderPass = m_bloom_render_pass;
     pipelineDesc.vertexShader = FullscreenTriangleVertexShader();
     pipelineDesc.indexFormat = LLGL::Format::Undefined;
     pipelineDesc.depth.testEnabled = false;
     pipelineDesc.depth.writeEnabled = false;
-    
+
     // Prefilter Pipeline
     ShaderSourceCode shaderSource = GetBloomPrefilterShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size);
+    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     m_bloom_prefilter_pipeline = m_context->CreatePipelineState(pipelineDesc);
 
     // Downsample Pipeline
     shaderSource = GetBloomDownsampleShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size);
+    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     m_bloom_downsample_pipeline = m_context->CreatePipelineState(pipelineDesc);
 
     // Upsample Pipeline
     shaderSource = GetBloomUpsampleShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size);
+    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     pipelineDesc.blend.targets[0] = LLGL::BlendTargetDescriptor {
         .blendEnabled = true,
         .srcColor = LLGL::BlendOp::One,
@@ -206,7 +225,7 @@ void sge::Renderer::InitBloomPipelines() {
 
     // Composite Pipeline
     shaderSource = GetBloomCompositeShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size);
+    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     pipelineDesc.blend.targets[0] = LLGL::BlendTargetDescriptor {
         .blendEnabled = true,
         .srcColor = LLGL::BlendOp::One,

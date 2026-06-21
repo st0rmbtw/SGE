@@ -9,6 +9,7 @@
 #include <SGE/types/blend_mode.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/shape.hpp>
+#include <SGE/types/transform.hpp>
 #include <SGE/types/window_settings.hpp>
 
 #include <glm/trigonometric.hpp>
@@ -80,6 +81,8 @@ App::~App() {
 void App::OnUpdate() {
     const glm::uvec2 window_size = m_camera.viewport();
 
+    const sge::Transform& camera_transform = m_camera.GetTransform();
+
     Clay_SetLayoutDimensions(Clay_Dimensions {
         .width = static_cast<float>(window_size.x),
         .height = static_cast<float>(window_size.y)
@@ -92,13 +95,13 @@ void App::OnUpdate() {
         m_camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
 
         const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::CursorPosition());
-        const glm::vec2 length = mouse_pos - m_camera.position();
+        const glm::vec2 length = mouse_pos - glm::vec2(camera_transform.translation);
         const glm::vec2 scaledLength = length * zoom_factor;
         const glm::vec2 deltaLength = length - scaledLength;
 
         const sge::Rect& area = m_camera.get_projection_area();
 
-        const glm::vec2 new_position = m_camera.position() + deltaLength;
+        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + deltaLength;
         m_camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size) - area.size()));
     }
 
@@ -106,9 +109,7 @@ void App::OnUpdate() {
         const sge::Rect& area = m_camera.get_projection_area();
         const glm::vec2 half_screen_size = glm::vec2(window_size) / 2.0f;
 
-        const glm::vec2 dir = glm::vec2(m_camera.right(), m_camera.down());
-
-        const glm::vec2 new_position = m_camera.position() - Input::MouseDelta() * m_camera.zoom() * dir;
+        const glm::vec2 new_position = glm::vec2(camera_transform.translation) - Input::MouseDelta() * m_camera.zoom() * glm::vec2(-1.f, 1.f);
         m_camera.set_position(glm::clamp(new_position, -area.min, area.max));
         m_camera.set_position(new_position);
     }
@@ -117,8 +118,6 @@ void App::OnUpdate() {
         m_camera.set_position(glm::vec2(0.0f));
         m_camera.set_zoom(1.0f);
     }
-
-    m_camera.update();
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {

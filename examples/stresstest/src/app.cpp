@@ -180,8 +180,6 @@ void App::DrawContent(LLGL::Extent2D viewport) {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-    m_camera.set_viewport(window->GetSize());
-
     m_batch->BeginOrderMode();
     {
         DrawContent(window->GetSize());

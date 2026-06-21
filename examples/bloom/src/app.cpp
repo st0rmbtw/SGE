@@ -1,15 +1,17 @@
 #include "app.hpp"
-#include "SGE/types/binding_layout.hpp"
 #include "shaders.hpp"
 
 #include <SGE/engine.hpp>
 #include <SGE/input.hpp>
+#include <SGE/math/math.hpp>
+#include <SGE/math/quaternion.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
 #include <SGE/types/attributes.hpp>
+#include <SGE/types/binding_layout.hpp>
 #include <SGE/types/blend_mode.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/cursor_mode.hpp>
@@ -61,12 +63,11 @@ bool App::OnInit() {
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
 
-    m_uniforms.projection_matrix = glm::perspectiveLH_ZO(glm::radians(45.0f), 1280.0f / 720.0f, 0.001f, 100.0f);
+    m_uniforms.projection_matrix = glm::perspectiveRH_ZO(glm::radians(45.0f), 1280.0f / 720.0f, 0.001f, 100.0f);
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
     InitPipeline();
-    InitFramebuffer(window->GetSize());
 
     window->ShowWindow();
 
@@ -87,9 +88,12 @@ void App::InitPipeline() {
 
     ShaderSourceCode sourceCode = GetBasicShaderSourceCode(GetRenderContext()->Backend());
 
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = vertexFormat.attributes;
+
     sge::GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.layout = context->CreatePipelineLayout(layoutDesc);
-    pipelineConfig.vertexShader = context->CreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size, vertexFormat.attributes);
+    pipelineConfig.vertexShader = context->CreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size, shaderConfig);
     pipelineConfig.pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", sourceCode.fs_source, sourceCode.fs_size);
     pipelineConfig.cullMode = LLGL::CullMode::Back;
 
@@ -156,15 +160,6 @@ void App::InitPipeline() {
     m_uniform_buffer = GetRenderContext()->CreateConstantBuffer(sizeof(UniformBuffer));
 }
 
-void App::InitFramebuffer(LLGL::Extent2D resolution) {
-    sge::FramebufferConfig framebufferConfig;
-    framebufferConfig.format = LLGL::Format::RG11B10Float;
-    framebufferConfig.resolution = resolution;
-    framebufferConfig.colorAttachments[0].format = LLGL::Format::RG11B10Float;
-    framebufferConfig.colorAttachments[0].bindFlags |= LLGL::BindFlags::CopySrc | LLGL::BindFlags::CopyDst;
-    m_postprocess_framebuffer = std::make_unique<sge::Framebuffer>(GetRenderContext()->CreateFramebuffer(framebufferConfig));
-}
-
 void App::OnUpdate() {
     if (Input::JustPressed(Key::I)) {
         m_render_imgui = !m_render_imgui;
@@ -189,25 +184,18 @@ void App::OnUpdate() {
     float prev_yaw = m_yaw;
     float prev_pitch = m_pitch;
 
-    m_yaw += Input::MouseDelta().x * 0.05f;
-    m_pitch += Input::MouseDelta().y * 0.05f;
+    m_yaw -= Input::MouseDelta().x * 0.05f;
+    m_pitch -= Input::MouseDelta().y * 0.05f;
 
-    if (!sge::approx_equals(prev_yaw, m_yaw))
+    if (!sge::ApproxEquals(prev_yaw, m_yaw))
         changed = true;
-    if (!sge::approx_equals(prev_pitch, m_pitch))
+    if (!sge::ApproxEquals(prev_pitch, m_pitch))
         changed = true;
-
-    const glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 
     if (changed) {
         m_yaw = std::fmod(m_yaw, 360.0f);
         m_pitch = glm::clamp(m_pitch, -89.0f, 89.0f);
-
-        glm::vec3 cameraDir;
-        cameraDir.x = glm::cos(glm::radians(m_yaw)) * glm::cos(glm::radians(m_pitch));
-        cameraDir.y = glm::sin(glm::radians(m_pitch));
-        cameraDir.z = glm::sin(glm::radians(m_yaw)) * glm::cos(glm::radians(m_pitch));
-        m_camera_forward = glm::normalize(cameraDir);
+        m_transform.rotation = sge::Quaternion::FromEuler(glm::radians(m_yaw), glm::radians(m_pitch), 0.f);
     }
 
     float speed = 1.0f;
@@ -216,34 +204,32 @@ void App::OnUpdate() {
     }
 
     if (Input::Pressed(sge::Key::W)) {
-        m_camera_pos += m_camera_forward * speed * dt;
+        m_transform.translation += m_transform.Forward() * speed * dt;
         changed = true;
     }
     if (Input::Pressed(sge::Key::S)) {
-        m_camera_pos -= m_camera_forward * speed * dt;
+        m_transform.translation -= m_transform.Forward() * speed * dt;
         changed = true;
     }
     if (Input::Pressed(sge::Key::D)) {
-        glm::vec3 right = glm::normalize(glm::cross(up, m_camera_forward));
-        m_camera_pos += right * speed * dt;
+        m_transform.translation += m_transform.Right() * speed * dt;
         changed = true;
     }
     if (Input::Pressed(sge::Key::A)) {
-        glm::vec3 right = glm::normalize(glm::cross(up, m_camera_forward));
-        m_camera_pos -= right * speed * dt;
+        m_transform.translation -= m_transform.Right() * speed * dt;
         changed = true;
     }
     if (Input::Pressed(sge::Key::Space)) {
-        m_camera_pos += up * speed * dt;
+        m_transform.translation += m_transform.Up() * speed * dt;
         changed = true;
     }
     if (Input::Pressed(sge::Key::LeftShift)) {
-        m_camera_pos -= up * speed * dt;
+        m_transform.translation -= m_transform.Up() * speed * dt;
         changed = true;
     }
 
     if (changed) {
-        m_uniforms.view_matrix = glm::lookAtLH(m_camera_pos, m_camera_pos + m_camera_forward, up);
+        m_uniforms.view_matrix = glm::inverse(m_transform.ComputeMatrix());
     }
 }
 
@@ -255,10 +241,12 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     {
         commands->UpdateBuffer(*m_uniform_buffer, 0, &m_uniforms, sizeof(UniformBuffer));
 
-        m_renderer->BeginPass(*m_postprocess_framebuffer->GetRenderTarget());
+        auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), LLGL::Format::RG11B10Float, LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled | LLGL::BindFlags::CopySrc | LLGL::BindFlags::CopyDst);
+
+        m_renderer->BeginPass(*framebuffer.GetRenderTarget());
         {
             m_renderer->Clear(LLGL::ClearValue(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f));
-            commands->SetViewport(m_postprocess_framebuffer->GetResolution());
+            commands->SetViewport(framebuffer.GetResolution());
 
             commands->SetVertexBuffer(*m_vertex_buffer);
             commands->SetPipelineState(context->GetOrCreatePipeline(m_pipeline_handle));
@@ -267,15 +255,15 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         }
         m_renderer->EndPass();
 
-        m_renderer->BloomPass(*m_postprocess_framebuffer, m_bloom_settings);
-        m_renderer->TonemapPass(*m_postprocess_framebuffer);
+        m_renderer->BloomPass(framebuffer, m_bloom_settings);
+        m_renderer->TonemapPass(framebuffer);
 
         m_renderer->BeginPass(window);
         {
             commands->SetViewport(window->GetSize());
             commands->SetPipelineState(context->GetOrCreatePipeline(m_postprocess_pipeline_handle));
             commands->SetVertexBuffer(*m_renderer->FullscreenTriangleVertexBuffer());
-            commands->SetResource(0, *m_postprocess_framebuffer->GetTexture(0));
+            commands->SetResource(0, *framebuffer.GetTexture(0));
             commands->SetResource(1, *context->GetNearestSampler());
             commands->Draw(3, 0);
 
@@ -288,7 +276,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
                         ImGui::Begin("Bloom");
                         {
-                            ImGui::DragFloat("Threshold", &m_bloom_settings.threshold, 0.05f, 0.0f, 1.0f);
+                            ImGui::DragFloat("Threshold", &m_bloom_settings.threshold, 0.05f, 0.0f, 100.0f);
                             ImGui::DragFloat("Knee", &m_bloom_settings.knee, 0.01f, 0.0001f, 1.0f);
                             ImGui::DragFloat("Intensity", &m_bloom_settings.intensity, 0.01f, 0.0f, 10.0f);
                             ImGui::DragFloat("Scatter", &m_bloom_settings.scatter, 0.1f, 0.0f, 10.0f);

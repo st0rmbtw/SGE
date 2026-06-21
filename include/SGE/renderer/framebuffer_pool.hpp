@@ -30,6 +30,7 @@ struct std::hash<sge::TemporaryFramebufferKey> {
         hash_combine(hash, key.width);
         hash_combine(hash, key.height);
         hash_combine(hash, key.width);
+        hash_combine(hash, key.bindFlags);
         hash_combine(hash, static_cast<int>(key.format));
         return hash;
     }
@@ -111,6 +112,11 @@ public:
     [[nodiscard]]
     inline bool IsValid() const noexcept {
         return m_entry != nullptr;
+    }
+
+    [[nodiscard]]
+    inline operator sge::Framebuffer&() const noexcept {
+        return *m_entry->framebuffer;
     }
 
     void Release();

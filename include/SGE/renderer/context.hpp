@@ -139,6 +139,7 @@ public:
 
 #if SGE_IMGUI_ENABLED
     ImGuiContext* GetOrCreateImGuiContext(GlfwWindow& window);
+    ImGuiContext* GetImGuiContext(GlfwWindow& window);
     void ReleaseImGuiContext(const GlfwWindow& window);
 #endif
 
@@ -188,8 +189,8 @@ public:
         return Texture(m_texture_index++, texture.size(), sampler, texture.internal());
     }
 
-    Raw<LLGL::Shader> LoadShaderFromFile(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
-    Raw<LLGL::Shader> CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t length, const std::vector<LLGL::VertexAttribute>& vertex_attributes = {});
+    Raw<LLGL::Shader> LoadShaderFromFile(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const sge::ShaderConfig& config = {});
+    Raw<LLGL::Shader> CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t length, const sge::ShaderConfig& config = {});
 
     LLGL::PipelineCache* ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::filesystem::path& dir, const std::string& name, LLGL::PipelineCache& pipelineCache);
@@ -265,6 +266,10 @@ public:
 
     inline Raw<LLGL::PipelineState> CreatePipelineState(const LLGL::GraphicsPipelineDescriptor& desc) {
         return Raw<LLGL::PipelineState>::Create(shared_from_this(), m_context->CreatePipelineState(desc));
+    }
+
+    inline Raw<LLGL::RenderPass> CreateRenderPass(const LLGL::RenderPassDescriptor& desc) {
+        return Raw<LLGL::RenderPass>::Create(shared_from_this(), m_context->CreateRenderPass(desc));
     }
 
     inline Raw<LLGL::ResourceHeap> CreateResourceHeap(LLGL::PipelineLayout* pipelineLayout, LLGL::ArrayView<LLGL::ResourceViewDescriptor> resource_views) {

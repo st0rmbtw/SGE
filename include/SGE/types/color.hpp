@@ -19,8 +19,8 @@ struct Srgba;
 
 namespace detail {
     inline float lerp_hue(float a, float b, float t) {
-        float diff = sge::rem_euclid(b - a + 180.0f, 360.0f) - 180.0f;
-        return sge::rem_euclid(a + diff * t, 360.0f);
+        float diff = sge::RemEuclid(b - a + 180.0f, 360.0f) - 180.0f;
+        return sge::RemEuclid(a + diff * t, 360.0f);
     }
 
     inline LinearRgba hsla_to_linear_rgba(const Hsla& hlsa);

@@ -63,7 +63,6 @@ struct DrawCommandSprite {
     glm::vec2 size;
     glm::vec2 offset;
     float outline_thickness;
-    bool ignore_camera_zoom;
 };
 
 struct DrawCommandNinePatch {

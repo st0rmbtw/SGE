@@ -105,7 +105,6 @@ void App::OnUpdate() {
             const LLGL::Extent2D size = window.value()->GetContentSize();
             m_cameras[id] = sge::Camera(sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });
             m_cameras[id].set_viewport(size.width, size.height);
-            m_cameras[id].update();
         }
     }
 
@@ -126,6 +125,7 @@ void App::OnUpdate() {
         return;
 
     sge::Camera& camera = m_cameras[window->GetID()];
+    sge::Transform& camera_transform = camera.GetTransform();
 
     for (const float scroll : Input::ScrollEvents()) {
         const float zoom_factor = glm::pow(0.75f, scroll);
@@ -134,24 +134,21 @@ void App::OnUpdate() {
         camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
 
         const glm::vec2 mouse_pos = camera.screen_to_world(Input::CursorPosition());
-        const glm::vec2 length = mouse_pos - camera.position();
+        const glm::vec2 length = mouse_pos - glm::vec2(camera_transform.translation);
         const glm::vec2 scaledLength = length * zoom_factor;
         const glm::vec2 deltaLength = length - scaledLength;
 
         const sge::Rect& area = camera.get_projection_area();
         const glm::uvec2 window_size = camera.viewport();
 
-        const glm::vec2 new_position = camera.position() + deltaLength;
+        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + deltaLength;
         camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size) - area.size()));
     }
 
     if (Input::Pressed(MouseButton::Left)) {
         const sge::Rect& area = camera.get_projection_area();
 
-        const glm::vec2 dir = glm::vec2(camera.right(), camera.down());
-
-        const glm::vec2 new_position = camera.position() - Input::MouseDelta() * camera.zoom() * dir;
-        camera.set_position(glm::clamp(new_position, -area.min, area.max));
+        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + Input::MouseDelta() * camera.zoom() * glm::vec2(-1.f, 1.f);
         camera.set_position(new_position);
     }
 
@@ -159,16 +156,9 @@ void App::OnUpdate() {
         camera.set_position(glm::vec2(0.0f));
         camera.set_zoom(1.0f);
     }
-
-    camera.update();
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-    sge::Camera& camera = m_cameras[window->GetID()];
-    camera.set_viewport(window->GetSize());
-
-    m_renderer->Begin();
-
     static constexpr float CLOCK_BORDER_WIDTH = 25.0f / 400.0f;
     static constexpr float CLOCK_HAND_THICKNESS = 9.0f / 800.0f;
     static constexpr float CLOCK_TICK_THICKNESS = 7.0f / 800.0f;
@@ -179,6 +169,10 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     static constexpr float CLOCK_MINUTE_HAND_OFFSET = 0.065f;
     static constexpr float CLOCK_HOUR_HAND_OFFSET = 0.15f;
     static constexpr float CLOCK_CIRCLE_RADIUS = 30.0f / 800.0f;
+
+    sge::Camera& camera = m_cameras[window->GetID()];
+
+    m_renderer->Begin();
 
     const glm::vec2 center = camera.screen_center();
     const glm::vec2 screen_size = glm::uvec2(camera.viewport());

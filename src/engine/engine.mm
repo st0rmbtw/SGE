@@ -72,6 +72,20 @@ void sge::IEngine::Run() {
 
         for (auto it = window_map.begin(); it != window_map.end();) {
             const auto& window = it->second;
+
+            #if SGE_IMGUI_ENABLED
+            if (ImGuiContext* imgui_context = m_context->GetImGuiContext(*window)) {
+                ImGui::SetCurrentContext(imgui_context);
+                ImGuiIO& io = ImGui::GetIO();
+                if (window->GetCursorMode() == sge::CursorMode::Disabled) {
+                    io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+                } else {
+                    io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+                }
+                ImGui::SetCurrentContext(nullptr);
+            }
+            #endif
+
             if (window->ShouldBeClosed()) {
                 if (m_exit_on_main_window_destroy && window->GetID() == 0) {
                     Stop();

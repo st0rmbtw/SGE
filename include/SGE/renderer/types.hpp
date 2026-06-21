@@ -1,8 +1,10 @@
 #ifndef _SGE_RENDERER_TYPES_HPP_
 #define _SGE_RENDERER_TYPES_HPP_
 
+#include <LLGL/FragmentAttribute.h>
 #include <LLGL/LLGL.h>
 #include <LLGL/PipelineStateFlags.h>
+#include <LLGL/ShaderFlags.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -11,6 +13,7 @@
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/resource.hpp>
 #include <SGE/types/sampler.hpp>
+#include <SGE/types/shader_def.hpp>
 
 namespace sge {
 
@@ -168,6 +171,11 @@ struct FramebufferConfig {
 
     sge::AttachmentConfig colorAttachments[LLGL_MAX_NUM_COLOR_ATTACHMENTS];
     sge::AttachmentConfig depthStencilAttachment;
+};
+
+struct ShaderConfig {
+    LLGL::VertexShaderAttributes vertex;
+    LLGL::FragmentShaderAttributes fragment;
 };
 
 struct BloomSettings {

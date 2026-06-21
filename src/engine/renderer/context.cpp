@@ -405,13 +405,18 @@ LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderP
 
 #if SGE_IMGUI_ENABLED
 
+ImGuiContext* sge::RenderContext::GetImGuiContext(GlfwWindow& window) {
+    auto it = m_imgui_context_map.find(window.GetID());
+    if (it == m_imgui_context_map.end())
+        return nullptr;
+    return it->second;
+}
+
 ImGuiContext* sge::RenderContext::GetOrCreateImGuiContext(GlfwWindow& window) {
     ZoneScoped;
 
-    ImGuiContext* context = nullptr;
-
-    auto it = m_imgui_context_map.find(window.GetID());
-    if (it == m_imgui_context_map.end()) {
+    ImGuiContext* context = GetImGuiContext(window);
+    if (!context) {
         context = ImGui::CreateContext();
         {
             ImGuiIO& io = ImGui::GetIO();
@@ -444,8 +449,6 @@ ImGuiContext* sge::RenderContext::GetOrCreateImGuiContext(GlfwWindow& window) {
         ImGuiRenderer::Init(shared_from_this());
     
         m_imgui_context_map.try_emplace(window.GetID(), context);
-    } else {
-        context = it->second;
     }
     
     return context;
@@ -608,9 +611,7 @@ sge::Framebuffer sge::RenderContext::CreateFramebuffer(const sge::FramebufferCon
         targetDesc.colorAttachments[i].arrayLayer = attachment.arrayLayer;
     }
 
-    sge::Ref<LLGL::RenderTarget> renderTarget = CreateRenderTarget(targetDesc);
-
-    return sge::Framebuffer(textures, renderTarget, config.renderPass);
+    return sge::Framebuffer(textures, CreateRenderTarget(targetDesc), config.renderPass);
 }
 
 sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, long bindFlags) {
@@ -636,7 +637,7 @@ sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Exte
     return fb;
 }
 
-sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
+sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const sge::ShaderConfig& config) {
     ZoneScoped;
 
     const RenderBackend backend = m_backend;
@@ -686,7 +687,7 @@ sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
         memcpy(data, shader_source.data(), data_length - 1);
     }
 
-    LLGL::Shader* shader = CreateShader(shader_path.shader_type, entry_point, data, data_length, vertex_attributes);
+    LLGL::Shader* shader = CreateShader(shader_path.shader_type, entry_point, data, data_length, config);
     delete[] data;
 
     if (!shader) {
@@ -695,7 +696,7 @@ sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
     return sge::Raw<LLGL::Shader>::Create(shared_from_this(), shader);
 }
 
-sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t length, const std::vector<LLGL::VertexAttribute>& vertex_attributes) {
+sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t length, const sge::ShaderConfig& config) {
     const RenderBackend backend = m_backend;
 
     LLGL::ShaderDescriptor shader_desc;
@@ -713,9 +714,8 @@ sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_t
         shader_desc.profile = shader_type.Profile(backend);
     }
 
-    if (shader_type.IsVertex()) {
-        shader_desc.vertex.inputAttribs = vertex_attributes;
-    }
+    shader_desc.vertex = config.vertex;
+    shader_desc.fragment = config.fragment;
 
     if (backend.IsOpenGL() && shader_type.IsFragment()) {
         shader_desc.fragment.outputAttribs = {
