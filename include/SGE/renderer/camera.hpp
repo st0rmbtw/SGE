@@ -51,7 +51,7 @@ public:
 
     inline void set_position(glm::vec2 position) noexcept {
         m_view_dirty = true;
-        m_transform.translation = glm::vec3(position, 0.0f);
+        m_transform.translation = glm::vec3(position, 100.0f);
     }
 
     inline void set_zoom(float zoom) noexcept {

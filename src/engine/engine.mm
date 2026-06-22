@@ -104,6 +104,7 @@ void sge::IEngine::Run() {
             for (const auto& [glfw, window] : window_map) {
                 Render(window);
             }
+            OnPostRender();
         MACOS_AUTORELEASEPOOL_CLOSE
 
         ++m_frame_count;
@@ -151,7 +152,6 @@ void sge::IEngine::Render(const std::shared_ptr<sge::GlfwWindow>& window) {
     }
 
     OnRender(window);
-    OnPostRender(window);
 
     if (m_auto_present) {
         GetRenderContext()->Present(*window);

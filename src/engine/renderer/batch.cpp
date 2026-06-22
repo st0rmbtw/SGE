@@ -100,7 +100,7 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, cons
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            const auto texture = internal::TextureWithSampler {
+            const auto texture = internal::BatchTexture {
                 .ptr = font.texture.internal().Get(),
                 .sampler = font.texture.sampler()->internal().Get(),
                 .id = font.texture.id()
@@ -131,7 +131,7 @@ uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::v
     const uint32_t order = GetOrder(custom_order);
     const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
-    const auto texture_with_sampler = internal::TextureWithSampler {
+    const auto texture_with_sampler = internal::BatchTexture {
         .ptr = texture.internal().Get(),
         .sampler = texture.sampler()->internal().Get(),
         .id = texture.id()
@@ -161,7 +161,7 @@ uint32_t sge::Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const g
     const uint32_t order = GetOrder(custom_order);
     const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
-    const auto texture = internal::TextureWithSampler {
+    const auto texture = internal::BatchTexture {
         .ptr = ninepatch.texture().internal().Get(),
         .sampler = ninepatch.texture().sampler()->internal().Get(),
         .id = ninepatch.texture().id()

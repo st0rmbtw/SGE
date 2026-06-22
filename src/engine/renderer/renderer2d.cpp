@@ -728,8 +728,8 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
             if (a_scissor_size > b_scissor_size)
                 return false;
 
-            const TextureWithSampler& a_texture = a.texture();
-            const TextureWithSampler& b_texture = b.texture();
+            const BatchTexture& a_texture = a.texture();
+            const BatchTexture& b_texture = b.texture();
 
             if (a_texture.id < b_texture.id) return true;
             if (a_texture.id > b_texture.id) return false;
@@ -756,18 +756,18 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
 
     sge::Batch::FlushQueue& flush_queue = batch.flush_queue();
 
-    TextureWithSampler sprite_prev_texture;
+    BatchTexture sprite_prev_texture;
     BlendMode sprite_prev_blend_mode;
     uint32_t sprite_count = 0;
     uint32_t sprite_offset = 0;
     uint32_t sprite_total_count = 0;
 
-    TextureWithSampler glyph_prev_texture;
+    BatchTexture glyph_prev_texture;
     uint32_t glyph_count = 0;
     uint32_t glyph_offset = 0;
     uint32_t glyph_total_count = 0;
 
-    TextureWithSampler ninepatch_prev_texture;
+    BatchTexture ninepatch_prev_texture;
     uint32_t ninepatch_count = 0;
     uint32_t ninepatch_offset = 0;
     uint32_t ninepatch_total_count = 0;

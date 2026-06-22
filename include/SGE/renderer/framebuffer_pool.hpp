@@ -108,7 +108,7 @@ public:
     }
 
     [[nodiscard]]
-    inline const sge::Ref<LLGL::Texture>& GetTexture(uint8_t i) const noexcept {
+    inline const sge::Ref<LLGL::Texture>& GetTexture(uint8_t i = 0) const noexcept {
         return m_entry->framebuffer->GetTexture(i);
     }
 

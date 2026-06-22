@@ -63,8 +63,8 @@ protected: // Callbacks
     virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         (void)window;
     }
-    virtual void OnPostRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-        (void)window;
+    virtual void OnPostRender() {
+        m_context->TickTemporaryFramebufferPool();
     }
 
     virtual void OnWindowResized(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {
@@ -272,6 +272,7 @@ protected:
         
         Update();
         Render(window);
+        OnPostRender();
     }
 
 private:

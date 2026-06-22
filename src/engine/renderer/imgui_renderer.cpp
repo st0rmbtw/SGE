@@ -66,6 +66,7 @@ struct BackendData {
 struct TextureData
 {
     sge::Texture texture;
+    sge::TextureWithSampler tws;
 };
 
 class GlfwSurface : public LLGL::Surface {
@@ -193,9 +194,11 @@ void UpdateTexture(ImTextureData* tex) {
         }
 
         backend_tex->texture = bd->Context->CreateTexture(textureConfig, &imageView);
+        backend_tex->tws.texture = backend_tex->texture;
+        backend_tex->tws.sampler = backend_tex->texture.sampler()->internal();
 
         // Store your data, and acknowledge creation.
-        tex->SetTexID((ImTextureID)(intptr_t)&backend_tex->texture); // Specify backend-specific ImTextureID identifier which will be stored in ImDrawCmd.
+        tex->SetTexID((ImTextureID)(intptr_t)&backend_tex->tws); // Specify backend-specific ImTextureID identifier which will be stored in ImDrawCmd.
         tex->SetStatus(ImTextureStatus_OK);
         tex->BackendUserData = backend_tex; // Store more backend data if needed (most backend allocate a small texture to store data in there)
     }
@@ -557,10 +560,12 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
 
                 // The texture for the draw call is specified by pcmd->GetTexID().
                 // The vast majority of draw calls will use the Dear ImGui texture atlas, which value you have set yourself during initialization.
-                auto* texture = reinterpret_cast<sge::Texture*>(pcmd->GetTexID());
+                auto* texture = reinterpret_cast<sge::TextureWithSampler*>(pcmd->GetTexID());
 
-                bd->CommandBuffer->SetResource(1, *texture->internal());
-                bd->CommandBuffer->SetResource(2, *texture->sampler());
+                LLGL::Sampler* sampler = texture->sampler == nullptr ? bd->Context->GetLinearSampler()->internal() : texture->sampler;
+
+                bd->CommandBuffer->SetResource(1, *texture->texture);
+                bd->CommandBuffer->SetResource(2, *sampler);
 
                 // Render 'pcmd->ElemCount/3' indexed triangles.
                 // By default the indices ImDrawIdx are 16-bit, you can change them to 32-bit in imconfig.h if your engine doesn't support 16-bit indices.

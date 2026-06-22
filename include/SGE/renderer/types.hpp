@@ -206,6 +206,11 @@ struct SpriteBatchPipeline {
     sge::Handle<LLGL::PipelineState> depth_premultiplied_alpha;
 };
 
+struct TextureWithSampler {
+    LLGL::Texture* texture = nullptr;
+    LLGL::Sampler* sampler = nullptr;
+};
+
 } // namespace sge
 
 #endif

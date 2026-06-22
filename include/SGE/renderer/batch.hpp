@@ -37,7 +37,7 @@ enum class FlushDataType : uint8_t {
     Line,
 };
 
-struct TextureWithSampler {
+struct BatchTexture {
     LLGL::Texture* ptr = nullptr;
     LLGL::Sampler* sampler = nullptr;
     int id = 0;
@@ -46,7 +46,7 @@ struct TextureWithSampler {
 };
 
 struct FlushData {
-    TextureWithSampler texture = {};
+    BatchTexture texture = {};
     sge::IRect scissor;
     uint32_t offset;
     uint32_t count;
@@ -113,7 +113,7 @@ public:
         DrawLine
     };
 
-    DrawCommand(DrawCommandSprite sprite_data, TextureWithSampler texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandSprite sprite_data, BatchTexture texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
         m_sprite_data(sprite_data),
         m_texture(texture),
         m_scissor(scissor),
@@ -121,7 +121,7 @@ public:
         m_type(Type::DrawSprite),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandGlyph glyph_data, TextureWithSampler texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandGlyph glyph_data, BatchTexture texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
         m_glyph_data(glyph_data),
         m_texture(texture),
         m_scissor(scissor),
@@ -129,7 +129,7 @@ public:
         m_type(Type::DrawGlyph),
         m_blend_mode(blend_mode) {}
 
-    DrawCommand(DrawCommandNinePatch ninepatch_data, TextureWithSampler texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
+    DrawCommand(DrawCommandNinePatch ninepatch_data, BatchTexture texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
         m_ninepatch_data(ninepatch_data),
         m_texture(texture),
         m_scissor(scissor),
@@ -197,7 +197,7 @@ public:
     }
 
     [[nodiscard]]
-    inline const TextureWithSampler& texture() const {
+    inline const BatchTexture& texture() const {
         return m_texture;
     }
 
@@ -210,7 +210,7 @@ private:
         DrawCommandLine m_line_data;
     };
 
-    TextureWithSampler m_texture = {};
+    BatchTexture m_texture = {};
 
     sge::IRect m_scissor;
 
