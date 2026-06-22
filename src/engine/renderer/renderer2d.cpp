@@ -1,13 +1,21 @@
 #include <execution>
 
+#include <LLGL/PipelineLayout.h>
+#include <LLGL/PipelineLayoutFlags.h>
+#include <LLGL/PipelineState.h>
+#include <LLGL/PipelineStateFlags.h>
+
 #include <SGE/profile.hpp>
+#include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/renderer2d.hpp>
+#include <SGE/renderer/utils.hpp>
 #include <SGE/types/attributes.hpp>
 #include <SGE/types/binding_layout.hpp>
 
 #include "shaders.hpp"
 
 static constexpr uint32_t DEFAULT_BATCH_COUNT = 2000;
+static constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 
 namespace {
 
@@ -48,19 +56,21 @@ struct BatchVertexFormats {
 };
 
 BatchVertexFormats SpriteBatchVertexFormats(const sge::RenderBackend backend) {
-    LLGL::VertexFormat vertex_format = sge::Attributes(backend, {
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
+    LLGL::VertexFormat vertex_format;
+    vertex_format.attributes = sge::VertexAttributes(backend, {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
     });
-    LLGL::VertexFormat instance_format = sge::Attributes(backend, vertex_format.attributes.size(), {
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_rotation", "I_Rotation", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_outline_color", "I_OutlineColor", 1),
-        sge::Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_position", "I_Position", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
-        sge::Attribute::Instance(LLGL::Format::R32Float, "inp_i_outline_thickness", "I_OutlineThickness", 1),
-        sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
+    LLGL::VertexFormat instance_format;
+    instance_format.attributes = sge::VertexAttributes(backend, vertex_format.attributes.size(), {
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_rotation", "I_Rotation", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_outline_color", "I_OutlineColor", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x3, "inp_i_position", "I_Position", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32, "inp_i_outline_thickness", "I_OutlineThickness", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
     });
 
     return BatchVertexFormats {
@@ -70,19 +80,21 @@ BatchVertexFormats SpriteBatchVertexFormats(const sge::RenderBackend backend) {
 }
 
 BatchVertexFormats NinepatchBatchVertexFormats(const sge::RenderBackend backend) {
-    LLGL::VertexFormat vertex_format = sge::Attributes(backend, {
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
+    LLGL::VertexFormat vertex_format;
+    vertex_format.attributes = sge::VertexAttributes(backend, {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
     });
-    LLGL::VertexFormat instance_format = sge::Attributes(backend, vertex_format.attributes.size(), {
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_rotation", "I_Rotation", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32UInt, "inp_i_margin", "I_Margin", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_position", "I_Position", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_source_size", "I_SourceSize", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_output_size", "I_OutputSize", 1),
-        sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
+    LLGL::VertexFormat instance_format;
+    instance_format.attributes = sge::VertexAttributes(backend, vertex_format.attributes.size(), {
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_rotation", "I_Rotation", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint32x4, "inp_i_margin", "I_Margin", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_source_size", "I_SourceSize", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_output_size", "I_OutputSize", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
     });
 
     return {
@@ -92,16 +104,18 @@ BatchVertexFormats NinepatchBatchVertexFormats(const sge::RenderBackend backend)
 }
 
 BatchVertexFormats GlyphBatchVertexFormats(const sge::RenderBackend backend) {
-    LLGL::VertexFormat vertex_format = sge::Attributes(backend, {
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
+    LLGL::VertexFormat vertex_format;
+    vertex_format.attributes = sge::VertexAttributes(backend, {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
     });
-    LLGL::VertexFormat instance_format = sge::Attributes(backend, vertex_format.attributes.size(), {
-        sge::Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_color", "I_Color", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_position", "I_Position", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_tex_size", "I_TexSize", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_uv", "I_UV", 1),
-        sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
+    LLGL::VertexFormat instance_format;
+    instance_format.attributes = sge::VertexAttributes(backend, vertex_format.attributes.size(), {
+        sge::Attribute::Instance(sge::VertexFormat::Float32x3, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_tex_size", "I_TexSize", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_uv", "I_UV", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
     });
 
     return BatchVertexFormats {
@@ -111,19 +125,22 @@ BatchVertexFormats GlyphBatchVertexFormats(const sge::RenderBackend backend) {
 }
 
 BatchVertexFormats ShapeBatchVertexFormats(const sge::RenderBackend backend) {
-    LLGL::VertexFormat vertex_format = sge::Attributes(backend, {
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
+    LLGL::VertexFormat vertex_format;
+    vertex_format.attributes = sge::VertexAttributes(backend, {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
     });
-    LLGL::VertexFormat instance_format = sge::Attributes(backend, vertex_format.attributes.size(), {
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_border_color", "I_BorderColor", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_border_radius", "I_BorderRadius", 1),
-        sge::Attribute::Instance(LLGL::Format::RGB32Float, "inp_i_position", "I_Position", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_size", "I_Size", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_offset", "I_Offset", 1),
-        sge::Attribute::Instance(LLGL::Format::R32Float, "inp_i_border_thickness", "I_BorderThickness", 1),
-        sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_shape", "I_Shape", 1),
-        sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1)
+
+    LLGL::VertexFormat instance_format;
+    instance_format.attributes = sge::VertexAttributes(backend, vertex_format.attributes.size(), {
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_border_color", "I_BorderColor", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_border_radius", "I_BorderRadius", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x3, "inp_i_position", "I_Position", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32, "inp_i_border_thickness", "I_BorderThickness", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_shape", "I_Shape", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1)
     });
 
     return BatchVertexFormats {
@@ -133,16 +150,18 @@ BatchVertexFormats ShapeBatchVertexFormats(const sge::RenderBackend backend) {
 }
 
 BatchVertexFormats LineBatchVertexFormats(const sge::RenderBackend backend) {
-    LLGL::VertexFormat vertex_format = sge::Attributes(backend, {
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
+    LLGL::VertexFormat vertex_format;
+    vertex_format.attributes = sge::VertexAttributes(backend, {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
     });
-    LLGL::VertexFormat instance_format = sge::Attributes(backend, vertex_format.attributes.size(), {
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_start", "I_Start", 1),
-        sge::Attribute::Instance(LLGL::Format::RG32Float, "inp_i_end", "I_End", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_color", "I_Color", 1),
-        sge::Attribute::Instance(LLGL::Format::RGBA32Float, "inp_i_border_radius", "I_Border_Radius", 1),
-        sge::Attribute::Instance(LLGL::Format::R32Float, "inp_i_thickness", "I_Thickness", 1),
-        sge::Attribute::Instance(LLGL::Format::R8UInt, "inp_i_flags", "I_Flags", 1),
+    LLGL::VertexFormat instance_format;
+    instance_format.attributes = sge::VertexAttributes(backend, vertex_format.attributes.size(), {
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_start", "I_Start", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_end", "I_End", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_border_radius", "I_Border_Radius", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32, "inp_i_thickness", "I_Thickness", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
     });
 
     return BatchVertexFormats {
@@ -232,6 +251,11 @@ sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Ren
         ShaderSourceCode shader = GetFontShaderSourceCode(backend);
         m_glyph_default_fragment_shader = context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     }
+
+    m_vector_vertex_format.attributes = sge::VertexAttributes(m_context->Backend(), {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position")
+    });
+    m_vector_vertex_buffer = m_context->CreateVertexBuffer(VECTOR_VERTEX_BUFFER_SIZE * sizeof(glm::vec2), m_vector_vertex_format, "Vector Vertex Buffer");
 }
 
 void sge::Renderer2D::Begin() {
@@ -1179,4 +1203,130 @@ void sge::Renderer2D::RenderBatch(sge::Batch& batch) {
         
         ApplyBatchDrawCommands(batch);
     }
+}
+
+void sge::Renderer2D::InitVectorPipeline() {
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = m_vector_vertex_format.attributes;
+
+    ShaderSourceCode shader = GetVectorShaderSourceCode(m_context->Backend());
+    m_vector_vertex_shader = m_context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
+    m_vector_fragment_shader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size, shaderConfig);
+
+    {
+        LLGL::PipelineLayoutDescriptor layoutDesc;
+        layoutDesc.bindings = sge::BindingLayout({
+            sge::BindingLayoutItem::ConstantBuffer(2, "UniformBuffer", LLGL::StageFlags::VertexStage),
+            sge::BindingLayoutItem::ConstantBuffer(3, "PathDataBuffer", LLGL::StageFlags::VertexStage),
+        });
+
+        m_vector_stencil_pipeline_layout = m_context->CreatePipelineLayout(layoutDesc);
+
+        LLGL::GraphicsPipelineDescriptor stencilPipelineDesc;
+        stencilPipelineDesc.debugName = "Vector Stencil Pipeline";
+        stencilPipelineDesc.pipelineLayout = m_vector_stencil_pipeline_layout;
+        stencilPipelineDesc.vertexShader = m_vector_vertex_shader;
+
+        stencilPipelineDesc.blend.targets[0].blendEnabled = false;
+        stencilPipelineDesc.blend.targets[0].colorMask = LLGL::ColorMaskFlags::Zero;
+
+        stencilPipelineDesc.stencil.testEnabled = true;
+
+        stencilPipelineDesc.stencil.front.compareOp = LLGL::CompareOp::AlwaysPass;
+        stencilPipelineDesc.stencil.front.stencilFailOp = LLGL::StencilOp::Keep;
+        stencilPipelineDesc.stencil.front.depthFailOp = LLGL::StencilOp::Keep;
+        stencilPipelineDesc.stencil.front.depthPassOp = LLGL::StencilOp::IncWrap;
+        stencilPipelineDesc.stencil.front.writeMask = 0xFF;
+        stencilPipelineDesc.stencil.front.readMask  = 0xFF;
+
+        stencilPipelineDesc.stencil.back.compareOp = LLGL::CompareOp::AlwaysPass;
+        stencilPipelineDesc.stencil.back.stencilFailOp = LLGL::StencilOp::Keep;
+        stencilPipelineDesc.stencil.back.depthFailOp = LLGL::StencilOp::Keep;
+        stencilPipelineDesc.stencil.back.depthPassOp = LLGL::StencilOp::DecWrap;
+        stencilPipelineDesc.stencil.back.writeMask = 0xFF;
+        stencilPipelineDesc.stencil.back.readMask  = 0xFF;
+
+        m_vector_stencil_pipeline = m_context->CreatePipelineState(stencilPipelineDesc);
+    }
+    {
+        LLGL::PipelineLayoutDescriptor layoutDesc;
+        layoutDesc.bindings = sge::BindingLayout({
+            sge::BindingLayoutItem::ConstantBuffer(3, "PathDataBuffer", LLGL::StageFlags::FragmentStage)
+        });
+        m_vector_cover_pipeline_layout = m_context->CreatePipelineLayout(layoutDesc);
+
+        LLGL::GraphicsPipelineDescriptor coverPipelineDesc;
+        coverPipelineDesc.debugName = "Vector Cover Pipeline";
+        coverPipelineDesc.pipelineLayout = m_vector_cover_pipeline_layout;
+        coverPipelineDesc.vertexShader = m_vector_vertex_shader;
+        coverPipelineDesc.fragmentShader = m_vector_fragment_shader;
+
+        coverPipelineDesc.stencil.testEnabled = true;
+        coverPipelineDesc.stencil.front.compareOp = LLGL::CompareOp::NotEqual;
+        coverPipelineDesc.stencil.front.stencilFailOp = LLGL::StencilOp::Zero;
+        coverPipelineDesc.stencil.front.depthFailOp = LLGL::StencilOp::Keep;
+        coverPipelineDesc.stencil.front.depthPassOp = LLGL::StencilOp::Zero;
+        coverPipelineDesc.stencil.front.reference  = 0;
+        coverPipelineDesc.stencil.front.readMask  = 0xFF;
+        coverPipelineDesc.stencil.front.writeMask = 0xFF;
+        coverPipelineDesc.stencil.back = coverPipelineDesc.stencil.front;
+
+        coverPipelineDesc.blend = LLGL::BlendDescriptor {
+            .targets = {
+                LLGL::BlendTargetDescriptor {
+                    .blendEnabled = true,
+                    .srcColor = LLGL::BlendOp::SrcAlpha,
+                    .dstColor = LLGL::BlendOp::InvSrcAlpha,
+                    .srcAlpha = LLGL::BlendOp::Zero,
+                    .dstAlpha = LLGL::BlendOp::One,
+                    .alphaArithmetic = LLGL::BlendArithmetic::Max
+                }
+            }
+        };
+
+        m_vector_cover_pipeline = m_context->CreatePipelineState(coverPipelineDesc);
+    }
+
+    m_vector_path_data_buffer = m_context->CreateConstantBuffer(sizeof(PathData));
+
+    m_vector_pipeline_initialized = true;
+}
+
+void sge::Renderer2D::DrawPath(const sge::Path& path, const sge::LinearRgba& color, const sge::Transform& transform) {
+    if (!m_vector_pipeline_initialized)
+        InitVectorPipeline();
+
+    PathData pathData = {
+        .transformMatrix = transform.ComputeMatrix(),
+        .color = color.to_vec4()
+    };
+
+    m_command_buffer->UpdateBuffer(*m_vector_path_data_buffer, 0, &pathData, sizeof(PathData));
+
+    const auto& vertices = path.GetTriangleVertices();
+    SGE_ASSERT(vertices.size() < VECTOR_VERTEX_BUFFER_SIZE);
+    UpdateBufferChunked(*m_command_buffer, *m_vector_vertex_buffer, 0, vertices.data(), vertices.size() * sizeof(glm::vec2));
+
+    m_command_buffer->SetPipelineState(*m_vector_stencil_pipeline);
+    m_command_buffer->SetVertexBuffer(*m_vector_vertex_buffer);
+    m_command_buffer->SetResource(0, *GlobalUniformBuffer());
+    m_command_buffer->SetResource(1, *m_vector_path_data_buffer);
+    m_command_buffer->Draw(vertices.size(), 0);
+
+    const auto bounds = path.GetBounds();
+
+    float quad[] = {
+        bounds.min.x, bounds.min.y,
+        bounds.max.x, bounds.min.y,
+        bounds.max.x, bounds.max.y,
+        bounds.min.x, bounds.min.y,
+        bounds.max.x, bounds.max.y,
+        bounds.min.x, bounds.max.y,
+    };
+    m_command_buffer->UpdateBuffer(*m_vector_vertex_buffer, 0, &quad, sizeof(quad));
+
+    m_command_buffer->SetPipelineState(*m_vector_cover_pipeline);
+    m_command_buffer->SetVertexBuffer(*m_vector_vertex_buffer);
+    m_command_buffer->SetResource(0, *m_vector_path_data_buffer);
+    m_command_buffer->Draw(6, 0);
 }

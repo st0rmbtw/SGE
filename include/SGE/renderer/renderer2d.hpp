@@ -1,7 +1,10 @@
 #ifndef _SGE_RENDERER_2D_HPP_
 #define _SGE_RENDERER_2D_HPP_
 
+#include "SGE/types/transform.hpp"
 #include "renderer.hpp"
+
+#include <SGE/types/path.hpp>
 
 namespace sge {
 
@@ -83,6 +86,8 @@ public:
 
     void DestroyBatch(sge::Batch& batch);
 
+    void DrawPath(const sge::Path& path, const sge::LinearRgba& color = sge::LinearRgba::white(), const sge::Transform& transform = sge::Transform());
+
 private:
     SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = Ref<LLGL::Shader>());
     Handle<LLGL::PipelineState> CreateNinepatchBatchPipeline(bool enable_scissor);
@@ -100,6 +105,8 @@ private:
     void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
     void ApplyBatchDrawCommands(sge::Batch& batch);
 
+    void InitVectorPipeline();
+
 private:
     BatchData<SpriteInstance> m_sprite_batch_data;
     BatchData<GlyphInstance> m_glyph_batch_data;
@@ -114,7 +121,22 @@ private:
     Ref<LLGL::Shader> m_sprite_default_fragment_shader;
     Ref<LLGL::Shader> m_glyph_default_fragment_shader;
 
+    LLGL::VertexFormat m_vector_vertex_format;
+
+    Ref<LLGL::Shader> m_vector_vertex_shader;
+    Ref<LLGL::Shader> m_vector_fragment_shader;
+    Ref<LLGL::PipelineLayout> m_vector_stencil_pipeline_layout;
+    Ref<LLGL::PipelineState> m_vector_stencil_pipeline;
+    Ref<LLGL::PipelineLayout> m_vector_cover_pipeline_layout;
+    Ref<LLGL::PipelineState> m_vector_cover_pipeline;
+    Ref<LLGL::Buffer> m_vector_vertex_buffer;
+    Ref<LLGL::Buffer> m_vector_path_data_buffer;
+
+    uint32_t m_batch_path_total_count = 0;
+
     uint32_t m_batch_instance_count = 0;
+
+    bool m_vector_pipeline_initialized = false;
 };
 
 } // namespace sge

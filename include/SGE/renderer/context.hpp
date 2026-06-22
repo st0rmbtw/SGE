@@ -247,10 +247,20 @@ public:
         return CreateBuffer(bufferDesc, &indices[0]);
     }
 
-    inline Raw<LLGL::Buffer> CreateConstantBuffer(const size_t size, const char* debug_name = nullptr) {
+    inline Raw<LLGL::Buffer> CreateConstantBuffer(size_t size, const char* debug_name = nullptr) {
         LLGL::BufferDescriptor bufferDesc;
         bufferDesc.size           = size;
         bufferDesc.bindFlags      = LLGL::BindFlags::ConstantBuffer;
+        bufferDesc.miscFlags      = LLGL::MiscFlags::DynamicUsage;
+        bufferDesc.debugName      = debug_name;
+        return CreateBuffer(bufferDesc);
+    }
+
+    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, const char* debug_name = nullptr) {
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = size;
+        bufferDesc.stride         = stride;
+        bufferDesc.bindFlags      = LLGL::BindFlags::Sampled;
         bufferDesc.miscFlags      = LLGL::MiscFlags::DynamicUsage;
         bufferDesc.debugName      = debug_name;
         return CreateBuffer(bufferDesc);

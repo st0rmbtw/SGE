@@ -34,7 +34,7 @@ enum class FlushDataType : uint8_t {
     Glyph,
     NinePatch,
     Shape,
-    Line,
+    Line
 };
 
 struct BatchTexture {

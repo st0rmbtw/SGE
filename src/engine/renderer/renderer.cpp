@@ -54,9 +54,9 @@ sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_conte
 
     m_uniform_buffer = m_context->CreateConstantBuffer(sizeof(GlobalUniforms), "Uniforms Buffer");
 
-    m_fullscreen_triangle_vertex_format = sge::Attributes(backend, {
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "a_position", "Position"),
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "a_uv", "UV")
+    m_fullscreen_triangle_vertex_format.attributes = sge::VertexAttributes(backend, {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position"),
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_uv", "UV")
     });
 
     const glm::vec2 vertices[] = {
@@ -327,4 +327,16 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     EndPass();
 
     m_bloom_framebuffers.clear();
+}
+
+void sge::Renderer::BlitTexture(LLGL::Texture& texture) {
+    LLGL::RenderTarget* target = GetRenderContext()->GetCurrentTarget();
+    SGE_ASSERT(target != nullptr);
+
+    m_command_buffer->SetViewport(target->GetResolution());
+    m_command_buffer->SetPipelineState(*m_blit_pipeline);
+    m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
+    m_command_buffer->SetResource(0, texture);
+    m_command_buffer->SetResource(1, *m_context->GetNearestSampler());
+    m_command_buffer->Draw(3, 0);
 }

@@ -33,6 +33,21 @@ struct Transform {
         return FromTranslation(glm::vec3(x, y, z));
     }
 
+    Transform& WithTranslation(glm::vec3 translation) {
+        this->translation = translation;
+        return *this;
+    }
+
+    Transform& WithRotation(sge::Quaternion rotation) {
+        this->rotation = rotation;
+        return *this;
+    }
+
+    Transform& WithScale(glm::vec3 scale) {
+        this->scale = scale;
+        return *this;
+    }
+
     inline void Rotate(const Quaternion& rotation) noexcept {
         this->rotation = rotation * this->rotation;
     }

@@ -82,8 +82,9 @@ void App::InitPipeline() {
         sge::BindingLayoutItem::ConstantBuffer(2, "UniformConstantBuffer", LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage)
     });
 
-    LLGL::VertexFormat vertexFormat = sge::Attributes(context->Backend(), {
-        sge::Attribute::Vertex(LLGL::Format::RGB32Float, "a_position", "Position")
+    LLGL::VertexFormat vertexFormat;
+    vertexFormat.attributes = sge::VertexAttributes(context->Backend(), {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x3, "a_position", "Position")
     });
 
     ShaderSourceCode sourceCode = GetBasicShaderSourceCode(GetRenderContext()->Backend());
@@ -150,12 +151,6 @@ void App::InitPipeline() {
     };
 
     m_vertex_buffer = context->CreateVertexBuffer(vertices, vertexFormat);
-
-    pipelineConfig = {};
-    pipelineConfig.layout = m_renderer->BlitPipelineLayout();
-    pipelineConfig.vertexShader = m_renderer->FullscreenTriangleVertexShader();
-    pipelineConfig.pixelShader = m_renderer->BlitShader();
-    m_postprocess_pipeline_handle = context->CreatePipelineState(pipelineConfig);
 
     m_uniform_buffer = GetRenderContext()->CreateConstantBuffer(sizeof(UniformBuffer));
 }
@@ -260,12 +255,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
         m_renderer->BeginPass(window);
         {
-            commands->SetViewport(window->GetSize());
-            commands->SetPipelineState(context->GetOrCreatePipeline(m_postprocess_pipeline_handle));
-            commands->SetVertexBuffer(*m_renderer->FullscreenTriangleVertexBuffer());
-            commands->SetResource(0, *framebuffer.GetTexture(0));
-            commands->SetResource(1, *context->GetNearestSampler());
-            commands->Draw(3, 0);
+            m_renderer->BlitTexture(*framebuffer.GetTexture());
 
             #if SGE_IMGUI_ENABLED
             if (m_render_imgui) {

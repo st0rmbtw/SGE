@@ -62,6 +62,7 @@ add_subdirectory(bloom)
 add_subdirectory(clay_integration)
 add_subdirectory(clock)
 add_subdirectory(stresstest)
+add_subdirectory(vector)
 
 set(LLGL_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR} CACHE BOOL "" FORCE)
 

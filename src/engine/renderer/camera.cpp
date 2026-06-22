@@ -69,8 +69,8 @@ void sge::Camera::compute_projection_and_view_matrix() const {
         const sge::Rect& projection_area = get_projection_area();
         m_projection_matrix = glm::orthoRH_ZO(
             projection_area.min.x, projection_area.max.x,
-            projection_area.min.y, projection_area.max.y,
-            0.0f, 100.0f
+            projection_area.max.y, projection_area.min.y,
+            0.0f, 1000.0f
         );
     }
 

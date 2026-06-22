@@ -38,6 +38,14 @@ public:
         m_render_pass(std::move(renderPass))
     {}
 
+    explicit Framebuffer(sge::Ref<LLGL::RenderTarget> target, std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> textures, std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> msTextures, sge::Ref<LLGL::Texture> depthStencilTexture, sge::Ref<LLGL::RenderPass> renderPass = nullptr) :
+        m_textures(std::move(textures)),
+        m_ms_textures(std::move(msTextures)),
+        m_depth_stencil_texture(std::move(depthStencilTexture)),
+        m_target(std::move(target)),
+        m_render_pass(std::move(renderPass))
+    {}
+
     [[nodiscard]]
     inline uint8_t ColorAttachmentCount() const noexcept {
         return m_target->GetNumColorAttachments();
@@ -71,6 +79,7 @@ public:
 private:
     std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> m_textures;
     std::array<sge::Ref<LLGL::Texture>, LLGL_MAX_NUM_COLOR_ATTACHMENTS> m_ms_textures;
+    sge::Ref<LLGL::Texture> m_depth_stencil_texture;
     sge::Ref<LLGL::RenderTarget> m_target;
     sge::Ref<LLGL::RenderPass> m_render_pass;
 };

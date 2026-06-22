@@ -37,20 +37,23 @@ def write_constant(f, name, unmangle=False):
     content = ""
     for line in f.readlines():
         l = comment_remover(line).strip(" \t")
+        if l == '\n': continue
+        if l.startswith('#'):
+            l = l.replace('\n', '\\n')
+        else:
+            l = l.replace('\n', '')
+        l = l.replace('"', '\\"')
         l = re.sub(COMBINED_SAMPLER_PATTERN, r"\g<name>", l)
         if unmangle:
             l = l.replace('SLANG_ParameterGroup_', '')
-        if l == '\n': continue
         content += l
     # content = comment_remover(f.read())
-    size = len(content) + 1
-    return f"static const char {name}[{size}] = R\"({content})\";\n\n"
+    return f"static const char {name}[] = \"{content}\";\n\n"
 
 def write_bytes(f, name):
     l = list(f.read())
     content = ', '.join(str(x) for x in l)
-    size = len(l)
-    return f"static const unsigned char {name}[{size}] = {{{content}}};\n\n"
+    return f"static const unsigned char {name}[] = {{{content}}};\n\n"
 
 SHADER_SOURCE_STRUCTURE_CODE = """struct ShaderSourceCode {
     ShaderSourceCode(const void* v, size_t vs, const void* f, size_t fs) :
@@ -399,9 +402,9 @@ def main():
     shaders_hpp_content = (
         f"#ifndef {guard_name}\n"
         f"#define {guard_name}\n\n"
-        "#include <cstdlib>\n"
-        "#include <SGE/types/backend.hpp>\n"
-        "#include <SGE/assert.hpp>\n\n"
+        "#include <cstdlib>\n\n"
+        "#include <SGE/assert.hpp>\n"
+        "#include <SGE/types/backend.hpp>\n\n"
     )
 
     shader_names = set()

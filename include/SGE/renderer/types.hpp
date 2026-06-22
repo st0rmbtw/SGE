@@ -101,9 +101,15 @@ struct ShapeInstance {
     uint8_t flags;
 };
 
+struct PathData {
+    glm::mat4 transformMatrix;
+    glm::vec4 color;
+};
+
 struct GraphicsPipelineConfig {
     std::string debugName;
     LLGL::BlendDescriptor blend;
+    LLGL::StencilDescriptor stencil;
     LLGL::DepthDescriptor depth;
     Ref<LLGL::PipelineLayout> layout;
     Ref<LLGL::Shader> vertexShader;

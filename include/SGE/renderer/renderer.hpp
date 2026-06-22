@@ -79,6 +79,8 @@ public:
         m_command_buffer->EndRenderPass();
     }
 
+    void BlitTexture(LLGL::Texture& texture);
+
     inline void SetScissor(const LLGL::Scissor& scissor) {
         m_command_buffer->SetScissor(scissor);
     }

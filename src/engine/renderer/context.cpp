@@ -648,7 +648,17 @@ sge::Framebuffer sge::RenderContext::CreateFramebuffer(const sge::FramebufferCon
         }
     }
 
-    return sge::Framebuffer(CreateRenderTarget(targetDesc), textures, msTextures, config.renderPass);
+    sge::Ref<LLGL::Texture> depthStencilTexture;
+    if (config.depthStencilAttachment.format != LLGL::Format::Undefined) {
+        textureDesc.format = config.depthStencilAttachment.format;
+        textureDesc.bindFlags = config.depthStencilAttachment.bindFlags;
+        textureDesc.samples = config.samples;   
+        depthStencilTexture = CreateTexture(textureDesc);
+    }
+    
+    targetDesc.depthStencilAttachment.texture = depthStencilTexture;
+
+    return sge::Framebuffer(CreateRenderTarget(targetDesc), textures, msTextures, depthStencilTexture, config.renderPass);
 }
 
 sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, uint8_t samples, long bindFlags) {
@@ -666,6 +676,8 @@ sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Exte
         sge::FramebufferConfig framebufferConfig;
         framebufferConfig.colorAttachments[0].format = format;
         framebufferConfig.colorAttachments[0].bindFlags = bindFlags;
+        framebufferConfig.depthStencilAttachment.format = LLGL::Format::D24UNormS8UInt;
+        framebufferConfig.depthStencilAttachment.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::DepthStencilAttachment;
         framebufferConfig.resolution = resolution;
         framebufferConfig.samples = samples;
         fb = m_temp_framebuffer_pool.Add(key, CreateFramebuffer(framebufferConfig));

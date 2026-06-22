@@ -60,6 +60,7 @@ set(SGE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/time/timer.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/attributes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/path.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/texture_atlas.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/text.cpp

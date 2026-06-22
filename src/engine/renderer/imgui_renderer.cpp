@@ -253,10 +253,10 @@ bool CreatePipelineObjects() {
     };
     bd->PipelineLayout = bd->Context->CreatePipelineLayout(layoutDesc);
 
-    bd->VertexFormat = sge::Attributes(bd->Context->Backend(), {
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_position", "Position"),
-        sge::Attribute::Vertex(LLGL::Format::RG32Float, "inp_uv", "UV"),
-        sge::Attribute::Vertex(LLGL::Format::RGBA8UNorm, "inp_color", "Color"),
+    bd->VertexFormat.attributes = sge::VertexAttributes(bd->Context->Backend(), {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_uv", "UV"),
+        sge::Attribute::Vertex(sge::VertexFormat::Unorm8x4, "inp_color", "Color"),
     });
 
     ShaderSourceCode shader = GetImguiShaderSourceCode(bd->Context->Backend());

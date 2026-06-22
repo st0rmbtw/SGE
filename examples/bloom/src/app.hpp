@@ -45,7 +45,6 @@ private:
     sge::Ref<LLGL::Buffer> m_uniform_buffer;
 
     sge::Handle<LLGL::PipelineState> m_pipeline_handle;
-    sge::Handle<LLGL::PipelineState> m_postprocess_pipeline_handle;
 
     std::unique_ptr<sge::Renderer2D> m_renderer;
     ExampleConfig m_config;
