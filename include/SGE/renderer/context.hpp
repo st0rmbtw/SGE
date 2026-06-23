@@ -251,19 +251,44 @@ public:
         LLGL::BufferDescriptor bufferDesc;
         bufferDesc.size           = size;
         bufferDesc.bindFlags      = LLGL::BindFlags::ConstantBuffer;
+        bufferDesc.miscFlags      = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
+        bufferDesc.debugName      = debug_name;
+        return CreateBuffer(bufferDesc);
+    }
+
+    template <typename Container>
+    inline Raw<LLGL::Buffer> CreateConstantBuffer(const Container& data, const char* debug_name = nullptr) {
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = GetArraySize(data);
+        bufferDesc.bindFlags      = LLGL::BindFlags::ConstantBuffer;
         bufferDesc.miscFlags      = LLGL::MiscFlags::DynamicUsage;
+        bufferDesc.debugName      = debug_name;
+        return CreateBuffer(bufferDesc, data);
+    }
+
+    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, LLGL::Format format, const char* debug_name = nullptr) {
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = size;
+        bufferDesc.stride         = stride;
+        bufferDesc.format         = format;
+        bufferDesc.bindFlags      = LLGL::BindFlags::Sampled;
+        bufferDesc.miscFlags      = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
         bufferDesc.debugName      = debug_name;
         return CreateBuffer(bufferDesc);
     }
 
     inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, const char* debug_name = nullptr) {
-        LLGL::BufferDescriptor bufferDesc;
-        bufferDesc.size           = size;
-        bufferDesc.stride         = stride;
-        bufferDesc.bindFlags      = LLGL::BindFlags::Sampled;
-        bufferDesc.miscFlags      = LLGL::MiscFlags::DynamicUsage;
-        bufferDesc.debugName      = debug_name;
-        return CreateBuffer(bufferDesc);
+        return CreateStructuredBuffer(size, stride, LLGL::Format::Undefined, debug_name);
+    }
+
+    template <typename T>
+    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, const char* debug_name = nullptr) {
+        return CreateStructuredBuffer(count * sizeof(T), sizeof(T), debug_name);
+    }
+
+    template <typename T>
+    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, LLGL::Format format, const char* debug_name = nullptr) {
+        return CreateStructuredBuffer(count * sizeof(T), sizeof(T), format, debug_name);
     }
 
     inline Raw<LLGL::CommandBuffer> CreateCommandBuffer(const LLGL::CommandBufferDescriptor& desc = {}) {

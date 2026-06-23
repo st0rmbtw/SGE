@@ -17,7 +17,6 @@
 #include <SGE/types/window_settings.hpp>
 
 #include <glm/trigonometric.hpp>
-#include <imgui.h>
 
 #include "app.hpp"
 
@@ -89,7 +88,7 @@ App::~App() {
 }
 
 void App::OnUpdate() {
-    sge::Transform& camera_transform = m_camera.GetTransform();
+    sge::Transform& camera_transform = m_camera.transform();
 
     for (const float scroll : Input::ScrollEvents()) {
         const float zoom_factor = glm::pow(0.75f, scroll);

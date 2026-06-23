@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <glm/gtc/quaternion.hpp>
+#include <SGE/math/quaternion.hpp>
 
 #include "texture.hpp"
 #include "anchor.hpp"
@@ -32,7 +32,7 @@ public:
         return *this;
     }
 
-    inline NinePatch& set_rotation(glm::quat rotation) noexcept {
+    inline NinePatch& set_rotation(sge::Quaternion rotation) noexcept {
         m_rotation = rotation;
         return *this;
     }
@@ -83,7 +83,7 @@ public:
     }
 
     [[nodiscard]]
-    inline glm::quat rotation() const noexcept {
+    inline sge::Quaternion rotation() const noexcept {
         return m_rotation;
     }
 
@@ -129,7 +129,7 @@ public:
 
 private:
     Texture m_texture;
-    glm::quat m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    sge::Quaternion m_rotation;
     glm::uvec4 m_margin = glm::uvec4(0); // Left Right Top Bottom
     sge::LinearRgba m_color = sge::LinearRgba::white();
     glm::vec2 m_position = glm::vec2(0.0f);

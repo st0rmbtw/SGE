@@ -1,6 +1,7 @@
 #ifndef _SGE_TYPES_SPRITE_HPP_
 #define _SGE_TYPES_SPRITE_HPP_
 
+#include "SGE/math/quaternion.hpp"
 #pragma once
 
 #include <optional>
@@ -31,35 +32,35 @@ protected:
         m_scale(scale) {}
 
     BaseSprite(glm::vec2 position, glm::vec2 scale, sge::LinearRgba color, Anchor anchor) : 
+        m_color(color),
         m_position(position),
         m_scale(scale),
-        m_color(color),
         m_anchor(anchor) {}
 
 public:
 
     [[nodiscard]]
-    inline const glm::vec2& position() const noexcept {
+    inline glm::vec2 position() const noexcept {
         return m_position;
     }
 
     [[nodiscard]]
-    inline const glm::quat& rotation() const noexcept {
+    inline sge::Quaternion rotation() const noexcept {
         return m_rotation;
     }
 
     [[nodiscard]]
-    inline const glm::vec2& scale() const noexcept {
+    inline glm::vec2 scale() const noexcept {
         return m_scale;
     }
 
     [[nodiscard]]
-    inline const sge::LinearRgba& color() const noexcept {
+    inline sge::LinearRgba color() const noexcept {
         return m_color;
     }
 
     [[nodiscard]]
-    inline const sge::LinearRgba& outline_color() const noexcept {
+    inline sge::LinearRgba outline_color() const noexcept {
         return m_outline_color;
     }
 
@@ -99,7 +100,7 @@ public:
         return *this;
     }
 
-    inline BaseSprite& set_rotation(const glm::quat& rotation) noexcept {
+    inline BaseSprite& set_rotation(const sge::Quaternion& rotation) noexcept {
         m_rotation = rotation;
         return *this;
     }
@@ -155,12 +156,12 @@ public:
     }
 
 protected:
-    glm::quat m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    glm::vec2 m_position = glm::vec2(0.0f);
-    glm::vec2 m_scale = glm::vec2(1.0f);
+    sge::Quaternion m_rotation;
     sge::LinearRgba m_color = sge::LinearRgba(1.0f);
     sge::LinearRgba m_outline_color = sge::LinearRgba(0.0f);
     std::optional<glm::vec2> m_custom_size = std::nullopt;
+    glm::vec2 m_position = glm::vec2(0.0f);
+    glm::vec2 m_scale = glm::vec2(1.0f);
     float m_outline_thickness = 0.0f;
     float m_z = 1.0f;
     Anchor m_anchor = Anchor::Center;

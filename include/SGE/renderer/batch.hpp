@@ -43,6 +43,36 @@ struct BatchTexture {
     int id = 0;
 
     [[nodiscard]] inline bool is_valid() const { return id >= 0 && ptr != nullptr; }
+
+    bool operator==(const BatchTexture& other) const {
+        return id == other.id;
+    }
+};
+
+struct BatchTextureState {
+    BatchTexture texture;
+    sge::IRect scissor;
+    uint32_t order;
+    sge::BlendMode blend_mode;
+
+    bool operator==(const BatchTextureState& other) const {
+        return texture == other.texture
+            && scissor == other.scissor 
+            && order == other.order 
+            && blend_mode == other.blend_mode;
+    }
+};
+
+struct BatchSimpleState {
+    sge::IRect scissor;
+    uint32_t order;
+    sge::BlendMode blend_mode;
+
+    bool operator==(const BatchSimpleState& other) const {
+        return scissor == other.scissor 
+            && order == other.order 
+            && blend_mode == other.blend_mode;
+    }
 };
 
 struct FlushData {
@@ -55,6 +85,7 @@ struct FlushData {
 };
 
 struct DrawCommandSprite {
+    BatchTextureState state = {};
     glm::quat rotation;
     glm::vec4 uv_offset_scale;
     glm::vec4 color;
@@ -66,6 +97,7 @@ struct DrawCommandSprite {
 };
 
 struct DrawCommandNinePatch {
+    BatchTextureState state = {};
     glm::quat rotation;
     glm::vec4 uv_offset_scale;
     glm::vec4 color;
@@ -77,6 +109,7 @@ struct DrawCommandNinePatch {
 };
 
 struct DrawCommandGlyph {
+    BatchTextureState state = {};
     glm::vec3 color;
     glm::vec2 pos;
     glm::vec2 size;
@@ -85,6 +118,7 @@ struct DrawCommandGlyph {
 };
 
 struct DrawCommandShape {
+    BatchSimpleState state;
     sge::LinearRgba color;
     sge::LinearRgba border_color;
     glm::vec4 border_radius;
@@ -96,128 +130,12 @@ struct DrawCommandShape {
 };
 
 struct DrawCommandLine {
+    BatchSimpleState state;
     sge::LinearRgba color;
     glm::vec4 border_radius;
     glm::vec2 start;
     glm::vec2 end;
     float thickness;
-};
-
-class DrawCommand {
-public:
-    enum Type : uint8_t {
-        DrawSprite = 0,
-        DrawGlyph,
-        DrawNinePatch,
-        DrawShape,
-        DrawLine
-    };
-
-    DrawCommand(DrawCommandSprite sprite_data, BatchTexture texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
-        m_sprite_data(sprite_data),
-        m_texture(texture),
-        m_scissor(scissor),
-        m_order(order),
-        m_type(Type::DrawSprite),
-        m_blend_mode(blend_mode) {}
-
-    DrawCommand(DrawCommandGlyph glyph_data, BatchTexture texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
-        m_glyph_data(glyph_data),
-        m_texture(texture),
-        m_scissor(scissor),
-        m_order(order),
-        m_type(Type::DrawGlyph),
-        m_blend_mode(blend_mode) {}
-
-    DrawCommand(DrawCommandNinePatch ninepatch_data, BatchTexture texture, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
-        m_ninepatch_data(ninepatch_data),
-        m_texture(texture),
-        m_scissor(scissor),
-        m_order(order),
-        m_type(Type::DrawNinePatch),
-        m_blend_mode(blend_mode) {}
-
-    DrawCommand(DrawCommandShape shape_data, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
-        m_shape_data(shape_data),
-        m_scissor(scissor),
-        m_order(order),
-        m_type(Type::DrawShape),
-        m_blend_mode(blend_mode) {}
-
-    DrawCommand(DrawCommandLine line_data, sge::Rect scissor, uint32_t order, sge::BlendMode blend_mode) :
-        m_line_data(line_data),
-        m_scissor(scissor),
-        m_order(order),
-        m_type(Type::DrawLine),
-        m_blend_mode(blend_mode) {}
-
-    [[nodiscard]]
-    inline Type type() const {
-        return m_type;
-    }
-
-    [[nodiscard]]
-    inline uint32_t order() const {
-        return m_order;
-    }
-
-    [[nodiscard]]
-    inline sge::BlendMode blend_mode() const {
-        return m_blend_mode;
-    }
-
-    [[nodiscard]]
-    inline sge::IRect scissor() const {
-        return m_scissor;
-    }
-
-    [[nodiscard]]
-    inline const DrawCommandSprite& sprite_data() const {
-        return m_sprite_data;
-    }
-
-    [[nodiscard]]
-    inline const DrawCommandGlyph& glyph_data() const {
-        return m_glyph_data;
-    }
-
-    [[nodiscard]]
-    inline const DrawCommandNinePatch& ninepatch_data() const {
-        return m_ninepatch_data;
-    }
-
-    [[nodiscard]]
-    inline const DrawCommandShape& shape_data() const {
-        return m_shape_data;
-    }
-
-    [[nodiscard]]
-    inline const DrawCommandLine& line_data() const {
-        return m_line_data;
-    }
-
-    [[nodiscard]]
-    inline const BatchTexture& texture() const {
-        return m_texture;
-    }
-
-private:
-    union {
-        DrawCommandNinePatch m_ninepatch_data;
-        DrawCommandSprite m_sprite_data;
-        DrawCommandGlyph m_glyph_data;
-        DrawCommandShape m_shape_data;
-        DrawCommandLine m_line_data;
-    };
-
-    BatchTexture m_texture = {};
-
-    sge::IRect m_scissor;
-
-    uint32_t m_order;
-
-    Type m_type;
-    sge::BlendMode m_blend_mode;
 };
 
 inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
@@ -234,6 +152,53 @@ inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
     }
 
     return uv_offset_scale;
+}
+
+inline bool SortSimpleBatchState(const BatchSimpleState& a, const BatchSimpleState& b) {
+    if (a.order < b.order) return true;
+    if (a.order > b.order) return false;
+
+    const int a_scissor_size = a.scissor.width() + a.scissor.height();
+    const int b_scissor_size = b.scissor.width() + b.scissor.height();
+
+    if (a_scissor_size < b_scissor_size)
+        return true;
+
+    if (a_scissor_size > b_scissor_size)
+        return false;
+
+    uint8_t a_bm = static_cast<uint8_t>(a.blend_mode);
+    uint8_t b_bm = static_cast<uint8_t>(b.blend_mode);
+
+    if (a_bm < b_bm) return true;
+    if (a_bm > b_bm) return false;
+
+    return false;
+}
+
+inline bool SortTextureBatchState(const BatchTextureState& a, const BatchTextureState& b) {
+    if (a.order < b.order) return true;
+    if (a.order > b.order) return false;
+
+    const int a_scissor_size = a.scissor.width() + a.scissor.height();
+    const int b_scissor_size = b.scissor.width() + b.scissor.height();
+
+    if (a_scissor_size < b_scissor_size)
+        return true;
+
+    if (a_scissor_size > b_scissor_size)
+        return false;
+
+    if (a.texture.id < b.texture.id) return true;
+    if (a.texture.id > b.texture.id) return false;
+
+    uint8_t a_bm = static_cast<uint8_t>(a.blend_mode);
+    uint8_t b_bm = static_cast<uint8_t>(b.blend_mode);
+
+    if (a_bm < b_bm) return true;
+    if (a_bm > b_bm) return false;
+
+    return false;
 }
 
 } // namespace internal
@@ -269,7 +234,6 @@ public:
         uint32_t total_count = 0;
     };
 
-    using DrawCommands = std::vector<internal::DrawCommand>;
     using FlushQueue = std::vector<internal::FlushData>;
 
     Batch(Renderer2D& renderer, const BatchDesc& desc);
@@ -375,7 +339,12 @@ public:
     uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius = BorderRadius(), sge::Order custom_order = {});
 
     inline void Reset() {
-        m_draw_commands.clear();
+        m_sprite_draw_commands.clear();
+        m_glyph_draw_commands.clear();
+        m_ninepatch_draw_commands.clear();
+        m_shape_draw_commands.clear();
+        m_line_draw_commands.clear();
+        
         m_flush_queue.clear();
         m_scissors.clear();
         
@@ -387,7 +356,6 @@ public:
         
         m_order = 0;
         m_order_mode = false;
-        m_draw_commands_done = 0;
     }
 
     uint32_t GetOrder(sge::Order custom_order = {});
@@ -472,11 +440,15 @@ private:
     uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, sge::Order custom_order);
     uint32_t AddNinePatchDrawCommand(const sge::NinePatch& ninepatch, const glm::vec4& uv_offset_scale, sge::Order custom_order);
 
-    inline void set_draw_commands_done(size_t count) { m_draw_commands_done = count; }
-
     [[nodiscard]]
-    inline size_t draw_commands_done() const noexcept {
-        return m_draw_commands_done;
+    inline bool empty() const noexcept {
+        return (
+            m_sprite_draw_commands.empty() &&
+            m_glyph_draw_commands.empty() &&
+            m_ninepatch_draw_commands.empty() &&
+            m_shape_draw_commands.empty() &&
+            m_line_draw_commands.empty()
+        );
     }
 
     [[nodiscard]]
@@ -490,13 +462,28 @@ private:
     }
 
     [[nodiscard]]
-    inline const DrawCommands& draw_commands() const noexcept {
-        return m_draw_commands;
+    std::vector<internal::DrawCommandSprite>& sprite_draw_commands() noexcept {
+        return m_sprite_draw_commands;
     }
 
     [[nodiscard]]
-    inline DrawCommands& draw_commands() noexcept {
-        return m_draw_commands;
+    std::vector<internal::DrawCommandGlyph>& glyph_draw_commands() noexcept {
+        return m_glyph_draw_commands;
+    }
+
+    [[nodiscard]]
+    std::vector<internal::DrawCommandNinePatch>& ninepatch_draw_commands() noexcept {
+        return m_ninepatch_draw_commands;
+    }
+
+    [[nodiscard]]
+    std::vector<internal::DrawCommandShape>& shape_draw_commands() noexcept {
+        return m_shape_draw_commands;
+    }
+
+    [[nodiscard]]
+    std::vector<internal::DrawCommandLine>& line_draw_commands() noexcept {
+        return m_line_draw_commands;
     }
 
     [[nodiscard]]
@@ -524,13 +511,52 @@ private:
         return m_line_data;
     }
 
+    [[nodiscard]]
+    inline size_t sprites_done() const noexcept {
+        return m_sprite_draw_commands.size() - m_sprite_data.total_count;
+    }
+
+    [[nodiscard]]
+    inline size_t ninepatches_done() const noexcept {
+        return m_ninepatch_draw_commands.size() - m_ninepatch_data.total_count;
+    }
+
+    [[nodiscard]]
+    inline size_t glyphs_done() const noexcept {
+        return m_glyph_draw_commands.size() - m_glyph_data.total_count;
+    }
+
+    [[nodiscard]]
+    inline size_t shapes_done() const noexcept {
+        return m_shape_draw_commands.size() - m_shape_data.total_count;
+    }
+
+    [[nodiscard]]
+    inline size_t lines_done() const noexcept {
+        return m_line_draw_commands.size() - m_line_data.total_count;
+    }
+
+    [[nodiscard]]
+    inline size_t total_remaining() const noexcept {
+        return m_sprite_data.total_count
+            + m_glyph_data.total_count
+            + m_ninepatch_data.total_count
+            + m_shape_data.total_count
+            + m_line_data.total_count;
+    }
+
 private:
     static constexpr size_t MAX_QUADS = 2500;
     static constexpr size_t MAX_GLYPHS = 2500;
 
     SpriteBatchPipeline m_sprite_pipeline{};
 
-    DrawCommands m_draw_commands;
+    std::vector<internal::DrawCommandSprite> m_sprite_draw_commands;
+    std::vector<internal::DrawCommandGlyph> m_glyph_draw_commands;
+    std::vector<internal::DrawCommandNinePatch> m_ninepatch_draw_commands;
+    std::vector<internal::DrawCommandShape> m_shape_draw_commands;
+    std::vector<internal::DrawCommandLine> m_line_draw_commands;
+
     FlushQueue m_flush_queue;
 
     std::vector<sge::IRect> m_scissors;
@@ -548,7 +574,6 @@ private:
 
     uint32_t m_order = 0;
 
-    uint32_t m_draw_commands_done = 0;
     uint32_t m_max_count = UINT32_MAX;
 
     sge::Order m_global_order;

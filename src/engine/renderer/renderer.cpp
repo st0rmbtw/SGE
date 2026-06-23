@@ -109,7 +109,7 @@ void sge::Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) 
         .screen_projection_matrix = camera.get_screen_projection_matrix(),
         .view_projection_matrix = camera.get_view_projection_matrix(),
         .inv_view_proj_matrix = camera.get_inv_view_projection_matrix(),
-        .camera_position = camera.GetTransform().translation,
+        .camera_position = camera.transform().translation,
         .window_size = camera.viewport()
     };
 

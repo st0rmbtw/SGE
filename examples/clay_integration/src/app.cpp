@@ -81,7 +81,7 @@ App::~App() {
 void App::OnUpdate() {
     const glm::uvec2 window_size = m_camera.viewport();
 
-    const sge::Transform& camera_transform = m_camera.GetTransform();
+    const sge::Transform& camera_transform = m_camera.transform();
 
     Clay_SetLayoutDimensions(Clay_Dimensions {
         .width = static_cast<float>(window_size.x),

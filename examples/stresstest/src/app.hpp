@@ -53,7 +53,7 @@ private:
     sge::Shape::Type m_shape_type = sge::Shape::Rect;
     Coloring m_coloring = Coloring::Random;
     glm::uvec2 m_size_from = glm::uvec2(0);
-    glm::uvec2 m_size_to = glm::uvec2(500);
+    glm::uvec2 m_size_to = glm::uvec2(100);
     float m_radius_from = 1.0f;
     float m_radius_to = 250.0f;
     float m_outer_radius_from = 1.0f;

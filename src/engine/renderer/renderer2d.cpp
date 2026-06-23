@@ -730,68 +730,74 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
 
     using namespace sge::internal;
 
-    sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
+    auto& sprite_commands = batch.sprite_draw_commands();
+    auto& glyph_commands = batch.glyph_draw_commands();
+    auto& ninepatch_commands = batch.ninepatch_draw_commands();
+    auto& shape_commands = batch.shape_draw_commands();
+    auto& line_commands = batch.line_draw_commands();
 
     std::sort(
         std::execution::par,
-        draw_commands.begin(),
-        draw_commands.end(),
-        [](const DrawCommand& a, const DrawCommand& b) {
-            const uint32_t a_order = a.order();
-            const uint32_t b_order = b.order();
+        sprite_commands.begin(),
+        sprite_commands.end(),
+        [](const DrawCommandSprite& a, const DrawCommandSprite& b) {
+            return SortTextureBatchState(a.state, b.state);
+        }
+    );
 
-            if (a_order < b_order) return true;
-            if (a_order > b_order) return false;
+    std::sort(
+        std::execution::par,
+        glyph_commands.begin(),
+        glyph_commands.end(),
+        [](const DrawCommandGlyph& a, const DrawCommandGlyph& b) {
+            return SortTextureBatchState(a.state, b.state);
+        }
+    );
 
-            const int a_scissor_size = a.scissor().width() + a.scissor().height();
-            const int b_scissor_size = b.scissor().width() + b.scissor().height();
+    std::sort(
+        std::execution::par,
+        ninepatch_commands.begin(),
+        ninepatch_commands.end(),
+        [](const DrawCommandNinePatch& a, const DrawCommandNinePatch& b) {
+            return SortTextureBatchState(a.state, b.state);
+        }
+    );
 
-            if (a_scissor_size < b_scissor_size)
-                return true;
+    std::sort(
+        std::execution::par,
+        shape_commands.begin(),
+        shape_commands.end(),
+        [](const DrawCommandShape& a, const DrawCommandShape& b) {
+            return SortSimpleBatchState(a.state, b.state);
+        }
+    );
 
-            if (a_scissor_size > b_scissor_size)
-                return false;
-
-            const BatchTexture& a_texture = a.texture();
-            const BatchTexture& b_texture = b.texture();
-
-            if (a_texture.id < b_texture.id) return true;
-            if (a_texture.id > b_texture.id) return false;
-
-            uint8_t a_bm = static_cast<uint8_t>(a.blend_mode());
-            uint8_t b_bm = static_cast<uint8_t>(b.blend_mode());
-
-            if (a_bm < b_bm) return true;
-            if (a_bm > b_bm) return false;
-
-            return false;
+    std::sort(
+        std::execution::par,
+        line_commands.begin(),
+        line_commands.end(),
+        [](const DrawCommandLine& a, const DrawCommandLine& b) {
+            return SortSimpleBatchState(a.state, b.state);
         }
     );
 }
 
-void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
+void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
     ZoneScoped;
+
+    if (batch.empty())
+        return;
 
     using namespace sge::internal;
 
-    const sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
-
-    if (draw_commands.empty()) return;
-
-    sge::Batch::FlushQueue& flush_queue = batch.flush_queue();
-
-    BatchTexture sprite_prev_texture;
-    BlendMode sprite_prev_blend_mode;
     uint32_t sprite_count = 0;
     uint32_t sprite_offset = 0;
     uint32_t sprite_total_count = 0;
 
-    BatchTexture glyph_prev_texture;
     uint32_t glyph_count = 0;
     uint32_t glyph_offset = 0;
     uint32_t glyph_total_count = 0;
 
-    BatchTexture ninepatch_prev_texture;
     uint32_t ninepatch_count = 0;
     uint32_t ninepatch_offset = 0;
     uint32_t ninepatch_total_count = 0;
@@ -804,313 +810,281 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
     uint32_t line_offset = 0;
     uint32_t line_total_count = 0;
 
-    sge::IRect prev_scissor = draw_commands[begin].scissor();
-    uint32_t prev_order = draw_commands[begin].order();
+    uint32_t sum_total_count = 0;
 
-    size_t i = begin;
-    for (; i < draw_commands.size(); ++i) {
-        if (m_batch_instance_count >= batch.MaxCount()) {
-            break;
+    std::optional<sge::internal::BatchTextureState> sprite_state;
+    std::optional<sge::internal::BatchTextureState> glyph_state;
+    std::optional<sge::internal::BatchTextureState> npatch_state;
+    std::optional<sge::internal::BatchSimpleState> shape_state;
+    std::optional<sge::internal::BatchSimpleState> line_state;
+
+    const auto& sprites = batch.sprite_draw_commands();
+    const auto& glyphs = batch.glyph_draw_commands();
+    const auto& npatches = batch.ninepatch_draw_commands();
+    const auto& shapes = batch.shape_draw_commands();
+    const auto& lines = batch.line_draw_commands();
+
+    auto sprite_it = std::next(sprites.cbegin(), batch.sprites_done());
+    auto glyph_it = std::next(glyphs.cbegin(), batch.glyphs_done());
+    auto npatch_it = std::next(npatches.cbegin(), batch.ninepatches_done());
+    auto shape_it = std::next(shapes.cbegin(), batch.shapes_done());
+    auto line_it = std::next(lines.cbegin(), batch.lines_done());
+
+    auto sprites_end = sprites.cend();
+    auto glyphs_end = glyphs.cend();
+    auto npatches_end = npatches.cend();
+    auto shapes_end = shapes.cend();
+    auto lines_end = lines.cend();
+
+    sge::Batch::FlushQueue& flush_queue = batch.flush_queue();
+
+    auto get_next_order = [&]() -> std::optional<uint32_t> {
+        std::optional<uint32_t> min;
+        auto consider = [&](uint32_t order) {
+            if (!min || order < *min) min = order;
+        };
+        if (sprite_it != sprites_end)  consider(sprite_it->state.order);
+        if (glyph_it  != glyphs_end)   consider(glyph_it->state.order);
+        if (npatch_it != npatches_end) consider(npatch_it->state.order);
+        if (shape_it  != shapes_end)   consider(shape_it->state.order);
+        if (line_it   != lines_end)    consider(line_it->state.order);
+        return min;
+    };
+
+    auto flush_sprites = [&]() {
+        if (sprite_count > 0) {
+            flush_queue.push_back(FlushData {
+                .texture = sprite_state->texture,
+                .scissor = sprite_state->scissor,
+                .offset = sprite_offset,
+                .count = sprite_count,
+                .type = FlushDataType::Sprite,
+                .blend_mode = sprite_state->blend_mode
+            });
+            sprite_count = 0;
+            sprite_offset = sprite_total_count;
+        }
+    };
+
+    auto flush_glyphs = [&]() {
+        if (glyph_count > 0) {
+            flush_queue.push_back(FlushData {
+                .texture = glyph_state->texture,
+                .scissor = glyph_state->scissor,
+                .offset = glyph_offset,
+                .count = glyph_count,
+                .type = FlushDataType::Glyph,
+                .blend_mode = glyph_state->blend_mode
+            });
+            glyph_count = 0;
+            glyph_offset = glyph_total_count;
+        }
+    };
+
+    auto flush_npatches = [&]() {
+        if (ninepatch_count > 0) {
+            flush_queue.push_back(FlushData {
+                .texture = npatch_state->texture,
+                .scissor = npatch_state->scissor,
+                .offset = ninepatch_offset,
+                .count = ninepatch_count,
+                .type = FlushDataType::NinePatch,
+                .blend_mode = npatch_state->blend_mode
+            });
+            ninepatch_count = 0;
+            ninepatch_offset = ninepatch_total_count;
+        }
+    };
+
+    auto flush_shapes = [&]() {
+        if (shape_count > 0) {
+            flush_queue.push_back(FlushData {
+                .scissor = shape_state->scissor,
+                .offset = shape_offset,
+                .count = shape_count,
+                .type = FlushDataType::Shape,
+                .blend_mode = shape_state->blend_mode
+            });
+            shape_count = 0;
+            shape_offset = shape_total_count;
+        }
+    };
+
+    auto flush_lines = [&]() {
+        if (line_count > 0) {
+            flush_queue.push_back(FlushData {
+                .scissor = line_state->scissor,
+                .offset = line_offset,
+                .count = line_count,
+                .type = FlushDataType::Line,
+                .blend_mode = line_state->blend_mode
+            });
+            line_count = 0;
+            line_offset = line_total_count;
+        }
+    };
+
+    while (sum_total_count < batch.MaxCount()) {
+        auto order = get_next_order();
+        if (!order) break;
+
+        if (sprite_it != sprites_end && sprite_it->state.order == *order) {
+            if (sprite_state && *sprite_state != sprite_it->state) flush_sprites();
+            sprite_state = sprite_it->state;
+
+            while (sprite_it != sprites_end && sprite_it->state == *sprite_state) {
+                if (sum_total_count >= batch.MaxCount()) {
+                    goto end;
+                }
+
+                const DrawCommandSprite& command = *(sprite_it++);
+
+                uint8_t flags = 0;
+                flags |= batch.IsUi() << SpriteFlags::UI;
+
+                SpriteInstance* buffer = m_sprite_batch_data.GetBufferAndAdvance();
+                buffer->rotation = command.rotation;
+                buffer->uv_offset_scale = command.uv_offset_scale;
+                buffer->color = command.color;
+                buffer->outline_color = command.outline_color;
+                buffer->position = command.position;
+                buffer->size = command.size;
+                buffer->offset = command.offset;
+                buffer->outline_thickness = command.outline_thickness;
+                buffer->flags = flags;
+
+                ++sum_total_count;
+                ++sprite_count;
+                ++sprite_total_count;
+            }
         }
 
-        const DrawCommand& draw_command = draw_commands[i];
+        if (npatch_it != npatches_end && npatch_it->state.order == *order) {
+            if (npatch_state && *npatch_state != npatch_it->state) flush_npatches();
+            npatch_state = npatch_it->state;
 
-        if (prev_order != draw_command.order() || prev_scissor != draw_command.scissor()) {
-            if (sprite_count > 0) {
-                flush_queue.push_back(FlushData {
-                    .texture = sprite_prev_texture,
-                    .scissor = prev_scissor,
-                    .offset = sprite_offset,
-                    .count = sprite_count,
-                    .type = FlushDataType::Sprite,
-                    .blend_mode = sprite_prev_blend_mode
-                });
-                sprite_count = 0;
-                sprite_offset = sprite_total_count;
-            }
+            while (npatch_it != npatches_end && npatch_it->state == *npatch_state) {
+                if (sum_total_count >= batch.MaxCount()) {
+                    goto end;
+                }
+                
+                const DrawCommandNinePatch& command = *(npatch_it++);
+                
+                uint8_t flags = 0;
+                flags |= batch.IsUi() << SpriteFlags::UI;
 
-            if (glyph_count > 0) {
-                flush_queue.push_back(FlushData {
-                    .texture = glyph_prev_texture,
-                    .scissor = prev_scissor,
-                    .offset = glyph_offset,
-                    .count = glyph_count,
-                    .type = FlushDataType::Glyph,
-                    .blend_mode = draw_command.blend_mode()
-                });
-                glyph_count = 0;
-                glyph_offset = glyph_total_count;
-            }
+                NinePatchInstance* buffer = m_ninepatch_batch_data.GetBufferAndAdvance();
+                buffer->rotation = command.rotation;
+                buffer->uv_offset_scale = command.uv_offset_scale;
+                buffer->color = command.color;
+                buffer->margin = command.margin;
+                buffer->position = command.position;
+                buffer->offset = command.offset;
+                buffer->source_size = command.source_size;
+                buffer->output_size = command.output_size;
+                buffer->flags = flags;
 
-            if (ninepatch_count > 0) {
-                flush_queue.push_back(FlushData {
-                    .texture = ninepatch_prev_texture,
-                    .scissor = prev_scissor,
-                    .offset = ninepatch_offset,
-                    .count = ninepatch_count,
-                    .type = FlushDataType::NinePatch,
-                    .blend_mode = draw_command.blend_mode()
-                });
-                ninepatch_count = 0;
-                ninepatch_offset = ninepatch_total_count;
-            }
-
-            if (shape_count > 0) {
-                flush_queue.push_back(FlushData {
-                    .scissor = prev_scissor,
-                    .offset = shape_offset,
-                    .count = shape_count,
-                    .type = FlushDataType::Shape,
-                    .blend_mode = draw_command.blend_mode()
-                });
-                shape_count = 0;
-                shape_offset = shape_total_count;
-            }
-
-            if (line_count > 0) {
-                flush_queue.push_back(FlushData {
-                    .scissor = prev_scissor,
-                    .offset = line_offset,
-                    .count = line_count,
-                    .type = FlushDataType::Line,
-                    .blend_mode = draw_command.blend_mode()
-                });
-                line_count = 0;
-                line_offset = line_total_count;
+                ++sum_total_count;
+                ++ninepatch_count;
+                ++ninepatch_total_count;
             }
         }
 
-        switch (draw_command.type()) {
-        case DrawCommand::DrawSprite: {
-            const DrawCommandSprite& sprite_data = draw_command.sprite_data();
+        if (glyph_it != glyphs_end && glyph_it->state.order == *order) {
+            if (glyph_state && *glyph_state != glyph_it->state) flush_glyphs();
+            glyph_state = glyph_it->state;
 
-            if (sprite_total_count == 0) {
-                sprite_prev_texture = draw_command.texture();
-                sprite_prev_blend_mode = draw_command.blend_mode();
+            while (glyph_it != glyphs_end && glyph_it->state == *glyph_state) {
+                if (sum_total_count >= batch.MaxCount()) {
+                    goto end;
+                }
+
+                const DrawCommandGlyph& command = *(glyph_it++);
+
+                uint8_t flags = 0;
+                flags |= batch.IsUi() << ShapeFlags::UI;
+
+                GlyphInstance* buffer = m_glyph_batch_data.GetBufferAndAdvance();
+                buffer->color = command.color;
+                buffer->pos = command.pos;
+                buffer->size = command.size;
+                buffer->tex_size = command.tex_size;
+                buffer->uv = command.tex_uv;
+                buffer->flags = flags;
+
+                ++sum_total_count;
+                ++glyph_count;
+                ++glyph_total_count;
             }
-
-            const uint32_t prev_texture_id = sprite_prev_texture.id;
-            const uint32_t curr_texture_id = draw_command.texture().id;
-
-            const sge::BlendMode curr_blend_mode = draw_command.blend_mode();
-
-            const bool flush = (prev_texture_id != curr_texture_id || sprite_prev_blend_mode != curr_blend_mode);
-
-            if (sprite_count > 0 && flush) {
-                flush_queue.push_back(FlushData {
-                    .texture = sprite_prev_texture,
-                    .scissor = draw_command.scissor(),
-                    .offset = sprite_offset,
-                    .count = sprite_count,
-                    .type = FlushDataType::Sprite,
-                    .blend_mode = sprite_prev_blend_mode
-                });
-                sprite_count = 0;
-                sprite_offset = sprite_total_count;
-            }
-
-            uint8_t flags = 0;
-            flags |= batch.IsUi() << SpriteFlags::UI;
-
-            SpriteInstance* buffer = m_sprite_batch_data.GetBufferAndAdvance();
-            buffer->rotation = sprite_data.rotation;
-            buffer->uv_offset_scale = sprite_data.uv_offset_scale;
-            buffer->color = sprite_data.color;
-            buffer->outline_color = sprite_data.outline_color;
-            buffer->position = sprite_data.position;
-            buffer->size = sprite_data.size;
-            buffer->offset = sprite_data.offset;
-            buffer->outline_thickness = sprite_data.outline_thickness;
-            buffer->flags = flags;
-
-            ++sprite_count;
-            ++sprite_total_count;
-
-            sprite_prev_texture = draw_command.texture();
-            sprite_prev_blend_mode = draw_command.blend_mode();
-        } break;
-        case DrawCommand::DrawGlyph: {
-            const DrawCommandGlyph& glyph_data = draw_command.glyph_data();
-
-            if (glyph_total_count == 0) {
-                glyph_prev_texture = draw_command.texture();
-            }
-
-            const bool flush = (glyph_prev_texture.id != draw_command.texture().id);
-
-            if (glyph_count > 0 && flush) {
-                flush_queue.push_back(FlushData {
-                    .texture = glyph_prev_texture,
-                    .scissor = draw_command.scissor(),
-                    .offset = glyph_offset,
-                    .count = glyph_count,
-                    .type = FlushDataType::Glyph,
-                    .blend_mode = draw_command.blend_mode()
-                });
-                glyph_count = 0;
-                glyph_offset = glyph_total_count;
-            }
-
-            uint8_t flags = 0;
-            flags |= batch.IsUi() << ShapeFlags::UI;
-
-            GlyphInstance* buffer = m_glyph_batch_data.GetBufferAndAdvance();
-            buffer->color = glyph_data.color;
-            buffer->pos = glyph_data.pos;
-            buffer->size = glyph_data.size;
-            buffer->tex_size = glyph_data.tex_size;
-            buffer->uv = glyph_data.tex_uv;
-            buffer->flags = flags;
-
-            ++glyph_count;
-            ++glyph_total_count;
-
-            glyph_prev_texture = draw_command.texture();
-        } break;
-        case DrawCommand::DrawNinePatch: {
-            const DrawCommandNinePatch& ninepatch_data = draw_command.ninepatch_data();
-
-            if (ninepatch_total_count == 0) {
-                ninepatch_prev_texture = draw_command.texture();
-            }
-
-            const uint32_t prev_texture_id = ninepatch_prev_texture.id;
-            const uint32_t curr_texture_id = draw_command.texture().id;
-
-            const bool flush = (prev_texture_id != curr_texture_id);
-
-            if (ninepatch_count > 0 && flush) {
-                flush_queue.push_back(FlushData {
-                    .texture = ninepatch_prev_texture,
-                    .scissor = draw_command.scissor(),
-                    .offset = ninepatch_offset,
-                    .count = ninepatch_count,
-                    .type = FlushDataType::NinePatch,
-                    .blend_mode = draw_command.blend_mode()
-                });
-                ninepatch_count = 0;
-                ninepatch_offset = ninepatch_total_count;
-            }
-
-            uint8_t flags = 0;
-            flags |= batch.IsUi() << SpriteFlags::UI;
-
-            NinePatchInstance* buffer = m_ninepatch_batch_data.GetBufferAndAdvance();
-            buffer->rotation = ninepatch_data.rotation;
-            buffer->uv_offset_scale = ninepatch_data.uv_offset_scale;
-            buffer->color = ninepatch_data.color;
-            buffer->margin = ninepatch_data.margin;
-            buffer->position = ninepatch_data.position;
-            buffer->offset = ninepatch_data.offset;
-            buffer->source_size = ninepatch_data.source_size;
-            buffer->output_size = ninepatch_data.output_size;
-            buffer->flags = flags;
-
-            ++ninepatch_count;
-            ++ninepatch_total_count;
-
-            ninepatch_prev_texture = draw_command.texture();
-        } break;
-        case DrawCommand::DrawShape: {
-            const DrawCommandShape& shape_data = draw_command.shape_data();
-
-            uint8_t flags = 0;
-            flags |= batch.IsUi() << ShapeFlags::UI;
-
-            ShapeInstance* buffer = m_shape_batch_data.GetBufferAndAdvance();
-            buffer->color = shape_data.color.to_vec4();
-            buffer->border_color = shape_data.border_color.to_vec4();
-            buffer->border_radius = shape_data.border_radius;
-            buffer->position = glm::vec3(shape_data.position, 0.0f);
-            buffer->size = shape_data.size;
-            buffer->offset = shape_data.offset;
-            buffer->border_thickness = shape_data.border_thickness;
-            buffer->shape = shape_data.shape;
-            buffer->flags = flags;
-
-            ++shape_count;
-            ++shape_total_count;
-        } break;
-        case DrawCommand::DrawLine: {
-            const DrawCommandLine& line_data = draw_command.line_data();
-
-            uint8_t flags = 0;
-            flags |= batch.IsUi() << ShapeFlags::UI;
-
-            LineInstance* buffer = m_line_batch_data.GetBufferAndAdvance();
-            buffer->start = line_data.start;
-            buffer->end = line_data.end;
-            buffer->color = line_data.color.to_vec4();
-            buffer->border_radius = line_data.border_radius;
-            buffer->thickness = line_data.thickness;
-            buffer->flags = flags;
-
-            ++line_count;
-            ++line_total_count;
-        } break;
         }
 
-        prev_scissor = draw_command.scissor();
-        prev_order = draw_command.order();
+        if (line_it != lines_end && line_it->state.order == *order) {
+            if (line_state && *line_state != line_it->state) flush_lines();
+            line_state = line_it->state;
 
-        ++m_batch_instance_count;
+            while (line_it != lines_end && line_it->state == *line_state) {
+                if (sum_total_count >= batch.MaxCount()) {
+                    goto end;
+                }
+
+                const DrawCommandLine& command = *(line_it++);
+
+                uint8_t flags = 0;
+                flags |= batch.IsUi() << ShapeFlags::UI;
+
+                LineInstance* buffer = m_line_batch_data.GetBufferAndAdvance();
+                buffer->start = command.start;
+                buffer->end = command.end;
+                buffer->color = command.color.to_vec4();
+                buffer->border_radius = command.border_radius;
+                buffer->thickness = command.thickness;
+                buffer->flags = flags;
+
+                ++sum_total_count;
+                ++line_count;
+                ++line_total_count;
+            }
+        }
+
+        if (shape_it != shapes_end && shape_it->state.order == *order) {
+            if (shape_state && *shape_state != shape_it->state) flush_shapes();
+            shape_state = shape_it->state;
+        
+            while (shape_it != shapes_end && shape_it->state == *shape_state) {
+                if (sum_total_count >= batch.MaxCount()) {
+                    goto end;
+                }
+
+                const DrawCommandShape& command = *(shape_it++);
+
+                uint8_t flags = 0;
+                flags |= batch.IsUi() << ShapeFlags::UI;
+
+                ShapeInstance* buffer = m_shape_batch_data.GetBufferAndAdvance();
+                buffer->color = command.color.to_vec4();
+                buffer->border_color = command.border_color.to_vec4();
+                buffer->border_radius = command.border_radius;
+                buffer->position = glm::vec3(command.position, 0.0f);
+                buffer->size = command.size;
+                buffer->offset = command.offset;
+                buffer->border_thickness = command.border_thickness;
+                buffer->shape = command.shape;
+                buffer->flags = flags;
+
+                ++sum_total_count;
+                ++shape_count;
+                ++shape_total_count;
+            }
+        }
+
+// bruh goto in 2026...
+end:
+        flush_sprites();
+        flush_glyphs();
+        flush_npatches();
+        flush_shapes();
+        flush_lines();
     }
-    
-
-    if (sprite_count > 0) {
-        flush_queue.push_back(FlushData {
-            .texture = sprite_prev_texture,
-            .scissor = prev_scissor,
-            .offset = sprite_offset,
-            .count = sprite_count,
-            .type = FlushDataType::Sprite,
-            .blend_mode = sprite_prev_blend_mode
-        });
-    }
-
-    if (glyph_count > 0) {
-        flush_queue.push_back(FlushData {
-            .texture = glyph_prev_texture,
-            .scissor = prev_scissor,
-            .offset = glyph_offset,
-            .count = glyph_count,
-            .type = FlushDataType::Glyph,
-            .blend_mode = draw_commands[i - 1].blend_mode()
-        });
-    }
-
-    if (ninepatch_count > 0) {
-        flush_queue.push_back(FlushData {
-            .texture = ninepatch_prev_texture,
-            .scissor = prev_scissor,
-            .offset = ninepatch_offset,
-            .count = ninepatch_count,
-            .type = FlushDataType::NinePatch,
-            .blend_mode = draw_commands[i - 1].blend_mode()
-        });
-    }
-
-    if (shape_count > 0) {
-        flush_queue.push_back(FlushData {
-            .scissor = prev_scissor,
-            .offset = shape_offset,
-            .count = shape_count,
-            .type = FlushDataType::Shape,
-            .blend_mode = draw_commands[i - 1].blend_mode()
-        });
-    }
-
-    if (line_count > 0) {
-        flush_queue.push_back(FlushData {
-            .scissor = prev_scissor,
-            .offset = line_offset,
-            .count = line_count,
-            .type = FlushDataType::Line,
-            .blend_mode = draw_commands[i - 1].blend_mode()
-        });
-    }
-
-    batch.set_draw_commands_done(i);
 
     batch.sprite_data().total_count -= sprite_total_count;
     batch.glyph_data().total_count -= glyph_total_count;
@@ -1121,7 +1095,7 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch, size_t begin) {
 
 
 void sge::Renderer2D::PrepareBatch(sge::Batch& batch) {
-    if (batch.draw_commands().empty()) return;
+    if (batch.empty()) return;
 
     const auto& context = GetRenderContext();
 
@@ -1174,13 +1148,11 @@ void sge::Renderer2D::UploadBatchData() {
 void sge::Renderer2D::RenderBatch(sge::Batch& batch) {
     ZoneScoped;
 
-    const sge::Batch::DrawCommands& draw_commands = batch.draw_commands();
-
-    if (draw_commands.empty()) return;
+    if (batch.empty()) return;
 
     ApplyBatchDrawCommands(batch);
 
-    while (batch.draw_commands_done() < draw_commands.size()) {
+    while (batch.total_remaining() > 0) {
         m_batch_instance_count = 0;
 
         m_sprite_batch_data.Reset();
@@ -1198,7 +1170,7 @@ void sge::Renderer2D::RenderBatch(sge::Batch& batch) {
         m_line_batch_data.Reset();
         batch.line_data().offset = 0;
         
-        UpdateBatchBuffers(batch, batch.draw_commands_done());
+        UpdateBatchBuffers(batch);
         UploadBatchData();
         
         ApplyBatchDrawCommands(batch);

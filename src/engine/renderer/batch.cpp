@@ -7,7 +7,11 @@
 sge::Batch::Batch(Renderer2D& renderer, const BatchDesc& desc) :
     m_scissor_enabled(desc.enable_scissor)
 {
-    m_draw_commands.reserve(500);
+    m_sprite_draw_commands.reserve(500);
+    m_glyph_draw_commands.reserve(500);
+    m_ninepatch_draw_commands.reserve(500);
+    m_shape_draw_commands.reserve(500);
+    m_line_draw_commands.reserve(500);
     m_flush_queue.reserve(100);
 
     m_sprite_pipeline = renderer.CreateSpriteBatchPipeline(desc.enable_scissor, desc.sprite_shader);
@@ -65,6 +69,12 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, cons
     const uint32_t order = GetOrder(custom_order);
     const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
 
+    const auto texture = internal::BatchTexture {
+        .ptr = font.texture.internal().Get(),
+        .sampler = font.texture.sampler()->internal().Get(),
+        .id = font.texture.id()
+    };
+
     for (size_t i = 0; i < size; ++i) {
         const RichTextSection section = sections[i];
         const char* str = section.text.data();
@@ -100,13 +110,13 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, cons
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            const auto texture = internal::BatchTexture {
-                .ptr = font.texture.internal().Get(),
-                .sampler = font.texture.sampler()->internal().Get(),
-                .id = font.texture.id()
-            };
-
             const auto command = internal::DrawCommandGlyph {
+                .state = internal::BatchTextureState {
+                    .texture = texture,
+                    .scissor = scissor,
+                    .order = order,
+                    .blend_mode = m_blend_mode
+                },
                 .color = color,
                 .pos = pos,
                 .size = size,
@@ -114,7 +124,7 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, cons
                 .tex_uv = ch.texture_coords,
             };
 
-            m_draw_commands.emplace_back(command, texture, scissor, order, m_blend_mode);
+            m_glyph_draw_commands.push_back(command);
 
             ++m_glyph_data.total_count;
 
@@ -138,7 +148,13 @@ uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::v
     };
 
     const auto command = internal::DrawCommandSprite {
-        .rotation = sprite.rotation(),
+        .state = internal::BatchTextureState {
+            .texture = texture_with_sampler,
+            .scissor = scissor,
+            .order = order,
+            .blend_mode = m_blend_mode
+        },
+        .rotation = glm::quat(sprite.rotation()),
         .uv_offset_scale = uv_offset_scale,
         .color = sprite.color().to_vec4(),
         .outline_color = sprite.outline_color().to_vec4(),
@@ -148,7 +164,7 @@ uint32_t sge::Batch::AddSpriteDrawCommand(const BaseSprite& sprite, const glm::v
         .outline_thickness = sprite.outline_thickness(),
     };
 
-    m_draw_commands.emplace_back(command, texture_with_sampler, scissor, order, m_blend_mode);
+    m_sprite_draw_commands.push_back(command);
 
     ++m_sprite_data.total_count;
 
@@ -168,7 +184,13 @@ uint32_t sge::Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const g
     };
 
     const auto command = internal::DrawCommandNinePatch {
-        .rotation = ninepatch.rotation(),
+        .state = internal::BatchTextureState {
+            .texture = texture,
+            .scissor = scissor,
+            .order = order,
+            .blend_mode = m_blend_mode
+        },
+        .rotation = glm::quat(ninepatch.rotation()),
         .uv_offset_scale = uv_offset_scale,
         .color = ninepatch.color().to_vec4(),
         .margin = ninepatch.margin(),
@@ -178,7 +200,7 @@ uint32_t sge::Batch::AddNinePatchDrawCommand(const NinePatch& ninepatch, const g
         .output_size = ninepatch.size(),
     };
 
-    m_draw_commands.emplace_back(command, texture, scissor, order, m_blend_mode);
+    m_ninepatch_draw_commands.push_back(command);
 
     ++m_ninepatch_data.total_count;
 
@@ -194,7 +216,15 @@ uint32_t sge::Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 
         ? glm::vec4(border_radius.values()) / 100.0f * length
         : glm::vec4(border_radius.values());
 
+    const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
+
     const auto command = internal::DrawCommandShape {
+        .state = internal::BatchSimpleState {
+            .scissor = scissor,
+            .order = order,
+            .blend_mode = m_blend_mode
+        },
         .color = color,
         .border_color = border_color,
         .border_radius = radius,
@@ -202,13 +232,10 @@ uint32_t sge::Batch::DrawShape(Shape::Type shape, glm::vec2 position, glm::vec2 
         .size = size,
         .offset = anchor.to_vec2(),
         .border_thickness = border_thickness,
-        .shape = shape
-    }; 
+        .shape = shape,
+    };
 
-    const uint32_t order = GetOrder(custom_order);
-    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
-
-    m_draw_commands.emplace_back(command, scissor, order, m_blend_mode);
+    m_shape_draw_commands.push_back(command);
 
     ++m_shape_data.total_count;
 
@@ -224,7 +251,15 @@ uint32_t sge::Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, c
         radius = glm::vec4(border_radius.values()) * length / 100.0f;
     }
 
+    const uint32_t order = GetOrder(custom_order);
+    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
+
     const auto command = internal::DrawCommandLine {
+        .state = internal::BatchSimpleState {
+            .scissor = scissor,
+            .order = order,
+            .blend_mode = m_blend_mode
+        },
         .color = color,
         .border_radius = radius,
         .start = start,
@@ -232,10 +267,7 @@ uint32_t sge::Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, c
         .thickness = thickness,
     };
 
-    const uint32_t order = GetOrder(custom_order);
-    const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
-
-    m_draw_commands.emplace_back(command, scissor, order, m_blend_mode);
+    m_line_draw_commands.push_back(command);
 
     ++m_line_data.total_count;
 

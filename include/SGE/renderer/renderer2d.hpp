@@ -102,7 +102,7 @@ private:
     BatchData<LineInstance> InitLineBatchData();
 
     void SortBatchDrawCommands(sge::Batch& batch);
-    void UpdateBatchBuffers(sge::Batch& batch, size_t begin = 0);
+    void UpdateBatchBuffers(sge::Batch& batch);
     void ApplyBatchDrawCommands(sge::Batch& batch);
 
     void InitVectorPipeline();

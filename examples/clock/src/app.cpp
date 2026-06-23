@@ -125,7 +125,7 @@ void App::OnUpdate() {
         return;
 
     sge::Camera& camera = m_cameras[window->GetID()];
-    sge::Transform& camera_transform = camera.GetTransform();
+    sge::Transform& camera_transform = camera.transform();
 
     for (const float scroll : Input::ScrollEvents()) {
         const float zoom_factor = glm::pow(0.75f, scroll);
@@ -265,7 +265,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         {
             const float sin = glm::sin(wh - consts::FRAC_PI_2);
             const float cos = glm::cos(wh - consts::FRAC_PI_2);
-            const glm::vec2 line_dir = glm::vec2(cos, -sin);
+            const glm::vec2 line_dir = glm::vec2(cos, sin);
 
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
@@ -277,7 +277,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         {
             const float sin = glm::sin(wm - consts::FRAC_PI_2);
             const float cos = glm::cos(wm - consts::FRAC_PI_2);
-            const glm::vec2 line_dir = glm::vec2(cos, -sin);
+            const glm::vec2 line_dir = glm::vec2(cos, sin);
 
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
@@ -289,7 +289,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         {
             const float sin = glm::sin(ws - consts::FRAC_PI_2);
             const float cos = glm::cos(ws - consts::FRAC_PI_2);
-            const glm::vec2 line_dir = glm::vec2(cos, -sin);
+            const glm::vec2 line_dir = glm::vec2(cos, sin);
 
             const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
             const float length = hand_length - CLOCK_SECOND_HAND_OFFSET * size.x;

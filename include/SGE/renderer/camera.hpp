@@ -79,12 +79,12 @@ public:
     glm::vec2 screen_to_world(const glm::vec2& screen_pos) const;
 
     [[nodiscard]]
-    inline const Transform& GetTransform() const noexcept {
+    inline const Transform& transform() const noexcept {
         return m_transform;
     }
 
     [[nodiscard]]
-    inline Transform& GetTransform() noexcept {
+    inline Transform& transform() noexcept {
         return m_transform;
     }
 
@@ -135,6 +135,11 @@ public:
     [[nodiscard]]
     inline uint8_t samples() const noexcept {
         return m_samples;
+    }
+
+    [[nodiscard]]
+    inline CameraOrigin origin() const noexcept {
+        return m_origin;
     }
 
     [[nodiscard]]
