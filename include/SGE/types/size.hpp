@@ -15,11 +15,11 @@ struct Size {
     uint32_t width = 0;
     uint32_t height = 0;
 
-    explicit Size(uint32_t value) : width(value), height(value) {}
-    explicit Size(uint32_t w, uint32_t h) : width(w), height(h) {}
+    constexpr explicit Size(uint32_t value) : width(value), height(value) {}
+    constexpr explicit Size(uint32_t w, uint32_t h) : width(w), height(h) {}
 
-    Size(glm::uvec2 v) : width(v.x), height(v.y) {}
-    Size(LLGL::Extent2D e) : width(e.width), height(e.height) {}
+    constexpr Size(glm::uvec2 v) : width(v.x), height(v.y) {}
+    constexpr Size(LLGL::Extent2D e) : width(e.width), height(e.height) {}
 
     operator glm::uvec2() const noexcept {
         return glm::uvec2(width, height);

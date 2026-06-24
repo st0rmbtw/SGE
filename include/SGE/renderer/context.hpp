@@ -299,9 +299,7 @@ public:
         return Raw<LLGL::PipelineLayout>::Create(shared_from_this(), m_context->CreatePipelineLayout(desc));
     }
 
-    inline Raw<LLGL::PipelineState> CreatePipelineState(const LLGL::GraphicsPipelineDescriptor& desc) {
-        return Raw<LLGL::PipelineState>::Create(shared_from_this(), m_context->CreatePipelineState(desc));
-    }
+    Raw<LLGL::PipelineState> CreatePipelineState(const LLGL::GraphicsPipelineDescriptor& desc);
 
     inline Raw<LLGL::RenderPass> CreateRenderPass(const LLGL::RenderPassDescriptor& desc) {
         return Raw<LLGL::RenderPass>::Create(shared_from_this(), m_context->CreateRenderPass(desc));

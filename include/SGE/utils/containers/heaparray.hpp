@@ -34,6 +34,10 @@ public:
     }
 
     HeapArray(const HeapArray& other) {
+        operator=(other);
+    }
+
+    HeapArray& operator=(const HeapArray& other) {
         if (this == &other)
             return *this;
 

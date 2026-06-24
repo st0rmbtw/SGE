@@ -103,8 +103,8 @@ class RefWeak;
 template <typename T> requires std::derived_from<T, RefCounted>
 class Ref<T> {
 public:
-    Ref() = default;
-    Ref(std::nullptr_t) {}
+    constexpr Ref() = default;
+    constexpr Ref(std::nullptr_t) {}
 
     Ref(T* data) : m_data(data) {
         IncrementRef();
@@ -195,8 +195,8 @@ private:
 template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
 class Ref<T> {
 public:
-    Ref() = default;
-    Ref(std::nullptr_t) {}
+    constexpr Ref() = default;
+    constexpr Ref(std::nullptr_t) {}
 
     Ref(std::shared_ptr<RenderContext> context, T* ptr) : 
         m_data(new LLGLResourceRC(std::move(context), ptr))

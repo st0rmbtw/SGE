@@ -44,7 +44,7 @@ class Texture {
 public:
     constexpr Texture() = default;
 
-    constexpr Texture(int id, sge::Size size, Ref<Sampler> sampler, Ref<LLGL::Texture> internal) :
+    Texture(int id, sge::Size size, Ref<Sampler> sampler, Ref<LLGL::Texture> internal) :
         m_internal(std::move(internal)),
         m_sampler(std::move(sampler)),
         m_size(size),

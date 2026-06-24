@@ -271,7 +271,7 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
             pipelineDesc.renderPass = GetCurrentTarget()->GetRenderPass();
         }
 
-        pipeline_state = m_context->CreatePipelineState(pipelineDesc);
+        pipeline_state = CreatePipelineState(pipelineDesc);
         SGE_ASSERT(pipeline_state != nullptr);
 
         m_pipeline_states[key] = pipeline_state;
@@ -340,7 +340,7 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
                 
                 if (attachmentFormat != LLGL::Format::Undefined) {
                     textureDesc.format = attachmentFormat;
-                    LLGL::Texture* texture = m_context->CreateTexture(textureDesc);
+                    LLGL::Texture* texture = CreateTexture(textureDesc);
                     targetDesc.colorAttachments[i].texture = texture;
                     cachedRenderTarget.colorAttachmentTextures[i] = texture;
                 }
@@ -359,7 +359,7 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
         targetDesc.depthStencilAttachment.mipLevel = config.depthStencilAttachment.mipLevel;
         targetDesc.depthStencilAttachment.arrayLayer = config.depthStencilAttachment.arrayLayer;
 
-        renderTarget = m_context->CreateRenderTarget(targetDesc);
+        renderTarget = CreateRenderTarget(targetDesc);
         cachedRenderTarget.handle = renderTarget;
 
         m_render_targets.try_emplace(key, cachedRenderTarget);
@@ -396,7 +396,7 @@ LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderP
             targetDesc.colorAttachments[i] = config.colorAttachments[i];
         }
 
-        renderPass = m_context->CreateRenderPass(targetDesc);
+        renderPass = CreateRenderPass(targetDesc);
 
         m_render_passes.try_emplace(key, renderPass);
     }
@@ -575,10 +575,26 @@ sge::Texture sge::RenderContext::CreateTexture(const sge::TextureConfig& config,
 
     uint32_t id = m_texture_index++;
 
-    LLGL::Texture* texture = m_context->CreateTexture(texture_desc, initialData);
+    LLGL::Texture* texture = CreateTexture(texture_desc, initialData);
     SGE_ASSERT(texture != nullptr);
 
     return sge::Texture(id, sge::Size(config.extent.width, config.extent.height), config.sampler, Ref<LLGL::Texture>(shared_from_this(), texture));
+}
+
+sge::Raw<LLGL::PipelineState> sge::RenderContext::CreatePipelineState(const LLGL::GraphicsPipelineDescriptor& desc) {
+    LLGL::PipelineState* pipelineState = m_context->CreatePipelineState(desc);
+    if (const LLGL::Report* report = pipelineState->GetReport()) {
+        if (*report->GetText() != '\0') {
+            if (report->HasErrors()) {
+                SGE_DEBUG_BREAK();
+                SGE_LOG_ERROR("Failed to create a pipeline. Error: {}", report->GetText());
+                return Raw<LLGL::PipelineState>::Create(shared_from_this(), nullptr);
+            }
+
+            SGE_LOG_INFO("{}", report->GetText());
+        }
+    }
+    return Raw<LLGL::PipelineState>::Create(shared_from_this(), pipelineState);
 }
 
 sge::Framebuffer sge::RenderContext::CreateFramebuffer(const sge::FramebufferConfig& config) {
@@ -783,6 +799,7 @@ sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_t
     if (const LLGL::Report* report = shader->GetReport()) {
         if (*report->GetText() != '\0') {
             if (report->HasErrors()) {
+                SGE_DEBUG_BREAK();
                 SGE_LOG_ERROR("Failed to create a shader. Error: {}", report->GetText());
                 return sge::Raw<LLGL::Shader>::Create(shared_from_this(), nullptr);
             }

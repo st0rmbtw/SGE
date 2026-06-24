@@ -33,15 +33,22 @@
     #error "Unknown compiler; can't define SGE_FORCE_INLINE"
 #endif
 
-#if SGE_PLATFORM_WINDOWS
-    #define SGE_DEBUG_BREAK() __debugbreak()
+#if SGE_DEBUG
+    #if SGE_PLATFORM_WINDOWS
+        #define SGE_DEBUG_BREAK() __debugbreak()
+    #else
+        #if defined(__x86_64__) || defined(__i386__)
+            #define SGE_DEBUG_BREAK() __asm__ volatile("int $3")
+        #else
+            #define SGE_DEBUG_BREAK() __builtin_trap()
+        #endif
+    #endif
 #else
-    #include <signal.h>
-    #define SGE_DEBUG_BREAK() raise(SIGTRAP)
+    #define SGE_DEBUG_BREAK() (void)0
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
-    #define SGE_ALIGN(x) __attribute__ ((aligned(x)))
+    #define SGE_ALIGN(x) __attribute__((aligned(x)))
 #elif defined(_MSC_VER)
     #define SGE_ALIGN(x) __declspec(align(x))
 #else

@@ -736,8 +736,12 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     auto& shape_commands = batch.shape_draw_commands();
     auto& line_commands = batch.line_draw_commands();
 
+    // GNU PSTL doesn't compile with exceptions disabled
+
     std::sort(
+#if !defined(__GNUC__) || defined(__cpp_exceptions)
         std::execution::par,
+#endif
         sprite_commands.begin(),
         sprite_commands.end(),
         [](const DrawCommandSprite& a, const DrawCommandSprite& b) {
@@ -746,7 +750,9 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
+#if !defined(__GNUC__) || defined(__cpp_exceptions)
         std::execution::par,
+#endif
         glyph_commands.begin(),
         glyph_commands.end(),
         [](const DrawCommandGlyph& a, const DrawCommandGlyph& b) {
@@ -755,7 +761,9 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
+#if !defined(__GNUC__) || defined(__cpp_exceptions)
         std::execution::par,
+#endif
         ninepatch_commands.begin(),
         ninepatch_commands.end(),
         [](const DrawCommandNinePatch& a, const DrawCommandNinePatch& b) {
@@ -764,7 +772,9 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
+#if !defined(__GNUC__) || defined(__cpp_exceptions)
         std::execution::par,
+#endif
         shape_commands.begin(),
         shape_commands.end(),
         [](const DrawCommandShape& a, const DrawCommandShape& b) {
@@ -773,7 +783,9 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
+#if !defined(__GNUC__) || defined(__cpp_exceptions)
         std::execution::par,
+#endif
         line_commands.begin(),
         line_commands.end(),
         [](const DrawCommandLine& a, const DrawCommandLine& b) {
