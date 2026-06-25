@@ -7,7 +7,7 @@
 namespace sge {
 
 /**
- * @brief Copies the data to the buffer in chunks the size of maximum `2^16 - 1` (`65535`) bytes each.
+ * @brief Copies the data to the buffer in chunks the size of maximum `2^16` (`65536`) bytes each.
  * 
  * @param commandBuffer The command buffer.
  * @param buffer The destination buffer.
@@ -15,16 +15,15 @@ namespace sge {
  * @param data The pointer to the data.
  * @param length The total length of bytes to copy.
  */
-
 inline void UpdateBufferChunked(LLGL::CommandBuffer& commandBuffer, LLGL::Buffer& buffer, size_t offset, const void* data, size_t length) {
-    static constexpr size_t MAX_BATCH_UPDATE_SIZE = (1u << 16u) - 1u;
+    static constexpr size_t MAX_CHUNK_SIZE = (1u << 16u);
 
-    const uint8_t* dataPtr = static_cast<const uint8_t*>(data);
+    const std::byte* dataPtr = static_cast<const std::byte*>(data);
 
-    while (length >= MAX_BATCH_UPDATE_SIZE) {
-        commandBuffer.UpdateBuffer(buffer, offset, dataPtr + offset, MAX_BATCH_UPDATE_SIZE);
-        offset += MAX_BATCH_UPDATE_SIZE;
-        length -= MAX_BATCH_UPDATE_SIZE;
+    while (length >= MAX_CHUNK_SIZE) {
+        commandBuffer.UpdateBuffer(buffer, offset, dataPtr + offset, MAX_CHUNK_SIZE);
+        offset += MAX_CHUNK_SIZE;
+        length -= MAX_CHUNK_SIZE;
     }
 
     if (length > 0)

@@ -364,13 +364,13 @@ public:
         m_temp_framebuffer_pool.Tick(max_unused_frames);
     }
 
-#if SGE_DEBUG
-    void GetDebugInfo(LLGL::FrameProfile* profile);
+#if SGE_DEBUG_LAYER_ENABLED
+    void GetFrameProfile(LLGL::FrameProfile* profile);
 #endif
 
     [[nodiscard]]
     bool IsInitialized() const noexcept {
-        return m_context ? true : false;
+        return static_cast<bool>(m_context);
     }
 
     [[nodiscard]]
@@ -408,7 +408,7 @@ public:
         return m_target_stack.top();
     }
 
-#if SGE_DEBUG
+#if SGE_DEBUG_LAYER_ENABLED
     [[nodiscard]]
     inline LLGL::RenderingDebugger* Debugger() const noexcept {
         return m_debugger;
@@ -430,23 +430,26 @@ private:
     std::unordered_map<RenderTargetKey, CachedRenderTarget> m_render_targets;
     std::unordered_map<RenderPassKey, LLGL::RenderPass*> m_render_passes;
 
+    #if SGE_IMGUI_ENABLED
+        std::unordered_map<uint32_t, ImGuiContext*> m_imgui_context_map;
+    #endif
+
     TemporaryFramebufferPool m_temp_framebuffer_pool;
 
-#if SGE_IMGUI_ENABLED
-    std::unordered_map<uint32_t, ImGuiContext*> m_imgui_context_map;
-#endif
+    std::stack<LLGL::RenderTarget*, std::vector<LLGL::RenderTarget*>> m_target_stack;
+
+    sge::ImGuiConfig m_imgui_config;
+
+    LLGL::RenderSystemPtr m_context = nullptr;
 
     sge::Ref<Sampler> m_linear_sampler;
     sge::Ref<Sampler> m_nearest_sampler;
 
-    LLGL::RenderSystemPtr m_context = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;
     
-#if SGE_DEBUG
+#if SGE_DEBUG_LAYER_ENABLED
     LLGL::RenderingDebugger* m_debugger = nullptr;
 #endif
-
-    std::stack<LLGL::RenderTarget*, std::vector<LLGL::RenderTarget*>> m_target_stack;
 
     uint32_t m_pipeline_config_index = 0;
     uint32_t m_render_target_config_index = 0;
@@ -454,7 +457,6 @@ private:
     uint32_t m_texture_index = 0;
 
     sge::RenderBackend m_backend;
-    sge::ImGuiConfig m_imgui_config;
 };
 
 

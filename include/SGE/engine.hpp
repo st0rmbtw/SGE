@@ -55,26 +55,23 @@ protected: // Callbacks
         return true;
     }
     virtual void OnPreUpdate() {}
-    virtual void OnUpdate() {}
-    virtual void OnPostUpdate() {}
-    virtual void OnPreFixedUpdate() {}
     virtual void OnFixedUpdate() {}
-    virtual void OnPostFixedUpdate() {}
+    virtual void OnUpdate() {}
     virtual void OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-        (void)window;
+        SGE_UNUSED(window);
     }
     virtual void OnPostRender() {
         m_context->TickTemporaryFramebufferPool();
     }
 
     virtual void OnWindowResized(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {
-        (void)window; (void)width; (void)height;
+        SGE_UNUSED(window); SGE_UNUSED(width); SGE_UNUSED(height);
     }
     virtual void OnFramebufferResize(const std::shared_ptr<sge::GlfwWindow>& window, int width, int height) {
-        (void)window; (void)width; (void)height;
+        SGE_UNUSED(window); SGE_UNUSED(width); SGE_UNUSED(height);
     }
     virtual void OnWindowDestroy(sge::GlfwWindow& window) {
-        (void)window;
+        SGE_UNUSED(window);
     }
 
     virtual void OnInputEvent(const sge::InputEvent& event) {

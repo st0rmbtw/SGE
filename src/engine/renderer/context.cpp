@@ -37,9 +37,12 @@ bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfi
         rendererDesc.rendererConfigSize = sizeof(LLGL::RendererConfigurationOpenGL);
     }
 
-#if SGE_DEBUG
+#if SGE_DEBUG_LAYER_ENABLED
     m_debugger = new LLGL::RenderingDebugger();
+    m_debugger->SetTimeRecording(true);
+    #if SGE_DEBUG
     rendererDesc.flags    = LLGL::RenderSystemFlags::DebugDevice;
+    #endif
     rendererDesc.debugger = m_debugger;
 #endif
 
@@ -862,8 +865,8 @@ void sge::RenderContext::ReleaseUntyped(LLGL::RenderSystemChild& resource) {
     }
 }
 
-#if SGE_DEBUG
-void sge::RenderContext::GetDebugInfo(LLGL::FrameProfile* profile) {
+#if SGE_DEBUG_LAYER_ENABLED
+void sge::RenderContext::GetFrameProfile(LLGL::FrameProfile* profile) {
     m_debugger->FlushProfile(profile);
 }
 #endif

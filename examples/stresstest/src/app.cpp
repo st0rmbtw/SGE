@@ -16,6 +16,8 @@
 #include <SGE/types/window_settings.hpp>
 #include <SGE/utils/random.hpp>
 
+#include <LLGL/Timer.h>
+
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
 
@@ -273,11 +275,25 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                         }
 
                         if (ImGui::CollapsingHeader("Statistics")) {
-                            ImGui::Text("Frame time: %.3f ms/frame (%.0f FPS)", Duration::GetAs<float, std::milli>(Time::Delta()), 1.0 / sge::Time::DeltaSeconds());
+                            ImGui::Text("Frame time: %.3f ms (%.0f FPS)", Duration::GetAs<float, std::milli>(Time::Delta()), 1.0 / sge::Time::DeltaSeconds());
                             
-                            #if SGE_DEBUG
+                            #if SGE_DEBUG_LAYER_ENABLED
                             LLGL::FrameProfile profile;
-                            GetRenderContext()->GetDebugInfo(&profile);
+                            GetRenderContext()->GetFrameProfile(&profile);
+                            
+                            uint64_t cpuTimeSum = 0;
+                            uint64_t gpuTimeSum = 0;
+                            
+                            for (const auto& record : profile.timeRecords) {
+                                cpuTimeSum += (record.cpuTicksEnd - record.cpuTicksStart);
+                                gpuTimeSum += record.elapsedTime;
+                            }
+                            
+                            float cpuTimeSec = static_cast<float>(cpuTimeSum) / LLGL::Timer::Frequency();
+                            float gpuTimeSec = static_cast<float>(gpuTimeSum) / std::nano::den;
+                            
+                            ImGui::Text("CPU time: %.3f ms", cpuTimeSec * 1000.f);
+                            ImGui::Text("GPU time: %.3f ms", gpuTimeSec * 1000.f);
 
                             ImGui::Text("Draw commands: %d", profile.commandBufferRecord.drawCommands);
                             #endif

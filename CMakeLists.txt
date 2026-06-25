@@ -20,6 +20,7 @@ option(SGE_BUILD_EXAMPLES "Build examples" OFF)
 option(SGE_ENABLE_PROFILE "Enable profiling via Tracy" OFF)
 option(SGE_ENABLE_IMGUI "Enable ImGui integration" OFF)
 option(SGE_BACKEND_VULKAN "Enable the Vulkan backend" OFF)
+option(SGE_DEBUG_LAYER "Enable the debug layer" OFF)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 
@@ -91,6 +92,15 @@ if(SGE_BACKEND_VULKAN)
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_VULKAN_BACKEND_ENABLED=1)
 else()
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_VULKAN_BACKEND_ENABLED=0)
+endif()
+
+if(SGE_DEBUG_LAYER)
+    message(STATUS "[SGE] DebugLayer: Enabled")
+    set(LLGL_ENABLE_DEBUG_LAYER ON CACHE BOOL "" FORCE)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG_LAYER_ENABLED=1)
+else()
+    message(STATUS "[SGE] DebugLayer: Disabled")
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG_LAYER_ENABLED=0)
 endif()
 
 if(WIN32)

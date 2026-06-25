@@ -130,16 +130,14 @@ void sge::IEngine::Update() {
     const delta_time_t dt(delta_time);
     Time::AdvanceBy(dt);
 
-    OnPreFixedUpdate();
+    OnPreUpdate();
+
     while (Time::Overstep() >= Time::FixedDeltaSeconds()) {
         Time::AdvanceFixed();
         OnFixedUpdate();
     }
-    OnPostFixedUpdate();
 
-    OnPreUpdate();
     OnUpdate();
-    OnPostUpdate();
 
     Input::Clear();
 }

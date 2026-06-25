@@ -71,6 +71,7 @@ bool sge::GlfwWindow::AdaptForVideoMode(LLGL::Extent2D* resolution, bool* fullsc
 
         if (glfwGetWindowMonitor(m_wnd) != monitor) {
             result = false;
+            *fullscreen = false;
         }
     }
 
