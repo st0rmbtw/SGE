@@ -60,7 +60,7 @@ uint32_t sge::Batch::GetOrder(sge::Order custom_order) {
     return order;
 }
 
-uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, const glm::vec2& position, const Font& font, struct Order custom_order) {
+uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, glm::vec2 position, const Font& font, struct Order custom_order) {
     ZoneScoped;
 
     float x = position.x;

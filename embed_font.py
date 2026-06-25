@@ -1,13 +1,15 @@
 import sys
-import struct
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
+from rectpack import newPacker, PackingMode
+from rectpack.maxrects import *
+from rectpack.guillotine import *
 import freetype
 
-FONT_SIZE = 68
-PADDING = 4
-TEXTURE_WIDTH = 1512
+FONT_SIZE = 96
+PADDING = 2
+TEXTURE_WIDTH = 2048
 
 @dataclass
 class GlyphInfo:
@@ -43,10 +45,6 @@ def main():
     face = freetype.Face(font_file_path_str)
     face.set_pixel_sizes(0, FONT_SIZE)
     
-    col = PADDING
-    row = PADDING
-    
-    max_height = 0
     max_ascent = float("-inf")
     max_descent = float("-inf")
     
@@ -59,38 +57,58 @@ def main():
         face.glyph.render(freetype.FT_RENDER_MODE_SDF)
         
         if len(face.glyph.bitmap.buffer) > 0:
-            if (col + face.glyph.bitmap.width + PADDING >= TEXTURE_WIDTH):
-                col = PADDING
-                row += max_height + PADDING
-                max_height = 0
-                
-            max_height = max(max_height, face.glyph.bitmap.rows)
-            
             buffer = bytearray(face.glyph.bitmap.buffer)
             
-            info = GlyphInfo(character, buffer, face.glyph.bitmap.width, face.glyph.bitmap.rows, face.glyph.bitmap_left, face.glyph.bitmap_top, face.glyph.advance.x, col, row)
+            info = GlyphInfo(character, buffer, face.glyph.bitmap.width, face.glyph.bitmap.rows, face.glyph.bitmap_left, face.glyph.bitmap_top, face.glyph.advance.x, 0, 0)
             glyphs.append(info)
             
             max_ascent = max(max_ascent, info.bitmap_top)
             max_descent = max(max_descent, info.bitmap_rows - info.bitmap_top)
-            
-            col += face.glyph.bitmap.width
         
         (character, index) = face.get_next_char(character, index)
         if not index:
             break
     
-    texture_height = row + max_height
-    texture_data = bytearray(TEXTURE_WIDTH * texture_height)
+    packer = newPacker(PackingMode.Offline, pack_algo=GuillotineBssfMinas, rotation=False)
+    print(f"Packing (using {packer._pack_algo.__name__})...")
+    
+    packer.add_bin(TEXTURE_WIDTH, float("inf"))
+    
+    for i, g in enumerate(glyphs):
+        packer.add_rect(g.bitmap_width + PADDING*2, g.bitmap_rows + PADDING*2, rid=i)
+    
+    packer.pack()
+    
+    max_used_width = 0
+    max_used_height = 0
+    
+    for rect in packer[0]:
+        right_edge = rect.x + rect.width
+        top_edge = rect.y + rect.height
+        
+        if right_edge > max_used_width:
+            max_used_width = right_edge
+        if top_edge > max_used_height:
+            max_used_height = top_edge
+        
+        glyphs[rect.rid].col = rect.x + PADDING
+        glyphs[rect.rid].row = rect.y + PADDING
+    
+    print(max_used_width, max_used_height)
+    
+    texture_width = max_used_width
+    texture_height = max_used_height
+    texture_data = bytearray(texture_width * texture_height)
     
     for info in glyphs:
         for y in range(info.bitmap_rows):
-            for x in range(info.bitmap_width):
-                texture_data[(info.row + y) * TEXTURE_WIDTH + info.col + x] = info.buffer[y * info.bitmap_width + x]
+            dst_idx = (info.row + y) * texture_width + info.col
+            src_idx = y * info.bitmap_width
+            texture_data[dst_idx : dst_idx + info.bitmap_width] = info.buffer[src_idx : src_idx + info.bitmap_width]
         
-    # from PIL import Image
-    # image = Image.frombytes("L", (TEXTURE_WIDTH, texture_height), texture_data)
-    # image.show()
+    from PIL import Image
+    image = Image.frombytes("L", (texture_width, texture_height), texture_data)
+    image.show()
     
     with open(output_file_path, "w") as f:
         f.write(f"#ifndef {guard_name}\n")
@@ -103,14 +121,14 @@ def main():
         f.write(f"    .max_ascent = {max_ascent},\n")
         f.write(f"    .max_descent = {max_descent},\n")
         f.write(f"    .ascender = {face.ascender},\n")
-        f.write(f"    .texture_width = {TEXTURE_WIDTH},\n")
+        f.write(f"    .texture_width = {texture_width},\n")
         f.write(f"    .texture_height = {texture_height}\n")
         f.write("};\n")
         f.write("static EmbeddedFontGlyph FONT_GLYPHS[] = {\n")
         for info in glyphs:
-            tex_width = info.bitmap_width / TEXTURE_WIDTH
+            tex_width = info.bitmap_width / texture_width
             tex_height = info.bitmap_rows / texture_height
-            texture_coord_x = info.col / TEXTURE_WIDTH
+            texture_coord_x = info.col / texture_width
             texture_coord_y = info.row / texture_height
             f.write("    EmbeddedFontGlyph { ")
             f.write(f".size = glm::ivec2({info.bitmap_width}, {info.bitmap_rows}), ")

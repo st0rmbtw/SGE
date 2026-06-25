@@ -8,9 +8,11 @@
 #include <SGE/types/anchor.hpp>
 #include <SGE/types/blend_mode.hpp>
 #include <SGE/types/color.hpp>
+#include <SGE/types/font.hpp>
 #include <SGE/types/shape.hpp>
 #include <SGE/types/transform.hpp>
 #include <SGE/types/window_settings.hpp>
+#include <SGE/utils/text.hpp>
 
 #include <glm/trigonometric.hpp>
 
@@ -56,7 +58,6 @@ bool App::OnInit() {
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
 
     m_batch = m_renderer->CreateBatch();
-    m_batch->SetIsUi(true);
     m_batch->BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
 
     uint64_t totalMemorySize = Clay_MinMemorySize();
@@ -107,10 +108,8 @@ void App::OnUpdate() {
 
     if (Input::Pressed(sge::MouseButton::Left)) {
         const sge::Rect& area = m_camera.get_projection_area();
-        const glm::vec2 half_screen_size = glm::vec2(window_size) / 2.0f;
 
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) - Input::MouseDelta() * m_camera.zoom() * glm::vec2(-1.f, 1.f);
-        m_camera.set_position(glm::clamp(new_position, -area.min, area.max));
+        const glm::vec2 new_position = glm::vec2(camera_transform.translation) - Input::MouseDelta() * m_camera.zoom();
         m_camera.set_position(new_position);
     }
 
@@ -295,10 +294,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
           break;
         }
     }
-
+    
     const glm::vec2 center = m_camera.screen_center();
-    m_batch->DrawLine(center, center + glm::vec2(100.0), 2.0, sge::LinearRgba::blue());
-
+    
     m_batch->DrawRect(center, {
         .size = glm::vec2(250.0f),
         .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
@@ -306,6 +304,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         .border_color = sge::LinearRgba::blue(),
         .border_radius = sge::BorderRadius::Absolute(14.0f)
     });
+    
+    sge::RichText text = sge::rich_text("Hello", 80.f, sge::LinearRgba::white());
+    m_batch->DrawText(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::GetDefaultFont());
 
     m_renderer->PrepareBatch(*m_batch);
     m_renderer->UploadBatchData();

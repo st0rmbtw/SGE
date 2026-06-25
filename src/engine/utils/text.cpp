@@ -2,7 +2,7 @@
 #include <SGE/utils/text.hpp>
 #include <SGE/utils/utf8.hpp>
 
-glm::vec2 sge::calculate_text_bounds(const sge::Font& font, float size, const char* text, size_t length) {
+glm::vec2 sge::MeasureText(const sge::Font& font, float size, const char* text, size_t length) {
     ZoneScoped;
 
     auto bounds = glm::vec2(0.0f);
@@ -37,7 +37,24 @@ glm::vec2 sge::calculate_text_bounds(const sge::Font& font, float size, const ch
     return bounds;
 }
 
-sge::FitResult sge::chars_fit_in_line_from_start(const sge::Font& font, float size, const char* text, size_t length, float line_width) noexcept {
+float sge::MeasureTextHeight(const Font& font, float size, const char* text, size_t length) noexcept {
+    ZoneScoped;
+    
+    const float scale = size / font.font_size;
+    float height = (font.max_ascent + font.max_descent) * scale;
+
+    uint32_t codepoint = 0;
+    for (size_t i = 0; i < length;) {
+        i += sge::utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(text) + i, codepoint);
+        if (codepoint == '\n') {
+            height += size;
+        }
+    }
+
+    return height;
+}
+
+sge::FitResult sge::CharsFitInLineFromStart(const sge::Font& font, float size, const char* text, size_t length, float line_width) noexcept {
     ZoneScoped;
 
     uint32_t count = 0;
@@ -79,7 +96,7 @@ sge::FitResult sge::chars_fit_in_line_from_start(const sge::Font& font, float si
     return sge::FitResult{ .bytes = total_bytes, .char_count = count };
 }
 
-sge::FitResult sge::chars_fit_in_line_from_end(const Font& font, float size, const char* text, size_t length, float line_width) noexcept {
+sge::FitResult sge::CharsFitInLineFromEnd(const Font& font, float size, const char* text, size_t length, float line_width) noexcept {
     ZoneScoped;
 
     uint32_t count = 0;

@@ -29,7 +29,7 @@ struct RichText {
 
     [[nodiscard]]
     constexpr inline const RichTextSection* data() const noexcept {
-        return &sections[0];
+        return sections;
     }
 };
 

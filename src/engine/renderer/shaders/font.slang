@@ -58,9 +58,9 @@ static const float GLYPH_CENTER = 0.5;
 [shader("fragment")]
 float4 PS(VSOutput inp) : SV_Target
 {
-    const float dist = Texture.Sample(Sampler, inp.uv).r;
+    const float dist = Texture.SampleLevel(Sampler, inp.uv, 0).r;
     const float width = fwidth(dist);
-    const float alpha = smoothstep(GLYPH_CENTER - width, GLYPH_CENTER + width, abs(dist));
+    const float alpha = smoothstep(GLYPH_CENTER - width, GLYPH_CENTER + width, dist);
     const float4 color = float4(inp.color, alpha);
 
     if (color.a <= 0.05f) discard;

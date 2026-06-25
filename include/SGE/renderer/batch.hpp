@@ -298,7 +298,12 @@ public:
         m_scissors.pop_back();
     }
 
-    uint32_t DrawText(const sge::RichTextSection* sections, size_t size, const glm::vec2& position, const sge::Font& font, sge::Order order = {});
+    uint32_t DrawText(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::Font& font, sge::Order order = {});
+
+    template <size_t Size>
+    inline uint32_t DrawText(const sge::RichText<Size>& text, glm::vec2 position, const sge::Font& font, sge::Order order = {}) {
+        return DrawText(text.sections, Size, position, font, order);
+    }
 
     uint32_t DrawAtlasSprite(const sge::TextureAtlasSprite& sprite, sge::Order order = {});
 

@@ -148,7 +148,7 @@ void App::OnUpdate() {
     if (Input::Pressed(MouseButton::Left)) {
         const sge::Rect& area = camera.get_projection_area();
 
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + Input::MouseDelta() * camera.zoom() * glm::vec2(-1.f, -1.f);
+        const glm::vec2 new_position = glm::vec2(camera_transform.translation) - Input::MouseDelta() * camera.zoom();
         camera.set_position(new_position);
     }
 
