@@ -133,7 +133,7 @@ sge::RenderContext::~RenderContext() {
         m_context->GetCommandQueue()->WaitIdle();
     }
 
-#if SGE_DEBUG
+#if SGE_DEBUG_LAYER_ENABLED
     if (m_debugger != nullptr) {
         delete m_debugger;
     }
