@@ -11,6 +11,7 @@
 #include <SGE/log.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/time/time.hpp>
+#include <SGE/types/font.hpp>
 #include <SGE/utils/random.hpp>
 #include <SGE/window_manager.hpp>
 
@@ -39,6 +40,12 @@ bool sge::IEngine::Init() {
 
     if (!OnInit())
         return false;
+
+    #if SGE_DEFAULT_FONT_ENABLED
+    if (m_context->IsInitialized()) {
+        sge::internal::InitDefaultFont(*m_context);
+    }
+    #endif
 
     std::random_device rd;
     Random::Seed(rd());

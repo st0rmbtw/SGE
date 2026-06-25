@@ -148,7 +148,7 @@ void App::OnUpdate() {
     if (Input::Pressed(MouseButton::Left)) {
         const sge::Rect& area = camera.get_projection_area();
 
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + Input::MouseDelta() * camera.zoom() * glm::vec2(-1.f, 1.f);
+        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + Input::MouseDelta() * camera.zoom() * glm::vec2(-1.f, -1.f);
         camera.set_position(new_position);
     }
 
@@ -348,10 +348,10 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     m_renderer->End();
     m_batch->Reset();
 
-    #if SGE_DEBUG
+    #if SGE_DEBUG_LAYER_ENABLED
     if (Input::Pressed(Key::C)) {
         LLGL::FrameProfile profile;
-        GetRenderContext()->GetDebugInfo(&profile);
+        GetRenderContext()->GetFrameProfile(&profile);
         SGE_LOG_DEBUG("Draw commands count: {}", profile.commandBufferRecord.drawCommands);
     }
     #endif

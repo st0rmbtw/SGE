@@ -10,6 +10,14 @@
 
 namespace sge {
 
+#if SGE_DEFAULT_FONT_ENABLED
+namespace internal {
+    
+void InitDefaultFont(class sge::RenderContext& context);
+
+} // namespace internal
+#endif
+
 struct Font {
     std::unordered_map<uint32_t, Glyph> glyphs;
     Texture texture;
@@ -18,6 +26,13 @@ struct Font {
     float max_descent;
     int16_t ascender;
 };
+
+#if SGE_DEFAULT_FONT_ENABLED
+/**
+ * @brief Returns the default font (JetBrains Mono Regular)
+ */
+const Font& GetDefaultFont();
+#endif
 
 } // namespace sge
 

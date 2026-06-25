@@ -21,6 +21,7 @@ option(SGE_ENABLE_PROFILE "Enable profiling via Tracy" OFF)
 option(SGE_ENABLE_IMGUI "Enable ImGui integration" OFF)
 option(SGE_BACKEND_VULKAN "Enable the Vulkan backend" OFF)
 option(SGE_DEBUG_LAYER "Enable the debug layer" OFF)
+option(SGE_ENABLE_DEFAULT_FONT "Enable the default font" ON)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 
@@ -136,8 +137,18 @@ if(SGE_ENABLE_IMGUI)
     )
 else()
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_IMGUI_ENABLED=0)
-
     message(STATUS "[SGE] ImGui: Disabled")
+endif()
+
+if(SGE_ENABLE_DEFAULT_FONT)
+    message(STATUS "[SGE] Default font: Enabled")
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEFAULT_FONT_ENABLED=1)
+    list(APPEND SGE_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/font.cpp
+    )
+else()
+    message(STATUS "[SGE] Default font: Disabled")
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEFAULT_FONT_ENABLED=0)
 endif()
 
 if(SGE_ENABLE_PROFILE)

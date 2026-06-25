@@ -86,6 +86,11 @@ bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfi
     SGE_LOG_INFO("Device:               {}", info.deviceName.c_str());
     SGE_LOG_INFO("Vendor:               {}", info.vendorName.c_str());
     SGE_LOG_INFO("Shading Language:     {}", info.shadingLanguageName.c_str());
+    if (m_debugger != nullptr) {
+        SGE_LOG_INFO("Debug Layer: Enabled");
+    } else {
+        SGE_LOG_INFO("Debug Layer: Disabled");
+    }
 
     SGE_LOG_INFO("Extensions:");
     for (const auto& extension : info.extensionNames) {
