@@ -274,7 +274,11 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                             }
                         }
 
-                        if (ImGui::CollapsingHeader("Statistics")) {
+                        bool statisticHeaderOpened = ImGui::CollapsingHeader("Statistics");
+                        #if SGE_DEBUG_LAYER_ENABLED
+                        GetRenderContext()->Debugger()->SetTimeRecording(statisticHeaderOpened);
+                        #endif
+                        if (statisticHeaderOpened) {
                             ImGui::Text("Frame time: %.3f ms (%.0f FPS)", Duration::GetAs<float, std::milli>(Time::Delta()), 1.0 / sge::Time::DeltaSeconds());
                             
                             #if SGE_DEBUG_LAYER_ENABLED

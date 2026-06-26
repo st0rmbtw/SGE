@@ -70,8 +70,8 @@ struct SpriteInstance {
 
 struct NinePatchInstance {
     glm::quat rotation;
-    glm::vec4 uv_offset_scale;
     glm::vec4 color;
+    glm::vec4 uv_offset_scale;
     glm::uvec4 margin;
     glm::vec2 position;
     glm::vec2 offset;

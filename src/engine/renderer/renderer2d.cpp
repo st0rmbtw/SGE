@@ -84,12 +84,13 @@ BatchVertexFormats NinepatchBatchVertexFormats(const sge::RenderBackend backend)
     vertex_format.attributes = sge::VertexAttributes(backend, {
         sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
     });
+
     LLGL::VertexFormat instance_format;
     instance_format.attributes = sge::VertexAttributes(backend, vertex_format.attributes.size(), {
         sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_rotation", "I_Rotation", 1),
-        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
         sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color", 1),
-        sge::Attribute::Instance(sge::VertexFormat::Uint32x4, "inp_i_margin", "I_Margin", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint32x4,  "inp_i_margin", "I_Margin", 1),
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position", 1),
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset", 1),
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_source_size", "I_SourceSize", 1),

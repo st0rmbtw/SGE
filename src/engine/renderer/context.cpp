@@ -39,7 +39,6 @@ bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfi
 
 #if SGE_DEBUG_LAYER_ENABLED
     m_debugger = new LLGL::RenderingDebugger();
-    m_debugger->SetTimeRecording(true);
     #if SGE_DEBUG
     rendererDesc.flags    = LLGL::RenderSystemFlags::DebugDevice;
     #endif
