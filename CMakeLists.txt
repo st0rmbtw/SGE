@@ -101,6 +101,7 @@ if(SGE_DEBUG_LAYER)
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG_LAYER_ENABLED=1)
 else()
     message(STATUS "[SGE] DebugLayer: Disabled")
+    set(LLGL_ENABLE_DEBUG_LAYER OFF CACHE BOOL "" FORCE)
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEBUG_LAYER_ENABLED=0)
 endif()
 

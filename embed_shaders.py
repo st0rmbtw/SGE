@@ -42,6 +42,7 @@ def write_constant(f, name, unmangle=False):
             l = l.replace('\n', '\\n')
         else:
             l = l.replace('\n', '')
+        l = l.replace('#', '\\n#')
         l = l.replace('"', '\\"')
         l = re.sub(COMBINED_SAMPLER_PATTERN, r"\g<name>", l)
         if unmangle:
