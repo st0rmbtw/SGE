@@ -82,14 +82,14 @@ bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfi
 
     const LLGL::RendererInfo& info = GetRendererInfo();
 
-    SGE_LOG_INFO("Renderer:             {}", info.rendererName.c_str());
-    SGE_LOG_INFO("Device:               {}", info.deviceName.c_str());
-    SGE_LOG_INFO("Vendor:               {}", info.vendorName.c_str());
-    SGE_LOG_INFO("Shading Language:     {}", info.shadingLanguageName.c_str());
+    SGE_LOG_INFO("{:<20} {}", "Renderer:", info.rendererName.c_str());
+    SGE_LOG_INFO("{:<20} {}", "Device:", info.deviceName.c_str());
+    SGE_LOG_INFO("{:<20} {}", "Vendor:", info.vendorName.c_str());
+    SGE_LOG_INFO("{:<20} {}", "Shading Language:", info.shadingLanguageName.c_str());
     if (m_debugger != nullptr) {
-        SGE_LOG_INFO("Debug Layer: Enabled");
+        SGE_LOG_INFO("{:<20} Enabled", "Debug Layer:");
     } else {
-        SGE_LOG_INFO("Debug Layer: Disabled");
+        SGE_LOG_INFO("{:<20} Disabled", "Debug Layer:");
     }
 
     SGE_LOG_INFO("Extensions:");
