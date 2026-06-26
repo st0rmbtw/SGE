@@ -408,12 +408,10 @@ public:
         return m_target_stack.top();
     }
 
-#if SGE_DEBUG_LAYER_ENABLED
     [[nodiscard]]
     inline LLGL::RenderingDebugger* Debugger() const noexcept {
         return m_debugger;
     }
-#endif
 
 private:
     struct CachedRenderTarget {
@@ -446,10 +444,7 @@ private:
     sge::Ref<Sampler> m_nearest_sampler;
 
     LLGL::CommandBuffer* m_command_buffer = nullptr;
-    
-#if SGE_DEBUG_LAYER_ENABLED
     LLGL::RenderingDebugger* m_debugger = nullptr;
-#endif
 
     uint32_t m_pipeline_config_index = 0;
     uint32_t m_render_target_config_index = 0;
