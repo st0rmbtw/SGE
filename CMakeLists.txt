@@ -167,7 +167,6 @@ add_subdirectory(thirdparty/LLGL)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
 add_subdirectory(thirdparty/STB)
-add_subdirectory(thirdparty/fmt)
 add_subdirectory(thirdparty/freetype-2.13.2)
 
 target_sources(${PROJECT_NAME} PRIVATE ${SGE_SRC})
@@ -184,4 +183,4 @@ endif()
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:Debug>:SGE_DEBUG>")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw fmt LLGL freetype)
+target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw LLGL freetype)

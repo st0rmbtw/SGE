@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include <fmt/core.h>
-#include <fmt/ostream.h>
+#include <print>
 
-#define SGE__LOG(f, level, text, ...) fmt::println(f, "[" level "]" " " text __VA_OPT__(,) ##__VA_ARGS__)
+#define SGE__LOG(f, level, text, ...) std::println(f, "[" level "]" " " text __VA_OPT__(,) ##__VA_ARGS__)
 
 #define SGE_LOG_ERROR(text, ...) SGE__LOG(stderr, "ERROR", text, ##__VA_ARGS__); (void)fflush(stderr)
 #define SGE_LOG_INFO(text, ...) SGE__LOG(stdout, "INFO", text, ##__VA_ARGS__); (void)fflush(stdout)

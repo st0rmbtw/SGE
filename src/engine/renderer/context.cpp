@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <fstream>
 
 #include <LLGL/Constants.h>
 #include <LLGL/Format.h>
@@ -765,7 +766,7 @@ sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
     delete[] data;
 
     if (!shader) {
-        fmt::println(stderr, "Shader file: {}", path_str);
+        std::println(stderr, "Shader file: {}", path_str);
     }
     return sge::Raw<LLGL::Shader>::Create(shared_from_this(), shader);
 }
