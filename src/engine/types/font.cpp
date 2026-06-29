@@ -24,6 +24,7 @@ void sge::internal::InitDefaultFont(sge::RenderContext& context) {
     }
 
     sge::TextureConfig textureConfig;
+    textureConfig.debugName = "Default Font Texture";
     textureConfig.textureType = LLGL::TextureType::Texture2D;
     textureConfig.extent.width = FONT_META_DATA.texture_width;
     textureConfig.extent.height = FONT_META_DATA.texture_height;

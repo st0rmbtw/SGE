@@ -161,6 +161,7 @@ struct RenderPassConfig {
 };
 
 struct TextureConfig {
+    const char* debugName = nullptr;
     LLGL::TextureType textureType = LLGL::TextureType::Texture2D;
     LLGL::Extent3D extent = LLGL::Extent3D(1, 1, 1);
     sge::Ref<sge::Sampler> sampler;

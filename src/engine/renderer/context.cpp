@@ -567,6 +567,7 @@ sge::Texture sge::RenderContext::CreateTexture(const sge::TextureConfig& config,
     ZoneScoped;
 
     LLGL::TextureDescriptor texture_desc;
+    texture_desc.debugName = config.debugName;
     texture_desc.type = config.textureType;
     texture_desc.extent = config.extent;
     texture_desc.arrayLayers = config.arrayLayers;
