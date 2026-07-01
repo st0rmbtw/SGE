@@ -19,8 +19,8 @@ void InitDefaultFont(class sge::RenderContext& context);
 #endif
 
 struct GlyphDataVector {
-    size_t offset;
-    size_t count;
+    uint32_t partition_offset;
+    uint32_t partition_count;
 };
 
 struct GlyphDataSDF {
@@ -40,7 +40,8 @@ struct Glyph {
 
 struct FontVector {
     std::unordered_map<uint32_t, Glyph> glyphs;
-    sge::Ref<LLGL::Buffer> buffer;
+    sge::Ref<LLGL::Buffer> curve_buffer;
+    sge::Ref<LLGL::Buffer> partition_buffer;
     uint16_t units_per_em;
     int16_t ascender;
     int16_t descender;

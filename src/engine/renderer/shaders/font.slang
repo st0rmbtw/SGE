@@ -14,8 +14,8 @@ struct VSInput
     float2 i_position : I_Position;
     float2 i_size : I_Size;
     float2 i_em_size : I_Em_Size;
-    uint i_offset : I_CurveOffset;
-    uint i_count : I_CurveCount;
+    uint i_offset : I_PartitionOffset;
+    uint i_count : I_PartitionCount;
     uint i_flags : I_Flags;
 };
 
@@ -26,8 +26,8 @@ struct VSOutput
     float2 uv : UV;
     nointerpolation float2 em_size : EmSize;
     nointerpolation float3 color : Color;
-    uint curve_offset : CurveOffset;
-    uint curve_count : CurveCount;
+    uint partition_offset : PartitionOffset;
+    uint partition_count : PartitionCount;
 };
 
 static const uint FLAG_UI = 1 << 0;
@@ -43,16 +43,14 @@ VSOutput VS(VSInput inp)
     position.x -= frac(position.x);
     position.y -= frac(position.y);
 
-    const float2 uv = inp.position;
-
     VSOutput outp;
     outp.color = inp.i_color;
     outp.uv = inp.position * inp.i_em_size;
     outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = 1.0f;
     outp.em_size = inp.i_em_size;
-    outp.curve_offset = inp.i_offset;
-    outp.curve_count = inp.i_count;
+    outp.partition_offset = inp.i_offset;
+    outp.partition_count = inp.i_count;
 
 	return outp;
 }
@@ -186,17 +184,29 @@ struct BezierCurve {
     uint p2;
 };
 
+struct BezierCurvePartition {
+    uint curve_offset;
+    uint curve_count;
+};
+
 [vk::binding(3)]
 StructuredBuffer<BezierCurve> CurveBuffer : register(t3);
+
+[vk::binding(4)]
+StructuredBuffer<BezierCurvePartition> PartitionBuffer : register(t4);
 
 [shader("fragment")]
 float4 PS(VSOutput inp) : SV_Target
 {
-    float2 pixel_size = 0.5 * fwidth(inp.uv);
+    float2 pixel_size = fwidth(inp.uv);
+
+    int partition_index = clamp(floor(inp.uv.y / 120.0f), 0, inp.partition_count-1);
+
+    BezierCurvePartition partition = PartitionBuffer[inp.partition_offset + partition_index];
     
     float coverage = 0.h;
-    for (uint i = 0; i < inp.curve_count; ++i) {
-        BezierCurve curve = CurveBuffer[inp.curve_offset + i];
+    for (uint i = 0; i < partition.curve_count; ++i) {
+        BezierCurve curve = CurveBuffer[partition.curve_offset + i];
 
         // half2 points are packed in uint32, unpacking them
         half2 p0 = half2(curve.p0 & 0xFFFFu, (curve.p0 >> 16) & 0xFFFFu);

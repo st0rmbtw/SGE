@@ -115,8 +115,8 @@ BatchVertexFormats GlyphBatchVertexFormats(const sge::RenderBackend backend) {
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position", 1),
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size", 1),
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_em_size", "I_Em_Size", 1),
-        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_offset", "I_CurveOffset", 1),
-        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_count", "I_CurveCount", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_offset", "I_PartitionOffset", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_count", "I_PartitionCount", 1),
         sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
     });
 
@@ -458,7 +458,8 @@ sge::Handle<LLGL::PipelineState> sge::Renderer2D::CreateGlyphBatchPipeline(bool 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = BindingLayout({
         BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
-        BindingLayoutItem::Buffer(3, "Buffer", LLGL::StageFlags::FragmentStage),
+        BindingLayoutItem::Buffer(3, "CurveBuffer", LLGL::StageFlags::FragmentStage),
+        BindingLayoutItem::Buffer(4, "PartitionBuffer", LLGL::StageFlags::FragmentStage),
     });
     pipelineLayoutDesc.combinedTextureSamplers = {
         LLGL::CombinedTextureSamplerDescriptor{ "Texture", "Texture", "Sampler", 3 }
@@ -711,7 +712,8 @@ void sge::Renderer2D::ApplyBatchDrawCommands(sge::Batch& batch) {
         }
 
         if (flush_data.type == FlushDataType::Glyph) {
-            commands->SetResource(1, *flush_data.buffer);
+            commands->SetResource(1, *flush_data.glyph_data.curve_buffer);
+            commands->SetResource(2, *flush_data.glyph_data.partition_buffer);
             prev_texture_id = -1;
         } else if (flush_data.texture.is_valid() && prev_texture_id != flush_data.texture.id) {
             commands->SetResource(1, *flush_data.texture.ptr);
@@ -771,8 +773,8 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
             if (a_scissor_size > b_scissor_size)
                 return false;
 
-            if (a.state.buffer.Get() < b.state.buffer.Get()) return true;
-            if (a.state.buffer.Get() > b.state.buffer.Get()) return false;
+            if (a.state.curve_buffer.Get() < b.state.curve_buffer.Get()) return true;
+            if (a.state.curve_buffer.Get() > b.state.curve_buffer.Get()) return false;
 
             uint8_t a_bm = static_cast<uint8_t>(a.state.blend_mode);
             uint8_t b_bm = static_cast<uint8_t>(b.state.blend_mode);
@@ -905,7 +907,10 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
     auto flush_glyphs = [&]() {
         if (glyph_count > 0) {
             flush_queue.push_back(FlushData {
-                .buffer = glyph_state->buffer,
+                .glyph_data = {
+                    .curve_buffer=glyph_state->curve_buffer,
+                    .partition_buffer=glyph_state->partition_buffer
+                },
                 .scissor = glyph_state->scissor,
                 .offset = glyph_offset,
                 .count = glyph_count,
@@ -1045,8 +1050,8 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
                 buffer->pos = command.pos;
                 buffer->size = command.size;
                 buffer->em_size = command.em_size;
-                buffer->offset = command.offset;
-                buffer->count = command.count;
+                buffer->offset = command.partition_offset;
+                buffer->count = command.partition_count;
                 buffer->flags = flags;
 
                 ++sum_total_count;

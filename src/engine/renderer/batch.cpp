@@ -106,7 +106,8 @@ uint32_t sge::Batch::DrawTextVector(const RichTextSection* sections, size_t size
 
             const auto command = internal::DrawCommandGlyph {
                 .state = internal::BatchGlyphState {
-                    .buffer = font.buffer,
+                    .curve_buffer = font.curve_buffer,
+                    .partition_buffer = font.partition_buffer,
                     .scissor = scissor,
                     .order = order,
                     .blend_mode = m_blend_mode
@@ -116,8 +117,8 @@ uint32_t sge::Batch::DrawTextVector(const RichTextSection* sections, size_t size
                 .size = size,
                 .em_size = ch.size,
                 .font_size = section.size,
-                .offset = ch.data.vector.offset,
-                .count = ch.data.vector.count
+                .partition_offset = ch.data.vector.partition_offset,
+                .partition_count = ch.data.vector.partition_count
             };
 
             m_glyph_draw_commands.push_back(command);

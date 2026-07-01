@@ -76,13 +76,15 @@ struct BatchTextureState {
 };
 
 struct BatchGlyphState {
-    sge::Ref<LLGL::Buffer> buffer;
+    sge::Ref<LLGL::Buffer> curve_buffer;
+    sge::Ref<LLGL::Buffer> partition_buffer;
     sge::IRect scissor;
     uint32_t order;
     sge::BlendMode blend_mode;
 
     bool operator==(const BatchGlyphState& other) const {
-        return buffer == other.buffer
+        return curve_buffer == other.curve_buffer
+            && partition_buffer == other.partition_buffer 
             && scissor == other.scissor 
             && order == other.order 
             && blend_mode == other.blend_mode;
@@ -92,7 +94,10 @@ struct BatchGlyphState {
 struct FlushData {
     union {
         BatchTexture texture = {};
-        LLGL::Buffer* buffer;
+        struct {
+            LLGL::Buffer* curve_buffer;
+            LLGL::Buffer* partition_buffer;
+        } glyph_data;
     };
     sge::IRect scissor;
     uint32_t offset;
@@ -132,8 +137,8 @@ struct DrawCommandGlyph {
     glm::vec2 size;
     glm::vec2 em_size;
     float font_size;
-    size_t offset;
-    size_t count;
+    uint32_t partition_offset;
+    uint32_t partition_count;
 };
 
 struct DrawCommandShape {
