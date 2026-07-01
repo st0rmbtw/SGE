@@ -710,17 +710,13 @@ void sge::Renderer2D::ApplyBatchDrawCommands(sge::Batch& batch) {
             commands->SetScissor(LLGL::Scissor(0, 0, m_viewport.width, m_viewport.height));
         }
 
-        // if (flush_data.texture.is_valid() && prev_texture_id != flush_data.texture.id) {
-        //     commands->SetResource(1, *flush_data.texture.ptr);
-        //     commands->SetResource(2, *flush_data.texture.sampler);
-
-        //     prev_texture_id = flush_data.texture.id;
-        // }
         if (flush_data.type == FlushDataType::Glyph) {
             commands->SetResource(1, *flush_data.buffer);
-        } else {
+            prev_texture_id = -1;
+        } else if (flush_data.texture.is_valid() && prev_texture_id != flush_data.texture.id) {
             commands->SetResource(1, *flush_data.texture.ptr);
             commands->SetResource(2, *flush_data.texture.sampler);
+            prev_texture_id = flush_data.texture.id;
         }
 
         commands->DrawInstanced(4, 0, flush_data.count, offset + flush_data.offset);

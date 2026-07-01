@@ -181,9 +181,9 @@ half ScanlineSweep(half2 size, half2 offset, half2 p0, half2 p1, half2 p2)
 }
 
 struct BezierCurve {
-    float2 p0;
-    float2 p1;
-    float2 p2;
+    uint p0;
+    uint p1;
+    uint p2;
 };
 
 [vk::binding(3)]
@@ -197,7 +197,13 @@ float4 PS(VSOutput inp) : SV_Target
     float coverage = 0.h;
     for (uint i = 0; i < inp.curve_count; ++i) {
         BezierCurve curve = CurveBuffer[inp.curve_offset + i];
-        coverage += ScanlineSweep(pixel_size, inp.uv, curve.p2, curve.p1, curve.p0);
+
+        // half2 points are packed in uint32, unpacking them
+        half2 p0 = half2(curve.p0 & 0xFFFFu, (curve.p0 >> 16) & 0xFFFFu);
+        half2 p1 = half2(curve.p1 & 0xFFFFu, (curve.p1 >> 16) & 0xFFFFu);
+        half2 p2 = half2(curve.p2 & 0xFFFFu, (curve.p2 >> 16) & 0xFFFFu);
+
+        coverage += ScanlineSweep(pixel_size, inp.uv, p2, p1, p0);
     }
 
     float pixel_area = pixel_size.x * pixel_size.y;

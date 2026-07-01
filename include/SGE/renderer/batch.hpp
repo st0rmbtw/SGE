@@ -91,7 +91,7 @@ struct BatchGlyphState {
 
 struct FlushData {
     union {
-        BatchTexture texture;
+        BatchTexture texture = {};
         LLGL::Buffer* buffer;
     };
     sge::IRect scissor;
