@@ -49,6 +49,18 @@ struct BatchTexture {
     }
 };
 
+struct BatchSimpleState {
+    sge::IRect scissor;
+    uint32_t order;
+    sge::BlendMode blend_mode;
+
+    bool operator==(const BatchSimpleState& other) const {
+        return scissor == other.scissor 
+            && order == other.order 
+            && blend_mode == other.blend_mode;
+    }
+};
+
 struct BatchTextureState {
     BatchTexture texture;
     sge::IRect scissor;
@@ -63,20 +75,25 @@ struct BatchTextureState {
     }
 };
 
-struct BatchSimpleState {
+struct BatchGlyphState {
+    sge::Ref<LLGL::Buffer> buffer;
     sge::IRect scissor;
     uint32_t order;
     sge::BlendMode blend_mode;
 
-    bool operator==(const BatchSimpleState& other) const {
-        return scissor == other.scissor 
+    bool operator==(const BatchGlyphState& other) const {
+        return buffer == other.buffer
+            && scissor == other.scissor 
             && order == other.order 
             && blend_mode == other.blend_mode;
     }
 };
 
 struct FlushData {
-    BatchTexture texture = {};
+    union {
+        BatchTexture texture;
+        LLGL::Buffer* buffer;
+    };
     sge::IRect scissor;
     uint32_t offset;
     uint32_t count;
@@ -109,12 +126,14 @@ struct DrawCommandNinePatch {
 };
 
 struct DrawCommandGlyph {
-    BatchTextureState state = {};
+    BatchGlyphState state = {};
     glm::vec3 color;
     glm::vec2 pos;
     glm::vec2 size;
-    glm::vec2 tex_size;
-    glm::vec2 tex_uv;
+    glm::vec2 em_size;
+    float font_size;
+    size_t offset;
+    size_t count;
 };
 
 struct DrawCommandShape {
@@ -296,6 +315,13 @@ public:
     inline void EndScissorMode() noexcept {
         if (m_scissors.empty()) return;
         m_scissors.pop_back();
+    }
+
+    uint32_t DrawTextVector(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::FontVector& font, sge::Order order = {});
+
+    template <size_t Size>
+    inline uint32_t DrawTextVector(const sge::RichText<Size>& text, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
+        return DrawTextVector(text.sections, Size, position, font, order);
     }
 
     uint32_t DrawText(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::Font& font, sge::Order order = {});

@@ -261,6 +261,10 @@ public:
         return *Get();
     }
 
+    bool operator==(const Ref<T>& other) const noexcept {
+        return Get() == other.Get();
+    }
+
 private:
     void IncrementRef() const {
         if (m_data) {

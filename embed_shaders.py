@@ -287,10 +287,10 @@ def snake_to_pascal(snake_str):
 def generate_getter_function(name, results: CompileResults):
     upper = name.upper()
     
-    d3d_has_vertex, d3d_has_fragment = results.d3d[name]
-    vk_has_vertex, vk_has_fragment = results.vk[name]
-    metal_has_vertex, metal_has_fragment = results.metal[name]
-    gl_has_vertex, gl_has_fragment = results.gl[name]
+    d3d_has_vertex, d3d_has_fragment = results.d3d[name] if name in results.d3d else (False, False)
+    vk_has_vertex, vk_has_fragment = results.vk[name] if name in results.vk else (False, False)
+    metal_has_vertex, metal_has_fragment = results.metal[name] if name in results.metal else (False, False)
+    gl_has_vertex, gl_has_fragment = results.gl[name] if name in results.gl else (False, False)
 
     code = ""
     code += f"static inline ShaderSourceCode Get{snake_to_pascal(name)}ShaderSourceCode(const sge::RenderBackend backend) {{\n"

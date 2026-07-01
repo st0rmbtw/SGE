@@ -62,6 +62,7 @@ set(SGE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/time/timer.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/attributes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/font.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/path.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/texture_atlas.cpp
 
@@ -145,7 +146,7 @@ if(SGE_ENABLE_DEFAULT_FONT)
     message(STATUS "[SGE] Default font: Enabled")
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_DEFAULT_FONT_ENABLED=1)
     list(APPEND SGE_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/font.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/default_font.cpp
     )
 else()
     message(STATUS "[SGE] Default font: Disabled")
