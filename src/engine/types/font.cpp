@@ -3,6 +3,8 @@
 #include <SGE/renderer/context.hpp>
 #include <SGE/types/font.hpp>
 
+#include <algorithm>
+#include <algorithm>
 #include <glm/common.hpp>
 
 #include <ft2build.h>
@@ -13,15 +15,22 @@ using Point = glm::vec2;
 
 namespace {
 
+struct BezierCurve {
+    Point p0;
+    Point p1;
+    Point p2;
+};
+
 struct UserData {
-    std::vector<Point>& points;
+    std::vector<BezierCurve>& curves;
     FT_GlyphSlot glyph;
+    Point prevPoint;
 };
 
 } // namespace
 
 sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext& context) {
-    std::vector<Point> points;
+    std::vector<BezierCurve> curves;
     std::unordered_map<uint32_t, Glyph> glyphs;
 
     FT_Outline_Funcs callbacks;
@@ -29,76 +38,60 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
     callbacks.delta = 0;
     callbacks.move_to = [](const FT_Vector* to, void* user) -> int {
         UserData& data = *static_cast<UserData*>(user);
-        data.points.emplace_back(to->x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - to->y);
+        data.prevPoint = Point(to->x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - to->y);
         return 0;
     };
     callbacks.line_to = [](const FT_Vector* to, void* user) -> int {
         UserData& data = *static_cast<UserData*>(user);
-        Point prevPoint = data.points.back();
         Point toPoint = glm::vec2(to->x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - to->y);
 
-        if (data.points.size() % 3 == 0) {
-            data.points.push_back(prevPoint);
-        }
+        data.curves.emplace_back(data.prevPoint, toPoint, toPoint);
+        data.prevPoint = toPoint;
 
-        data.points.push_back(toPoint);
-        data.points.push_back(toPoint);
         return 0;
     };
     callbacks.conic_to = [](const FT_Vector* control, const FT_Vector* to, void* user) -> int {
         UserData& data = *static_cast<UserData*>(user);
-        Point p0 = data.points.back();
+        Point p0 = data.prevPoint;
         Point p1 = glm::vec2(control->x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - control->y);
         Point p2 = glm::vec2(to->x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - to->y);
 
-        // Finding the inflection points on the x and y axes
-        float yt_inflection = (p0.y - p1.y) / (p0.y + p2.y - 2.0f * p1.y);
-        float xt_inflection = (p0.x - p1.x) / (p0.x + p2.x - 2.0f * p1.x);
+        // Finding the x and y inflection points on the curve
+        Point inflection = (p0 - p1) / (p0 + p2 - 2.0f * p1);
 
-        bool point_emitted = false;
-
-        // Splitting the curve at the y inflection point
-        if (yt_inflection > 0.0f && yt_inflection < 1.0f) {
-            Point ctrl1 = glm::mix(p0, p1, yt_inflection);
-            Point ctrl2 = glm::mix(p1, p2, yt_inflection);
-
-            if (data.points.size() % 3 == 0) {
-                data.points.push_back(p0);
-            }
-
-            data.points.push_back(ctrl1);
-            data.points.push_back(p1);
-            data.points.push_back(p1);
-            data.points.push_back(ctrl2);
-            data.points.push_back(p2);
-            point_emitted = true;
-        }
+        bool curve_emitted = false;
 
         // Splitting the curve at the x inflection point
-        if (xt_inflection > 0.0f && xt_inflection < 1.0f) {
-            Point ctrl1 = glm::mix(p0, p1, xt_inflection);
-            Point ctrl2 = glm::mix(p1, p2, xt_inflection);
+        if (inflection.x > 0.0f && inflection.x < 1.0f) {
+            Point ctrl1 = glm::mix(p0, p1, inflection.x);
+            Point ctrl2 = glm::mix(p1, p2, inflection.x);
 
-            if (data.points.size() % 3 == 0) {
-                data.points.push_back(p0);
-            }
+            data.curves.emplace_back(p0, ctrl1, p1);
+            data.curves.emplace_back(p1, ctrl2, p2);
+            data.prevPoint = p2;
 
-            data.points.push_back(ctrl1);
-            data.points.push_back(p1);
-            data.points.push_back(p1);
-            data.points.push_back(ctrl2);
-            data.points.push_back(p2);
-            point_emitted = true;
+            curve_emitted = true;
         }
 
-        if (!point_emitted) {
-            if (data.points.size() % 3 == 0) {
-                data.points.push_back(p0);
-            }
+        p0 = data.prevPoint;
 
-            data.points.push_back(p1);
-            data.points.push_back(p2);
+        // Splitting the curve at the y inflection point
+        if (inflection.y > 0.0f && inflection.y < 1.0f) {
+            Point ctrl1 = glm::mix(p0, p1, inflection.y);
+            Point ctrl2 = glm::mix(p1, p2, inflection.y);
+
+            data.curves.emplace_back(p0, ctrl1, p1);
+            data.curves.emplace_back(p1, ctrl2, p2);
+            data.prevPoint = p2;
+
+            curve_emitted = true;
         }
+
+        if (!curve_emitted) {
+            data.curves.emplace_back(p0, p1, p2);
+            data.prevPoint = p2;
+        }
+
         return 0;
     };
     callbacks.cubic_to = [](const FT_Vector* control1, const FT_Vector* control2, const FT_Vector* to, void* user) -> int {
@@ -120,18 +113,30 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
         if (face->glyph->format != FT_GLYPH_FORMAT_OUTLINE) continue;
 
         auto data = UserData {
-            .points = points,
+            .curves = curves,
             .glyph = face->glyph
         };
 
-        const size_t offset = points.size();
+        const size_t offset = curves.size();
         FT_Outline_Decompose(&face->glyph->outline, &callbacks, &data);
-        const size_t count = points.size() - offset;
+        const size_t count = curves.size() - offset;
+        
+        std::sort(
+            std::next(curves.begin(), offset),
+            std::next(curves.begin(), offset + count),
+            [](const BezierCurve& a, const BezierCurve& b) -> bool {
+                const float a_min_y = std::min({a.p0.y, a.p1.y, a.p2.y});
+                const float b_min_y = std::min({b.p0.y, b.p1.y, b.p2.y});
+                return a_min_y < b_min_y;
+            }
+        );
 
         glyphs.try_emplace(character, Glyph {
-            .data.vector = GlyphDataVector {
-                .offset = offset,
-                .count = count,
+            .data = {
+                .vector = GlyphDataVector {
+                    .offset = offset,
+                    .count = count,
+                },
             },
             .size = glm::ivec2(face->glyph->metrics.width, face->glyph->metrics.height),
             .bearing = glm::ivec2(face->glyph->metrics.horiBearingX, face->glyph->metrics.horiBearingY),
@@ -142,13 +147,7 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
         if (!index) break;
     }
 
-    SGE_ASSERT(points.size() % 3 == 0);
-
-    for (auto& point : points) {
-        point /= face->units_per_EM;
-    }
-
-    sge::Ref<LLGL::Buffer> buffer = context.CreateStructuredBuffer<Point>(points.size(), LLGL::Format::RG32Float, points.data());
+    sge::Ref<LLGL::Buffer> buffer = context.CreateStructuredBuffer<BezierCurve>(curves.size(), curves.data());
 
     return sge::FontVector {
         .glyphs = glyphs,

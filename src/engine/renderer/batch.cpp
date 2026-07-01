@@ -114,7 +114,7 @@ uint32_t sge::Batch::DrawTextVector(const RichTextSection* sections, size_t size
                 .color = color,
                 .pos = pos,
                 .size = size,
-                .em_size = glm::vec2(ch.size) / float(font.units_per_em),
+                .em_size = ch.size,
                 .font_size = section.size,
                 .offset = ch.data.vector.offset,
                 .count = ch.data.vector.count

@@ -16,9 +16,11 @@ void sge::internal::InitDefaultFont(sge::RenderContext& context) {
     std::unordered_map<uint32_t, Glyph> glyphs;
     for (EmbeddedFontGlyph glyph : FONT_GLYPHS) {
         glyphs[glyph.character] = sge::Glyph {
-            .data.sdf = {
-                .tex_size = glyph.tex_size,
-                .texture_coords = glyph.texture_coords,
+            .data = {
+                .sdf = {
+                    .tex_size = glyph.tex_size,
+                    .texture_coords = glyph.texture_coords,
+                }
             },
             .size = glyph.size,
             .bearing = glyph.bearing,
