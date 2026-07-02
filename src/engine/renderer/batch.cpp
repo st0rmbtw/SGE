@@ -118,7 +118,7 @@ uint32_t sge::Batch::DrawTextVector(const RichTextSection* sections, size_t size
                 .em_size = ch.size,
                 .font_size = section.size,
                 .partition_offset = ch.data.vector.partition_offset,
-                .partition_count = ch.data.vector.partition_count
+                .partition_count = ch.data.vector.partition_count,
             };
 
             m_glyph_draw_commands.push_back(command);

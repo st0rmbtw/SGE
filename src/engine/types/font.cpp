@@ -13,7 +13,7 @@ using Point = glm::i16vec2;
 
 namespace {
 
-constexpr int32_t PARTITION_HEIGHT = 120;
+constexpr int32_t PARTITION_HEIGHT = 75;
 
 struct BezierCurve {
     Point p0;
@@ -21,7 +21,7 @@ struct BezierCurve {
     Point p2;
 };
 
-struct BezierCurvePartition {
+struct BezierGlyphPartition {
     uint32_t curve_offset = 0;
     uint32_t curve_count = 0;
 };
@@ -68,16 +68,71 @@ bool IntersectsHorizontalLine(const BezierCurve& curve, float c) {
     return false;
 }
 
-// Helper function for detecting if a bezier curve intersects with a horizontal band
-bool IsCurveIntersectingBand(const BezierCurve& curve, float bottom, float top) {
-    if ((top >= curve.p0.y && bottom <= curve.p0.y) || (top >= curve.p2.y && bottom <= curve.p2.y)) {
-        return true;
+float SolveMonotonicBezierY(const BezierCurve& c, float target) {
+    float p0 = c.p0.y, p1 = c.p1.y, p2 = c.p2.y;
+    float qa = p0 - 2.f * p1 + p2;
+    if (std::abs(qa) < 1e-3f) return (target - p0) / (p2 - p0);
+
+    float qb = 2.f * (p1 - p0);
+    float qc = p0 - target;
+    float d = std::max(0.f, qb * qb - 4.f * qa * qc);
+    float inv_2a = 0.5f / qa;
+    float s = (p2 - p0) >= 0.f ? 1.f : -1.f;
+    return -qb * inv_2a + s * std::sqrt(d) * inv_2a;
+}
+
+std::pair<BezierCurve, BezierCurve> SplitCurve(const BezierCurve& c, float t) {
+    glm::vec2 q0    = glm::mix(glm::vec2(c.p0), glm::vec2(c.p1), t);
+    glm::vec2 q1    = glm::mix(glm::vec2(c.p1), glm::vec2(c.p2), t);
+    glm::vec2 split = glm::mix(q0, q1, t);
+
+    auto toPoint = [](glm::vec2 v) -> Point {
+        return Point(static_cast<Point::value_type>(std::lround(v.x)),
+                    static_cast<Point::value_type>(std::lround(v.y)));
+    };
+
+    return {
+        BezierCurve{ .p0=toPoint(c.p0),  .p1=toPoint(q0), .p2=toPoint(split) },
+        BezierCurve{ .p0=toPoint(split), .p1=toPoint(q1), .p2=toPoint(c.p2) }
+    };
+}
+
+void SplitAtPartitionBoundaries(BezierCurve curve, float yMax, int totalBands,
+                                 std::vector<std::pair<BezierCurve, int>>& out) {
+    Point::value_type top = std::max(curve.p0.y, curve.p2.y);
+    Point::value_type bot = std::min(curve.p0.y, curve.p2.y);
+
+    int bandTop = std::clamp((int)std::floor((yMax - top) / PARTITION_HEIGHT), 0, totalBands - 1);
+    int bandBot = std::clamp((int)std::floor((yMax - bot) / PARTITION_HEIGHT), 0, totalBands - 1);
+
+    if (bandTop == bandBot) {
+        out.emplace_back(curve, bandTop);
+        return;
     }
 
-    if (IntersectsHorizontalLine(curve, top))    return true;
-    if (IntersectsHorizontalLine(curve, bottom)) return true;
+    BezierCurve remaining = curve;
 
-    return false;
+    if (curve.p2.y > curve.p0.y) {
+        // p0 (t=0) sits near bandBot (low y); p2 (t=1) sits near bandTop (high y).
+        for (int band = bandBot; band > bandTop; --band) {
+            float boundaryY = yMax - band * PARTITION_HEIGHT; // upper edge of band
+            float t = std::clamp(SolveMonotonicBezierY(remaining, boundaryY), 0.f, 1.f);
+            auto [a, b] = SplitCurve(remaining, t); // a = [p0..split], b = [split..p2]
+            out.emplace_back(a, band);
+            remaining = b;
+        }
+        out.emplace_back(remaining, bandTop);
+    } else {
+        // p0 (t=0) sits near bandTop (high y); p2 (t=1) sits near bandBot (low y).
+        for (int band = bandTop; band < bandBot; ++band) {
+            float boundaryY = yMax - (band + 1) * PARTITION_HEIGHT; // lower edge of band
+            float t = std::clamp(SolveMonotonicBezierY(remaining, boundaryY), 0.f, 1.f);
+            auto [a, b] = SplitCurve(remaining, t);
+            out.emplace_back(a, band);
+            remaining = b;
+        }
+        out.emplace_back(remaining, bandBot);
+    }
 }
 
 } // namespace
@@ -163,8 +218,11 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
 
     std::vector<BezierCurve> curves;
     std::vector<BezierCurve> partition_curves;
-    std::vector<BezierCurvePartition> partitions;
+    std::vector<BezierGlyphPartition> partitions;
     std::unordered_map<uint32_t, Glyph> glyphs;
+
+    std::vector<std::pair<BezierCurve, int>> pieces;
+    std::vector<std::vector<BezierCurve>> bands;
 
     while (true) {
         FT_Load_Glyph(face, index, FT_LOAD_DEFAULT | FT_LOAD_NO_BITMAP | FT_LOAD_NO_SCALE);
@@ -180,50 +238,47 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
         const uint32_t curve_count = curves.size() - curve_offset;
 
         uint32_t partition_offset = 0;
-        uint32_t partition_count = 0;
+
+        int total_bands = 0;
 
         if (curve_count > 0) {
             FT_BBox bbox;
             FT_Outline_Get_CBox(&face->glyph->outline, &bbox);
 
-            const auto width = (bbox.xMax - bbox.xMin);
-            
-            partition_offset = partitions.size();
-            
-            int32_t y = bbox.yMax;
-            while (y > bbox.yMin) {
-                BezierCurvePartition partition;
-                partition.curve_offset = partition_curves.size();
+            total_bands = std::max(1, (int)std::ceil((bbox.yMax - bbox.yMin) / (float)PARTITION_HEIGHT));
 
-                for (uint32_t i = 0; i < curve_count; ++i) {
-                    BezierCurve curve = curves[curve_offset + i];
-
-                    const float bottom = y - PARTITION_HEIGHT * 1.5f;
-                    const float top = y;
-                
-                    if (IsCurveIntersectingBand(curve, bottom, top)) {
-                        curve.p0 = Point(curve.p0.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - curve.p0.y);
-                        curve.p1 = Point(curve.p1.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - curve.p1.y);
-                        curve.p2 = Point(curve.p2.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - curve.p2.y);
-                        partition_curves.push_back(curve);
-                    }
-                }
-
-                partition.curve_count = (partition_curves.size() - partition.curve_offset);
-                partitions.push_back(partition);
-
-                y -= PARTITION_HEIGHT;
+            for (uint32_t i = 0; i < curve_count; ++i) {
+                SplitAtPartitionBoundaries(curves[curve_offset + i], (float)bbox.yMax, total_bands, pieces);
             }
-            partition_count = partitions.size() - partition_offset;
+
+            bands.resize(total_bands);
+            for (auto& [piece, band] : pieces) {
+                BezierCurve t = piece;
+                t.p0 = Point(piece.p0.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - piece.p0.y);
+                t.p1 = Point(piece.p1.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - piece.p1.y);
+                t.p2 = Point(piece.p2.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - piece.p2.y);
+                bands[band].push_back(t);
+            }
+
+            partition_offset = partitions.size();
+            for (int band = 0; band < total_bands; ++band) {
+                BezierGlyphPartition partition;
+                partition.curve_offset = partition_curves.size();
+                partition_curves.insert(partition_curves.end(), bands[band].begin(), bands[band].end());
+                partition.curve_count = bands[band].size();
+                partitions.push_back(partition);
+            }
 
             curves.clear();
+            pieces.clear();
+            bands.clear();
         }
 
         glyphs.try_emplace(character, Glyph {
             .data = {
                 .vector = GlyphDataVector {
                     .partition_offset = partition_offset,
-                    .partition_count = partition_count,
+                    .partition_count = static_cast<uint32_t>(total_bands),
                 },
             },
             .size = glm::ivec2(face->glyph->metrics.width, face->glyph->metrics.height),
@@ -239,7 +294,7 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
     return sge::FontVector {
         .glyphs = glyphs,
         .curve_buffer = context.CreateStructuredBuffer<BezierCurve>(partition_curves.size(), partition_curves.data()),
-        .partition_buffer = context.CreateStructuredBuffer<BezierCurvePartition>(partitions.size(), partitions.data()),
+        .partition_buffer = context.CreateStructuredBuffer<BezierGlyphPartition>(partitions.size(), partitions.data()),
         .units_per_em = face->units_per_EM,
         .ascender = static_cast<int16_t>(face->ascender),
         .descender = static_cast<int16_t>(face->descender),

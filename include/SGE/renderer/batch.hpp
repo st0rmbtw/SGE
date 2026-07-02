@@ -84,7 +84,7 @@ struct BatchGlyphState {
 
     bool operator==(const BatchGlyphState& other) const {
         return curve_buffer == other.curve_buffer
-            && partition_buffer == other.partition_buffer 
+            && partition_buffer == other.partition_buffer
             && scissor == other.scissor 
             && order == other.order 
             && blend_mode == other.blend_mode;

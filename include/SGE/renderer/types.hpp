@@ -85,8 +85,8 @@ struct GlyphInstance {
     glm::vec2 pos;
     glm::vec2 size;
     glm::vec2 em_size;
-    uint32_t offset;
-    uint32_t count;
+    uint32_t partition_offset;
+    uint32_t partition_count;
     uint8_t flags;
 };
 

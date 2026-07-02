@@ -115,8 +115,8 @@ BatchVertexFormats GlyphBatchVertexFormats(const sge::RenderBackend backend) {
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position", 1),
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size", 1),
         sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_em_size", "I_Em_Size", 1),
-        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_offset", "I_PartitionOffset", 1),
-        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_count", "I_PartitionCount", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_partition_offset", "I_PartitionOffset", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_partition_count", "I_PartitionCount", 1),
         sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
     });
 
@@ -909,7 +909,7 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
             flush_queue.push_back(FlushData {
                 .glyph_data = {
                     .curve_buffer=glyph_state->curve_buffer,
-                    .partition_buffer=glyph_state->partition_buffer
+                    .partition_buffer=glyph_state->partition_buffer,
                 },
                 .scissor = glyph_state->scissor,
                 .offset = glyph_offset,
@@ -1050,8 +1050,8 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
                 buffer->pos = command.pos;
                 buffer->size = command.size;
                 buffer->em_size = command.em_size;
-                buffer->offset = command.partition_offset;
-                buffer->count = command.partition_count;
+                buffer->partition_offset = command.partition_offset;
+                buffer->partition_count = command.partition_count;
                 buffer->flags = flags;
 
                 ++sum_total_count;

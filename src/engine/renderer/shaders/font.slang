@@ -14,8 +14,8 @@ struct VSInput
     float2 i_position : I_Position;
     float2 i_size : I_Size;
     float2 i_em_size : I_Em_Size;
-    uint i_offset : I_PartitionOffset;
-    uint i_count : I_PartitionCount;
+    uint i_partition_offset : I_PartitionOffset;
+    uint i_partition_count : I_PartitionCount;
     uint i_flags : I_Flags;
 };
 
@@ -49,8 +49,8 @@ VSOutput VS(VSInput inp)
     outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = 1.0f;
     outp.em_size = inp.i_em_size;
-    outp.partition_offset = inp.i_offset;
-    outp.partition_count = inp.i_count;
+    outp.partition_offset = inp.i_partition_offset;
+    outp.partition_count = inp.i_partition_count;
 
 	return outp;
 }
@@ -195,25 +195,39 @@ StructuredBuffer<BezierCurve> CurveBuffer : register(t3);
 [vk::binding(4)]
 StructuredBuffer<BezierCurvePartition> PartitionBuffer : register(t4);
 
+static constexpr float PARTITION_HEIGHT = 75.f;
+
+inline half2 UnpackPoint(uint packed)
+{
+    return half2(packed & 0xFFFFu, (packed >> 16) & 0xFFFFu);
+}
+
 [shader("fragment")]
 float4 PS(VSOutput inp) : SV_Target
 {
     float2 pixel_size = fwidth(inp.uv);
 
-    int partition_index = clamp(floor(inp.uv.y / 120.0f), 0, inp.partition_count-1);
+    float y_lo = inp.uv.y - pixel_size.y;
+    float y_hi = inp.uv.y + pixel_size.y;
 
-    BezierCurvePartition partition = PartitionBuffer[inp.partition_offset + partition_index];
-    
+    int p_lo = clamp((int)floor(y_lo / PARTITION_HEIGHT), 0, int(inp.partition_count) - 1);
+    int p_hi = clamp((int)floor(y_hi / PARTITION_HEIGHT), 0, int(inp.partition_count) - 1);
+
     float coverage = 0.h;
-    for (uint i = 0; i < partition.curve_count; ++i) {
-        BezierCurve curve = CurveBuffer[partition.curve_offset + i];
 
-        // half2 points are packed in uint32, unpacking them
-        half2 p0 = half2(curve.p0 & 0xFFFFu, (curve.p0 >> 16) & 0xFFFFu);
-        half2 p1 = half2(curve.p1 & 0xFFFFu, (curve.p1 >> 16) & 0xFFFFu);
-        half2 p2 = half2(curve.p2 & 0xFFFFu, (curve.p2 >> 16) & 0xFFFFu);
+    for (int partition_index = p_lo; partition_index <= p_hi; ++partition_index) {
+        BezierCurvePartition partition = PartitionBuffer[inp.partition_offset + partition_index];
+        
+        for (uint i = 0; i < partition.curve_count; ++i) {
+            BezierCurve curve = CurveBuffer[partition.curve_offset + i];
 
-        coverage += ScanlineSweep(pixel_size, inp.uv, p2, p1, p0);
+            // half2 points are packed in uint32, unpacking them
+            half2 p0 = UnpackPoint(curve.p0);
+            half2 p1 = UnpackPoint(curve.p1);
+            half2 p2 = UnpackPoint(curve.p2);
+
+            coverage += ScanlineSweep(pixel_size, inp.uv, p2, p1, p0);
+        }
     }
 
     float pixel_area = pixel_size.x * pixel_size.y;
