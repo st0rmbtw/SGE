@@ -55,38 +55,38 @@ VSOutput VS(VSInput inp)
 	return outp;
 }
 
-half IntersectMonotonicBezier(half qa, half c0, half c1, half c2, half target)
+float IntersectMonotonicBezier(float qa, float c0, float c1, float c2, float target)
 {
     if (abs(qa) < 1e-3f) {
         return (target - c0) / (c2 - c0);
     }
 
-    half qb = mad(2.h, c1, -2.h * c0);
-    half qc = c0 - target;
+    float qb = mad(2.h, c1, -2.h * c0);
+    float qc = c0 - target;
 
-    half d = mad(qb, qb, -4.h * qa * qc);
+    float d = mad(qb, qb, -4.h * qa * qc);
 
-    half sqrt_d = select(d < 0.h, 0.h, sqrt(d));
+    float sqrt_d = select(d < 0.h, 0.h, sqrt(d));
 
-    half inv_2a = 0.5h / qa;
+    float inv_2a = 0.5h / qa;
 
     return mad(-qb, inv_2a, sign(c2 - c0) * sqrt_d * inv_2a);
 }
 
-half2 EvaluateBezier(half2 p0, half2 p1, half2 p2, half t)
+float2 EvaluateBezier(float2 p0, float2 p1, float2 p2, float t)
 {
-    half2 a = lerp(p0, p1, t);
-    half2 b = lerp(p1, p2, t);
+    float2 a = lerp(p0, p1, t);
+    float2 b = lerp(p1, p2, t);
     return lerp(a, b, t);
 }
 
-half ScanlineSweep(half2 size, half2 offset, half2 p0, half2 p1, half2 p2)
+float ScanlineSweep(float2 size, float2 offset, float2 p0, float2 p1, float2 p2)
 {
     if (max(p0.y, p2.y) <= offset.y || min(p0.y, p2.y) >= offset.y + size.y) {
         return 0.h;
     }
 
-    half2 delta = p2 - p0;
+    float2 delta = p2 - p0;
 
     p0 -= offset;
     p1 -= offset;
@@ -97,24 +97,24 @@ half ScanlineSweep(half2 size, half2 offset, half2 p0, half2 p1, half2 p2)
             return 0.h;
         }
 
-        half t = min(max(p0.y, p2.y), size.y);
-        half b = max(min(p0.y, p2.y), 0.h);
+        float t = min(max(p0.y, p2.y), size.y);
+        float b = max(min(p0.y, p2.y), 0.h);
 
-        half h = abs(t - b);
-        half base = min(size.x, size.x - p0.x);
+        float h = abs(t - b);
+        float base = min(size.x, size.x - p0.x);
 
         return sign(delta.y) * base * h;
     }
 
-    half qa = mad(-2.h, p1.y, p0.y + p2.y);
-    half bt = IntersectMonotonicBezier(qa, p0.y, p1.y, p2.y, 0.);
-    half tt = IntersectMonotonicBezier(qa, p0.y, p1.y, p2.y, size.y);
+    float qa = mad(-2.h, p1.y, p0.y + p2.y);
+    float bt = IntersectMonotonicBezier(qa, p0.y, p1.y, p2.y, 0.);
+    float tt = IntersectMonotonicBezier(qa, p0.y, p1.y, p2.y, size.y);
 
-    half v_min_t = select(delta.y > 0.h, bt, tt);
-    half v_max_t = select(delta.y > 0.h, tt, bt);
+    float v_min_t = select(delta.y > 0.h, bt, tt);
+    float v_max_t = select(delta.y > 0.h, tt, bt);
 
-    half2 v_min = EvaluateBezier(p0, p1, p2, saturate(v_min_t));
-    half2 v_max = EvaluateBezier(p0, p1, p2, saturate(v_max_t));
+    float2 v_min = EvaluateBezier(p0, p1, p2, saturate(v_min_t));
+    float2 v_max = EvaluateBezier(p0, p1, p2, saturate(v_max_t));
 
     if (max(v_min.x, v_max.x) <= 0.h) {
         // Fast path for curves entirely to the left of the window
@@ -130,10 +130,10 @@ half ScanlineSweep(half2 size, half2 offset, half2 p0, half2 p1, half2 p2)
 
     qa = mad(-2.h, p1.x, p0.x + p2.x);
 
-    half h_min_t;
-    half h_max_t;
+    float h_min_t;
+    float h_max_t;
 
-    half4 h_check = select(delta.x > 0.h, half4(p0.x, p2.x, 0.h, 0.h), half4(p2.x, p0.x, size.x, 1.h));
+    float4 h_check = select(delta.x > 0.h, float4(p0.x, p2.x, 0.h, 0.h), float4(p2.x, p0.x, size.x, 1.h));
 
     if (h_check.x >= h_check.z) {
         h_min_t = h_check.w;
@@ -153,25 +153,25 @@ half ScanlineSweep(half2 size, half2 offset, half2 p0, half2 p1, half2 p2)
         h_max_t = IntersectMonotonicBezier(qa, p0.x, p1.x, p2.x, h_check.z);
     }
 
-    half min_t = saturate(max(v_min_t, h_min_t));
-    half max_t = saturate(min(v_max_t, h_max_t));
+    float min_t = saturate(max(v_min_t, h_min_t));
+    float max_t = saturate(min(v_max_t, h_max_t));
     
-    half2 q0 = v_min_t >= h_min_t ? v_min : EvaluateBezier(p0, p1, p2, min_t);
-    half2 q1 = v_max_t <= h_max_t ? v_max : EvaluateBezier(p0, p1, p2, max_t);
+    float2 q0 = v_min_t >= h_min_t ? v_min : EvaluateBezier(p0, p1, p2, min_t);
+    float2 q1 = v_max_t <= h_max_t ? v_max : EvaluateBezier(p0, p1, p2, max_t);
 
-    half coverage = 0.h;
+    float coverage = 0.h;
     if (min_t > 0.h && delta.x > 0.h) {
-        half h = select(delta.y > 0.h, q0.y - max(0.h, p0.y), min(size.y, p0.y) - q0.y);
+        float h = select(delta.y > 0.h, q0.y - max(0.h, p0.y), min(size.y, p0.y) - q0.y);
         coverage = sign(delta.y) * h * size.x;
     }
 
     if (max_t < 1.h && delta.x < 0.h) {
-        half h = select(delta.y > 0.h, min(size.y, p2.y) - q1.y, q1.y - max(0.f, p2.y));
+        float h = select(delta.y > 0.h, min(size.y, p2.y) - q1.y, q1.y - max(0.f, p2.y));
         coverage += sign(delta.y) * h * size.x;
     }
 
-    half h = q1.y - q0.y;
-    half b = mad(-0.5h, q0.x + q1.x, size.x);
+    float h = q1.y - q0.y;
+    float b = mad(-0.5h, q0.x + q1.x, size.x);
 
     coverage += b * h;
 
@@ -197,9 +197,9 @@ StructuredBuffer<BezierCurvePartition> PartitionBuffer : register(t4);
 
 static constexpr float PARTITION_HEIGHT = 75.f;
 
-inline half2 UnpackPoint(uint packed)
+inline float2 UnpackPoint(uint packed)
 {
-    return half2(packed & 0xFFFFu, (packed >> 16) & 0xFFFFu);
+    return float2(packed & 0xFFFFu, (packed >> 16) & 0xFFFFu);
 }
 
 [shader("fragment")]
@@ -221,10 +221,10 @@ float4 PS(VSOutput inp) : SV_Target
         for (uint i = 0; i < partition.curve_count; ++i) {
             BezierCurve curve = CurveBuffer[partition.curve_offset + i];
 
-            // half2 points are packed in uint32, unpacking them
-            half2 p0 = UnpackPoint(curve.p0);
-            half2 p1 = UnpackPoint(curve.p1);
-            half2 p2 = UnpackPoint(curve.p2);
+            // uint16 points are packed in 32-bit integers, unpacking them
+            float2 p0 = UnpackPoint(curve.p0);
+            float2 p1 = UnpackPoint(curve.p1);
+            float2 p2 = UnpackPoint(curve.p2);
 
             coverage += ScanlineSweep(pixel_size, inp.uv, p2, p1, p0);
         }

@@ -16,7 +16,7 @@ COMBINED_SAMPLER_PATTERN = re.compile(
 )
 
 SLANG_FLAGS = ("-matrix-layout-column-major", "-O3", "-line-directive-mode", "none", "-g0")
-SPIRV_CROSS_FLAGS = ("--no-es", "--remove-unused-variables", "--no-420pack-extension", "--version", "410")
+SPIRV_CROSS_FLAGS = ("--no-es", "--remove-unused-variables", "--version", "430")
 
 class CompileResults:
     d3d: dict[str, tuple[bool, bool]] = {}
