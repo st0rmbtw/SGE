@@ -74,6 +74,7 @@ uint32_t sge::Batch::DrawTextVector(const RichTextSection* sections, size_t size
         const char* str = section.text.data();
         const size_t length = section.text.size();
         const float scale = section.size / font.units_per_em;
+        const float height = (font.ascender - font.descender) * scale;
 
         const glm::vec3 color = section.color.to_vec3();
 
@@ -82,7 +83,7 @@ uint32_t sge::Batch::DrawTextVector(const RichTextSection* sections, size_t size
             i += utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(str) + i, codepoint);
 
             if (codepoint == '\n') {
-                y += (font.ascender - font.descender) * scale;
+                y += height;
                 x = position.x;
                 continue;
             }

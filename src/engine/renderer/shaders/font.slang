@@ -24,7 +24,6 @@ struct VSOutput
     float4 position : SV_Position;
 
     float2 uv : UV;
-    nointerpolation float2 em_size : EmSize;
     nointerpolation float3 color : Color;
     uint partition_offset : PartitionOffset;
     uint partition_count : PartitionCount;
@@ -48,7 +47,6 @@ VSOutput VS(VSInput inp)
     outp.uv = inp.position * inp.i_em_size;
     outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = 1.0f;
-    outp.em_size = inp.i_em_size;
     outp.partition_offset = inp.i_partition_offset;
     outp.partition_count = inp.i_partition_count;
 

@@ -183,8 +183,10 @@ void sge::RenderContext::UnregisterWindow(const GlfwWindow& window) {
     if (it == m_swapchain_map.end())
         return;
 
-    if (m_context != nullptr)
+    if (m_context != nullptr) {
+        m_context->GetCommandQueue()->WaitIdle();
         Release(*it->second);
+    }
 
     m_swapchain_map.erase(window.GetID());
 
