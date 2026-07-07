@@ -2,6 +2,7 @@
 #define SGE_RENDERER_FRAMEBUFFER_POOL_HPP_
 
 #include <cstdint>
+#include <vector>
 
 #include <LLGL/Format.h>
 

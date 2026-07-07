@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 #include <LLGL/Constants.h>
 #include <LLGL/Format.h>

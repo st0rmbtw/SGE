@@ -1,4 +1,6 @@
+#if __has_include(<execution>)
 #include <execution>
+#endif
 
 #include <LLGL/PipelineLayout.h>
 #include <LLGL/PipelineLayoutFlags.h>
@@ -13,6 +15,13 @@
 #include <SGE/types/binding_layout.hpp>
 
 #include "shaders.hpp"
+
+// GNU PSTL doesn't compile with exceptions disabled
+#if (!defined(__GNUC__) || defined(__cpp_exceptions)) && defined(__cpp_lib_execution)
+    #define PARALLEL 1
+#else
+    #define PARALLEL 0
+#endif
 
 static constexpr uint32_t DEFAULT_BATCH_COUNT = 2000;
 static constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
@@ -741,10 +750,8 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     auto& shape_commands = batch.shape_draw_commands();
     auto& line_commands = batch.line_draw_commands();
 
-    // GNU PSTL doesn't compile with exceptions disabled
-
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
         sprite_commands.begin(),
@@ -755,7 +762,7 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
         glyph_commands.begin(),
@@ -787,7 +794,7 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
         ninepatch_commands.begin(),
@@ -798,7 +805,7 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
         shape_commands.begin(),
@@ -809,7 +816,7 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
         line_commands.begin(),

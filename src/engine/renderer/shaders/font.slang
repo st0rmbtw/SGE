@@ -203,7 +203,16 @@ inline float2 UnpackPoint(uint packed)
 [shader("fragment")]
 float4 PS(VSOutput inp) : SV_Target
 {
-    float2 pixel_size = fwidth(inp.uv);
+    float2 pixel_size;
+    __target_switch
+    {
+        case metal:
+            pixel_size = float2(fwidth(inp.uv.x), fwidth(inp.uv.y));
+            break;
+        default:
+            pixel_size = fwidth(inp.uv);
+            break;
+    }
 
     float y_lo = inp.uv.y - pixel_size.y;
     float y_hi = inp.uv.y + pixel_size.y;
