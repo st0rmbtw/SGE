@@ -29,44 +29,8 @@ struct BezierGlyphPartition {
 struct UserData {
     std::vector<BezierCurve>& curves;
     FT_GlyphSlot glyph;
-    Point prevPoint;
+    Point prevPoint = Point(0, 0);
 };
-
-int SolveQuadratic(float A, float B, float C, float roots[2]) {
-    float discriminant = B * B - 4.f * A * C;
-    if (discriminant < 0) return 0;
-    
-    if (discriminant == 0) {
-        roots[0] = -B / (2.f * A);
-        return 1;
-    }
-    
-    float sqrtD = std::sqrt(discriminant);
-    roots[0] = (-B - sqrtD) / (2.f * A);
-    roots[1] = (-B + sqrtD) / (2.f * A);
-    return 2;
-}
-
-bool IntersectsHorizontalLine(const BezierCurve& curve, float c) {
-    float p0 = curve.p0.y;
-    float p1 = curve.p1.y;
-    float p2 = curve.p2.y; 
-
-    float A = p0 - 2.f * p1 + p2;
-    float B = 2.f * (p1 - p0);
-    float C = p0 - c;
-
-    float roots[2];
-    int numRoots = SolveQuadratic(A, B, C, roots);
-    
-    for (int i = 0; i < numRoots; ++i) {
-        float t = roots[i];
-        if (t >= 0.f && t <= 1.f) {
-            return true;
-        }
-    }
-    return false;
-}
 
 float SolveMonotonicBezierY(const BezierCurve& c, float target) {
     float p0 = c.p0.y, p1 = c.p1.y, p2 = c.p2.y;
@@ -97,8 +61,7 @@ std::pair<BezierCurve, BezierCurve> SplitCurve(const BezierCurve& c, float t) {
     };
 }
 
-void SplitAtPartitionBoundaries(BezierCurve curve, float yMax, int totalBands,
-                                 std::vector<std::pair<BezierCurve, int>>& out) {
+void SplitAtPartitionBoundaries(BezierCurve curve, float yMax, int totalBands, std::vector<std::pair<BezierCurve, int>>& out) {
     Point::value_type top = std::max(curve.p0.y, curve.p2.y);
     Point::value_type bot = std::min(curve.p0.y, curve.p2.y);
 
@@ -202,7 +165,7 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
 
         return 0;
     };
-    callbacks.cubic_to = [](const FT_Vector* control1, const FT_Vector* control2, const FT_Vector* to, void* user) -> int {
+    callbacks.cubic_to = [](const FT_Vector*, const FT_Vector*, const FT_Vector*, void*) -> int {
         SGE_UNREACHABLE();
         return 0;
     };

@@ -205,7 +205,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
         m_batch->DrawCircle(center, {
             .radius = CLOCK_CIRCLE_RADIUS * size.x / 2.0f,
-            .color = sge::LinearRgba::white(),
+            .color = sge::color::WHITE,
         });
 
         float tick_thickness = CLOCK_TICK_THICKNESS * size.x;
@@ -270,7 +270,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), sge::BorderRadius::Relative(50.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::color::WHITE, sge::BorderRadius::Relative(50.0f));
         }
 
         // Minute hand
@@ -282,7 +282,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
 
-            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::LinearRgba::white(), sge::BorderRadius::Relative(50.0f));
+            m_batch->DrawLine(start, start + line_dir * length, hand_thickness, sge::color::WHITE, sge::BorderRadius::Relative(50.0f));
         }
 
         // Second hand
@@ -298,8 +298,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         }
     }
 
-    m_renderer->PrepareBatch(*m_batch);
-    m_renderer->UploadBatchData();
+    m_renderer->PrepareAndUpload(*m_batch);
 
     m_renderer->BeginPass(window, camera);
     {

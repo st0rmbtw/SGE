@@ -39,8 +39,6 @@ VSOutput VS(VSInput inp)
     const float4x4 mvp = is_ui ? uniforms.screen_projection : uniforms.view_projection;
 
     float2 position = mad(inp.position, inp.i_size, inp.i_position);
-    position.x -= frac(position.x);
-    position.y -= frac(position.y);
 
     VSOutput outp;
     outp.color = inp.i_color;

@@ -3,6 +3,7 @@
 
 #include "SGE/types/transform.hpp"
 #include "renderer.hpp"
+#include "types.hpp"
 
 #include <SGE/types/path.hpp>
 
@@ -80,24 +81,32 @@ public:
     void RenderBatch(sge::Batch& batch);
     void UploadBatchData();
 
+    template <typename... Args>
+    void PrepareAndUpload(Args&... batches) {
+        (PrepareBatch(batches), ...);
+        UploadBatchData();
+    }
+
     inline std::unique_ptr<sge::Batch> CreateBatch(const sge::BatchDesc& desc = {}) {
         return std::make_unique<sge::Batch>(*this, desc);
     }
 
     void DestroyBatch(sge::Batch& batch);
 
-    void DrawPath(const sge::Path& path, const sge::LinearRgba& color = sge::LinearRgba::white(), const sge::Transform& transform = sge::Transform());
+    void DrawPath(const sge::Path& path, const sge::LinearRgba& color = sge::color::WHITE, const sge::Transform& transform = sge::Transform());
 
 private:
-    SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = Ref<LLGL::Shader>());
+    SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = nullptr);
     Handle<LLGL::PipelineState> CreateNinepatchBatchPipeline(bool enable_scissor);
-    Handle<LLGL::PipelineState> CreateGlyphBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = Ref<LLGL::Shader>());
+    Handle<LLGL::PipelineState> CreateGlyphSDFBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = nullptr);
+    Handle<LLGL::PipelineState> CreateGlyphVectorBatchPipeline(bool enable_scissor);
     Handle<LLGL::PipelineState> CreateShapeBatchPipeline(bool enable_scissor);
     Handle<LLGL::PipelineState> CreateLineBatchPipeline(bool enable_scissor);
 
     BatchData<SpriteInstance> InitSpriteBatchData();
     BatchData<NinePatchInstance> InitNinepatchBatchData();
-    BatchData<GlyphInstance> InitGlyphBatchData();
+    BatchData<GlyphInstanceVector> InitVectorGlyphBatchData();
+    BatchData<GlyphInstanceSDF> InitSDFGlyphBatchData();
     BatchData<ShapeInstance> InitShapeBatchData();
     BatchData<LineInstance> InitLineBatchData();
 
@@ -109,17 +118,21 @@ private:
 
 private:
     BatchData<SpriteInstance> m_sprite_batch_data;
-    BatchData<GlyphInstance> m_glyph_batch_data;
+    BatchData<GlyphInstanceVector> m_glyph_vector_batch_data;
+    BatchData<GlyphInstanceSDF> m_glyph_sdf_batch_data;
     BatchData<NinePatchInstance> m_ninepatch_batch_data;
     BatchData<ShapeInstance> m_shape_batch_data;
     BatchData<LineInstance> m_line_batch_data;
 
     Ref<LLGL::Shader> m_sprite_vertex_shader;
-    Ref<LLGL::Shader> m_glyph_vertex_shader;
+    Ref<LLGL::Shader> m_glyph_sdf_vertex_shader;
     Ref<LLGL::Shader> m_ninepatch_vertex_shader;
+    Ref<LLGL::Shader> m_glyph_vector_vertex_shader;
 
     Ref<LLGL::Shader> m_sprite_default_fragment_shader;
-    Ref<LLGL::Shader> m_glyph_default_fragment_shader;
+    Ref<LLGL::Shader> m_glyph_sdf_default_fragment_shader;
+
+    Ref<LLGL::Shader> m_glyph_vector_fragment_shader;
 
     LLGL::VertexFormat m_vector_vertex_format;
 

@@ -76,30 +76,6 @@ struct LinearRgba {
 
     explicit constexpr LinearRgba(glm::vec3 color, float t_a = 1.0f) : r(color.r), g(color.g), b(color.b), a(t_a) {}
 
-    static constexpr LinearRgba white() noexcept {
-        return LinearRgba(1.0f, 1.0f, 1.0f, 1.0f);
-    }
-
-    static constexpr LinearRgba black() noexcept {
-        return LinearRgba(0.0f, 0.0f, 0.0f, 1.0f);
-    }
-
-    static constexpr LinearRgba transparent() noexcept {
-        return LinearRgba(0.0f, 0.0f, 0.0f, 0.0f);
-    }
-
-    static constexpr LinearRgba red() noexcept {
-        return LinearRgba(1.0f, 0.0f, 0.0f, 1.0f);
-    }
-
-    static constexpr LinearRgba green() noexcept {
-        return LinearRgba(0.0f, 1.0f, 0.0f, 1.0f);
-    }
-
-    static constexpr LinearRgba blue() noexcept {
-        return LinearRgba(0.0f, 0.0f, 1.0f, 1.0f);
-    }
-
     [[nodiscard]]
     float luminance() const noexcept {
         return r * 0.2126 + g * 0.7152 + b * 0.0722;
@@ -473,6 +449,15 @@ inline Srgba detail::linear_rgba_to_srgba(const LinearRgba& rgba) {
         rgba.a
     );
 }
+
+namespace color {
+    inline constexpr sge::LinearRgba WHITE       = LinearRgba(1.f, 1.f, 1.f, 1.f);
+    inline constexpr sge::LinearRgba BLACK       = LinearRgba(0.f, 0.f, 0.f, 1.f);
+    inline constexpr sge::LinearRgba TRANSPARENT = LinearRgba(0.f, 0.f, 0.f, 0.f);
+    inline constexpr sge::LinearRgba RED         = LinearRgba(1.f, 0.f, 0.f, 1.f);
+    inline constexpr sge::LinearRgba GREEN       = LinearRgba(0.f, 1.f, 0.f, 1.f);
+    inline constexpr sge::LinearRgba BLUE        = LinearRgba(0.f, 0.f, 1.f, 1.f);
+} // namespace color
 
 } // namespace sge
 

@@ -16,6 +16,7 @@
 #include <SGE/types/shape.hpp>
 #include <SGE/types/transform.hpp>
 #include <SGE/types/window_settings.hpp>
+#include <SGE/utils/string.hpp>
 
 #include <glm/trigonometric.hpp>
 
@@ -62,6 +63,8 @@ bool App::OnInit() {
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
     
     m_batch = m_renderer->CreateBatch();
+    m_ui_batch = m_renderer->CreateBatch();
+    m_ui_batch->SetIsUi(true);
 
     m_font = sge::LoadFontVector("../../examples/text/src/JetBrainsMono-Regular.ttf", *GetRenderContext());
 
@@ -111,61 +114,66 @@ void App::OnUpdate() {
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     m_batch->Reset();
+    m_ui_batch->Reset();
+
     sge::RichText text{{
         sge::RichTextSection("English:\n", sge::LinearRgba(0.3f, 0.8f, 0.3f), 96.f),
-        sge::RichTextSection("THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG\n", sge::LinearRgba::white(), 72.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 64.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 56.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 48.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 40.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 32.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 24.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 18.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 14.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 10.f),
-        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::LinearRgba::white(), 8.f),
+        sge::RichTextSection("THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG\n", sge::color::WHITE, 72.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 64.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 56.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 48.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 40.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 32.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 24.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 18.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 14.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 10.f),
+        sge::RichTextSection("The quick brown fox jumps over the lazy dog\n", sge::color::WHITE, 8.f),
 
         sge::RichTextSection("\nRussian:\n", sge::LinearRgba(0.8f, 0.3f, 0.3f), 96.f),
-        sge::RichTextSection("СЪЕШЬ ЕЩЁ ЭТИХ МЯГКИХ ФРАНЦУЗСКИХ БУЛОК, ДА ВЫПЕЙ ЖЕ ЧАЮ\n", sge::LinearRgba::white(), 72.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 64.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 56.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 48.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 40.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 32.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 24.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 18.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 14.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 10.f),
-        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::LinearRgba::white(), 8.f),
+        sge::RichTextSection("СЪЕШЬ ЕЩЁ ЭТИХ МЯГКИХ ФРАНЦУЗСКИХ БУЛОК, ДА ВЫПЕЙ ЖЕ ЧАЮ\n", sge::color::WHITE, 72.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 64.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 56.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 48.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 40.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 32.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 24.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 18.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 14.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 10.f),
+        sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 8.f),
         
         sge::RichTextSection("\nEspañol:\n", sge::LinearRgba(0.8f, 0.8f, 0.3f), 96.f),
-        sge::RichTextSection("EL VELOZ MURCIÉLAGO HINDÚ COMÍA FELIZ CARDILLO Y KIWI\n", sge::LinearRgba::white(), 72.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 64.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 56.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 48.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 40.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 32.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 24.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 18.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 14.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 10.f),
-        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::LinearRgba::white(), 8.f),
+        sge::RichTextSection("EL VELOZ MURCIÉLAGO HINDÚ COMÍA FELIZ CARDILLO Y KIWI\n", sge::color::WHITE, 72.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 64.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 56.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 48.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 40.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 32.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 24.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 18.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 14.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 10.f),
+        sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 8.f),
 
         sge::RichTextSection("\nSymbols:\n", sge::LinearRgba(0.3f, 0.3f, 0.8f), 96.f),
-        sge::RichTextSection("~!@#$%^&*()_-+=/,.<>\n", sge::LinearRgba::white(), 48.f),
+        sge::RichTextSection("~!@#$%^&*()_-+=/,.<>\n", sge::color::WHITE, 48.f),
     }};
 
     m_batch->DrawTextVector(text, glm::vec2(0.0f), m_font);
 
+    float fps = 1.0 / sge::Time::DeltaSeconds();
+    m_ui_batch->DrawTextVector(sge::TempFormat("FPS: {:.0f}", fps), 16.f, sge::color::WHITE, glm::vec2(15, window->GetHeight() - 30), m_font);
+
     m_renderer->Begin();
     {
-        m_renderer->PrepareBatch(*m_batch);
-        m_renderer->UploadBatchData();
+        m_renderer->PrepareAndUpload(*m_batch, *m_ui_batch);
 
         m_renderer->BeginPass(window, m_camera);
         {
             m_renderer->Clear(LLGL::ClearValue(float(22)/0xFF, float(22)/0xFF, float(22)/0xFF, 1.f));
             m_renderer->RenderBatch(*m_batch);
+            m_renderer->RenderBatch(*m_ui_batch);
         }
         m_renderer->EndPass();
     }

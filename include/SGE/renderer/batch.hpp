@@ -31,10 +31,12 @@ namespace internal {
 
 enum class FlushDataType : uint8_t {
     Sprite = 0,
-    Glyph,
+    GlyphVector,
+    GlyphSDF,
     NinePatch,
     Shape,
-    Line
+    Line,
+    COUNT
 };
 
 struct BatchTexture {
@@ -75,14 +77,14 @@ struct BatchTextureState {
     }
 };
 
-struct BatchGlyphState {
+struct BatchGlyphVectorState {
     sge::Ref<LLGL::Buffer> curve_buffer;
     sge::Ref<LLGL::Buffer> partition_buffer;
     sge::IRect scissor;
     uint32_t order;
     sge::BlendMode blend_mode;
 
-    bool operator==(const BatchGlyphState& other) const {
+    bool operator==(const BatchGlyphVectorState& other) const {
         return curve_buffer == other.curve_buffer
             && partition_buffer == other.partition_buffer
             && scissor == other.scissor 
@@ -130,8 +132,8 @@ struct DrawCommandNinePatch {
     glm::vec2 output_size;
 };
 
-struct DrawCommandGlyph {
-    BatchGlyphState state = {};
+struct DrawCommandGlyphVector {
+    BatchGlyphVectorState state = {};
     glm::vec3 color;
     glm::vec2 pos;
     glm::vec2 size;
@@ -139,6 +141,15 @@ struct DrawCommandGlyph {
     float font_size;
     uint32_t partition_offset;
     uint32_t partition_count;
+};
+
+struct DrawCommandGlyphSDF {
+    BatchTextureState state = {};
+    glm::vec3 color;
+    glm::vec2 pos;
+    glm::vec2 size;
+    glm::vec2 tex_size;
+    glm::vec2 tex_uv;
 };
 
 struct DrawCommandShape {
@@ -329,11 +340,21 @@ public:
         return DrawTextVector(text.sections, Size, position, font, order);
     }
 
+    inline uint32_t DrawTextVector(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
+        sge::RichTextSection section = { .text=text, .color=color, .size=size };
+        return DrawTextVector(&section, 1, position, font, order);
+    }
+
     uint32_t DrawText(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::Font& font, sge::Order order = {});
 
     template <size_t Size>
     inline uint32_t DrawText(const sge::RichText<Size>& text, glm::vec2 position, const sge::Font& font, sge::Order order = {}) {
         return DrawText(text.sections, Size, position, font, order);
+    }
+
+    inline uint32_t DrawText(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::Font& font, sge::Order order = {}) {
+        sge::RichTextSection section = { .text=text, .color=color, .size=size };
+        return DrawText(&section, 1, position, font, order);
     }
 
     uint32_t DrawAtlasSprite(const sge::TextureAtlasSprite& sprite, sge::Order order = {});
@@ -376,7 +397,8 @@ public:
 
     inline void Reset() {
         m_sprite_draw_commands.clear();
-        m_glyph_draw_commands.clear();
+        m_glyph_vector_draw_commands.clear();
+        m_glyph_sdf_draw_commands.clear();
         m_ninepatch_draw_commands.clear();
         m_shape_draw_commands.clear();
         m_line_draw_commands.clear();
@@ -385,7 +407,8 @@ public:
         m_scissors.clear();
         
         m_sprite_data.Reset();
-        m_glyph_data.Reset();
+        m_glyph_vector_data.Reset();
+        m_glyph_sdf_data.Reset();
         m_ninepatch_data.Reset();
         m_shape_data.Reset();
         m_line_data.Reset();
@@ -427,8 +450,13 @@ public:
     }
 
     [[nodiscard]]
-    inline const Data& GlyphData() const noexcept {
-        return m_glyph_data;
+    inline const Data& GlyphVectorData() const noexcept {
+        return m_glyph_vector_data;
+    }
+
+    [[nodiscard]]
+    inline const Data& GlyphSDFData() const noexcept {
+        return m_glyph_vector_data;
     }
 
     [[nodiscard]]
@@ -457,8 +485,13 @@ public:
     }
 
     [[nodiscard]]
-    inline sge::Handle<LLGL::PipelineState> GlyphPipeline() const noexcept {
-        return m_glyph_pipeline;
+    inline sge::Handle<LLGL::PipelineState> GlyphVectorPipeline() const noexcept {
+        return m_glyph_vector_pipeline;
+    }
+
+    [[nodiscard]]
+    inline sge::Handle<LLGL::PipelineState> GlyphSDFPipeline() const noexcept {
+        return m_glyph_sdf_pipeline;
     }
 
     [[nodiscard]]
@@ -480,7 +513,8 @@ private:
     inline bool empty() const noexcept {
         return (
             m_sprite_draw_commands.empty() &&
-            m_glyph_draw_commands.empty() &&
+            m_glyph_vector_draw_commands.empty() &&
+            m_glyph_sdf_draw_commands.empty() &&
             m_ninepatch_draw_commands.empty() &&
             m_shape_draw_commands.empty() &&
             m_line_draw_commands.empty()
@@ -503,8 +537,13 @@ private:
     }
 
     [[nodiscard]]
-    std::vector<internal::DrawCommandGlyph>& glyph_draw_commands() noexcept {
-        return m_glyph_draw_commands;
+    std::vector<internal::DrawCommandGlyphVector>& glyph_vector_draw_commands() noexcept {
+        return m_glyph_vector_draw_commands;
+    }
+
+    [[nodiscard]]
+    std::vector<internal::DrawCommandGlyphSDF>& glyph_sdf_draw_commands() noexcept {
+        return m_glyph_sdf_draw_commands;
     }
 
     [[nodiscard]]
@@ -528,8 +567,13 @@ private:
     }
     
     [[nodiscard]]
-    inline Data& glyph_data() noexcept {
-        return m_glyph_data;
+    inline Data& glyph_vector_data() noexcept {
+        return m_glyph_vector_data;
+    }
+
+    [[nodiscard]]
+    inline Data& glyph_sdf_data() noexcept {
+        return m_glyph_sdf_data;
     }
 
     [[nodiscard]]
@@ -558,8 +602,13 @@ private:
     }
 
     [[nodiscard]]
-    inline size_t glyphs_done() const noexcept {
-        return m_glyph_draw_commands.size() - m_glyph_data.total_count;
+    inline size_t glyphs_vector_done() const noexcept {
+        return m_glyph_vector_draw_commands.size() - m_glyph_vector_data.total_count;
+    }
+
+    [[nodiscard]]
+    inline size_t glyphs_sdf_done() const noexcept {
+        return m_glyph_sdf_draw_commands.size() - m_glyph_sdf_data.total_count;
     }
 
     [[nodiscard]]
@@ -575,7 +624,8 @@ private:
     [[nodiscard]]
     inline size_t total_remaining() const noexcept {
         return m_sprite_data.total_count
-            + m_glyph_data.total_count
+            + m_glyph_vector_data.total_count
+            + m_glyph_sdf_data.total_count
             + m_ninepatch_data.total_count
             + m_shape_data.total_count
             + m_line_data.total_count;
@@ -588,7 +638,8 @@ private:
     SpriteBatchPipeline m_sprite_pipeline{};
 
     std::vector<internal::DrawCommandSprite> m_sprite_draw_commands;
-    std::vector<internal::DrawCommandGlyph> m_glyph_draw_commands;
+    std::vector<internal::DrawCommandGlyphVector> m_glyph_vector_draw_commands;
+    std::vector<internal::DrawCommandGlyphSDF> m_glyph_sdf_draw_commands;
     std::vector<internal::DrawCommandNinePatch> m_ninepatch_draw_commands;
     std::vector<internal::DrawCommandShape> m_shape_draw_commands;
     std::vector<internal::DrawCommandLine> m_line_draw_commands;
@@ -598,13 +649,15 @@ private:
     std::vector<sge::IRect> m_scissors;
 
     Data m_sprite_data;
-    Data m_glyph_data;
+    Data m_glyph_vector_data;
+    Data m_glyph_sdf_data;
     Data m_ninepatch_data;
     Data m_shape_data;
     Data m_line_data;
 
     sge::Handle<LLGL::PipelineState> m_ninepatch_pipeline;
-    sge::Handle<LLGL::PipelineState> m_glyph_pipeline;
+    sge::Handle<LLGL::PipelineState> m_glyph_vector_pipeline;
+    sge::Handle<LLGL::PipelineState> m_glyph_sdf_pipeline;
     sge::Handle<LLGL::PipelineState> m_shape_pipeline;
     sge::Handle<LLGL::PipelineState> m_line_pipeline;
 

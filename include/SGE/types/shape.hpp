@@ -89,17 +89,17 @@ private:
 
 struct ShapeCircle {
     float radius = 0.0f;
-    LinearRgba color = LinearRgba::white();
+    LinearRgba color = sge::color::WHITE;
     float border_thickness = 0.0f;
-    LinearRgba border_color = sge::LinearRgba::transparent();
+    LinearRgba border_color = sge::color::TRANSPARENT;
     Anchor anchor = sge::Anchor::Center;
 };
 
 struct ShapeRect {
     glm::vec2 size = glm::vec2(0.0f);
-    LinearRgba color = LinearRgba::white();
+    LinearRgba color = sge::color::WHITE;
     float border_thickness = 0.0f;
-    LinearRgba border_color = sge::LinearRgba::transparent();
+    LinearRgba border_color = sge::color::TRANSPARENT;
     // [topLeft, topRight, bottomLeft, bottomRight]
     BorderRadius border_radius{};
     Anchor anchor = sge::Anchor::Center;

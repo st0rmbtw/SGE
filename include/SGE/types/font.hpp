@@ -57,12 +57,39 @@ struct Font {
 };
 
 #if SGE_DEFAULT_FONT_ENABLED
+
 /**
- * @brief Returns the default font (JetBrains Mono Regular)
+ * @brief Returns the default vector font (JetBrains Mono Regular)
  */
 const FontVector& GetDefaultFontVector();
+
+/**
+ * @brief Returns the default SDF font (JetBrains Mono Regular)
+ */
 const Font& GetDefaultFont();
-#endif
+
+#else // #if SGE_DEFAULT_FONT_ENABLED
+
+#include <cstdlib>
+#include <SGE/log.hpp>
+
+/**
+ * @brief Returns the default vector font (JetBrains Mono Regular)
+ */
+const FontVector& GetDefaultFontVector() {
+    SGE_LOG_ERROR("To use the default font use must enable it with the `SGE_DEFAULT_FONT_ENABLED` option.");
+    std::abort();
+}
+
+/**
+ * @brief Returns the default SDF font (JetBrains Mono Regular)
+ */
+const Font& GetDefaultFont() {
+    SGE_LOG_ERROR("To use the default font use must enable it with the `SGE_DEFAULT_FONT_ENABLED` option.");
+    std::abort();
+}
+
+#endif // #if SGE_DEFAULT_FONT_ENABLED
 
 FontVector LoadFontVector(const std::string& path, class sge::RenderContext& context);
 Font LoadFont(const std::string& path, class sge::RenderContext& context);
