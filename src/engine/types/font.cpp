@@ -19,7 +19,9 @@
 #include <ft2build.h>
 
 #include FT_FREETYPE_H
+#include FT_MODULE_H
 #include FT_OUTLINE_H
+#include FT_ADVANCES_H
 
 using Point = glm::i16vec2;
 
@@ -442,7 +444,7 @@ sge::FontVector sge::LoadFontVectorFromBytes(std::span<const uint8_t> buffer, sg
             },
             .size = glm::ivec2(face->glyph->metrics.width, face->glyph->metrics.height),
             .bearing = glm::ivec2(face->glyph->metrics.horiBearingX, face->glyph->metrics.horiBearingY),
-            .advance = face->glyph->advance.x,
+            .advance = float(face->glyph->advance.x),
         });
 
         if (!index) break;
@@ -486,7 +488,7 @@ namespace {
         uint32_t height;
         FT_Int bitmap_left;
         FT_Int bitmap_top;
-        FT_Pos advance_x;
+        float advance_x;
         uint32_t col;
         uint32_t row;
     };
@@ -513,6 +515,9 @@ sge::Font sge::LoadFontFromBytes(std::span<const uint8_t> buffer, class sge::Ren
     FT_Library library;
     FT_Init_FreeType(&library);
 
+    FT_UInt overlapping = 1; // Enables better handling of complex intersecting paths
+    FT_Property_Set(library, "sdf", "overlapping", &overlapping);
+
     FT_Face face;
     FT_New_Memory_Face(library, buffer.data(), buffer.size(), 0, &face);
     FT_Set_Pixel_Sizes(face, 0, SDF_FONT_SIZE);
@@ -520,8 +525,7 @@ sge::Font sge::LoadFontFromBytes(std::span<const uint8_t> buffer, class sge::Ren
     FT_UInt index;
     FT_ULong character = FT_Get_First_Char(face, &index);
 
-    FT_Int max_ascent = std::numeric_limits<FT_Int>::min();
-    FT_Int max_descent = std::numeric_limits<FT_Int>::min();
+    const float em_scale = SDF_FONT_SIZE / float(face->units_per_EM);
 
     std::vector<GlyphInfo> glyphs;
     
@@ -540,9 +544,11 @@ sge::Font sge::LoadFontFromBytes(std::span<const uint8_t> buffer, class sge::Ren
             }
         }
 
-        max_ascent = std::max(max_ascent, face->glyph->bitmap_top);
-        max_descent = std::max(max_descent, FT_Int(bitmap->rows) - face->glyph->bitmap_top);
+        FT_Fixed unscaled_advance;
+        FT_Get_Advance(face, index, FT_LOAD_NO_SCALE, &unscaled_advance);
 
+        const float advance = float(unscaled_advance) * em_scale;
+        
         glyphs.push_back(GlyphInfo{
             .buffer = std::move(buffer),
             .character = character,
@@ -550,7 +556,7 @@ sge::Font sge::LoadFontFromBytes(std::span<const uint8_t> buffer, class sge::Ren
             .height = bitmap->rows,
             .bitmap_left = face->glyph->bitmap_left,
             .bitmap_top = face->glyph->bitmap_top,
-            .advance_x = face->glyph->advance.x,
+            .advance_x = advance,
             .col = 0,
             .row = 0
         });
@@ -632,13 +638,13 @@ sge::Font sge::LoadFontFromBytes(std::span<const uint8_t> buffer, class sge::Ren
     imageView.dataSize = textureConfig.extent.width * textureConfig.extent.height;
     imageView.data = texture_data.data();
 
+    const float line_height = float(face->ascender - face->descender) * em_scale;
+
     return sge::Font {
         .glyphs = std::move(glyph_map),
         .texture = context.CreateTexture(textureConfig, &imageView),
         .font_size = SDF_FONT_SIZE,
-        .max_ascent = static_cast<float>(max_ascent),
-        .max_descent = static_cast<float>(max_descent),
-        .ascender = static_cast<int16_t>(face->ascender >> 6),
+        .line_height = line_height,
     };
 }
 

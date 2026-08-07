@@ -49,12 +49,12 @@ def main():
     face = freetype.Face(font_file_path_str)
     face.set_pixel_sizes(0, FONT_SIZE)
     
-    max_ascent = float("-inf")
-    max_descent = float("-inf")
-    
     (character, index) = face.get_first_char()
     
     glyphs: list[GlyphInfo] = []
+    
+    em_scale = FONT_SIZE / float(face.units_per_EM)
+    line_height = float(face.ascender - face.descender) * em_scale
     
     while True:
         face.load_char(character, freetype.FT_LOAD_DEFAULT)
@@ -63,11 +63,22 @@ def main():
         buffer = bytes()
         
         if len(face.glyph.bitmap.buffer) > 0:
-            buffer = bytes(face.glyph.bitmap.buffer)    
-            max_ascent = max(max_ascent, face.glyph.bitmap_top)
-            max_descent = max(max_descent, face.glyph.bitmap.rows - face.glyph.bitmap_top)
+            buffer = bytes(face.glyph.bitmap.buffer)
+            
+        unscaled_advance = face.get_advance(index, freetype.FT_LOAD_NO_SCALE)
+        advance = unscaled_advance * em_scale
         
-        info = GlyphInfo(character, buffer, face.glyph.bitmap.width, face.glyph.bitmap.rows, face.glyph.bitmap_left, face.glyph.bitmap_top, face.glyph.advance.x, 0, 0)
+        info = GlyphInfo(
+            character=character,
+            buffer=buffer,
+            bitmap_width=face.glyph.bitmap.width,
+            bitmap_rows=face.glyph.bitmap.rows,
+            bitmap_left=face.glyph.bitmap_left,
+            bitmap_top=face.glyph.bitmap_top,
+            advance_x=advance,
+            col=0,
+            row=0
+        )
         glyphs.append(info)
         
         if not index:
@@ -122,13 +133,11 @@ def main():
         f.write(f"#ifndef {guard_name}\n")
         f.write(f"#define {guard_name}\n")
         f.write("#include <glm/vec2.hpp>\n")
-        f.write("struct EmbeddedFont { float font_size; float max_ascent; float max_descent; int16_t ascender; uint32_t texture_width; uint32_t texture_height; };\n")
-        f.write("struct EmbeddedFontGlyph { glm::ivec2 size; glm::vec2 tex_size; glm::ivec2 bearing; int64_t advance; glm::vec2 texture_coords; uint32_t character; };\n")
+        f.write("struct EmbeddedFont { float font_size; float line_height; uint32_t texture_width; uint32_t texture_height; };\n")
+        f.write("struct EmbeddedFontGlyph { glm::ivec2 size; glm::vec2 tex_size; glm::ivec2 bearing; glm::vec2 texture_coords; uint32_t character; float advance; };\n")
         f.write("static EmbeddedFont FONT_META_DATA = {\n")
         f.write(f"    .font_size = {FONT_SIZE},\n")
-        f.write(f"    .max_ascent = {max_ascent},\n")
-        f.write(f"    .max_descent = {max_descent},\n")
-        f.write(f"    .ascender = {face.ascender},\n")
+        f.write(f"    .line_height = {line_height},\n")
         f.write(f"    .texture_width = {texture_width},\n")
         f.write(f"    .texture_height = {texture_height}\n")
         f.write("};\n")
@@ -142,9 +151,9 @@ def main():
             f.write(f".size = glm::ivec2({info.bitmap_width}, {info.bitmap_rows}), ")
             f.write(f".tex_size = glm::vec2({tex_width}, {tex_height}), ")
             f.write(f".bearing = glm::ivec2({info.bitmap_left}, {info.bitmap_top}), ")
-            f.write(f".advance = {info.advance_x}, ")
             f.write(f".texture_coords = glm::vec2({texture_coord_x}, {texture_coord_y}), ")
-            f.write(f".character = {info.character} ")
+            f.write(f".character = {info.character}, ")
+            f.write(f".advance = {info.advance_x}, ")
             f.write("},\n")
         f.write('\n')
         f.write("};\n")

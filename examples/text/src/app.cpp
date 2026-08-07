@@ -22,6 +22,7 @@
 
 #include "app.hpp"
 #include "SGE/types/font.hpp"
+#include "SGE/utils/text.hpp"
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
@@ -67,7 +68,8 @@ bool App::OnInit() {
     m_ui_batch = m_renderer->CreateBatch();
     m_ui_batch->SetIsUi(true);
 
-    m_font = sge::LoadFontVector("../../examples/text/src/JetBrainsMono-Regular.ttf", *GetRenderContext());
+    // m_font = sge::LoadFontVector("../../examples/text/src/JetBrainsMono-Regular.ttf", *GetRenderContext());
+    // m_font_sdf = sge::LoadFont("../../examples/text/src/JetBrainsMono-Regular.ttf", *GetRenderContext());
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -110,6 +112,42 @@ void App::OnUpdate() {
     if (Input::Pressed(Key::Escape)) {
         m_camera.set_zoom(1.f);
         m_camera.set_position(glm::vec2(0.f));
+    }
+
+    if (Input::Pressed(Key::Minus)) {
+        float zoom = m_camera.zoom() + 5.f * Time::DeltaSeconds();
+        m_camera.set_zoom(zoom);
+    }
+
+    if (Input::Pressed(Key::Equals)) {
+        float zoom = m_camera.zoom() - 5.f * Time::DeltaSeconds();
+        m_camera.set_zoom(zoom);
+    }
+
+    constexpr float MOVE_SPEED = 1200.0f;
+
+    if (Input::Pressed(Key::W)) {
+        glm::vec2 position = m_camera.transform().translation;
+        position.y -= MOVE_SPEED * Time::DeltaSeconds();
+        m_camera.set_position(position);
+    }
+
+    if (Input::Pressed(Key::S)) {
+        glm::vec2 position = m_camera.transform().translation;
+        position.y += MOVE_SPEED * Time::DeltaSeconds();
+        m_camera.set_position(position);
+    }
+
+    if (Input::Pressed(Key::A)) {
+        glm::vec2 position = m_camera.transform().translation;
+        position.x -= MOVE_SPEED * Time::DeltaSeconds();
+        m_camera.set_position(position);
+    }
+
+    if (Input::Pressed(Key::D)) {
+        glm::vec2 position = m_camera.transform().translation;
+        position.x += MOVE_SPEED * Time::DeltaSeconds();
+        m_camera.set_position(position);
     }
 }
 
@@ -161,11 +199,16 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         sge::RichTextSection("~!@#$%^&*()_-+=/,.<>\n", sge::color::WHITE, 48.f),
     }};
 
-    m_batch->DrawTextVector(text, glm::vec2(0.0f), m_font);
-    // m_batch->DrawText(text, glm::vec2(0.0f), sge::GetDefaultFont());
+    const auto& font = sge::GetDefaultFontVector();
+    const auto& font_sdf = sge::GetDefaultFont();
 
-    float fps = 1.0 / sge::Time::DeltaSeconds();
-    m_ui_batch->DrawTextVector(sge::TempFormat("FPS: {:.0f}", fps), 16.f, sge::color::WHITE, glm::vec2(15, window->GetHeight() - 30), m_font);
+    const float text_width = sge::MeasureText(font, text).x;
+
+    m_batch->DrawTextVector(text, glm::vec2(0.0f), font);
+    m_batch->DrawText(text, glm::vec2(text_width + 50.0f, 0.0f), font_sdf);
+
+    const float fps = 1.0 / sge::Time::DeltaSeconds();
+    m_ui_batch->DrawTextVector(sge::TempFormat("FPS: {:.0f}", fps), 16.f, sge::color::WHITE, glm::vec2(15, window->GetHeight() - 30), font);
 
     m_renderer->Begin();
     {

@@ -44,9 +44,7 @@ void InitDefaultSdfFont(sge::RenderContext& context) {
         .glyphs = std::move(glyphs),
         .texture = context.CreateTexture(textureConfig, &imageView),
         .font_size = FONT_META_DATA.font_size,
-        .max_ascent = FONT_META_DATA.max_ascent,
-        .max_descent = FONT_META_DATA.max_descent,
-        .ascender = static_cast<int16_t>(FONT_META_DATA.ascender >> 6),
+        .line_height = FONT_META_DATA.line_height,
     };
 }
 

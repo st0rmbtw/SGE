@@ -240,6 +240,6 @@ float4 PS(VSOutput inp) : SV_Target
     
     float alpha = pow(saturate(coverage), 1.f / 2.2f);
 
-    return float4(inp.color * alpha, alpha);
+    return float4(inp.color, alpha);
 };
 

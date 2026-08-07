@@ -36,7 +36,7 @@ struct Glyph {
     } data;
     glm::ivec2 size;
     glm::ivec2 bearing;
-    int64_t advance;
+    float advance;
 };
 
 struct FontVector {
@@ -52,9 +52,7 @@ struct Font {
     std::unordered_map<uint32_t, Glyph> glyphs;
     Texture texture;
     float font_size;
-    float max_ascent;
-    float max_descent;
-    int16_t ascender;
+    float line_height;
 };
 
 #if SGE_DEFAULT_FONT_ENABLED

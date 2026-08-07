@@ -150,13 +150,6 @@ glm::vec2 sge::MeasureText(const sge::FontVector& font, float size, const char* 
     return MeasureTextInternal(font.glyphs, line_height, scale, text, length);
 }
 
-glm::vec2 sge::MeasureText(const sge::Font& font, float size, const char* text, size_t length) {
-    ZoneScoped;
-    const float scale = size / font.font_size;
-    const float line_height = (font.max_ascent + font.max_descent) * scale;
-    return MeasureTextInternal(font.glyphs, line_height, scale, text, length);
-}
-
 float sge::MeasureTextHeight(const FontVector& font, float size, const char* text, size_t length) noexcept {
     ZoneScoped;
     const float scale = size / font.units_per_em;
@@ -164,10 +157,17 @@ float sge::MeasureTextHeight(const FontVector& font, float size, const char* tex
     return MeasureTextHeightInternal(line_height, text, length);
 }
 
+glm::vec2 sge::MeasureText(const sge::Font& font, float size, const char* text, size_t length) {
+    ZoneScoped;
+    const float scale = size / font.font_size;
+    const float line_height = font.line_height * scale;
+    return MeasureTextInternal(font.glyphs, line_height, scale, text, length);
+}
+
 float sge::MeasureTextHeight(const Font& font, float size, const char* text, size_t length) noexcept {
     ZoneScoped;
     const float scale = size / font.font_size;
-    const float line_height = (font.max_ascent + font.max_descent) * scale;
+    const float line_height = font.line_height * scale;
     return MeasureTextHeightInternal(line_height, text, length);
 }
 

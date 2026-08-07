@@ -54,13 +54,17 @@ Texture2D Texture : register(t3);
 SamplerState Sampler : register(s4);
 
 static const float GLYPH_CENTER = 0.5;
+static const int SPREAD = 8;
 
 [shader("fragment")]
 float4 PS(VSOutput inp) : SV_Target
 {
-    const float dist = Texture.SampleLevel(Sampler, inp.uv, 0).r;
+    const float dist = Texture.SampleLevel(Sampler, inp.uv, 0).r * 2.0 - 1.0;
+
+    const float pixel_dist = dist * SPREAD;
+
     const float width = fwidth(dist);
-    const float alpha = smoothstep(GLYPH_CENTER - width, GLYPH_CENTER + width, dist);
+    const float alpha = smoothstep(-width, width, dist);
     const float4 color = float4(inp.color, alpha);
 
     if (color.a <= 0.05f) discard;

@@ -103,7 +103,7 @@ uint32_t sge::Batch::DrawTextVector(const RichTextSection* sections, size_t size
             }
 
             const float xpos = x + ch.bearing.x * scale;
-            const float ypos = y + (font.ascender - ch.bearing.y) * scale;
+            const float ypos = y + height - ch.bearing.y * scale;
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
@@ -155,6 +155,7 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, glm:
         const char* str = section.text.data();
         const size_t length = section.text.size();
         const float scale = section.size / font.font_size;
+        const float height = font.line_height * scale;
 
         const glm::vec3 color = section.color.to_vec3();
 
@@ -163,7 +164,7 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, glm:
             i += utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(str) + i, codepoint);
 
             if (codepoint == '\n') {
-                y += section.size;
+                y += height;
                 x = position.x;
                 continue;
             }
@@ -176,12 +177,12 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, glm:
             const sge::Glyph& ch = it->second;
 
             if (codepoint == ' ') {
-                x += (ch.advance >> 6) * scale;
+                x += ch.advance * scale;
                 continue;
             }
 
             const float xpos = x + ch.bearing.x * scale;
-            const float ypos = y + (font.max_ascent - ch.bearing.y) * scale;
+            const float ypos = y + height - ch.bearing.y * scale;
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
@@ -203,7 +204,7 @@ uint32_t sge::Batch::DrawText(const RichTextSection* sections, size_t size, glm:
 
             ++m_glyph_sdf_data.total_count;
 
-            x += (ch.advance >> 6) * scale;
+            x += ch.advance * scale;
         }
     }
 
