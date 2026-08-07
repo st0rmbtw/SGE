@@ -10,10 +10,8 @@ namespace {
 sge::FontVector g_font_vector;
 sge::Font g_font_sdf;
 
-} // namespace
-
-void sge::internal::InitDefaultFont(sge::RenderContext& context) {
-    std::unordered_map<uint32_t, Glyph> glyphs;
+void InitDefaultSdfFont(sge::RenderContext& context) {
+    std::unordered_map<uint32_t, sge::Glyph> glyphs;
     for (EmbeddedFontGlyph glyph : FONT_GLYPHS) {
         glyphs[glyph.character] = sge::Glyph {
             .data = {
@@ -50,6 +48,17 @@ void sge::internal::InitDefaultFont(sge::RenderContext& context) {
         .max_descent = FONT_META_DATA.max_descent,
         .ascender = static_cast<int16_t>(FONT_META_DATA.ascender >> 6),
     };
+}
+
+void InitDefaultVectorFont(sge::RenderContext& context) {
+    g_font_vector = sge::LoadFontVectorFromBytes(FONT_FILE_CONTENT, context);
+}
+
+} // namespace
+
+void sge::internal::InitDefaultFont(sge::RenderContext& context) {
+    InitDefaultSdfFont(context);
+    InitDefaultVectorFont(context);
 }
 
 const sge::FontVector& sge::GetDefaultFontVector() {

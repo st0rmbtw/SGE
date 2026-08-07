@@ -21,6 +21,7 @@
 #include <glm/trigonometric.hpp>
 
 #include "app.hpp"
+#include "SGE/types/font.hpp"
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
@@ -161,6 +162,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     }};
 
     m_batch->DrawTextVector(text, glm::vec2(0.0f), m_font);
+    // m_batch->DrawText(text, glm::vec2(0.0f), sge::GetDefaultFont());
 
     float fps = 1.0 / sge::Time::DeltaSeconds();
     m_ui_batch->DrawTextVector(sge::TempFormat("FPS: {:.0f}", fps), 16.f, sge::color::WHITE, glm::vec2(15, window->GetHeight() - 30), m_font);

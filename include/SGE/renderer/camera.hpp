@@ -34,7 +34,7 @@ public:
         m_origin(config.origin),
         m_samples(config.samples)
     {
-        update_projection_area();
+        set_viewport(viewport);
         compute_projection_and_view_matrix();
     }
 

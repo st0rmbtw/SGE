@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include <SGE/assert.hpp>
 #include <SGE/math/math.hpp>
 #include <SGE/renderer/context.hpp>
@@ -6,6 +8,7 @@
 #include <glm/common.hpp>
 
 #include <ft2build.h>
+#include <limits>
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
 
@@ -28,7 +31,6 @@ struct BezierGlyphPartition {
 
 struct UserData {
     std::vector<BezierCurve>& curves;
-    FT_GlyphSlot glyph;
     Point prevPoint = Point(0, 0);
 };
 
@@ -100,7 +102,7 @@ void SplitAtPartitionBoundaries(BezierCurve curve, float yMax, int totalBands, s
 
 } // namespace
 
-sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext& context) {
+sge::FontVector sge::LoadFontVectorFromBytes(std::span<const uint8_t> buffer, sge::RenderContext& context) {
     FT_Outline_Funcs callbacks;
     callbacks.shift = 0;
     callbacks.delta = 0;
@@ -127,35 +129,46 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
         Point p1 = Point(control->x, control->y);
         Point p2 = Point(to->x, to->y);
 
-        // Finding the x and y inflection points on the curve
-        glm::vec2 inflection = glm::vec2(p0 - p1) / glm::vec2(p0 + p2 - static_cast<Point::value_type>(2) * p1);
+        glm::vec2 pa = glm::vec2(p0 + p2 - static_cast<Point::value_type>(2) * p1);
 
         bool curve_emitted = false;
 
-        // Splitting the curve at the x inflection point
-        if (inflection.x > 0.0f && inflection.x < 1.0f) {
-            Point ctrl1 = glm::mix(glm::vec2(p0), glm::vec2(p1), inflection.x);
-            Point ctrl2 = glm::mix(glm::vec2(p1), glm::vec2(p2), inflection.x);
+        // Checking if the x inflection point is defined
+        if (pa.x > std::numeric_limits<glm::vec2::value_type>::epsilon()) {
+            // Finding the x inflection point on the curve
+            float inflection_x = (p0.x - p1.x) / pa.x;
 
-            data.curves.emplace_back(p0, ctrl1, p1);
-            data.curves.emplace_back(p1, ctrl2, p2);
-            data.prevPoint = p2;
+            // Splitting the curve at the x inflection point
+            if (inflection_x > 0.0f && inflection_x < 1.0f) {
+                Point ctrl1 = glm::mix(glm::vec2(p0), glm::vec2(p1), inflection_x);
+                Point ctrl2 = glm::mix(glm::vec2(p1), glm::vec2(p2), inflection_x);
 
-            curve_emitted = true;
+                data.curves.emplace_back(p0, ctrl1, p1);
+                data.curves.emplace_back(p1, ctrl2, p2);
+                data.prevPoint = p2;
+
+                curve_emitted = true;
+            }
         }
 
         p0 = data.prevPoint;
 
-        // Splitting the curve at the y inflection point
-        if (inflection.y > 0.0f && inflection.y < 1.0f) {
-            Point ctrl1 = glm::mix(glm::vec2(p0), glm::vec2(p1), inflection.y);
-            Point ctrl2 = glm::mix(glm::vec2(p1), glm::vec2(p2), inflection.y);
+        // Checking if the y inflection point is defined
+        if (pa.y > std::numeric_limits<glm::vec2::value_type>::epsilon()) {
+            // Finding the y inflection point on the curve
+            float inflection_y = (p0.y - p1.y) / pa.y;
 
-            data.curves.emplace_back(p0, ctrl1, p1);
-            data.curves.emplace_back(p1, ctrl2, p2);
-            data.prevPoint = p2;
+            // Splitting the curve at the y inflection point
+            if (inflection_y > 0.0f && inflection_y < 1.0f) {
+                Point ctrl1 = glm::mix(glm::vec2(p0), glm::vec2(p1), inflection_y);
+                Point ctrl2 = glm::mix(glm::vec2(p1), glm::vec2(p2), inflection_y);
 
-            curve_emitted = true;
+                data.curves.emplace_back(p0, ctrl1, p1);
+                data.curves.emplace_back(p1, ctrl2, p2);
+                data.prevPoint = p2;
+
+                curve_emitted = true;
+            }
         }
 
         if (!curve_emitted) {
@@ -174,7 +187,7 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
     FT_Init_FreeType(&library);
 
     FT_Face face;
-    FT_New_Face(library, path.c_str(), 0, &face);
+    FT_New_Memory_Face(library, buffer.data(), buffer.size(), 0, &face);
     
     FT_UInt index;
     FT_ULong character = FT_Get_First_Char(face, &index);
@@ -192,8 +205,7 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
         if (face->glyph->format != FT_GLYPH_FORMAT_OUTLINE) continue;
 
         auto data = UserData {
-            .curves = curves,
-            .glyph = face->glyph
+            .curves = curves
         };
 
         const uint32_t curve_offset = curves.size();
@@ -217,9 +229,9 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
             bands.resize(total_bands);
             for (auto& [piece, band] : pieces) {
                 BezierCurve t = piece;
-                t.p0 = Point(piece.p0.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - piece.p0.y);
-                t.p1 = Point(piece.p1.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - piece.p1.y);
-                t.p2 = Point(piece.p2.x - data.glyph->metrics.horiBearingX, data.glyph->metrics.horiBearingY - piece.p2.y);
+                t.p0 = Point(piece.p0.x - face->glyph->metrics.horiBearingX, face->glyph->metrics.horiBearingY - piece.p0.y);
+                t.p1 = Point(piece.p1.x - face->glyph->metrics.horiBearingX, face->glyph->metrics.horiBearingY - piece.p1.y);
+                t.p2 = Point(piece.p2.x - face->glyph->metrics.horiBearingX, face->glyph->metrics.horiBearingY - piece.p2.y);
                 bands[band].push_back(t);
             }
 
@@ -262,5 +274,20 @@ sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext&
         .ascender = static_cast<int16_t>(face->ascender),
         .descender = static_cast<int16_t>(face->descender),
     };
+}
+
+sge::FontVector sge::LoadFontVector(const std::string& path, sge::RenderContext& context) {
+    std::ifstream file(path, std::ios::binary);
+    assert(!file.fail());
+
+    file.seekg(0, std::ios::end);
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<uint8_t> buffer(size);
+    bool failed = file.read(reinterpret_cast<char*>(buffer.data()), size).fail();
+    assert(!failed);
+
+    return LoadFontVectorFromBytes(buffer, context);
 }
 

@@ -3,6 +3,7 @@
 #ifndef _SGE_TYPES_FONT_HPP_
 #define _SGE_TYPES_FONT_HPP_
 
+#include <span>
 #include <string>
 #include <unordered_map>
 
@@ -91,7 +92,9 @@ const Font& GetDefaultFont() {
 
 #endif // #if SGE_DEFAULT_FONT_ENABLED
 
+FontVector LoadFontVectorFromBytes(std::span<const uint8_t> buffer, class sge::RenderContext& context);
 FontVector LoadFontVector(const std::string& path, class sge::RenderContext& context);
+
 Font LoadFont(const std::string& path, class sge::RenderContext& context);
 
 } // namespace sge

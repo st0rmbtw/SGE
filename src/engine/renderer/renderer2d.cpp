@@ -1269,6 +1269,7 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
 end:
         flush_sprites();
         flush_glyphs_vector();
+        flush_glyphs_sdf();
         flush_npatches();
         flush_shapes();
         flush_lines();

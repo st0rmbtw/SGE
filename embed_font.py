@@ -14,7 +14,7 @@ TEXTURE_WIDTH = 2048
 @dataclass
 class GlyphInfo:
     character: Any
-    buffer: bytearray
+    buffer: bytes
     bitmap_width: int
     bitmap_rows: int
     bitmap_left: int
@@ -23,7 +23,7 @@ class GlyphInfo:
     col: int
     row: int
     
-def bytes_as_str(b: bytearray):
+def bytes_as_str(b: bytes):
     return ','.join(str(x) for x in b)
 
 def main():
@@ -42,6 +42,10 @@ def main():
         print(f"[ERROR] File '{font_file_path}' doesn't exist.")
         return
     
+    font_bytes: bytes
+    with open(font_file_path, 'rb') as f:
+        font_bytes = f.read()
+    
     face = freetype.Face(font_file_path_str)
     face.set_pixel_sizes(0, FONT_SIZE)
     
@@ -56,18 +60,22 @@ def main():
         face.load_char(character, freetype.FT_LOAD_DEFAULT)
         face.glyph.render(freetype.FT_RENDER_MODE_SDF)
         
+        buffer = bytes()
+        max_ascent = 0
+        max_descent = 0
+        
         if len(face.glyph.bitmap.buffer) > 0:
-            buffer = bytearray(face.glyph.bitmap.buffer)
-            
-            info = GlyphInfo(character, buffer, face.glyph.bitmap.width, face.glyph.bitmap.rows, face.glyph.bitmap_left, face.glyph.bitmap_top, face.glyph.advance.x, 0, 0)
-            glyphs.append(info)
-            
+            buffer = bytes(face.glyph.bitmap.buffer)    
             max_ascent = max(max_ascent, info.bitmap_top)
             max_descent = max(max_descent, info.bitmap_rows - info.bitmap_top)
         
-        (character, index) = face.get_next_char(character, index)
+        info = GlyphInfo(character, buffer, face.glyph.bitmap.width, face.glyph.bitmap.rows, face.glyph.bitmap_left, face.glyph.bitmap_top, face.glyph.advance.x, 0, 0)
+        glyphs.append(info)
+        
         if not index:
             break
+        
+        (character, index) = face.get_next_char(character, index)
     
     packer = newPacker(PackingMode.Offline, pack_algo=GuillotineBssfMinas, rotation=False)
     print(f"Packing (using {packer._pack_algo.__name__})...")
@@ -75,6 +83,7 @@ def main():
     packer.add_bin(TEXTURE_WIDTH, float("inf"))
     
     for i, g in enumerate(glyphs):
+        if len(g.buffer) == 0: continue
         packer.add_rect(g.bitmap_width + PADDING*2, g.bitmap_rows + PADDING*2, rid=i)
     
     packer.pack()
@@ -101,6 +110,7 @@ def main():
     texture_data = bytearray(texture_width * texture_height)
     
     for info in glyphs:
+        if len(info.buffer) == 0: continue
         for y in range(info.bitmap_rows):
             dst_idx = (info.row + y) * texture_width + info.col
             src_idx = y * info.bitmap_width
@@ -142,6 +152,8 @@ def main():
         f.write("};\n")
         
         f.write(f"static uint8_t FONT_TEXTURE_DATA[] = {{ {bytes_as_str(texture_data)} }};\n")
+        
+        f.write(f"static uint8_t FONT_FILE_CONTENT[] = {{ {bytes_as_str(font_bytes)} }};\n")
             
         f.write(f"#endif // {guard_name}")
 
