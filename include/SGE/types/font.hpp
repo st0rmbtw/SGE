@@ -95,6 +95,7 @@ const Font& GetDefaultFont() {
 FontVector LoadFontVectorFromBytes(std::span<const uint8_t> buffer, class sge::RenderContext& context);
 FontVector LoadFontVector(const std::string& path, class sge::RenderContext& context);
 
+Font LoadFontFromBytes(std::span<const uint8_t> buffer, class sge::RenderContext& context);
 Font LoadFont(const std::string& path, class sge::RenderContext& context);
 
 } // namespace sge

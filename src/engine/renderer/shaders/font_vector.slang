@@ -231,7 +231,7 @@ float4 PS(VSOutput inp) : SV_Target
             float2 p1 = UnpackPoint(curve.p1);
             float2 p2 = UnpackPoint(curve.p2);
 
-            coverage += ScanlineSweep(pixel_size, inp.uv, p2, p1, p0);
+            coverage += ScanlineSweep(pixel_size, inp.uv, p0, p1, p2);
         }
     }
 

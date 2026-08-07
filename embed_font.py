@@ -61,13 +61,11 @@ def main():
         face.glyph.render(freetype.FT_RENDER_MODE_SDF)
         
         buffer = bytes()
-        max_ascent = 0
-        max_descent = 0
         
         if len(face.glyph.bitmap.buffer) > 0:
             buffer = bytes(face.glyph.bitmap.buffer)    
-            max_ascent = max(max_ascent, info.bitmap_top)
-            max_descent = max(max_descent, info.bitmap_rows - info.bitmap_top)
+            max_ascent = max(max_ascent, face.glyph.bitmap_top)
+            max_descent = max(max_descent, face.glyph.bitmap.rows - face.glyph.bitmap_top)
         
         info = GlyphInfo(character, buffer, face.glyph.bitmap.width, face.glyph.bitmap.rows, face.glyph.bitmap_left, face.glyph.bitmap_top, face.glyph.advance.x, 0, 0)
         glyphs.append(info)
