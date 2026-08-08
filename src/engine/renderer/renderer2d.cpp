@@ -1,4 +1,6 @@
+#if __has_include(<execution>)
 #include <execution>
+#endif
 
 #include <LLGL/PipelineLayout.h>
 #include <LLGL/PipelineLayoutFlags.h>
@@ -12,7 +14,15 @@
 #include <SGE/types/attributes.hpp>
 #include <SGE/types/binding_layout.hpp>
 
+#include "SGE/assert.hpp"
 #include "shaders.hpp"
+
+// GNU PSTL doesn't compile with exceptions disabled
+#if (!defined(__GNUC__) || defined(__cpp_exceptions)) && defined(__cpp_lib_execution)
+    #define PARALLEL 1
+#else
+    #define PARALLEL 0
+#endif
 
 static constexpr uint32_t DEFAULT_BATCH_COUNT = 2000;
 static constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
@@ -104,7 +114,29 @@ BatchVertexFormats NinepatchBatchVertexFormats(const sge::RenderBackend backend)
     };
 }
 
-BatchVertexFormats GlyphBatchVertexFormats(const sge::RenderBackend backend) {
+BatchVertexFormats GlyphVectorBatchVertexFormats(const sge::RenderBackend backend) {
+    LLGL::VertexFormat vertex_format;
+    vertex_format.attributes = sge::VertexAttributes(backend, {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
+    });
+    LLGL::VertexFormat instance_format;
+    instance_format.attributes = sge::VertexAttributes(backend, vertex_format.attributes.size(), {
+        sge::Attribute::Instance(sge::VertexFormat::Float32x3, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_em_size", "I_Em_Size", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_partition_offset", "I_PartitionOffset", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint32, "inp_i_partition_count", "I_PartitionCount", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
+    });
+
+    return BatchVertexFormats {
+        .vertex = vertex_format,
+        .instance = instance_format
+    };
+}
+
+BatchVertexFormats GlyphSDFBatchVertexFormats(const sge::RenderBackend backend) {
     LLGL::VertexFormat vertex_format;
     vertex_format.attributes = sge::VertexAttributes(backend, {
         sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
@@ -233,12 +265,14 @@ sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Ren
     const RenderBackend backend = context->Backend();
 
     m_sprite_vertex_shader = CreateBatchVertexShader(context, GetSpriteShaderSourceCode(backend), SpriteBatchVertexFormats(backend));
-    m_glyph_vertex_shader = CreateBatchVertexShader(context, GetFontShaderSourceCode(backend), GlyphBatchVertexFormats(backend));
+    m_glyph_vector_vertex_shader = CreateBatchVertexShader(context, GetFontVectorShaderSourceCode(backend), GlyphVectorBatchVertexFormats(backend));
+    m_glyph_sdf_vertex_shader = CreateBatchVertexShader(context, GetFontSdfShaderSourceCode(backend), GlyphSDFBatchVertexFormats(backend));
     m_ninepatch_vertex_shader = CreateBatchVertexShader(context, GetNinepatchShaderSourceCode(backend), NinepatchBatchVertexFormats(backend));
 
     m_sprite_batch_data = InitSpriteBatchData();
     m_ninepatch_batch_data = InitNinepatchBatchData();
-    m_glyph_batch_data = InitGlyphBatchData();
+    m_glyph_vector_batch_data = InitVectorGlyphBatchData();
+    m_glyph_sdf_batch_data = InitSDFGlyphBatchData();
     m_shape_batch_data = InitShapeBatchData();
     m_line_batch_data = InitLineBatchData();
 
@@ -249,8 +283,13 @@ sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Ren
     }
 
     {
-        ShaderSourceCode shader = GetFontShaderSourceCode(backend);
-        m_glyph_default_fragment_shader = context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+        ShaderSourceCode shader = GetFontVectorShaderSourceCode(backend);
+        m_glyph_vector_fragment_shader = context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+    }
+
+    {
+        ShaderSourceCode shader = GetFontSdfShaderSourceCode(backend);
+        m_glyph_sdf_default_fragment_shader = context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
     }
 
     m_vector_vertex_format.attributes = sge::VertexAttributes(m_context->Backend(), {
@@ -263,7 +302,8 @@ void sge::Renderer2D::Begin() {
     m_batch_instance_count = 0;
 
     m_sprite_batch_data.Reset();
-    m_glyph_batch_data.Reset();
+    m_glyph_vector_batch_data.Reset();
+    m_glyph_sdf_batch_data.Reset();
     m_ninepatch_batch_data.Reset();
     m_shape_batch_data.Reset();
     m_line_batch_data.Reset();
@@ -449,9 +489,9 @@ sge::Handle<LLGL::PipelineState> sge::Renderer2D::CreateNinepatchBatchPipeline(b
     return GetRenderContext()->CreatePipelineState(pipelineConfig);
 }
 
-sge::Handle<LLGL::PipelineState> sge::Renderer2D::CreateGlyphBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader) {
+sge::Handle<LLGL::PipelineState> sge::Renderer2D::CreateGlyphSDFBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader) {
     if (!fragment_shader) {
-        fragment_shader = m_glyph_default_fragment_shader;
+        fragment_shader = m_glyph_sdf_default_fragment_shader;
     }
 
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
@@ -466,8 +506,42 @@ sge::Handle<LLGL::PipelineState> sge::Renderer2D::CreateGlyphBatchPipeline(bool 
 
     GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.debugName = "GlyphBatch Pipeline";
-    pipelineConfig.vertexShader = m_glyph_vertex_shader;
+    pipelineConfig.vertexShader = m_glyph_sdf_vertex_shader;
     pipelineConfig.pixelShader = fragment_shader;
+    pipelineConfig.layout = GetRenderContext()->CreatePipelineLayout(pipelineLayoutDesc);
+    pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
+    pipelineConfig.scissorTestEnabled = enable_scissor;
+    pipelineConfig.blend = LLGL::BlendDescriptor {
+        .targets = {
+            LLGL::BlendTargetDescriptor {
+                .blendEnabled = true,
+                .srcColor = LLGL::BlendOp::SrcAlpha,
+                .dstColor = LLGL::BlendOp::InvSrcAlpha,
+                .srcAlpha = LLGL::BlendOp::Zero,
+                .dstAlpha = LLGL::BlendOp::One,
+                .alphaArithmetic = LLGL::BlendArithmetic::Max
+            }
+        }
+    };
+
+    return GetRenderContext()->CreatePipelineState(pipelineConfig);
+}
+
+sge::Handle<LLGL::PipelineState> sge::Renderer2D::CreateGlyphVectorBatchPipeline(bool enable_scissor) {
+    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+    pipelineLayoutDesc.bindings = BindingLayout({
+        BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer_std140", LLGL::StageFlags::VertexStage),
+        BindingLayoutItem::Buffer(3, "CurveBuffer", LLGL::StageFlags::FragmentStage),
+        BindingLayoutItem::Buffer(4, "PartitionBuffer", LLGL::StageFlags::FragmentStage),
+    });
+    pipelineLayoutDesc.combinedTextureSamplers = {
+        LLGL::CombinedTextureSamplerDescriptor{ "Texture", "Texture", "Sampler", 3 }
+    };
+
+    GraphicsPipelineConfig pipelineConfig;
+    pipelineConfig.debugName = "GlyphBatch Pipeline";
+    pipelineConfig.vertexShader = m_glyph_vector_vertex_shader;
+    pipelineConfig.pixelShader = m_glyph_vector_fragment_shader;
     pipelineConfig.layout = GetRenderContext()->CreatePipelineLayout(pipelineLayoutDesc);
     pipelineConfig.primitiveTopology = LLGL::PrimitiveTopology::TriangleStrip;
     pipelineConfig.scissorTestEnabled = enable_scissor;
@@ -582,12 +656,22 @@ sge::BatchData<sge::NinePatchInstance> sge::Renderer2D::InitNinepatchBatchData()
     return batchData;
 }
 
-sge::BatchData<sge::GlyphInstance> sge::Renderer2D::InitGlyphBatchData() {
+sge::BatchData<sge::GlyphInstanceVector> sge::Renderer2D::InitVectorGlyphBatchData() {
     ZoneScoped;
 
-    BatchVertexFormats vertex_formats = GlyphBatchVertexFormats(GetRenderContext()->Backend());
+    BatchVertexFormats vertex_formats = GlyphVectorBatchVertexFormats(GetRenderContext()->Backend());
 
-    BatchData<GlyphInstance> batchData;
+    BatchData<GlyphInstanceVector> batchData;
+    batchData.Init(*GetRenderContext(), DEFAULT_BATCH_COUNT, vertex_formats.vertex, vertex_formats.instance);
+    return batchData;
+}
+
+sge::BatchData<sge::GlyphInstanceSDF> sge::Renderer2D::InitSDFGlyphBatchData() {
+    ZoneScoped;
+
+    BatchVertexFormats vertex_formats = GlyphSDFBatchVertexFormats(GetRenderContext()->Backend());
+
+    BatchData<GlyphInstanceSDF> batchData;
     batchData.Init(*GetRenderContext(), DEFAULT_BATCH_COUNT, vertex_formats.vertex, vertex_formats.instance);
     return batchData;
 }
@@ -614,7 +698,8 @@ sge::BatchData<sge::LineInstance> sge::Renderer2D::InitLineBatchData() {
 
 void sge::Renderer2D::DestroyBatch(sge::Batch& batch) {
     const SpriteBatchPipeline& sprite_pipeline = batch.SpritePipeline();
-    const auto glyph_pipeline = batch.GlyphPipeline();
+    const auto glyph_vector_pipeline = batch.GlyphVectorPipeline();
+    const auto glyph_sdf_pipeline = batch.GlyphSDFPipeline();
     const auto line_pipeline = batch.LinePipeline();
     const auto shape_pipeline = batch.ShapePipeline();
 
@@ -628,7 +713,8 @@ void sge::Renderer2D::DestroyBatch(sge::Batch& batch) {
     context->DeletePipeline(sprite_pipeline.depth_alpha_blend);
     context->DeletePipeline(sprite_pipeline.depth_premultiplied_alpha);
     context->DeletePipeline(sprite_pipeline.depth_opaque);
-    context->DeletePipeline(glyph_pipeline);
+    context->DeletePipeline(glyph_vector_pipeline);
+    context->DeletePipeline(glyph_sdf_pipeline);
     context->DeletePipeline(line_pipeline);
     context->DeletePipeline(shape_pipeline);
 }
@@ -672,10 +758,16 @@ void sge::Renderer2D::ApplyBatchDrawCommands(sge::Batch& batch) {
                 offset = batch.SpriteData().offset;
             break;
 
-            case FlushDataType::Glyph:
-                commands->SetVertexBufferArray(*m_glyph_batch_data.GetBufferArray());
-                commands->SetPipelineState(context->GetOrCreatePipeline(batch.GlyphPipeline()));
-                offset = batch.GlyphData().offset;
+            case FlushDataType::GlyphVector:
+                commands->SetVertexBufferArray(*m_glyph_vector_batch_data.GetBufferArray());
+                commands->SetPipelineState(context->GetOrCreatePipeline(batch.GlyphVectorPipeline()));
+                offset = batch.GlyphVectorData().offset;
+            break;
+
+            case FlushDataType::GlyphSDF:
+                commands->SetVertexBufferArray(*m_glyph_sdf_batch_data.GetBufferArray());
+                commands->SetPipelineState(context->GetOrCreatePipeline(batch.GlyphSDFPipeline()));
+                offset = batch.GlyphSDFData().offset;
             break;
 
             case FlushDataType::NinePatch:
@@ -694,6 +786,9 @@ void sge::Renderer2D::ApplyBatchDrawCommands(sge::Batch& batch) {
                 commands->SetPipelineState(context->GetOrCreatePipeline(batch.LinePipeline()));
                 offset = batch.LineData().offset;
             break;
+            case internal::FlushDataType::COUNT:
+                SGE_UNREACHABLE();
+            break;
             }
 
             commands->SetResource(0, *GlobalUniformBuffer());
@@ -710,10 +805,13 @@ void sge::Renderer2D::ApplyBatchDrawCommands(sge::Batch& batch) {
             commands->SetScissor(LLGL::Scissor(0, 0, m_viewport.width, m_viewport.height));
         }
 
-        if (flush_data.texture.is_valid() && prev_texture_id != flush_data.texture.id) {
+        if (flush_data.type == FlushDataType::GlyphVector) {
+            commands->SetResource(1, *flush_data.glyph_data.curve_buffer);
+            commands->SetResource(2, *flush_data.glyph_data.partition_buffer);
+            prev_texture_id = -1;
+        } else if (flush_data.texture.is_valid() && prev_texture_id != flush_data.texture.id) {
             commands->SetResource(1, *flush_data.texture.ptr);
             commands->SetResource(2, *flush_data.texture.sampler);
-
             prev_texture_id = flush_data.texture.id;
         }
 
@@ -732,15 +830,14 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     using namespace sge::internal;
 
     auto& sprite_commands = batch.sprite_draw_commands();
-    auto& glyph_commands = batch.glyph_draw_commands();
+    auto& glyph_vector_commands = batch.glyph_vector_draw_commands();
+    auto& glyph_sdf_commands = batch.glyph_sdf_draw_commands();
     auto& ninepatch_commands = batch.ninepatch_draw_commands();
     auto& shape_commands = batch.shape_draw_commands();
     auto& line_commands = batch.line_draw_commands();
 
-    // GNU PSTL doesn't compile with exceptions disabled
-
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
         sprite_commands.begin(),
@@ -751,18 +848,50 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
-        glyph_commands.begin(),
-        glyph_commands.end(),
-        [](const DrawCommandGlyph& a, const DrawCommandGlyph& b) {
+        glyph_sdf_commands.begin(),
+        glyph_sdf_commands.end(),
+        [](const DrawCommandGlyphSDF& a, const DrawCommandGlyphSDF& b) {
             return SortTextureBatchState(a.state, b.state);
         }
     );
 
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
+        std::execution::par,
+#endif
+        glyph_vector_commands.begin(),
+        glyph_vector_commands.end(),
+        [](const DrawCommandGlyphVector& a, const DrawCommandGlyphVector& b) {
+            if (a.state.order < b.state.order) return true;
+            if (a.state.order > b.state.order) return false;
+
+            const int a_scissor_size = a.state.scissor.width() + a.state.scissor.height();
+            const int b_scissor_size = b.state.scissor.width() + b.state.scissor.height();
+
+            if (a_scissor_size < b_scissor_size)
+                return true;
+
+            if (a_scissor_size > b_scissor_size)
+                return false;
+
+            if (a.state.curve_buffer.Get() < b.state.curve_buffer.Get()) return true;
+            if (a.state.curve_buffer.Get() > b.state.curve_buffer.Get()) return false;
+
+            uint8_t a_bm = static_cast<uint8_t>(a.state.blend_mode);
+            uint8_t b_bm = static_cast<uint8_t>(b.state.blend_mode);
+
+            if (a_bm < b_bm) return true;
+            if (a_bm > b_bm) return false;
+
+            return false;
+        }
+    );
+
+    std::sort(
+#if PARALLEL
         std::execution::par,
 #endif
         ninepatch_commands.begin(),
@@ -773,7 +902,7 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
         shape_commands.begin(),
@@ -784,7 +913,7 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
     );
 
     std::sort(
-#if !defined(__GNUC__) || defined(__cpp_exceptions)
+#if PARALLEL
         std::execution::par,
 #endif
         line_commands.begin(),
@@ -796,55 +925,47 @@ void sge::Renderer2D::SortBatchDrawCommands(sge::Batch& batch) {
 }
 
 void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
-    ZoneScoped;
-
     if (batch.empty())
         return;
 
+    ZoneScoped;
+
     using namespace sge::internal;
 
-    uint32_t sprite_count = 0;
-    uint32_t sprite_offset = 0;
-    uint32_t sprite_total_count = 0;
+    struct batch_data {
+        uint32_t count = 0;
+        uint32_t offset = 0;
+        uint32_t total_count = 0;
+    };
 
-    uint32_t glyph_count = 0;
-    uint32_t glyph_offset = 0;
-    uint32_t glyph_total_count = 0;
-
-    uint32_t ninepatch_count = 0;
-    uint32_t ninepatch_offset = 0;
-    uint32_t ninepatch_total_count = 0;
-
-    uint32_t shape_count = 0;
-    uint32_t shape_offset = 0;
-    uint32_t shape_total_count = 0;
-
-    uint32_t line_count = 0;
-    uint32_t line_offset = 0;
-    uint32_t line_total_count = 0;
+    batch_data datas[size_t(FlushDataType::COUNT)] = {};
 
     uint32_t sum_total_count = 0;
 
     std::optional<sge::internal::BatchTextureState> sprite_state;
-    std::optional<sge::internal::BatchTextureState> glyph_state;
+    std::optional<sge::internal::BatchGlyphVectorState> glyph_vector_state;
+    std::optional<sge::internal::BatchTextureState> glyph_sdf_state;
     std::optional<sge::internal::BatchTextureState> npatch_state;
     std::optional<sge::internal::BatchSimpleState> shape_state;
     std::optional<sge::internal::BatchSimpleState> line_state;
 
     const auto& sprites = batch.sprite_draw_commands();
-    const auto& glyphs = batch.glyph_draw_commands();
+    const auto& glyphs_vector = batch.glyph_vector_draw_commands();
+    const auto& glyphs_sdf = batch.glyph_sdf_draw_commands();
     const auto& npatches = batch.ninepatch_draw_commands();
     const auto& shapes = batch.shape_draw_commands();
     const auto& lines = batch.line_draw_commands();
 
     auto sprite_it = std::next(sprites.cbegin(), batch.sprites_done());
-    auto glyph_it = std::next(glyphs.cbegin(), batch.glyphs_done());
+    auto glyph_vector_it = std::next(glyphs_vector.cbegin(), batch.glyphs_vector_done());
+    auto glyph_sdf_it = std::next(glyphs_sdf.cbegin(), batch.glyphs_sdf_done());
     auto npatch_it = std::next(npatches.cbegin(), batch.ninepatches_done());
     auto shape_it = std::next(shapes.cbegin(), batch.shapes_done());
     auto line_it = std::next(lines.cbegin(), batch.lines_done());
 
     auto sprites_end = sprites.cend();
-    auto glyphs_end = glyphs.cend();
+    auto glyphs_vector_end = glyphs_vector.cend();
+    auto glyphs_sdf_end = glyphs_sdf.cend();
     auto npatches_end = npatches.cend();
     auto shapes_end = shapes.cend();
     auto lines_end = lines.cend();
@@ -856,84 +977,109 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
         auto consider = [&](uint32_t order) {
             if (!min || order < *min) min = order;
         };
-        if (sprite_it != sprites_end)  consider(sprite_it->state.order);
-        if (glyph_it  != glyphs_end)   consider(glyph_it->state.order);
-        if (npatch_it != npatches_end) consider(npatch_it->state.order);
-        if (shape_it  != shapes_end)   consider(shape_it->state.order);
-        if (line_it   != lines_end)    consider(line_it->state.order);
+        if (sprite_it        != sprites_end)         consider(sprite_it->state.order);
+        if (glyph_vector_it  != glyphs_vector_end)   consider(glyph_vector_it->state.order);
+        if (glyph_sdf_it     != glyphs_sdf_end)      consider(glyph_sdf_it->state.order);
+        if (npatch_it        != npatches_end)        consider(npatch_it->state.order);
+        if (shape_it         != shapes_end)          consider(shape_it->state.order);
+        if (line_it          != lines_end)           consider(line_it->state.order);
         return min;
     };
 
     auto flush_sprites = [&]() {
-        if (sprite_count > 0) {
+        batch_data& data = datas[size_t(FlushDataType::Sprite)];
+        if (data.count > 0) {
             flush_queue.push_back(FlushData {
                 .texture = sprite_state->texture,
                 .scissor = sprite_state->scissor,
-                .offset = sprite_offset,
-                .count = sprite_count,
+                .offset = data.offset,
+                .count = data.count,
                 .type = FlushDataType::Sprite,
                 .blend_mode = sprite_state->blend_mode
             });
-            sprite_count = 0;
-            sprite_offset = sprite_total_count;
+            data.count = 0;
+            data.offset = data.count;
         }
     };
 
-    auto flush_glyphs = [&]() {
-        if (glyph_count > 0) {
+    auto flush_glyphs_vector = [&]() {
+        batch_data& data = datas[size_t(FlushDataType::GlyphVector)];
+        if (data.count > 0) {
             flush_queue.push_back(FlushData {
-                .texture = glyph_state->texture,
-                .scissor = glyph_state->scissor,
-                .offset = glyph_offset,
-                .count = glyph_count,
-                .type = FlushDataType::Glyph,
-                .blend_mode = glyph_state->blend_mode
+                .glyph_data = {
+                    .curve_buffer=glyph_vector_state->curve_buffer,
+                    .partition_buffer=glyph_vector_state->partition_buffer,
+                },
+                .scissor = glyph_vector_state->scissor,
+                .offset = data.offset,
+                .count = data.count,
+                .type = FlushDataType::GlyphVector,
+                .blend_mode = glyph_vector_state->blend_mode
             });
-            glyph_count = 0;
-            glyph_offset = glyph_total_count;
+            data.count = 0;
+            data.offset = data.total_count;
+        }
+    };
+
+    auto flush_glyphs_sdf = [&]() {
+        batch_data& data = datas[size_t(FlushDataType::GlyphSDF)];
+        if (data.count > 0) {
+            flush_queue.push_back(FlushData {
+                .texture = glyph_sdf_state->texture,
+                .scissor = glyph_sdf_state->scissor,
+                .offset = data.offset,
+                .count = data.count,
+                .type = FlushDataType::GlyphSDF,
+                .blend_mode = glyph_sdf_state->blend_mode
+            });
+            data.count = 0;
+            data.offset = data.total_count;
         }
     };
 
     auto flush_npatches = [&]() {
-        if (ninepatch_count > 0) {
+        batch_data& data = datas[size_t(FlushDataType::NinePatch)];
+        if (data.count > 0) {
             flush_queue.push_back(FlushData {
                 .texture = npatch_state->texture,
                 .scissor = npatch_state->scissor,
-                .offset = ninepatch_offset,
-                .count = ninepatch_count,
+                .offset = data.offset,
+                .count = data.count,
                 .type = FlushDataType::NinePatch,
                 .blend_mode = npatch_state->blend_mode
             });
-            ninepatch_count = 0;
-            ninepatch_offset = ninepatch_total_count;
+            data.count = 0;
+            data.offset = data.total_count;
         }
     };
 
     auto flush_shapes = [&]() {
-        if (shape_count > 0) {
+        batch_data& data = datas[size_t(FlushDataType::Shape)];
+        if (data.count > 0) {
             flush_queue.push_back(FlushData {
                 .scissor = shape_state->scissor,
-                .offset = shape_offset,
-                .count = shape_count,
+                .offset = data.offset,
+                .count = data.count,
                 .type = FlushDataType::Shape,
                 .blend_mode = shape_state->blend_mode
             });
-            shape_count = 0;
-            shape_offset = shape_total_count;
+            data.count = 0;
+            data.offset = data.total_count;
         }
     };
 
     auto flush_lines = [&]() {
-        if (line_count > 0) {
+        batch_data& data = datas[size_t(FlushDataType::Shape)];
+        if (data.count > 0) {
             flush_queue.push_back(FlushData {
                 .scissor = line_state->scissor,
-                .offset = line_offset,
-                .count = line_count,
+                .offset = data.offset,
+                .count = data.count,
                 .type = FlushDataType::Line,
                 .blend_mode = line_state->blend_mode
             });
-            line_count = 0;
-            line_offset = line_total_count;
+            data.count = 0;
+            data.offset = data.total_count;
         }
     };
 
@@ -967,8 +1113,8 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
                 buffer->flags = flags;
 
                 ++sum_total_count;
-                ++sprite_count;
-                ++sprite_total_count;
+                datas[size_t(FlushDataType::Sprite)].count++;
+                datas[size_t(FlushDataType::Sprite)].total_count++;
             }
         }
 
@@ -998,26 +1144,26 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
                 buffer->flags = flags;
 
                 ++sum_total_count;
-                ++ninepatch_count;
-                ++ninepatch_total_count;
+                datas[size_t(FlushDataType::NinePatch)].count++;
+                datas[size_t(FlushDataType::NinePatch)].total_count++;
             }
         }
 
-        if (glyph_it != glyphs_end && glyph_it->state.order == *order) {
-            if (glyph_state && *glyph_state != glyph_it->state) flush_glyphs();
-            glyph_state = glyph_it->state;
+        if (glyph_sdf_it != glyphs_sdf_end && glyph_sdf_it->state.order == *order) {
+            if (glyph_sdf_state && *glyph_sdf_state != glyph_sdf_it->state) flush_glyphs_sdf();
+            glyph_sdf_state = glyph_sdf_it->state;
 
-            while (glyph_it != glyphs_end && glyph_it->state == *glyph_state) {
+            while (glyph_sdf_it != glyphs_sdf_end && glyph_sdf_it->state == *glyph_sdf_state) {
                 if (sum_total_count >= batch.MaxCount()) {
                     goto end;
                 }
 
-                const DrawCommandGlyph& command = *(glyph_it++);
+                const DrawCommandGlyphSDF& command = *(glyph_sdf_it++);
 
                 uint8_t flags = 0;
                 flags |= batch.IsUi() << ShapeFlags::UI;
 
-                GlyphInstance* buffer = m_glyph_batch_data.GetBufferAndAdvance();
+                GlyphInstanceSDF* buffer = m_glyph_sdf_batch_data.GetBufferAndAdvance();
                 buffer->color = command.color;
                 buffer->pos = command.pos;
                 buffer->size = command.size;
@@ -1026,8 +1172,37 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
                 buffer->flags = flags;
 
                 ++sum_total_count;
-                ++glyph_count;
-                ++glyph_total_count;
+                datas[size_t(FlushDataType::GlyphSDF)].count++;
+                datas[size_t(FlushDataType::GlyphSDF)].total_count++;
+            }
+        }
+
+        if (glyph_vector_it != glyphs_vector_end && glyph_vector_it->state.order == *order) {
+            if (glyph_vector_state && *glyph_vector_state != glyph_vector_it->state) flush_glyphs_vector();
+            glyph_vector_state = glyph_vector_it->state;
+
+            while (glyph_vector_it != glyphs_vector_end && glyph_vector_it->state == *glyph_vector_state) {
+                if (sum_total_count >= batch.MaxCount()) {
+                    goto end;
+                }
+
+                const DrawCommandGlyphVector& command = *(glyph_vector_it++);
+
+                uint8_t flags = 0;
+                flags |= batch.IsUi() << ShapeFlags::UI;
+
+                GlyphInstanceVector* buffer = m_glyph_vector_batch_data.GetBufferAndAdvance();
+                buffer->color = command.color;
+                buffer->pos = command.pos;
+                buffer->size = command.size;
+                buffer->em_size = command.em_size;
+                buffer->partition_offset = command.partition_offset;
+                buffer->partition_count = command.partition_count;
+                buffer->flags = flags;
+
+                ++sum_total_count;
+                datas[size_t(FlushDataType::GlyphVector)].count++;
+                datas[size_t(FlushDataType::GlyphVector)].total_count++;
             }
         }
 
@@ -1054,8 +1229,8 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
                 buffer->flags = flags;
 
                 ++sum_total_count;
-                ++line_count;
-                ++line_total_count;
+                datas[size_t(FlushDataType::Line)].count++;
+                datas[size_t(FlushDataType::Line)].total_count++;
             }
         }
 
@@ -1085,25 +1260,27 @@ void sge::Renderer2D::UpdateBatchBuffers(sge::Batch& batch) {
                 buffer->flags = flags;
 
                 ++sum_total_count;
-                ++shape_count;
-                ++shape_total_count;
+                datas[size_t(FlushDataType::Shape)].count++;
+                datas[size_t(FlushDataType::Shape)].total_count++;
             }
         }
 
 // bruh goto in 2026...
 end:
         flush_sprites();
-        flush_glyphs();
+        flush_glyphs_vector();
+        flush_glyphs_sdf();
         flush_npatches();
         flush_shapes();
         flush_lines();
     }
 
-    batch.sprite_data().total_count -= sprite_total_count;
-    batch.glyph_data().total_count -= glyph_total_count;
-    batch.ninepatch_data().total_count -= ninepatch_total_count;
-    batch.shape_data().total_count -= shape_total_count;
-    batch.line_data().total_count -= line_total_count;
+    batch.sprite_data().total_count       -= datas[size_t(FlushDataType::Sprite)].total_count;
+    batch.glyph_vector_data().total_count -= datas[size_t(FlushDataType::GlyphVector)].total_count;
+    batch.glyph_sdf_data().total_count    -= datas[size_t(FlushDataType::GlyphSDF)].total_count;
+    batch.ninepatch_data().total_count    -= datas[size_t(FlushDataType::NinePatch)].total_count;
+    batch.shape_data().total_count        -= datas[size_t(FlushDataType::Shape)].total_count;
+    batch.line_data().total_count         -= datas[size_t(FlushDataType::Line)].total_count;
 }
 
 
@@ -1113,19 +1290,22 @@ void sge::Renderer2D::PrepareBatch(sge::Batch& batch) {
     const auto& context = GetRenderContext();
 
     const uint32_t sprite_count = std::min<uint32_t>(batch.sprite_data().total_count, batch.MaxCount());
-    const uint32_t glyph_count = std::min<uint32_t>(batch.glyph_data().total_count, batch.MaxCount());
+    const uint32_t glyph_vector_count = std::min<uint32_t>(batch.glyph_vector_data().total_count, batch.MaxCount());
+    const uint32_t glyph_sdf_count = std::min<uint32_t>(batch.glyph_sdf_data().total_count, batch.MaxCount());
     const uint32_t ninepatch_count = std::min<uint32_t>(batch.ninepatch_data().total_count, batch.MaxCount());
     const uint32_t shape_count = std::min<uint32_t>(batch.shape_data().total_count, batch.MaxCount());
     const uint32_t line_count = std::min<uint32_t>(batch.line_data().total_count, batch.MaxCount());
 
     m_sprite_batch_data.ResizeBuffersIfNeeded(*context, m_sprite_batch_data.Count() + sprite_count);
-    m_glyph_batch_data.ResizeBuffersIfNeeded(*context, m_glyph_batch_data.Count() + glyph_count);
+    m_glyph_vector_batch_data.ResizeBuffersIfNeeded(*context, m_glyph_vector_batch_data.Count() + glyph_vector_count);
+    m_glyph_sdf_batch_data.ResizeBuffersIfNeeded(*context, m_glyph_sdf_batch_data.Count() + glyph_sdf_count);
     m_ninepatch_batch_data.ResizeBuffersIfNeeded(*context, m_ninepatch_batch_data.Count() + ninepatch_count);
     m_shape_batch_data.ResizeBuffersIfNeeded(*context, m_shape_batch_data.Count() + shape_count);
     m_line_batch_data.ResizeBuffersIfNeeded(*context, m_line_batch_data.Count() + line_count);
 
     batch.sprite_data().offset = m_sprite_batch_data.Count();
-    batch.glyph_data().offset = m_glyph_batch_data.Count();
+    batch.glyph_vector_data().offset = m_glyph_vector_batch_data.Count();
+    batch.glyph_sdf_data().offset = m_glyph_sdf_batch_data.Count();
     batch.ninepatch_data().offset = m_ninepatch_batch_data.Count();
     batch.shape_data().offset = m_shape_batch_data.Count();
     batch.line_data().offset = m_line_batch_data.Count();
@@ -1141,8 +1321,12 @@ void sge::Renderer2D::UploadBatchData() {
         m_sprite_batch_data.Update(*command_buffer);
     }
 
-    if (m_glyph_batch_data.Count() > 0) {
-        m_glyph_batch_data.Update(*command_buffer);
+    if (m_glyph_vector_batch_data.Count() > 0) {
+        m_glyph_vector_batch_data.Update(*command_buffer);
+    }
+
+    if (m_glyph_sdf_batch_data.Count() > 0) {
+        m_glyph_sdf_batch_data.Update(*command_buffer);
     }
 
     if (m_ninepatch_batch_data.Count() > 0) {
@@ -1171,8 +1355,11 @@ void sge::Renderer2D::RenderBatch(sge::Batch& batch) {
         m_sprite_batch_data.Reset();
         batch.sprite_data().offset = 0;
 
-        m_glyph_batch_data.Reset();
-        batch.glyph_data().offset = 0;
+        m_glyph_vector_batch_data.Reset();
+        batch.glyph_vector_data().offset = 0;
+
+        m_glyph_sdf_batch_data.Reset();
+        batch.glyph_sdf_data().offset = 0;
 
         m_ninepatch_batch_data.Reset();
         batch.ninepatch_data().offset = 0;
@@ -1188,6 +1375,8 @@ void sge::Renderer2D::RenderBatch(sge::Batch& batch) {
         
         ApplyBatchDrawCommands(batch);
     }
+
+    batch.Reset();
 }
 
 void sge::Renderer2D::InitVectorPipeline() {

@@ -80,7 +80,17 @@ struct NinePatchInstance {
     uint8_t flags;
 };
 
-struct GlyphInstance {
+struct GlyphInstanceVector {
+    glm::vec3 color;
+    glm::vec2 pos;
+    glm::vec2 size;
+    glm::vec2 em_size;
+    uint32_t partition_offset;
+    uint32_t partition_count;
+    uint8_t flags;
+};
+
+struct GlyphInstanceSDF {
     glm::vec3 color;
     glm::vec2 pos;
     glm::vec2 size;

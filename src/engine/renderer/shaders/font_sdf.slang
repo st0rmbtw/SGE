@@ -1,0 +1,73 @@
+#include "common.slang"
+
+[vk::binding(2)]
+cbuffer GlobalUniformBuffer : register( b2 )
+{
+    GlobalUniforms uniforms;
+};
+
+struct VSInput
+{
+    float2 position : Position;
+
+    float3 i_color : I_Color;
+    float2 i_position : I_Position;
+    float2 i_size : I_Size;
+    float2 i_tex_size : I_TexSize;
+    float2 i_uv : I_UV;
+    uint i_flags : I_Flags;
+};
+
+struct VSOutput
+{
+    float4 position : SV_Position;
+
+    float2 uv : UV;
+    nointerpolation float3 color : Color;
+};
+
+static const uint FLAG_UI = 1 << 0;
+
+[shader("vertex")]
+VSOutput VS(VSInput inp)
+{
+    const bool is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
+
+    const float4x4 mvp = is_ui ? uniforms.screen_projection : uniforms.view_projection;
+
+    const float2 position = inp.i_position + inp.position * inp.i_size;
+    const float2 uv = inp.i_uv + inp.position * inp.i_tex_size;
+
+    VSOutput outp;
+    outp.color = inp.i_color;
+    outp.uv = uv;
+    outp.position = mul(mvp, float4(position, 0.0, 1.0));
+    outp.position.z = 1.0f;
+
+	return outp;
+}
+
+[vk::binding(3)]
+Texture2D Texture : register(t3);
+
+[vk::binding(4)]
+SamplerState Sampler : register(s4);
+
+static const float GLYPH_CENTER = 0.5;
+static const int SPREAD = 8;
+
+[shader("fragment")]
+float4 PS(VSOutput inp) : SV_Target
+{
+    const float dist = Texture.SampleLevel(Sampler, inp.uv, 0).r * 2.0 - 1.0;
+
+    const float pixel_dist = dist * SPREAD;
+
+    const float width = fwidth(dist);
+    const float alpha = smoothstep(-width, width, dist);
+    const float4 color = float4(inp.color, alpha);
+
+    if (color.a <= 0.05f) discard;
+
+    return color;
+};

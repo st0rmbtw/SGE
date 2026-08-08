@@ -30,7 +30,8 @@
 #elif defined(_MSC_VER)
     #define SGE_FORCE_INLINE __forceinline
 #else
-    #error "Unknown compiler; can't define SGE_FORCE_INLINE"
+    #warning "Unknown compiler; SGE_FORCE_INLINE will fallback to `inline`"
+    #define SGE_FORCE_INLINE inline
 #endif
 
 #if SGE_DEBUG
@@ -45,14 +46,6 @@
     #endif
 #else
     #define SGE_DEBUG_BREAK() (void)0
-#endif
-
-#if defined(__GNUC__) || defined(__clang__)
-    #define SGE_ALIGN(x) __attribute__((aligned(x)))
-#elif defined(_MSC_VER)
-    #define SGE_ALIGN(x) __declspec(align(x))
-#else
-    #error "Unknown compiler; can't define ALIGN"
 #endif
 
 #endif

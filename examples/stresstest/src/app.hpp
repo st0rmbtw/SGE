@@ -44,7 +44,7 @@ private:
     std::unique_ptr<sge::Batch> m_batch;
     ExampleConfig m_config;
 
-    sge::LinearRgba m_custom_color = sge::LinearRgba::white();
+    sge::LinearRgba m_custom_color = sge::color::WHITE;
 
     uint32_t m_instance_count = 0;
     uint32_t m_batch_limit = 0;

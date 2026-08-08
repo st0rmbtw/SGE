@@ -187,7 +187,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
-                    .border_color = sge::LinearRgba::black(),
+                    .border_color = sge::color::BLACK,
                     .border_radius = cornerRadius,
                     .anchor = sge::Anchor::TopLeft
                 });
@@ -201,7 +201,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
-                    .border_color = sge::LinearRgba::black(),
+                    .border_color = sge::color::BLACK,
                     .border_radius = cornerRadius,
                     .anchor = sge::Anchor::TopLeft
                 });
@@ -215,7 +215,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
-                    .border_color = sge::LinearRgba::black(),
+                    .border_color = sge::color::BLACK,
                     .border_radius = cornerRadius,
                     .anchor = sge::Anchor::TopLeft
                 });
@@ -230,7 +230,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
-                    .border_color = sge::LinearRgba::black(),
+                    .border_color = sge::color::BLACK,
                     .border_radius = cornerRadius,
                     .anchor = sge::Anchor::TopLeft
                 });
@@ -301,15 +301,14 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         .size = glm::vec2(250.0f),
         .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
         .border_thickness = 2.0f,
-        .border_color = sge::LinearRgba::blue(),
+        .border_color = sge::color::BLUE,
         .border_radius = sge::BorderRadius::Absolute(14.0f)
     });
     
-    sge::RichText text = sge::rich_text("Hello", 80.f, sge::LinearRgba::white());
+    sge::RichText text = sge::rich_text("Hello", 80.f, sge::color::WHITE);
     m_batch->DrawText(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::GetDefaultFont());
 
-    m_renderer->PrepareBatch(*m_batch);
-    m_renderer->UploadBatchData();
+    m_renderer->PrepareAndUpload(*m_batch);
 
     m_renderer->BeginPass(window, m_camera);
     {

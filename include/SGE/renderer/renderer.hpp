@@ -32,7 +32,7 @@
 
 namespace sge {
 
-struct SGE_ALIGN(16) GlobalUniforms {
+struct alignas(16) GlobalUniforms {
     glm::mat4 screen_projection_matrix;
     glm::mat4 view_projection_matrix;
     glm::mat4 inv_view_proj_matrix;

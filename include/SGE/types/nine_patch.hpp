@@ -131,7 +131,7 @@ private:
     Texture m_texture;
     sge::Quaternion m_rotation;
     glm::uvec4 m_margin = glm::uvec4(0); // Left Right Top Bottom
-    sge::LinearRgba m_color = sge::LinearRgba::white();
+    sge::LinearRgba m_color = color::WHITE;
     glm::vec2 m_position = glm::vec2(0.0f);
     glm::vec2 m_size = glm::vec2(1.0f);
     glm::vec2 m_scale = glm::vec2(1.0f);
