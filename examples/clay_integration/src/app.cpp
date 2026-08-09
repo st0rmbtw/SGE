@@ -6,7 +6,6 @@
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
-#include <SGE/types/blend_mode.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/font.hpp>
 #include <SGE/types/shape.hpp>

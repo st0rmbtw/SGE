@@ -11,11 +11,11 @@
 
 #include "../../common.hpp"
 
-struct UniformBuffer {
+struct alignas(16) UniformBuffer {
     glm::mat4x4 view_matrix;
     glm::mat4x4 projection_matrix;
     glm::vec3 object_color = glm::vec3(2.0f, 2.0f, 10.0f);
-} SGE_ALIGN(16);
+};
 
 class App : public sge::IEngine {
 public:

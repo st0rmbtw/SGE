@@ -1,34 +1,44 @@
+#include <variant>
+
 #include <SGE/assert.hpp>
 #include <SGE/log.hpp>
 #include <SGE/math/rect.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/renderer/batch.hpp>
+#include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/renderer/context.hpp>
+#include <SGE/renderer/handle.hpp>
 #include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/mesh.hpp>
 #include <SGE/renderer/renderer.hpp>
+#include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/types.hpp>
-#include <SGE/types/attributes.hpp>
 #include <SGE/types/binding_layout.hpp>
-#include <SGE/types/blend_mode.hpp>
+#include <SGE/types/framebuffer.hpp>
 #include <SGE/utils/alloc.hpp>
+#include <SGE/utils/hash.hpp>
 
 #include <LLGL/CommandBufferFlags.h>
 #include <LLGL/Format.h>
 #include <LLGL/PipelineCache.h>
+#include <LLGL/PipelineLayout.h>
 #include <LLGL/PipelineLayoutFlags.h>
 #include <LLGL/PipelineStateFlags.h>
 #include <LLGL/RenderTarget.h>
 #include <LLGL/RenderTargetFlags.h>
 #include <LLGL/ResourceFlags.h>
+#include <LLGL/ResourceHeap.h>
+#include <LLGL/ResourceHeapFlags.h>
 #include <LLGL/SamplerFlags.h>
 #include <LLGL/ShaderFlags.h>
+#include <LLGL/Texture.h>
 #include <LLGL/TextureFlags.h>
 #include <LLGL/Types.h>
 #include <LLGL/Utils/VertexFormat.h>
 #include <LLGL/VertexAttribute.h>
 
-#include "SGE/types/framebuffer.hpp"
 #include "shaders.hpp"
+#include "utils.hpp"
 
 namespace {
 
@@ -54,10 +64,10 @@ sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_conte
 
     m_uniform_buffer = m_context->CreateConstantBuffer(sizeof(GlobalUniforms), "Uniforms Buffer");
 
-    m_fullscreen_triangle_vertex_format.attributes = sge::VertexAttributes(backend, {
-        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position"),
-        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_uv", "UV")
-    });
+    // m_fullscreen_triangle_vertex_format.attributes = sge::VertexAttributes(backend, {
+    //     sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position"),
+    //     sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_uv", "UV")
+    // });
 
     const glm::vec2 vertices[] = {
         glm::vec2(-1.0f, 1.0f),  glm::vec2(0.0f, 0.0f),
@@ -339,4 +349,183 @@ void sge::Renderer::BlitTexture(LLGL::Texture& texture) {
     m_command_buffer->SetResource(0, texture);
     m_command_buffer->SetResource(1, *m_context->GetNearestSampler());
     m_command_buffer->Draw(3, 0);
+}
+
+sge::Handle<sge::Mesh> sge::Renderer::AddMesh(const Mesh& mesh) {
+    LLGL::VertexFormat vertexFormat = ConvertVertexAttributesToLLGL(m_context->Backend(), mesh.GetAttributes());
+
+    uint64_t layoutHash = 1469598103934665603ULL;
+    HashVertexFormat(layoutHash, vertexFormat);
+
+    sge::Unique<LLGL::Buffer> vertex_buffer = m_context->CreateVertexBuffer(mesh.GetVertexData(), mesh.GetVertexSize(), vertexFormat);
+    sge::Unique<LLGL::Buffer> index_buffer = nullptr;
+
+    auto& indices = mesh.GetIndices();
+    if (!indices.IsNone()) {
+        auto format = ConvertIndexFormatToLLGL(indices.GetFormat());
+        index_buffer = m_context->CreateIndexBuffer(indices.GetData(), indices.GetSize(), format);
+    }
+
+    GpuMesh gpuMesh = {
+        .vertexFormat = vertexFormat,
+        .vertexBuffer = std::move(vertex_buffer),
+        .indexBuffer = std::move(index_buffer),
+        .layoutHash = layoutHash,
+        .vertexCount = mesh.GetVertexCount(),
+        .indexCount = indices.GetCount(),
+        .indexFormat = indices.GetFormat(),
+        .topology = mesh.GetTopology(),
+        .frontFace = mesh.GetFrontFace(),
+    };
+
+    auto handle = Handle<Mesh>(IdGenerator::Next());
+    m_meshes.try_emplace(handle, std::make_shared<GpuMesh>(std::move(gpuMesh)));
+    return handle;
+}
+
+sge::Handle<sge::Material> sge::Renderer::AddMaterial(const sge::Material& material) {
+    uint64_t stateHash = 1469598103934665603ULL;
+    sge::hash_combine(stateHash, material.GetCullMode());
+    sge::hash_combine(stateHash, material.GetBlendMode());
+
+    LLGL::VertexFormat instanceFormat = ConvertVertexAttributesToLLGL(m_context->Backend(), material.GetInstanceAttributes());
+    HashVertexFormat(stateHash, instanceFormat);
+
+    auto& bindings = material.GetBindings();
+    
+    std::vector<LLGL::ResourceViewDescriptor> resourceViews;
+    LLGL::PipelineLayoutDescriptor layoutDesc;
+    for (const auto& binding : bindings) {
+        auto resourceType = LLGL::ResourceType::Undefined;
+        auto resourceView = LLGL::ResourceViewDescriptor();
+
+        if (const auto* texture = std::get_if<sge::Ref<LLGL::Texture>>(&binding.resource)) {
+            resourceType = LLGL::ResourceType::Texture;
+            resourceView = texture->Get();
+        } else if (const auto* buffer = std::get_if<sge::Ref<LLGL::Buffer>>(&binding.resource)) {
+            resourceType = LLGL::ResourceType::Buffer;
+            resourceView = buffer->Get();
+        } else if (const auto* sampler = std::get_if<sge::Ref<LLGL::Buffer>>(&binding.resource)) {
+            resourceType = LLGL::ResourceType::Sampler;
+            resourceView = sampler->Get();
+        } else {
+            SGE_UNREACHABLE();
+        }
+
+        auto stage = LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage;
+
+        sge::hash_combine(stateHash, binding.index);
+        sge::hash_combine(stateHash, binding.bindFlags);
+        sge::hash_combine(stateHash, stage);
+        sge::hash_combine(stateHash, binding.arraySize);
+        sge::hash_combine(stateHash, resourceType);
+
+        layoutDesc.heapBindings.emplace_back(resourceType, binding.bindFlags, stage, binding.arraySize);
+        resourceViews.emplace_back(resourceView);
+    }
+
+    sge::Unique<LLGL::PipelineLayout> pipelineLayout = m_context->CreatePipelineLayout(layoutDesc);
+    sge::Unique<LLGL::ResourceHeap> resourceHeap = m_context->CreateResourceHeap(pipelineLayout, resourceViews);
+
+    GpuMaterial gpuMaterial = {
+        .instanceFormat = std::move(instanceFormat),
+        .vertexShader = material.GetVertexShader(),
+        .fragmentShader = material.GetFragmentShader(),
+        .pipelineLayout = std::move(pipelineLayout),
+        .resourceHeap = std::move(resourceHeap),
+        .stateHash = stateHash,
+        .blendMode = material.GetBlendMode(),
+        .cullMode = material.GetCullMode()
+    };
+
+    auto handle = Handle<Material>(IdGenerator::Next());
+    m_materials.try_emplace(handle, std::make_shared<GpuMaterial>(std::move(gpuMaterial)));
+    return handle;
+}
+
+LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(
+    Handle<Material> materialHandle,
+    const LLGL::VertexFormat& vertexFormat,
+    sge::PrimitiveTopology topology,
+    sge::FrontFace frontFace,
+    sge::IndexFormat indexFormat
+) {
+    auto materialEntry = m_materials.find(materialHandle);
+    SGE_ASSERT(materialEntry != m_materials.end());
+    auto& material = materialEntry->second;
+
+    auto materialHash = materialEntry->second->stateHash;
+
+    uint64_t vertexFormatHash = 1469598103934665603ULL;
+    HashVertexFormat(vertexFormatHash, vertexFormat);
+
+    auto key = PipelineKey { .vertexFormatHash = vertexFormatHash, .materialHash = materialHash };
+
+    auto existingEntry = m_pipelines.find(key);
+    if (existingEntry != m_pipelines.end()) {
+        return *existingEntry->second;
+    }
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.pipelineLayout = material->pipelineLayout;
+    pipelineDesc.vertexShader = material->vertexShader;
+    pipelineDesc.fragmentShader = material->fragmentShader;
+    pipelineDesc.indexFormat = ConvertIndexFormatToLLGL(indexFormat);
+    pipelineDesc.primitiveTopology = ConvertTopologyToLLGL(topology);
+    pipelineDesc.rasterizer.frontCCW = frontFace == sge::FrontFace::CCW;
+    pipelineDesc.rasterizer.cullMode = ConvertCullModeFormatToLLGL(material->cullMode);
+    pipelineDesc.blend.targets[0] = ConvertBlendModeToLLGL(material->blendMode);
+
+    sge::Unique<LLGL::PipelineState> pipeline = m_context->CreatePipelineState(pipelineDesc);
+    auto [it, success] = m_pipelines.try_emplace(key, std::move(pipeline));
+    SGE_ASSERT(success);
+
+    return *it->second;
+}
+
+void sge::Renderer::SubmitRaw(Handle<Mesh> meshHandle, Handle<Material> materialHandle, const void* instanceData, size_t instanceByteSize) {
+    BatchKey key {
+        .mesh = meshHandle,
+        .material = materialHandle
+    };
+
+    auto& batch = m_mesh_batches[key];
+    if (!batch.vertexBufferArray) {
+        batch.mesh = m_meshes.at(meshHandle);
+        batch.material = m_materials.at(materialHandle);
+        batch.instanceBufferPool = VertexBufferPool(batch.material->instanceFormat);
+    }
+
+    const auto* bytes = static_cast<const uint8_t*>(instanceData);
+    batch.instanceBytes.insert(batch.instanceBytes.end(), bytes, bytes + instanceByteSize);
+}
+
+void sge::Renderer::EndPass() {
+    for (auto& [key, batch] : m_mesh_batches) {
+        LLGL::PipelineState& pipeline = GetOrCreatePipeline(key.material, batch.mesh->vertexFormat, batch.mesh->topology, batch.mesh->frontFace, batch.mesh->indexFormat);
+
+        if (batch.instanceBufferPool.Reserve(*m_context, batch.instanceBytes.size())) {
+            SGE_ASSERT(batch.instanceBufferPool.Get() != nullptr);
+            if (batch.vertexBufferArray)
+                m_context->Release(*batch.vertexBufferArray);
+            batch.vertexBufferArray = m_context->CreateBufferArray({ batch.mesh->vertexBuffer, batch.instanceBufferPool.Get() });
+        }
+        
+        m_command_buffer->SetPipelineState(pipeline);
+        m_command_buffer->SetVertexBufferArray(*batch.vertexBufferArray);
+        m_command_buffer->SetResourceHeap(*batch.material->resourceHeap);
+
+        auto indexCount = batch.mesh->indexCount;
+        
+        if (indexCount > 0) {
+            m_command_buffer->SetIndexBuffer(*batch.mesh->indexBuffer);
+            m_command_buffer->DrawIndexedInstanced(indexCount, batch.instanceCount, 0);
+        } else {
+            auto vertexCount = batch.mesh->vertexCount;
+            m_command_buffer->DrawInstanced(vertexCount, 0, batch.instanceCount);
+        }
+    }
+
+    m_context->PopRenderTarget();
+    m_command_buffer->EndRenderPass();
 }

@@ -10,7 +10,6 @@
 #include <SGE/defines.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
-#include <SGE/types/attributes.hpp>
 #include <SGE/types/binding_layout.hpp>
 #include <SGE/types/window_settings.hpp>
 
@@ -272,8 +271,8 @@ bool CreatePipelineObjects() {
         config.layout = bd->PipelineLayout;
         config.vertexShader = std::move(vertexShader);
         config.pixelShader = std::move(pixelShader);
-        config.indexFormat = sizeof(ImDrawIdx) == 2 ? LLGL::Format::R16UInt : LLGL::Format::R32UInt;
-        config.cullMode = LLGL::CullMode::Disabled;
+        config.indexFormat = sizeof(ImDrawIdx) == 2 ? sge::IndexFormat::U16 : sge::IndexFormat::U32;
+        config.cullMode = sge::CullMode::None;
         config.scissorTestEnabled = true;
         config.depth.testEnabled = false;
         config.depth.writeEnabled = false;

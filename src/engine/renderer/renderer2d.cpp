@@ -11,7 +11,6 @@
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/renderer/utils.hpp>
-#include <SGE/types/attributes.hpp>
 #include <SGE/types/binding_layout.hpp>
 
 #include "SGE/assert.hpp"

@@ -10,7 +10,6 @@
 #include <SGE/time/stopwatch.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
-#include <SGE/types/blend_mode.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/rich_text.hpp>
 #include <SGE/types/shape.hpp>

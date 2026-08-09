@@ -14,19 +14,23 @@
 
 #include <SGE/defines.hpp>
 #include <SGE/renderer/batch.hpp>
+#include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/context.hpp>
 #include <SGE/renderer/framebuffer_pool.hpp>
 #include <SGE/renderer/glfw_window.hpp>
 #include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/material.hpp>
+#include <SGE/renderer/mesh.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
-#include <SGE/types/attributes.hpp>
 #include <SGE/types/backend.hpp>
 #include <SGE/types/shader_def.hpp>
 #include <SGE/types/shader_path.hpp>
 #include <SGE/types/texture.hpp>
+#include <SGE/types/transform.hpp>
 #include <SGE/types/window_settings.hpp>
+#include <SGE/utils/hash.hpp>
 
 #include <memory>
 
@@ -74,10 +78,7 @@ public:
         m_command_buffer->Clear(clear_flags, clear_value);
     }
 
-    inline void EndPass() {
-        m_context->PopRenderTarget();
-        m_command_buffer->EndRenderPass();
-    }
+    void EndPass();
 
     void BlitTexture(LLGL::Texture& texture);
 
@@ -85,9 +86,27 @@ public:
         m_command_buffer->SetScissor(scissor);
     }
 
-    void Present(const std::shared_ptr<GlfwWindow>& window) {
+    void Present(const std::shared_ptr<sge::GlfwWindow>& window) {
         m_context->Present(*window);
     }
+
+    template <typename TInstance>
+    void Submit(Handle<Mesh> mesh, Handle<Material> material, const TInstance& instance) {
+        SubmitRaw(mesh, material, &instance, sizeof(TInstance));
+    }
+
+    void SubmitRaw(Handle<Mesh> mesh, Handle<Material> material, const void* instanceData, size_t instanceByteSize);
+
+    Handle<Mesh> AddMesh(const sge::Mesh& mesh);
+    Handle<Material> AddMaterial(const sge::Material& material);
+
+    LLGL::PipelineState& GetOrCreatePipeline(
+        Handle<Material> material,
+        const LLGL::VertexFormat& vertexFormat,
+        sge::PrimitiveTopology topology,
+        sge::FrontFace frontFace,
+        sge::IndexFormat indexFormat
+    );
 
     [[nodiscard]]
     inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
@@ -144,6 +163,44 @@ private:
     void InitTonemapPipelines();
 
 protected:
+    struct PipelineKey {
+        uint64_t vertexFormatHash = 0;
+        uint64_t materialHash = 0;
+    };
+
+    
+    struct PipelineKeyHasher {
+        size_t operator()(const PipelineKey& key) const noexcept {
+            size_t hash = 0;
+            hash_combine(hash, key.vertexFormatHash);
+            hash_combine(hash, key.materialHash);
+            return hash;
+        }
+    };
+
+    struct BatchKey {
+        Handle<Mesh> mesh;
+        Handle<Material> material;
+    };
+
+    struct BatchKeyHasher {
+        size_t operator()(const BatchKey& key) const noexcept {
+            size_t hash = 0;
+            hash_combine(hash, key.mesh.Id());
+            hash_combine(hash, key.material.Id());
+            return hash;
+        }
+    };
+    
+    struct MeshBatch {
+        std::shared_ptr<GpuMesh> mesh;
+        std::shared_ptr<GpuMaterial> material;
+        sge::VertexBufferPool instanceBufferPool;
+        sge::Unique<LLGL::BufferArray> vertexBufferArray;
+        std::vector<uint8_t> instanceBytes;
+        size_t instanceCount;
+    };
+
     LLGL::VertexFormat m_fullscreen_triangle_vertex_format;
 
     Unique<LLGL::Buffer> m_uniform_buffer;
@@ -169,6 +226,11 @@ protected:
     std::shared_ptr<RenderContext> m_context;
     
     std::vector<sge::TemporaryFramebuffer> m_bloom_framebuffers;
+
+    std::unordered_map<Handle<Mesh>, std::shared_ptr<GpuMesh>> m_meshes;
+    std::unordered_map<Handle<Material>, std::shared_ptr<GpuMaterial>> m_materials;
+    std::unordered_map<PipelineKey, sge::Unique<LLGL::PipelineState>, PipelineKeyHasher> m_pipelines;
+    std::unordered_map<BatchKey, MeshBatch> m_mesh_batches;
     
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;
@@ -176,7 +238,6 @@ protected:
     LLGL::Extent2D m_viewport = LLGL::Extent2D(0, 0);
 
     BloomSettings m_prev_bloom_settings = { .maxIterations = 0 };
-
 };
 
 } // namespace sge

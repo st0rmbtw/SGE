@@ -12,7 +12,6 @@
 #include <SGE/math/rect.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/types.hpp>
-#include <SGE/types/blend_mode.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/font.hpp>
 #include <SGE/types/nine_patch.hpp>

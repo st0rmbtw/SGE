@@ -3,41 +3,46 @@
 
 #include <LLGL/FragmentAttribute.h>
 #include <LLGL/LLGL.h>
+#include <LLGL/PipelineLayout.h>
 #include <LLGL/PipelineStateFlags.h>
 #include <LLGL/ShaderFlags.h>
+#include <LLGL/Utils/VertexFormat.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 #include <SGE/assert.hpp>
+#include <SGE/renderer/handle.hpp>
 #include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/material.hpp>
+#include <SGE/renderer/mesh.hpp>
 #include <SGE/renderer/resource.hpp>
 #include <SGE/types/sampler.hpp>
 #include <SGE/types/shader_def.hpp>
 
 namespace sge {
 
+struct GpuMesh {
+    LLGL::VertexFormat vertexFormat;
+    sge::Unique<LLGL::Buffer> vertexBuffer;
+    sge::Unique<LLGL::Buffer> indexBuffer;
+    uint64_t layoutHash = 0;
+    uint32_t vertexCount = 0;
+    uint32_t indexCount = 0;
+    sge::IndexFormat indexFormat;
+    sge::PrimitiveTopology topology;
+    sge::FrontFace frontFace;
+};
 
-template <typename T>
-class Handle {
-public:
-    Handle() = default;
-    explicit Handle(uint32_t id) : m_id(id) {
-        SGE_ASSERT(id != static_cast<uint32_t>(-1));
-    }
-
-    [[nodiscard]]
-    inline uint32_t ID() const noexcept {
-        return m_id;
-    }
-
-    [[nodiscard]]
-    inline bool IsValid() const noexcept {
-        return m_id != static_cast<uint32_t>(-1);
-    }
-
-private:
-    uint32_t m_id = -1;
+struct GpuMaterial {
+    LLGL::VertexFormat instanceFormat;
+    sge::Ref<LLGL::Shader> vertexShader;
+    sge::Ref<LLGL::Shader> fragmentShader;
+    sge::Unique<LLGL::PipelineLayout> pipelineLayout;
+    sge::Unique<LLGL::ResourceHeap> resourceHeap;
+    uint64_t stateHash = 0;
+    sge::BlendMode blendMode;
+    sge::CullMode cullMode;
 };
 
 struct Vertex {
@@ -117,19 +122,19 @@ struct PathData {
 };
 
 struct GraphicsPipelineConfig {
-    std::string debugName;
     LLGL::BlendDescriptor blend;
     LLGL::StencilDescriptor stencil;
+    std::string debugName;
     LLGL::DepthDescriptor depth;
     Ref<LLGL::PipelineLayout> layout;
     Ref<LLGL::Shader> vertexShader;
     Ref<LLGL::Shader> geometryShader;
     Ref<LLGL::Shader> pixelShader;
     Handle<LLGL::RenderPass> renderPass;
-    LLGL::PrimitiveTopology primitiveTopology = LLGL::PrimitiveTopology::TriangleList;
-    LLGL::Format indexFormat = LLGL::Format::Undefined;
-    LLGL::CullMode cullMode = LLGL::CullMode::Disabled;
-    bool frontCCW = true;
+    sge::PrimitiveTopology primitiveTopology = sge::PrimitiveTopology::TriangleList;
+    sge::IndexFormat indexFormat = sge::IndexFormat::None;
+    sge::CullMode cullMode = sge::CullMode::None;
+    sge::FrontFace frontFace = sge::FrontFace::CCW;
     bool scissorTestEnabled = false;
 };
 

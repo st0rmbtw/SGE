@@ -20,6 +20,8 @@
     #include "imgui_renderer.hpp"
 #endif
 
+#include "utils.hpp"
+
 namespace fs = std::filesystem;
 
 bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfig) {
@@ -245,14 +247,14 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
 
     SGE_ASSERT(GetCurrentTarget() != nullptr);
 
-    const auto it_config = m_pipeline_configs.find(handle.ID());
+    const auto it_config = m_pipeline_configs.find(handle.Id());
     SGE_ASSERT(it_config != m_pipeline_configs.end());
 
     const GraphicsPipelineConfig& config = it_config->second;
 
     LLGL::PipelineState* pipeline_state = nullptr;
 
-    const PipelineConfigKey key = {.render_target=GetCurrentTarget(), .config_id=handle.ID()};
+    const PipelineConfigKey key = {.render_target=GetCurrentTarget(), .config_id=handle.Id()};
     const auto it_pipeline = m_pipeline_states.find(key);
     if (it_pipeline != m_pipeline_states.end()) {
         pipeline_state = it_pipeline->second;
@@ -270,11 +272,11 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
         pipelineDesc.vertexShader = config.vertexShader.Get();
         pipelineDesc.geometryShader = config.geometryShader.Get();
         pipelineDesc.fragmentShader = config.pixelShader.Get();
-        pipelineDesc.primitiveTopology = config.primitiveTopology;
-        pipelineDesc.indexFormat = config.indexFormat;
+        pipelineDesc.primitiveTopology = ConvertTopologyToLLGL(config.primitiveTopology);
+        pipelineDesc.indexFormat = ConvertIndexFormatToLLGL(config.indexFormat);
         pipelineDesc.renderPass = renderPass;
-        pipelineDesc.rasterizer.cullMode = config.cullMode;
-        pipelineDesc.rasterizer.frontCCW = config.frontCCW;
+        pipelineDesc.rasterizer.cullMode = ConvertCullModeFormatToLLGL(config.cullMode);
+        pipelineDesc.rasterizer.frontCCW = config.frontFace == sge::FrontFace::CCW;
         pipelineDesc.rasterizer.scissorTestEnabled = config.scissorTestEnabled;
         pipelineDesc.rasterizer.multiSampleEnabled = (GetCurrentTarget()->GetSamples() > 1);
         
@@ -294,7 +296,7 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
 LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::RenderTarget> handle, uint8_t samples) {
     ZoneScoped;
 
-    const auto it_config = m_render_target_configs.find(handle.ID());
+    const auto it_config = m_render_target_configs.find(handle.Id());
     SGE_ASSERT(it_config != m_render_target_configs.end());
 
     const RenderTargetConfig& config = it_config->second;
@@ -303,8 +305,8 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
 
     const RenderTargetKey key = {
         .resolution=config.resolution,
-        .config_id=handle.ID(),
-        .render_pass_id=config.renderPass.ID(),
+        .config_id=handle.Id(),
+        .render_pass_id=config.renderPass.Id(),
         .format=config.format,
         .samples=samples,
     };
@@ -382,7 +384,7 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
 LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderPass> handle, uint8_t samples) {
     ZoneScoped;
 
-    const auto it_config = m_render_pass_configs.find(handle.ID());
+    const auto it_config = m_render_pass_configs.find(handle.Id());
     SGE_ASSERT(it_config != m_render_pass_configs.end());
 
     const RenderPassConfig& config = it_config->second;
@@ -390,7 +392,7 @@ LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderP
     LLGL::RenderPass* renderPass = nullptr;
 
     const RenderPassKey key = {
-        .config_id=handle.ID(),
+        .config_id=handle.Id(),
         .samples=samples,
     };
 
@@ -505,7 +507,7 @@ void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
         PipelineConfigKey key = it->first;
         LLGL::PipelineState* value = it->second;
 
-        if (key.config_id == handle.ID()) {
+        if (key.config_id == handle.Id()) {
             Release(*value);
             it = m_pipeline_states.erase(it);
             continue;
@@ -518,7 +520,7 @@ void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
         auto key = it->first;
         auto value = it->second;
 
-        if (key == handle.ID()) {
+        if (key == handle.Id()) {
             it = m_pipeline_configs.erase(it);
             continue;
         }
@@ -534,7 +536,7 @@ void sge::RenderContext::DeleteRenderTarget(Handle<LLGL::RenderTarget> handle) {
         auto key = it->first;
         auto value = it->second;
 
-        if (key.config_id == handle.ID()) {
+        if (key.config_id == handle.Id()) {
             Release(*value.handle);
             for (LLGL::Texture* texture : value.colorAttachmentTextures) {
                 if (texture != nullptr) {
@@ -552,7 +554,7 @@ void sge::RenderContext::DeleteRenderTarget(Handle<LLGL::RenderTarget> handle) {
     for (auto it = m_render_target_configs.begin(); it != m_render_target_configs.end();) {
         auto key = it->first;
 
-        if (key == handle.ID()) {
+        if (key == handle.Id()) {
             it = m_render_target_configs.erase(it);
             continue;
         }

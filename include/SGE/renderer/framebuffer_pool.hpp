@@ -35,12 +35,12 @@ template <>
 struct std::hash<sge::TemporaryFramebufferKey> {
     size_t operator()(const sge::TemporaryFramebufferKey& key) const noexcept {
         size_t hash = 255323;
-        hash_combine(hash, key.width);
-        hash_combine(hash, key.height);
-        hash_combine(hash, key.width);
-        hash_combine(hash, key.bindFlags);
-        hash_combine(hash, static_cast<int>(key.format));
-        hash_combine(hash, key.samples);
+        sge::hash_combine(hash, key.width);
+        sge::hash_combine(hash, key.height);
+        sge::hash_combine(hash, key.width);
+        sge::hash_combine(hash, key.bindFlags);
+        sge::hash_combine(hash, static_cast<int>(key.format));
+        sge::hash_combine(hash, key.samples);
         return hash;
     }
 };

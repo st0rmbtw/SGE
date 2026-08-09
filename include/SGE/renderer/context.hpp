@@ -28,7 +28,7 @@
 
 struct PipelineConfigKey {
     LLGL::RenderTarget* render_target;
-    uint32_t config_id;
+    uint64_t config_id;
 };
 
 inline bool operator==(const PipelineConfigKey& a, const PipelineConfigKey& b) {
@@ -39,16 +39,16 @@ template <>
 struct std::hash<PipelineConfigKey> {
     static size_t operator()(const PipelineConfigKey& key) noexcept {
         size_t seed = 0;
-        hash_combine(seed, key.config_id);
-        hash_combine(seed, key.render_target);
+        sge::hash_combine(seed, key.config_id);
+        sge::hash_combine(seed, key.render_target);
         return seed;
     }
 };
 
 struct RenderTargetKey {
     LLGL::Extent2D resolution;
-    uint32_t config_id = -1;
-    uint32_t render_pass_id = -1;
+    uint64_t config_id = 0;
+    uint64_t render_pass_id = 0;
     LLGL::Format format = LLGL::Format::Undefined;
     uint8_t samples = 1;
 };
@@ -65,18 +65,18 @@ template <>
 struct std::hash<RenderTargetKey> {
     static size_t operator()(const RenderTargetKey& key) noexcept {
         size_t seed = 0;
-        hash_combine(seed, key.config_id);
-        hash_combine(seed, key.render_pass_id);
-        hash_combine(seed, key.samples);
-        hash_combine(seed, key.format);
-        hash_combine(seed, key.resolution.width);
-        hash_combine(seed, key.resolution.height);
+        sge::hash_combine(seed, key.config_id);
+        sge::hash_combine(seed, key.render_pass_id);
+        sge::hash_combine(seed, key.samples);
+        sge::hash_combine(seed, key.format);
+        sge::hash_combine(seed, key.resolution.width);
+        sge::hash_combine(seed, key.resolution.height);
         return seed;
     }
 };
 
 struct RenderPassKey {
-    uint32_t config_id = -1;
+    uint64_t config_id = 0;
     uint8_t samples = 1;
 };
 
@@ -88,8 +88,8 @@ template <>
 struct std::hash<RenderPassKey> {
     static size_t operator()(const RenderPassKey& key) noexcept {
         size_t seed = 0;
-        hash_combine(seed, key.config_id);
-        hash_combine(seed, key.samples);
+        sge::hash_combine(seed, key.config_id);
+        sge::hash_combine(seed, key.samples);
         return seed;
     }
 };
@@ -228,6 +228,15 @@ public:
         return CreateBuffer(bufferDesc, &vertices[0]);
     }
 
+    inline Raw<LLGL::Buffer> CreateVertexBuffer(const void* data, size_t size, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) {
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = size;
+        bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
+        bufferDesc.vertexAttribs  = vertexFormat.attributes;
+        bufferDesc.debugName      = debug_name;
+        return CreateBuffer(bufferDesc, data);
+    }
+
     inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t size, const LLGL::VertexFormat& vertexFormat, const char* debug_name = nullptr) {
         LLGL::BufferDescriptor bufferDesc;
         bufferDesc.size           = size;
@@ -245,6 +254,15 @@ public:
         bufferDesc.format         = format;
         bufferDesc.debugName      = debug_name;
         return CreateBuffer(bufferDesc, &indices[0]);
+    }
+
+    inline Raw<LLGL::Buffer> CreateIndexBuffer(const void* data, size_t size, const LLGL::Format format, const char* debug_name = nullptr) {
+        LLGL::BufferDescriptor bufferDesc;
+        bufferDesc.size           = size;
+        bufferDesc.bindFlags      = LLGL::BindFlags::IndexBuffer;
+        bufferDesc.format         = format;
+        bufferDesc.debugName      = debug_name;
+        return CreateBuffer(bufferDesc, data);
     }
 
     inline Raw<LLGL::Buffer> CreateConstantBuffer(size_t size, const char* debug_name = nullptr) {
