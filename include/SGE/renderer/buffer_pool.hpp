@@ -26,8 +26,8 @@ public:
     }
 
     bool Reserve(sge::RenderContext& context, size_t size) {
-        if (size >= m_capacity) {
-            const size_t stride = m_vertex_format.GetStride();
+        const size_t stride = m_vertex_format.GetStride();
+        if (stride > 0 && size > m_capacity) {
             const size_t sizeBytes = ((size + stride - 1) / stride) * stride;
             m_buffer = context.CreateVertexBuffer(sizeBytes, m_vertex_format);
             m_capacity = sizeBytes;
@@ -39,6 +39,11 @@ public:
     [[nodiscard]]
     LLGL::Buffer* Get() const {
         return m_buffer;    
+    }
+
+    [[nodiscard]]
+    size_t GetStride() const {
+        return m_vertex_format.GetStride();
     }
     
 private:

@@ -5,14 +5,13 @@
 #include <SGE/input.hpp>
 #include <SGE/math/math.hpp>
 #include <SGE/math/quaternion.hpp>
+#include <SGE/renderer/attributes.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
-#include <SGE/types/attributes.hpp>
 #include <SGE/types/binding_layout.hpp>
-#include <SGE/types/blend_mode.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/cursor_mode.hpp>
 #include <SGE/types/framebuffer.hpp>
@@ -82,8 +81,7 @@ void App::InitPipeline() {
         sge::BindingLayoutItem::ConstantBuffer(2, "UniformConstantBuffer", LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage)
     });
 
-    LLGL::VertexFormat vertexFormat;
-    vertexFormat.attributes = sge::VertexAttributes(context->Backend(), {
+    LLGL::VertexFormat vertexFormat = sge::VertexAttributes(context->Backend(), {
         sge::Attribute::Vertex(sge::VertexFormat::Float32x3, "a_position", "Position")
     });
 
@@ -96,7 +94,7 @@ void App::InitPipeline() {
     pipelineConfig.layout = context->CreatePipelineLayout(layoutDesc);
     pipelineConfig.vertexShader = context->CreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size, shaderConfig);
     pipelineConfig.pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", sourceCode.fs_source, sourceCode.fs_size);
-    pipelineConfig.cullMode = LLGL::CullMode::Back;
+    pipelineConfig.cullMode = sge::CullMode::Back;
 
     m_pipeline_handle = context->CreatePipelineState(pipelineConfig);
 

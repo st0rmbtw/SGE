@@ -1,8 +1,17 @@
 #include <SGE/profile.hpp>
 #include <SGE/renderer/batch.hpp>
+#include <SGE/renderer/material.hpp>
+#include <SGE/renderer/mesh.hpp>
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/utils/utf8.hpp>
+
+#include <SGE/renderer/attributes.hpp>
+
+#include "LLGL/ShaderFlags.h"
+#include "SGE/renderer/buffer_pool.hpp"
+#include "SGE/types/binding_layout.hpp"
+#include "shaders.hpp"
 
 sge::Batch::Batch(Renderer2D& renderer, const BatchDesc& desc) :
     m_scissor_enabled(desc.enable_scissor)
@@ -14,13 +23,6 @@ sge::Batch::Batch(Renderer2D& renderer, const BatchDesc& desc) :
     m_shape_draw_commands.reserve(500);
     m_line_draw_commands.reserve(500);
     m_flush_queue.reserve(100);
-
-    m_sprite_pipeline = renderer.CreateSpriteBatchPipeline(desc.enable_scissor, desc.sprite_shader);
-    m_ninepatch_pipeline = renderer.CreateNinepatchBatchPipeline(desc.enable_scissor);
-    m_glyph_vector_pipeline = renderer.CreateGlyphVectorBatchPipeline(desc.enable_scissor);
-    m_glyph_sdf_pipeline = renderer.CreateGlyphSDFBatchPipeline(desc.enable_scissor);
-    m_shape_pipeline = renderer.CreateShapeBatchPipeline(desc.enable_scissor);
-    m_line_pipeline = renderer.CreateLineBatchPipeline(desc.enable_scissor);
 }
 
 uint32_t sge::Batch::DrawAtlasSprite(const TextureAtlasSprite& sprite, struct Order custom_order) {
@@ -348,4 +350,170 @@ uint32_t sge::Batch::DrawLine(glm::vec2 start, glm::vec2 end, float thickness, c
     ++m_line_data.total_count;
 
     return order;
+}
+
+
+
+
+
+
+
+
+
+sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer) {
+    const auto& context = renderer.GetRenderContext();
+
+    glm::vec2 vertices[] = {
+        glm::vec2(0.0f, 0.0f),
+        glm::vec2(0.0f, 1.0f),
+        glm::vec2(1.0f, 0.0f),
+        glm::vec2(1.0f, 1.0f)
+    };
+
+    LLGL::PipelineLayoutDescriptor layoutDesc;
+    layoutDesc.bindings = sge::BindingLayout({
+        sge::BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+        sge::BindingLayoutItem::Texture(3, "Texture", LLGL::StageFlags::FragmentStage),
+        sge::BindingLayoutItem::Sampler(4, "Sampler", LLGL::StageFlags::FragmentStage),
+    });
+
+    LLGL::VertexFormat vertexFormat = sge::VertexAttributes(context->Backend(), {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
+    });
+
+    LLGL::VertexFormat instanceFormat = sge::VertexAttributes(context->Backend(), vertexFormat.attributes.size(), {
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_rotation", "I_Rotation", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_uv_offset_scale", "I_UvOffsetScale", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_outline_color", "I_OutlineColor", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x3, "inp_i_position", "I_Position", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32, "inp_i_outline_thickness", "I_OutlineThickness", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
+    });
+
+    std::vector<LLGL::VertexAttribute> totalAttributes = vertexFormat.attributes;
+    totalAttributes.insert(totalAttributes.end(), instanceFormat.attributes.begin(), instanceFormat.attributes.end());
+
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = totalAttributes;
+
+    ShaderSourceCode shader = GetSpriteShaderSourceCode(context->Backend());
+
+    sge::GraphicsPipelineConfig pipelineConfig;
+    pipelineConfig.primitiveTopology = sge::PrimitiveTopology::TriangleStrip;
+    pipelineConfig.layout = context->CreatePipelineLayout(layoutDesc);
+    pipelineConfig.vertexShader = context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
+    pipelineConfig.pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+
+    m_pipeline = context->CreatePipelineState(pipelineConfig);
+    m_instance_buffer = sge::VertexBufferPool(std::move(instanceFormat));
+    m_vertex_buffer = context->CreateVertexBuffer(vertices, vertexFormat);
+}
+
+void sge::SpriteBatch::Draw(const Sprite& sprite) {
+    const auto& texture = sprite.texture();
+
+    internal::BatchTexture texture_with_sampler;
+    if (texture.is_valid()) {
+        texture_with_sampler.ptr = texture.internal().Get();
+        texture_with_sampler.sampler = texture.sampler()->internal().Get();
+        texture_with_sampler.id = texture.id();
+    }
+
+    const auto state = internal::BatchTextureState {
+        .texture = texture_with_sampler,
+        .scissor = sge::IRect(),
+        .order = 0,
+        .blend_mode = sge::BlendMode::AlphaBlend
+    };
+
+    const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(sprite.flip_x(), sprite.flip_y());
+
+    m_commands.push_back(DrawCommand { .instance_index = m_instances.size(), .state = state });
+    m_instances.push_back(SpriteInstance {
+        .rotation = glm::quat(sprite.rotation()),
+        .uv_offset_scale = uv_offset_scale,
+        .color = sprite.color().to_vec4(),
+        .outline_color = sprite.outline_color().to_vec4(),
+        .position = glm::vec3(sprite.position(), sprite.z()),
+        .size = sprite.size(),
+        .offset = sprite.anchor().to_vec2(),
+        .outline_thickness = sprite.outline_thickness(),
+        .flags = 0
+    });
+}
+
+
+sge::LineBatch::LineBatch(sge::Renderer& renderer) {
+    const auto& context = renderer.GetRenderContext();
+
+    glm::vec2 vertices[] = {
+        glm::vec2(0.0f, 0.0f),
+        glm::vec2(0.0f, 1.0f),
+        glm::vec2(1.0f, 0.0f),
+        glm::vec2(1.0f, 1.0f)
+    };
+
+    LLGL::PipelineLayoutDescriptor layoutDesc;
+    layoutDesc.bindings = sge::BindingLayout({
+        sge::BindingLayoutItem::ConstantBuffer(2, "GlobalUniformBuffer", LLGL::StageFlags::VertexStage),
+    });
+
+    LLGL::VertexFormat vertexFormat = sge::VertexAttributes(context->Backend(), {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
+    });
+
+    LLGL::VertexFormat instanceFormat = sge::VertexAttributes(context->Backend(), vertexFormat.attributes.size(), {
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_start", "I_Start", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x2, "inp_i_end", "I_End", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32x4, "inp_i_border_radius", "I_Border_Radius", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Float32, "inp_i_thickness", "I_Thickness", 1),
+        sge::Attribute::Instance(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags", 1),
+    });
+
+    std::vector<LLGL::VertexAttribute> totalAttributes = vertexFormat.attributes;
+    totalAttributes.insert(totalAttributes.end(), instanceFormat.attributes.begin(), instanceFormat.attributes.end());
+
+    sge::ShaderConfig shaderConfig;
+    shaderConfig.vertex.inputAttribs = totalAttributes;
+
+    ShaderSourceCode shader = GetLineShaderSourceCode(context->Backend());
+
+    sge::GraphicsPipelineConfig pipelineConfig;
+    pipelineConfig.primitiveTopology = sge::PrimitiveTopology::TriangleStrip;
+    pipelineConfig.layout = context->CreatePipelineLayout(layoutDesc);
+    pipelineConfig.vertexShader = context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
+    pipelineConfig.pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+
+    m_pipeline = context->CreatePipelineState(pipelineConfig);
+    m_instance_buffer = sge::VertexBufferPool(std::move(instanceFormat));
+    m_vertex_buffer = context->CreateVertexBuffer(vertices, vertexFormat);
+}
+
+void sge::LineBatch::Draw(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius, sge::Order custom_order) {
+    ZoneScoped;
+
+    glm::vec4 radius = glm::vec4(border_radius.values());
+    if (border_radius.is_relative()) {
+        const float length = glm::min(glm::length(glm::dot(start, end)), thickness);
+        radius = glm::vec4(border_radius.values()) * length / 100.0f;
+    }
+
+    // const uint32_t order = GetOrder(custom_order);
+    // const sge::IRect scissor = !m_scissors.empty() ? m_scissors.back() : sge::IRect();
+
+    const auto state = internal::BatchTextureState {};
+
+    m_commands.push_back(DrawCommand { .instance_index = m_instances.size(), .state = state });
+    m_instances.push_back(LineInstance {
+        .start = start,
+        .end = end,
+        .color = color.to_vec4(),
+        .border_radius = radius,
+        .thickness = thickness,
+        .flags = 0
+    });
 }

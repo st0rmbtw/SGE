@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <SGE/assert.hpp>
-#include <SGE/renderer/vertex_attribute.hpp>
+#include <SGE/renderer/vertex_format.hpp>
 #include <SGE/utils/alloc.hpp>
 #include <SGE/utils/containers/heaparray.hpp>
 
@@ -91,41 +91,62 @@ private:
     IndexFormat m_format = IndexFormat::None;
 };
 
+struct MeshAttribute {
+    explicit MeshAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot) :
+        name(std::move(name)),
+        semanticName(std::move(semantic_name)),
+        slot(slot),
+        format(format)
+    {
+    }
+
+    LLGL::StringLiteral name;
+    LLGL::StringLiteral semanticName;
+
+    uint32_t slot = 0;
+    sge::VertexFormat format;
+};
+
 class Mesh {
 public:
     Mesh() = default;
 
-    Mesh& AddAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) {
+    Mesh&& AddAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) && {
         m_attributes.emplace_back(format, std::move(name), std::move(semantic_name), slot);
-        return *this;
+        return std::move(*this);
     }
 
-    Mesh& AddAttribute(sge::VertexAttribute attribute) {
+    Mesh&& AddAttribute(sge::MeshAttribute attribute) && {
         m_attributes.push_back(std::move(attribute));
-        return *this;
+        return std::move(*this);
     }
 
-    Mesh& SetTopology(PrimitiveTopology topology) {
+    Mesh&& SetTopology(sge::PrimitiveTopology topology) && {
         m_topology = topology;
-        return *this;
+        return std::move(*this);
     }
 
-    Mesh& SetFrontFace(FrontFace front_face) {
+    Mesh&& SetFrontFace(sge::FrontFace front_face) && {
         m_front_face = front_face;
-        return *this;
+        return std::move(*this);
     }
 
-    Mesh& SetIndices(Indices indices) {
+    Mesh&& SetIndices(sge::Indices indices) && {
         m_indices = std::move(indices);
-        return *this;
+        return std::move(*this);
     }
 
     template <typename TVertex>
-    Mesh& SetVertices(std::span<const TVertex> vertices) {
-        return SetVertexData(vertices.data(), vertices.size_bytes(), static_cast<uint32_t>(vertices.size()));
+    Mesh&& SetVertices(std::initializer_list<TVertex> vertices) && {
+        return std::move(*this).SetVertices(std::span<const TVertex>(vertices.begin(), vertices.end()));
     }
 
-    Mesh& SetVertexData(const void* data, size_t byte_size, uint32_t vertex_count) {
+    template <typename TVertex>
+    Mesh&& SetVertices(std::span<const TVertex> vertices) && {
+        return std::move(*this).SetVertexData(vertices.data(), vertices.size_bytes(), static_cast<uint32_t>(vertices.size()));
+    }
+
+    Mesh&& SetVertexData(const void* data, size_t byte_size, uint32_t vertex_count) && {
         if (m_vertex_data) {
             free(m_vertex_data);
             m_vertex_data = nullptr;
@@ -137,16 +158,16 @@ public:
         m_vertex_data = sge::checked_alloc<uint8_t>(byte_size);
         memcpy(m_vertex_data, data, byte_size);
 
-        return *this;
+        return std::move(*this);
     }
 
     [[nodiscard]]
-    const Indices& GetIndices() const {
+    const sge::Indices& GetIndices() const {
         return m_indices;
     }
 
     [[nodiscard]]
-    const std::vector<VertexAttribute>& GetAttributes() const {
+    const std::vector<sge::MeshAttribute>& GetAttributes() const {
         return m_attributes;
     }
 
@@ -166,18 +187,18 @@ public:
     }
 
     [[nodiscard]]
-    PrimitiveTopology GetTopology() const {
+    sge::PrimitiveTopology GetTopology() const {
         return m_topology;
     };
 
     [[nodiscard]]
-    FrontFace GetFrontFace() const {
+    sge::FrontFace GetFrontFace() const {
         return m_front_face;
     };
 
 private:
     Indices m_indices;
-    std::vector<VertexAttribute> m_attributes;
+    std::vector<MeshAttribute> m_attributes;
     void* m_vertex_data = nullptr;
     size_t m_vertex_size = 0;
     uint32_t m_vertex_count = 0;

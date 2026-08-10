@@ -1,9 +1,7 @@
-#ifndef SGE_RENDERER_VERTEX_ATTRIBUTE_HPP_
-#define SGE_RENDERER_VERTEX_ATTRIBUTE_HPP_
+#ifndef SGE_RENDERER_VERTEX_FORMAT_HPP_
+#define SGE_RENDERER_VERTEX_FORMAT_HPP_
 
 #include <cstdint>
-
-#include <LLGL/Container/StringLiteral.h>
 
 namespace sge {
 
@@ -64,22 +62,6 @@ enum class VertexFormat : uint8_t {
     Unorm8x4Bgra,
 };
 
-struct VertexAttribute {
-    explicit VertexAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot) :
-        name(std::move(name)),
-        semanticName(std::move(semantic_name)),
-        slot(slot),
-        format(format)
-    {
-    }
-
-    LLGL::StringLiteral name;
-    LLGL::StringLiteral semanticName;
-
-    uint32_t slot = 0;
-    sge::VertexFormat format;
-};
-
 } // namespace sge
 
-#endif // SGE_RENDERER_VERTEX_ATTRIBUTE_HPP_
+#endif // SGE_RENDERER_VERTEX_FORMAT_HPP_

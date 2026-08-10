@@ -8,7 +8,7 @@
 #include <SGE/assert.hpp>
 #include <SGE/renderer/material.hpp>
 #include <SGE/renderer/mesh.hpp>
-#include <SGE/renderer/vertex_attribute.hpp>
+#include <SGE/renderer/vertex_format.hpp>
 #include <SGE/types/backend.hpp>
 #include <SGE/utils/hash.hpp>
 
@@ -137,13 +137,24 @@ constexpr inline LLGL::BlendTargetDescriptor ConvertBlendModeToLLGL(sge::BlendMo
     }
 }
 
-inline LLGL::VertexFormat ConvertVertexAttributesToLLGL(sge::RenderBackend backend, const std::vector<sge::VertexAttribute>& attributes) {
+inline LLGL::VertexFormat ConvertMeshAttributesToLLGL(sge::RenderBackend backend, const std::vector<sge::MeshAttribute>& attributes) {
     LLGL::VertexFormat vertexFormat;
     uint32_t location = 0;
     for (const auto& attribute : attributes) {
         auto& name = backend.IsHLSL() ? attribute.semanticName : attribute.name;
         auto format = VertexFormatToLLGLFormat(attribute.format);
         vertexFormat.AppendAttribute(LLGL::VertexAttribute(name, format, location++, 0));
+    }
+    return vertexFormat;
+}
+
+inline LLGL::VertexFormat ConvertInstanceAttributesToLLGL(sge::RenderBackend backend, const std::vector<sge::InstanceAttribute>& attributes) {
+    LLGL::VertexFormat vertexFormat;
+    uint32_t location = 0;
+    for (const auto& attribute : attributes) {
+        auto& name = backend.IsHLSL() ? attribute.semanticName : attribute.name;
+        auto format = VertexFormatToLLGLFormat(attribute.format);
+        vertexFormat.AppendAttribute(LLGL::VertexAttribute(name, format, location++, 1));
     }
     return vertexFormat;
 }

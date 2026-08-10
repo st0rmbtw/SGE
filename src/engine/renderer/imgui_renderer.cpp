@@ -8,6 +8,7 @@
 
 #include <SGE/assert.hpp>
 #include <SGE/defines.hpp>
+#include <SGE/renderer/attributes.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
 #include <SGE/types/binding_layout.hpp>
@@ -252,7 +253,7 @@ bool CreatePipelineObjects() {
     };
     bd->PipelineLayout = bd->Context->CreatePipelineLayout(layoutDesc);
 
-    bd->VertexFormat.attributes = sge::VertexAttributes(bd->Context->Backend(), {
+    bd->VertexFormat = sge::VertexAttributes(bd->Context->Backend(), {
         sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
         sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_uv", "UV"),
         sge::Attribute::Vertex(sge::VertexFormat::Unorm8x4, "inp_color", "Color"),

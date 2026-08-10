@@ -52,6 +52,8 @@ struct Vertex {
     explicit Vertex(float x, float y) noexcept : x(x), y(y) {}
 };
 
+#pragma pack(push, 1)
+
 struct LineInstance {
     glm::vec2 start;
     glm::vec2 end;
@@ -115,6 +117,8 @@ struct ShapeInstance {
     uint8_t shape;
     uint8_t flags;
 };
+
+#pragma pack(pop)
 
 struct PathData {
     glm::mat4 transformMatrix;

@@ -151,6 +151,8 @@ public:
     }
 
     T* Get() const noexcept {
+        if (!IsValid())
+            return nullptr;
         return m_data;
     }
 

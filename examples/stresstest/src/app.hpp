@@ -40,11 +40,15 @@ private:
 
 private:
     sge::Camera m_camera;
+    LLGL::FrameProfile m_profile;
+    sge::Texture m_sprite_texture;
     std::unique_ptr<sge::Renderer2D> m_renderer;
-    std::unique_ptr<sge::Batch> m_batch;
-    ExampleConfig m_config;
-
+    std::unique_ptr<sge::SpriteBatch> m_sprite_batch;
+    std::unique_ptr<sge::LineBatch> m_line_batch;
+    
     sge::LinearRgba m_custom_color = sge::color::WHITE;
+
+    ExampleConfig m_config;
 
     uint32_t m_instance_count = 0;
     uint32_t m_batch_limit = 0;

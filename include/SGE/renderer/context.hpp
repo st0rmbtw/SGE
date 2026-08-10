@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SGE/renderer/handle.hpp"
 #ifndef SGE_ENGINE_RENDERER_CONTEXT_HPP
 #define SGE_ENGINE_RENDERER_CONTEXT_HPP
 
@@ -186,7 +187,7 @@ public:
     }
 
     inline sge::Texture CopyTextureWithSampler(const sge::Texture& texture, const Ref<sge::Sampler>& sampler) {
-        return Texture(m_texture_index++, texture.size(), sampler, texture.internal());
+        return Texture(IdGenerator::Next(), texture.size(), sampler, texture.internal());
     }
 
     Raw<LLGL::Shader> LoadShaderFromFile(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const sge::ShaderConfig& config = {});
@@ -352,21 +353,21 @@ public:
     }
 
     inline Handle<LLGL::PipelineState> CreatePipelineState(const GraphicsPipelineConfig& config) {
-        uint32_t index = m_pipeline_config_index;
-        m_pipeline_configs[m_pipeline_config_index++] = config;
-        return Handle<LLGL::PipelineState>(index);
+        auto handle = Handle<LLGL::PipelineState>(IdGenerator::Next());
+        m_pipeline_configs[handle] = config;
+        return handle;
     }
 
     inline Handle<LLGL::RenderPass> CreateRenderPass(const RenderPassConfig& config) {
-        uint32_t index = m_render_pass_config_index;
-        m_render_pass_configs[m_render_pass_config_index++] = config;
-        return Handle<LLGL::RenderPass>(index);
+        auto handle = Handle<LLGL::RenderPass>(IdGenerator::Next());
+        m_render_pass_configs[handle] = config;
+        return handle;
     }
 
     inline Handle<LLGL::RenderTarget> CreateRenderTarget(const RenderTargetConfig& config) {
-        const uint32_t id = m_render_target_config_index;
-        m_render_target_configs.try_emplace(m_render_target_config_index++, config);
-        return Handle<LLGL::RenderTarget>(id);
+        auto handle = Handle<LLGL::RenderTarget>(IdGenerator::Next());
+        m_render_target_configs[handle] = config;
+        return handle;
     }
 
     void PushRenderTarget(LLGL::RenderTarget* target) {
@@ -452,9 +453,9 @@ private:
 
 private:
     std::unordered_map<uint32_t, LLGL::SwapChain*> m_swapchain_map;
-    std::unordered_map<uint32_t, GraphicsPipelineConfig> m_pipeline_configs;
-    std::unordered_map<uint32_t, RenderTargetConfig> m_render_target_configs;
-    std::unordered_map<uint32_t, RenderPassConfig> m_render_pass_configs;
+    std::unordered_map<Handle<LLGL::PipelineState>, GraphicsPipelineConfig> m_pipeline_configs;
+    std::unordered_map<Handle<LLGL::RenderTarget>, RenderTargetConfig> m_render_target_configs;
+    std::unordered_map<Handle<LLGL::RenderPass>, RenderPassConfig> m_render_pass_configs;
     std::unordered_map<PipelineConfigKey, LLGL::PipelineState*> m_pipeline_states;
     std::unordered_map<RenderTargetKey, CachedRenderTarget> m_render_targets;
     std::unordered_map<RenderPassKey, LLGL::RenderPass*> m_render_passes;
@@ -476,11 +477,6 @@ private:
 
     LLGL::CommandBuffer* m_command_buffer = nullptr;
     LLGL::RenderingDebugger* m_debugger = nullptr;
-
-    uint32_t m_pipeline_config_index = 0;
-    uint32_t m_render_target_config_index = 0;
-    uint32_t m_render_pass_config_index = 0;
-    uint32_t m_texture_index = 0;
 
     sge::RenderBackend m_backend;
 };

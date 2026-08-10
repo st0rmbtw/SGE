@@ -1,6 +1,8 @@
 #ifndef _SGE_RENDERER_BATCH_HPP_
 #define _SGE_RENDERER_BATCH_HPP_
 
+#include "SGE/renderer/buffer_pool.hpp"
+#include <concepts>
 #include <vector>
 
 #include <LLGL/RenderSystem.h>
@@ -25,6 +27,7 @@
 namespace sge {
 
 class Renderer2D;
+class Renderer;
 
 namespace internal {
 
@@ -673,6 +676,141 @@ private:
 
     sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
     sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
+};
+
+struct DrawCommand {
+    size_t instance_index;
+    internal::BatchTextureState state;
+};
+
+template <typename T>
+concept Batchable = requires (T t, sge::Unique<LLGL::BufferArray> bufferArray) {
+    { t.GetPipeline() } -> std::same_as<sge::Handle<LLGL::PipelineState>>;
+    { t.GetInstanceData() } -> std::same_as<const void*>;
+    { t.GetInstanceCount() } -> std::same_as<size_t>;
+    { t.GetVertexCount() } -> std::same_as<uint32_t>;
+    { t.GetDrawCommands() } -> std::same_as<std::vector<DrawCommand>&>;
+    { t.GetInstanceBuffer() } -> std::same_as<sge::VertexBufferPool&>;
+    { t.GetVertexBuffer() } -> std::same_as<LLGL::Buffer*>;
+    { t.BufferArray() } -> std::same_as<sge::Unique<LLGL::BufferArray>&>;
+    { t.Clear() } -> std::same_as<void>;
+};
+
+class SpriteBatch {
+public:
+    explicit SpriteBatch(sge::Renderer& renderer);
+
+    void Draw(const Sprite& sprite);
+
+    void Clear() {
+        m_commands.clear();
+        m_instances.clear();
+    }
+
+    [[nodiscard]]
+    const void* GetInstanceData() const {
+        return m_instances.data();
+    }
+
+    [[nodiscard]]
+    size_t GetInstanceCount() const {
+        return m_instances.size();
+    }
+
+    [[nodiscard]]
+    uint32_t GetVertexCount() const {
+        return 4;
+    }
+
+    std::vector<DrawCommand>& GetDrawCommands() {
+        return m_commands;
+    }
+
+    [[nodiscard]]
+    Handle<LLGL::PipelineState> GetPipeline() const {
+        return m_pipeline;
+    }
+
+    [[nodiscard]]
+    sge::VertexBufferPool& GetInstanceBuffer() {
+        return m_instance_buffer;
+    }
+
+    [[nodiscard]]
+    LLGL::Buffer* GetVertexBuffer() {
+        return m_vertex_buffer;
+    }
+
+    [[nodiscard]]
+    sge::Unique<LLGL::BufferArray>& BufferArray() {
+        return m_buffer_array;
+    }
+
+private:
+    sge::VertexBufferPool m_instance_buffer;
+    std::vector<DrawCommand> m_commands;
+    std::vector<SpriteInstance> m_instances;
+    sge::Unique<LLGL::Buffer> m_vertex_buffer;
+    sge::Unique<LLGL::BufferArray> m_buffer_array;
+    Handle<LLGL::PipelineState> m_pipeline;
+};
+
+class LineBatch {
+public:
+    explicit LineBatch(sge::Renderer& renderer);
+
+    void Draw(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius = BorderRadius(), sge::Order custom_order = {});
+
+    void Clear() {
+        m_commands.clear();
+        m_instances.clear();
+    }
+
+    [[nodiscard]]
+    const void* GetInstanceData() const {
+        return m_instances.data();
+    }
+
+    [[nodiscard]]
+    size_t GetInstanceCount() const {
+        return m_instances.size();
+    }
+
+    [[nodiscard]]
+    uint32_t GetVertexCount() const {
+        return 4;
+    }
+
+    std::vector<DrawCommand>& GetDrawCommands() {
+        return m_commands;
+    }
+
+    [[nodiscard]]
+    Handle<LLGL::PipelineState> GetPipeline() const {
+        return m_pipeline;
+    }
+
+    [[nodiscard]]
+    sge::VertexBufferPool& GetInstanceBuffer() {
+        return m_instance_buffer;
+    }
+
+    [[nodiscard]]
+    LLGL::Buffer* GetVertexBuffer() {
+        return m_vertex_buffer;
+    }
+
+    [[nodiscard]]
+    sge::Unique<LLGL::BufferArray>& BufferArray() {
+        return m_buffer_array;
+    }
+private:
+    sge::VertexBufferPool m_instance_buffer;
+    std::vector<DrawCommand> m_commands;
+    std::vector<LineInstance> m_instances;
+    sge::Unique<LLGL::Buffer> m_vertex_buffer;
+    sge::Unique<LLGL::BufferArray> m_buffer_array;
+    Handle<LLGL::PipelineState> m_pipeline;
 };
 
 } // namespace sge

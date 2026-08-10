@@ -352,7 +352,7 @@ void sge::Renderer::BlitTexture(LLGL::Texture& texture) {
 }
 
 sge::Handle<sge::Mesh> sge::Renderer::AddMesh(const Mesh& mesh) {
-    LLGL::VertexFormat vertexFormat = ConvertVertexAttributesToLLGL(m_context->Backend(), mesh.GetAttributes());
+    LLGL::VertexFormat vertexFormat = ConvertMeshAttributesToLLGL(m_context->Backend(), mesh.GetAttributes());
 
     uint64_t layoutHash = 1469598103934665603ULL;
     HashVertexFormat(layoutHash, vertexFormat);
@@ -388,7 +388,7 @@ sge::Handle<sge::Material> sge::Renderer::AddMaterial(const sge::Material& mater
     sge::hash_combine(stateHash, material.GetCullMode());
     sge::hash_combine(stateHash, material.GetBlendMode());
 
-    LLGL::VertexFormat instanceFormat = ConvertVertexAttributesToLLGL(m_context->Backend(), material.GetInstanceAttributes());
+    LLGL::VertexFormat instanceFormat = ConvertInstanceAttributesToLLGL(m_context->Backend(), material.GetInstanceAttributes());
     HashVertexFormat(stateHash, instanceFormat);
 
     auto& bindings = material.GetBindings();
@@ -444,17 +444,13 @@ sge::Handle<sge::Material> sge::Renderer::AddMaterial(const sge::Material& mater
 }
 
 LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(
-    Handle<Material> materialHandle,
+    const GpuMaterial& material,
     const LLGL::VertexFormat& vertexFormat,
     sge::PrimitiveTopology topology,
     sge::FrontFace frontFace,
     sge::IndexFormat indexFormat
 ) {
-    auto materialEntry = m_materials.find(materialHandle);
-    SGE_ASSERT(materialEntry != m_materials.end());
-    auto& material = materialEntry->second;
-
-    auto materialHash = materialEntry->second->stateHash;
+    auto materialHash = material.stateHash;
 
     uint64_t vertexFormatHash = 1469598103934665603ULL;
     HashVertexFormat(vertexFormatHash, vertexFormat);
@@ -467,14 +463,14 @@ LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(
     }
 
     LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.pipelineLayout = material->pipelineLayout;
-    pipelineDesc.vertexShader = material->vertexShader;
-    pipelineDesc.fragmentShader = material->fragmentShader;
+    pipelineDesc.pipelineLayout = material.pipelineLayout;
+    pipelineDesc.vertexShader = material.vertexShader;
+    pipelineDesc.fragmentShader = material.fragmentShader;
     pipelineDesc.indexFormat = ConvertIndexFormatToLLGL(indexFormat);
     pipelineDesc.primitiveTopology = ConvertTopologyToLLGL(topology);
     pipelineDesc.rasterizer.frontCCW = frontFace == sge::FrontFace::CCW;
-    pipelineDesc.rasterizer.cullMode = ConvertCullModeFormatToLLGL(material->cullMode);
-    pipelineDesc.blend.targets[0] = ConvertBlendModeToLLGL(material->blendMode);
+    pipelineDesc.rasterizer.cullMode = ConvertCullModeFormatToLLGL(material.cullMode);
+    pipelineDesc.blend.targets[0] = ConvertBlendModeToLLGL(material.blendMode);
 
     sge::Unique<LLGL::PipelineState> pipeline = m_context->CreatePipelineState(pipelineDesc);
     auto [it, success] = m_pipelines.try_emplace(key, std::move(pipeline));
@@ -502,7 +498,9 @@ void sge::Renderer::SubmitRaw(Handle<Mesh> meshHandle, Handle<Material> material
 
 void sge::Renderer::EndPass() {
     for (auto& [key, batch] : m_mesh_batches) {
-        LLGL::PipelineState& pipeline = GetOrCreatePipeline(key.material, batch.mesh->vertexFormat, batch.mesh->topology, batch.mesh->frontFace, batch.mesh->indexFormat);
+        const auto& material = m_materials.at(key.material);
+
+        LLGL::PipelineState& pipeline = GetOrCreatePipeline(*material, batch.mesh->vertexFormat, batch.mesh->topology, batch.mesh->frontFace, batch.mesh->indexFormat);
 
         if (batch.instanceBufferPool.Reserve(*m_context, batch.instanceBytes.size())) {
             SGE_ASSERT(batch.instanceBufferPool.Get() != nullptr);

@@ -1,73 +1,39 @@
 #ifndef _SGE_RENDERER_2D_HPP_
 #define _SGE_RENDERER_2D_HPP_
 
-#include "SGE/types/transform.hpp"
+#include <SGE/renderer/buffer_pool.hpp>
+#include <SGE/renderer/handle.hpp>
+#include <SGE/types/transform.hpp>
+
+#include "SGE/renderer/batch.hpp"
 #include "renderer.hpp"
-#include "types.hpp"
 
 #include <SGE/types/path.hpp>
 
 namespace sge {
 
-template <typename T>
-class BatchData {
-public:
-    BatchData() = default;
-    
-    BatchData(BatchData&&) = default;
-    BatchData& operator=(BatchData&&) = default;
+struct Binding {
+    uint32_t index;
+    LLGL::Resource* resource;
+};
 
-    void Init(sge::RenderContext& context, uint32_t count, const LLGL::VertexFormat& vertex_format, const LLGL::VertexFormat& instance_format);
+struct BatchSubmission {
+    Handle<LLGL::PipelineState> pipeline;
+    LLGL::BufferArray* buffer_array;
+    const DrawCommand* draw_commands;
+    size_t draw_commands_count;
+    size_t draw_commands_offset = 0;
+    uint32_t vertex_count = 0;
+};
 
-    void CreateDynamicBuffers(sge::RenderContext& context, uint32_t count);
+struct BufferPoolEntry {
+    VertexBufferPool buffer;
+    bool occupied;
+};
 
-    inline void ResizeBuffersIfNeeded(sge::RenderContext& context, uint32_t count) {
-        if (count < m_max_count) return;
-        CreateDynamicBuffers(context, count + 2500);
-    }
-
-    inline void Update(LLGL::CommandBuffer& command_buffer) {
-        UpdateBufferChunked(command_buffer, *m_instance_buffer, 0, m_buffer.data(), m_count * sizeof(T));
-    }
-
-    inline void Reset() {
-        m_count = 0;
-        m_buffer_ptr = m_buffer.data();
-    }
-
-    [[nodiscard]]
-    inline T* GetBufferAndAdvance() {
-        m_count++;
-        return m_buffer_ptr++;
-    }
-
-    [[nodiscard]]
-    inline const sge::Unique<LLGL::BufferArray>& GetBufferArray() const {
-        return m_buffer_array;
-    }
-
-    [[nodiscard]]
-    inline uint32_t Count() const {
-        return m_count;
-    }
-
-    [[nodiscard]]
-    inline uint32_t MaxCount() const {
-        return m_max_count;
-    }
-
-private:
-    sge::HeapArray<T> m_buffer;
-    T* m_buffer_ptr = nullptr;
-
-    sge::Unique<LLGL::Buffer> m_vertex_buffer;
-    sge::Unique<LLGL::Buffer> m_instance_buffer;
-    sge::Unique<LLGL::BufferArray> m_buffer_array;
-    
-    LLGL::VertexFormat m_instance_format;
-
-    uint32_t m_count = 0;
-    uint32_t m_max_count = 0;
+struct BatchData {
+    sge::internal::BatchTextureState state;
+    uint32_t offset;
 };
 
 class Renderer2D : public Renderer {
@@ -75,11 +41,31 @@ class Renderer2D : public Renderer {
 public:
     explicit Renderer2D(const std::shared_ptr<RenderContext>& context);
 
-    void Begin();
+    void Begin() {
+        m_batch_instance_count = 0;
+        Renderer::Begin();
+    }
 
-    void PrepareBatch(sge::Batch& batch);
-    void RenderBatch(sge::Batch& batch);
-    void UploadBatchData();
+    void PrepareBatch(sge::Batch& batch) {}
+    void RenderBatch(sge::Batch& batch) {}
+    void UploadBatchData() {}
+
+    template <Batchable T>
+    void SubmitBatch(T& batch) {
+        SubmitBatchRaw(batch.GetPipeline(), batch.GetVertexBuffer(), batch.GetInstanceBuffer(), batch.BufferArray(), batch.GetDrawCommands(), batch.GetVertexCount(), batch.GetInstanceData());
+    }
+
+    void SubmitBatchRaw(
+        Handle<LLGL::PipelineState> pipelineHandle,
+        LLGL::Buffer* vertexBuffer,
+        sge::VertexBufferPool& instanceBuffer,
+        sge::Unique<LLGL::BufferArray>& bufferArray,
+        std::vector<DrawCommand>& drawCommands,
+        uint32_t vertex_count,
+        const void* instanceData
+    );
+
+    void FlushBatches();
 
     template <typename... Args>
     void PrepareAndUpload(Args&... batches) {
@@ -96,34 +82,9 @@ public:
     void DrawPath(const sge::Path& path, const sge::LinearRgba& color = sge::color::WHITE, const sge::Transform& transform = sge::Transform());
 
 private:
-    SpriteBatchPipeline CreateSpriteBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = nullptr);
-    Handle<LLGL::PipelineState> CreateNinepatchBatchPipeline(bool enable_scissor);
-    Handle<LLGL::PipelineState> CreateGlyphSDFBatchPipeline(bool enable_scissor, Ref<LLGL::Shader> fragment_shader = nullptr);
-    Handle<LLGL::PipelineState> CreateGlyphVectorBatchPipeline(bool enable_scissor);
-    Handle<LLGL::PipelineState> CreateShapeBatchPipeline(bool enable_scissor);
-    Handle<LLGL::PipelineState> CreateLineBatchPipeline(bool enable_scissor);
-
-    BatchData<SpriteInstance> InitSpriteBatchData();
-    BatchData<NinePatchInstance> InitNinepatchBatchData();
-    BatchData<GlyphInstanceVector> InitVectorGlyphBatchData();
-    BatchData<GlyphInstanceSDF> InitSDFGlyphBatchData();
-    BatchData<ShapeInstance> InitShapeBatchData();
-    BatchData<LineInstance> InitLineBatchData();
-
-    void SortBatchDrawCommands(sge::Batch& batch);
-    void UpdateBatchBuffers(sge::Batch& batch);
-    void ApplyBatchDrawCommands(sge::Batch& batch);
-
     void InitVectorPipeline();
 
 private:
-    BatchData<SpriteInstance> m_sprite_batch_data;
-    BatchData<GlyphInstanceVector> m_glyph_vector_batch_data;
-    BatchData<GlyphInstanceSDF> m_glyph_sdf_batch_data;
-    BatchData<NinePatchInstance> m_ninepatch_batch_data;
-    BatchData<ShapeInstance> m_shape_batch_data;
-    BatchData<LineInstance> m_line_batch_data;
-
     Ref<LLGL::Shader> m_sprite_vertex_shader;
     Ref<LLGL::Shader> m_glyph_sdf_vertex_shader;
     Ref<LLGL::Shader> m_ninepatch_vertex_shader;
@@ -144,6 +105,11 @@ private:
     Ref<LLGL::PipelineState> m_vector_cover_pipeline;
     Ref<LLGL::Buffer> m_vector_vertex_buffer;
     Ref<LLGL::Buffer> m_vector_path_data_buffer;
+
+    std::vector<uint8_t> m_staging_data;
+
+    std::vector<BatchSubmission> m_submissions;
+    std::vector<BatchData> m_batch_data;
 
     uint32_t m_batch_path_total_count = 0;
 

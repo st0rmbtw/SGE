@@ -26,7 +26,6 @@ struct VSOutput
     nointerpolation float4 border_radius : BorderRadius;
     nointerpolation float2 size : Size;
     float2 p : Point;
-    float2 uv : UV;
 };
 
 static const uint FLAG_UI = 1 << 0;
@@ -56,7 +55,6 @@ VSOutput VS(VSInput inp)
     outp.border_radius = inp.i_border_radius;
     outp.size = size;
     outp.p = (inp.position - 0.5) * size;
-    outp.uv = inp.position;
     outp.position = mul(mvp, float4(vertices[inp.vid], 0.0, 1.0));
     outp.position.z = 1.0;
 

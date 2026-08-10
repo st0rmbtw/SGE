@@ -12,6 +12,7 @@
 #include <SGE/defines.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/renderer/context.hpp>
+#include <SGE/renderer/handle.hpp>
 #include <SGE/renderer/types.hpp>
 
 #if SGE_IMGUI_ENABLED
@@ -247,7 +248,7 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
 
     SGE_ASSERT(GetCurrentTarget() != nullptr);
 
-    const auto it_config = m_pipeline_configs.find(handle.Id());
+    const auto it_config = m_pipeline_configs.find(handle);
     SGE_ASSERT(it_config != m_pipeline_configs.end());
 
     const GraphicsPipelineConfig& config = it_config->second;
@@ -296,7 +297,7 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(Handle<LLGL::Pipeli
 LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::RenderTarget> handle, uint8_t samples) {
     ZoneScoped;
 
-    const auto it_config = m_render_target_configs.find(handle.Id());
+    const auto it_config = m_render_target_configs.find(handle);
     SGE_ASSERT(it_config != m_render_target_configs.end());
 
     const RenderTargetConfig& config = it_config->second;
@@ -384,7 +385,7 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(Handle<LLGL::Ren
 LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(Handle<LLGL::RenderPass> handle, uint8_t samples) {
     ZoneScoped;
 
-    const auto it_config = m_render_pass_configs.find(handle.Id());
+    const auto it_config = m_render_pass_configs.find(handle);
     SGE_ASSERT(it_config != m_render_pass_configs.end());
 
     const RenderPassConfig& config = it_config->second;
@@ -520,7 +521,7 @@ void sge::RenderContext::DeletePipeline(Handle<LLGL::PipelineState> handle) {
         auto key = it->first;
         auto value = it->second;
 
-        if (key == handle.Id()) {
+        if (key == handle) {
             it = m_pipeline_configs.erase(it);
             continue;
         }
@@ -554,7 +555,7 @@ void sge::RenderContext::DeleteRenderTarget(Handle<LLGL::RenderTarget> handle) {
     for (auto it = m_render_target_configs.begin(); it != m_render_target_configs.end();) {
         auto key = it->first;
 
-        if (key == handle.Id()) {
+        if (key == handle) {
             it = m_render_target_configs.erase(it);
             continue;
         }
@@ -587,12 +588,10 @@ sge::Texture sge::RenderContext::CreateTexture(const sge::TextureConfig& config,
         texture_desc.miscFlags |= LLGL::MiscFlags::NoInitialData;
     }
 
-    uint32_t id = m_texture_index++;
-
     LLGL::Texture* texture = CreateTexture(texture_desc, initialData);
     SGE_ASSERT(texture != nullptr);
 
-    return sge::Texture(id, sge::Size(config.extent.width, config.extent.height), config.sampler, Ref<LLGL::Texture>(shared_from_this(), texture));
+    return sge::Texture(IdGenerator::Next(), sge::Size(config.extent.width, config.extent.height), config.sampler, Ref<LLGL::Texture>(shared_from_this(), texture));
 }
 
 sge::Raw<LLGL::PipelineState> sge::RenderContext::CreatePipelineState(const LLGL::GraphicsPipelineDescriptor& desc) {

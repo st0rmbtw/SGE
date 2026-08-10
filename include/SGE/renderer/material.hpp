@@ -5,7 +5,7 @@
 
 #include <LLGL/ResourceFlags.h>
 #include <SGE/renderer/resource.hpp>
-#include <SGE/renderer/vertex_attribute.hpp>
+#include <SGE/renderer/vertex_format.hpp>
 #include <SGE/types/binding_layout.hpp>
 
 #include <LLGL/Buffer.h>
@@ -41,112 +41,118 @@ struct BindingSlot {
     > resource;
 };
 
+struct InstanceAttribute {
+    explicit InstanceAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot) :
+        name(std::move(name)),
+        semanticName(std::move(semantic_name)),
+        slot(slot),
+        format(format)
+    {
+    }
+
+    LLGL::StringLiteral name;
+    LLGL::StringLiteral semanticName;
+
+    uint32_t slot = 0;
+    sge::VertexFormat format;
+};
+
 class Material {
 public:
     Material() = default;
 
-    Material& SetVertexShader(sge::Ref<LLGL::Shader> vertex_shader) {
-        m_vertex_shader = std::move(vertex_shader);
-        return *this;
+    Material&& SetVertexShader(sge::Ref<LLGL::Shader> vertexShader) && {
+        m_vertex_shader = std::move(vertexShader);
+        return std::move(*this);
     }
 
-    Material& SetFragmentShader(sge::Ref<LLGL::Shader> fragment_shader) {
-        m_fragment_shader = std::move(fragment_shader);
-        return *this;
+    Material&& SetFragmentShader(sge::Ref<LLGL::Shader> fragmentShader) && {
+        m_fragment_shader = std::move(fragmentShader);
+        return std::move(*this);
     }
 
-    Material& SetVertexEntryPoint(LLGL::StringLiteral entry_point) {
-        m_vertex_entry = std::move(entry_point);
-        return *this;
+    Material&& SetCullMode(sge::CullMode cullMode) && {
+        m_cull_mode = cullMode;
+        return std::move(*this);
     }
 
-    Material& SetFragmentEntryPoint(LLGL::StringLiteral entry_point) {
-        m_fragment_entry = std::move(entry_point);
-        return *this;
+    Material&& SetBlendMode(sge::BlendMode blendMode) && {
+        m_blend_mode = blendMode;
+        return std::move(*this);
     }
 
-    Material& SetCullMode(CullMode cull_mode) {
-        m_cull_mode = cull_mode;
-        return *this;
-    }
-
-    Material& SetBlendMode(BlendMode blend_mode) {
-        m_blend_mode = blend_mode;
-        return *this;
-    }
-
-    Material& TextureStorage(uint32_t slot, sge::Ref<LLGL::Texture> texture, long stage = -1) {
+    Material&& BindTextureStorage(uint32_t slot, sge::Ref<LLGL::Texture> texture, long stage = -1) && {
         m_bindings.push_back(BindingSlot {
             .index = slot,
             .bindFlags = LLGL::BindFlags::Storage,
             .stage = stage,
             .resource = texture
         });
-        return *this;
+        return std::move(*this);
     }
 
-    Material& Texture(uint32_t slot, sge::Ref<LLGL::Texture> texture, long stage = -1) {
+    Material&& BindTexture(uint32_t slot, sge::Ref<LLGL::Texture> texture, long stage = -1) && {
         m_bindings.push_back(BindingSlot {
             .index = slot,
             .bindFlags = LLGL::BindFlags::Sampled,
             .stage = stage,
             .resource = texture
         });
-        return *this;
+        return std::move(*this);
     }
 
-    Material& StorageBuffer(uint32_t slot, sge::Ref<LLGL::Buffer> buffer, long stage = -1) {
+    Material&& BindStorageBuffer(uint32_t slot, sge::Ref<LLGL::Buffer> buffer, long stage = -1) && {
         m_bindings.push_back(BindingSlot {
             .index = slot,
             .bindFlags = LLGL::BindFlags::Storage,
             .stage = stage,
             .resource = buffer
         });
-        return *this;
+        return std::move(*this);
     }
 
-    Material& Buffer(uint32_t slot, sge::Ref<LLGL::Buffer> buffer, long stage = -1) {
+    Material&& BindBuffer(uint32_t slot, sge::Ref<LLGL::Buffer> buffer, long stage = -1) && {
         m_bindings.push_back(BindingSlot {
             .index = slot,
             .bindFlags = LLGL::BindFlags::Sampled,
             .stage = stage,
             .resource = buffer
         });
-        return *this;
+        return std::move(*this);
     }
 
-    Material& ConstantBuffer(uint32_t slot, sge::Ref<LLGL::Buffer> buffer, long stage = -1) {
+    Material&& BindConstantBuffer(uint32_t slot, sge::Ref<LLGL::Buffer> buffer, long stage = -1) && {
         m_bindings.push_back(BindingSlot {
             .index = slot,
             .bindFlags = LLGL::BindFlags::ConstantBuffer,
             .stage = stage,
             .resource = buffer
         });
-        return *this;
+        return std::move(*this);
     }
 
-    Material& Sampler(uint32_t slot, sge::Ref<LLGL::Sampler> sampler, long stage = -1) {
+    Material&& BindSampler(uint32_t slot, sge::Ref<LLGL::Sampler> sampler, long stage = -1) && {
         m_bindings.push_back(BindingSlot {
             .index = slot,
             .bindFlags = 0,
             .stage = stage,
             .resource = sampler
         });
-        return *this;
+        return std::move(*this);
     }
 
-    Material& AddInstanceAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) {
-        m_instance_attributes.emplace_back(format, std::move(name), std::move(semantic_name), slot);
-        return *this;
+    Material&& AddInstanceAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semanticName, uint32_t slot = 0) && {
+        m_instance_attributes.emplace_back(format, std::move(name), std::move(semanticName), slot);
+        return std::move(*this);
     }
 
-    Material& AddInstanceAttribute(sge::VertexAttribute attribute) {
+    Material&& AddInstanceAttribute(sge::InstanceAttribute attribute) && {
         m_instance_attributes.push_back(std::move(attribute));
-        return *this;
+        return std::move(*this);
     }
 
     [[nodiscard]]
-    const std::vector<VertexAttribute>& GetInstanceAttributes() const {
+    const std::vector<InstanceAttribute>& GetInstanceAttributes() const {
         return m_instance_attributes;
     }
 
@@ -166,36 +172,23 @@ public:
     }
 
     [[nodiscard]]
-    const LLGL::StringLiteral& GetVertexEntry() const {
-        return m_vertex_entry;
-    }
-
-    [[nodiscard]]
-    const LLGL::StringLiteral& GetFragmentEntry() const {
-        return m_vertex_entry;
-    }
-
-    [[nodiscard]]
-    CullMode GetCullMode() const {
+    sge::CullMode GetCullMode() const {
         return m_cull_mode;
     }
 
     [[nodiscard]]
-    BlendMode GetBlendMode() const {
+    sge::BlendMode GetBlendMode() const {
         return m_blend_mode;
     }
 
 private:
-    std::vector<VertexAttribute> m_instance_attributes;
+    std::vector<InstanceAttribute> m_instance_attributes;
     std::vector<BindingSlot> m_bindings;
 
     sge::Ref<LLGL::Shader> m_vertex_shader = nullptr;
     sge::Ref<LLGL::Shader> m_fragment_shader = nullptr;
 
-    LLGL::StringLiteral m_vertex_entry = "VS";
-    LLGL::StringLiteral m_fragment_entry = "PS";
-
-    CullMode m_cull_mode = CullMode::Back;
+    CullMode m_cull_mode = CullMode::None;
     BlendMode m_blend_mode = BlendMode::AlphaBlend;
 };
 

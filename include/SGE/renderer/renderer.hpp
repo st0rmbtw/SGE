@@ -101,7 +101,7 @@ public:
     Handle<Material> AddMaterial(const sge::Material& material);
 
     LLGL::PipelineState& GetOrCreatePipeline(
-        Handle<Material> material,
+        const GpuMaterial& material,
         const LLGL::VertexFormat& vertexFormat,
         sge::PrimitiveTopology topology,
         sge::FrontFace frontFace,
@@ -119,7 +119,7 @@ public:
     }
 
     [[nodiscard]]
-    inline const Unique<LLGL::Buffer>& GlobalUniformBuffer() const noexcept {
+    inline const Ref<LLGL::Buffer>& GlobalUniformBuffer() const noexcept {
         return m_uniform_buffer;
     }
 
@@ -166,8 +166,11 @@ protected:
     struct PipelineKey {
         uint64_t vertexFormatHash = 0;
         uint64_t materialHash = 0;
-    };
 
+        friend bool operator==(const PipelineKey& a, const PipelineKey& b) noexcept {
+            return a.vertexFormatHash == b.vertexFormatHash && a.materialHash == b.materialHash;
+        }
+    };
     
     struct PipelineKeyHasher {
         size_t operator()(const PipelineKey& key) const noexcept {
@@ -181,6 +184,10 @@ protected:
     struct BatchKey {
         Handle<Mesh> mesh;
         Handle<Material> material;
+
+        friend bool operator==(const BatchKey& a, const BatchKey& b) noexcept {
+            return a.mesh.Id() == b.mesh.Id() && a.material.Id() == b.material.Id();
+        }
     };
 
     struct BatchKeyHasher {
@@ -203,7 +210,7 @@ protected:
 
     LLGL::VertexFormat m_fullscreen_triangle_vertex_format;
 
-    Unique<LLGL::Buffer> m_uniform_buffer;
+    Ref<LLGL::Buffer> m_uniform_buffer;
     Unique<LLGL::Buffer> m_bloom_cb;
 
     Unique<LLGL::RenderPass> m_bloom_render_pass;
@@ -230,7 +237,7 @@ protected:
     std::unordered_map<Handle<Mesh>, std::shared_ptr<GpuMesh>> m_meshes;
     std::unordered_map<Handle<Material>, std::shared_ptr<GpuMaterial>> m_materials;
     std::unordered_map<PipelineKey, sge::Unique<LLGL::PipelineState>, PipelineKeyHasher> m_pipelines;
-    std::unordered_map<BatchKey, MeshBatch> m_mesh_batches;
+    std::unordered_map<BatchKey, MeshBatch, BatchKeyHasher> m_mesh_batches;
     
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;

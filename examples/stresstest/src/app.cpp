@@ -10,7 +10,6 @@
 #include <SGE/time/stopwatch.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
-#include <SGE/types/blend_mode.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/shape.hpp>
 #include <SGE/types/window_settings.hpp>
@@ -63,7 +62,19 @@ bool App::OnInit() {
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
 
-    m_batch = m_renderer->CreateBatch();
+    m_sprite_batch = std::make_unique<sge::SpriteBatch>(*m_renderer);
+    m_line_batch = std::make_unique<sge::LineBatch>(*m_renderer);
+
+    sge::TextureConfig textureConfig;
+    textureConfig.sampler = GetRenderContext()->GetNearestSampler();
+
+    uint8_t pixelData[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+
+    LLGL::ImageView imageView;
+    imageView.data = &pixelData;
+    imageView.dataSize = sizeof(pixelData);
+
+    m_sprite_texture = GetRenderContext()->CreateTexture(textureConfig, &imageView);
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -73,7 +84,7 @@ bool App::OnInit() {
 }
 
 App::~App() {
-    m_renderer->DestroyBatch(*m_batch);
+    // m_renderer->DestroyBatch(*m_batch);
 }
 
 void App::DrawContent(LLGL::Extent2D viewport) {
@@ -91,14 +102,14 @@ void App::DrawContent(LLGL::Extent2D viewport) {
                 color.g = sge::Random::Float(0.0f, 1.0f);
                 color.b = sge::Random::Float(0.0f, 1.0f);
 
-                m_batch->DrawLine(start, end, 1.0f, color);
+                m_line_batch->Draw(start, end, 1.0f, color);
             }
         } else {
             for (uint32_t i = 0; i < m_instance_count; ++i) {
                 const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
                 const glm::vec2 start = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
                 const glm::vec2 end = start + size;
-                m_batch->DrawLine(start, end, 1.0f, m_custom_color);
+                m_line_batch->Draw(start, end, 1.0f, m_custom_color);
             }
         }
     } else if (m_batch_type == BatchType::Shape) {
@@ -114,30 +125,30 @@ void App::DrawContent(LLGL::Extent2D viewport) {
                 if (m_shape_type == sge::Shape::Rect) {
                     const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
 
-                    m_batch->DrawRect(position, sge::ShapeRect {
-                        .size = size,
-                        .color = color
-                    });
+                    // m_batch->DrawRect(position, sge::ShapeRect {
+                    //     .size = size,
+                    //     .color = color
+                    // });
                 } else if (m_shape_type == sge::Shape::Circle) {
                     const float radius = sge::Random::Float(m_radius_from, m_radius_to);
 
-                    m_batch->DrawCircle(position, sge::ShapeCircle {
-                        .radius = radius,
-                        .color = color
-                    });
+                    // m_batch->DrawCircle(position, sge::ShapeCircle {
+                    //     .radius = radius,
+                    //     .color = color
+                    // });
                 } else if (m_shape_type == sge::Shape::Arc) {
                     const float outer_radius = sge::Random::Float(m_outer_radius_from, m_outer_radius_to);
                     const float inner_radius = sge::Random::Float(m_inner_radius_from, m_inner_radius_to);
                     const float start_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
                     const float end_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
 
-                    m_batch->DrawArc(position, sge::ShapeArc {
-                        .outer_radius = outer_radius,
-                        .inner_radius = inner_radius,
-                        .start_angle = start_angle,
-                        .end_angle = end_angle,
-                        .color = color
-                    });
+                    // m_batch->DrawArc(position, sge::ShapeArc {
+                    //     .outer_radius = outer_radius,
+                    //     .inner_radius = inner_radius,
+                    //     .start_angle = start_angle,
+                    //     .end_angle = end_angle,
+                    //     .color = color
+                    // });
                 }
             }
         } else {
@@ -147,30 +158,30 @@ void App::DrawContent(LLGL::Extent2D viewport) {
                 if (m_shape_type == sge::Shape::Rect) {
                     const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
 
-                    m_batch->DrawRect(position, sge::ShapeRect {
-                        .size = size,
-                        .color = m_custom_color
-                    });
+                    // m_batch->DrawRect(position, sge::ShapeRect {
+                    //     .size = size,
+                    //     .color = m_custom_color
+                    // });
                 } else if (m_shape_type == sge::Shape::Circle) {
                     const float radius = sge::Random::Float(m_radius_from, m_radius_to);
 
-                    m_batch->DrawCircle(position, sge::ShapeCircle {
-                        .radius = radius,
-                        .color = m_custom_color
-                    });
+                    // m_batch->DrawCircle(position, sge::ShapeCircle {
+                    //     .radius = radius,
+                    //     .color = m_custom_color
+                    // });
                 } else if (m_shape_type == sge::Shape::Arc) {
                     const float outer_radius = sge::Random::Float(m_outer_radius_from, m_outer_radius_to);
                     const float inner_radius = sge::Random::Float(m_inner_radius_from, m_inner_radius_to);
                     const float start_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
                     const float end_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
 
-                    m_batch->DrawArc(position, sge::ShapeArc {
-                        .outer_radius = outer_radius,
-                        .inner_radius = inner_radius,
-                        .start_angle = start_angle,
-                        .end_angle = end_angle,
-                        .color = m_custom_color
-                    });
+                    // m_batch->DrawArc(position, sge::ShapeArc {
+                    //     .outer_radius = outer_radius,
+                    //     .inner_radius = inner_radius,
+                    //     .start_angle = start_angle,
+                    //     .end_angle = end_angle,
+                    //     .color = m_custom_color
+                    // });
                 }
             }
         }
@@ -178,19 +189,43 @@ void App::DrawContent(LLGL::Extent2D viewport) {
         // TODO
     } else if (m_batch_type == BatchType::Sprite) {
         // TODO
+        sge::LinearRgba color;
+        sge::Sprite sprite;
+
+        for (uint32_t i = 0; i < m_instance_count; ++i) {
+            if (m_coloring == Coloring::Random) {
+                color.r = sge::Random::Float(0.0f, 1.0f);
+                color.g = sge::Random::Float(0.0f, 1.0f);
+                color.b = sge::Random::Float(0.0f, 1.0f);
+            } else {
+                color = m_custom_color;
+            }
+
+            const glm::vec2 position = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
+            const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
+
+            sprite.set_position(position);
+            sprite.set_color(color);
+            sprite.set_custom_size(size);
+            sprite.set_texture(m_sprite_texture);
+
+            m_sprite_batch->Draw(sprite);
+        }
     }
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-    m_batch->BeginOrderMode();
-    {
+    // m_batch->BeginOrderMode();
+    // {
         DrawContent(window->GetSize());
-    }
-    m_batch->EndOrderMode();
+    // }
+    // m_batch->EndOrderMode();
 
     m_renderer->Begin();
     {
-        m_renderer->PrepareAndUpload(*m_batch);
+        // m_renderer->PrepareAndUpload(*m_batch);
+        m_renderer->SubmitBatch(*m_sprite_batch);
+        m_renderer->SubmitBatch(*m_line_batch);
 
         m_renderer->BeginPass(window, m_camera);
         {
@@ -199,7 +234,8 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             static constexpr float blue = ((float)0xD3) / 255.0f;
             m_renderer->Clear(LLGL::ClearValue(red, green, blue, 1.0f));
 
-            m_renderer->RenderBatch(*m_batch);
+            // m_renderer->RenderBatch(*m_batch);
+            m_renderer->FlushBatches();
 
             #if SGE_IMGUI_ENABLED
             GetRenderContext()->BeginImGuiFrame(*window);
@@ -214,7 +250,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
                         if (ImGui::CollapsingHeader("Settings")) {
                             if (ImGui::DragScalar("Batch Limit", ImGuiDataType_U32, &m_batch_limit, 100.0f)) {
-                                m_batch->SetMaxCount((m_batch_limit == 0) ? UINT32_MAX : m_batch_limit);
+                                // m_batch->SetMaxCount((m_batch_limit == 0) ? UINT32_MAX : m_batch_limit);
                             }
                             ImGui::DragScalar("Instance Count", ImGuiDataType_U32, &m_instance_count);
                             
@@ -281,13 +317,12 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                             ImGui::Text("Frame time: %.3f ms (%.0f FPS)", Duration::GetAs<float, std::milli>(Time::Delta()), 1.0 / sge::Time::DeltaSeconds());
                             
                             #if SGE_DEBUG_LAYER_ENABLED
-                            LLGL::FrameProfile profile;
-                            GetRenderContext()->GetFrameProfile(&profile);
+                            GetRenderContext()->GetFrameProfile(&m_profile);
                             
                             uint64_t cpuTimeSum = 0;
                             uint64_t gpuTimeSum = 0;
                             
-                            for (const auto& record : profile.timeRecords) {
+                            for (const auto& record : m_profile.timeRecords) {
                                 cpuTimeSum += (record.cpuTicksEnd - record.cpuTicksStart);
                                 gpuTimeSum += record.elapsedTime;
                             }
@@ -298,7 +333,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                             ImGui::Text("CPU time: %.3f ms", cpuTimeSec * 1000.f);
                             ImGui::Text("GPU time: %.3f ms", gpuTimeSec * 1000.f);
 
-                            ImGui::Text("Draw commands: %d", profile.commandBufferRecord.drawCommands);
+                            ImGui::Text("Draw commands: %d", m_profile.commandBufferRecord.drawCommands);
                             #endif
                         }
                     }
@@ -332,5 +367,6 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         #endif
     }
     m_renderer->End();
-    m_batch->Reset();
+    m_sprite_batch->Clear();
+    m_line_batch->Clear();
 }

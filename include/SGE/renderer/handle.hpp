@@ -17,7 +17,7 @@ public:
     uint64_t Id() const { return m_id; }
 
     [[nodiscard]]
-    bool IsValid() const { return m_id == INVALID; }
+    bool IsValid() const { return m_id != INVALID; }
 
     friend bool operator==(const Handle& a, const Handle& b) { return a.m_id == b.m_id; }
     friend bool operator!=(const Handle& a, const Handle& b) { return a.m_id != b.m_id; }
@@ -39,7 +39,7 @@ private:
 template <typename Tag>
 struct std::hash<sge::Handle<Tag>> {
     size_t operator()(const sge::Handle<Tag>& h) const noexcept {
-        return std::hash<uint64_t>{}(h.value());
+        return std::hash<uint64_t>{}(h.Id());
     }
 };
 
