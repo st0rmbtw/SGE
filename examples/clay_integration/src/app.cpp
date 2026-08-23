@@ -81,41 +81,12 @@ App::~App() {
 void App::OnUpdate() {
     const glm::uvec2 window_size = m_camera.viewport();
 
-    const sge::Transform& camera_transform = m_camera.transform();
-
     Clay_SetLayoutDimensions(Clay_Dimensions {
         .width = static_cast<float>(window_size.x),
         .height = static_cast<float>(window_size.y)
     });
 
-    for (const float scroll : Input::ScrollEvents()) {
-        const float zoom_factor = glm::pow(0.75f, scroll);
-        const float new_zoom = m_camera.zoom() * zoom_factor;
-
-        m_camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
-
-        const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::CursorPosition());
-        const glm::vec2 length = mouse_pos - glm::vec2(camera_transform.translation);
-        const glm::vec2 scaledLength = length * zoom_factor;
-        const glm::vec2 deltaLength = length - scaledLength;
-
-        const sge::Rect& area = m_camera.get_projection_area();
-
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + deltaLength;
-        m_camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size) - area.size()));
-    }
-
-    if (Input::Pressed(sge::MouseButton::Left)) {
-        const sge::Rect& area = m_camera.get_projection_area();
-
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) - Input::MouseDelta() * m_camera.zoom();
-        m_camera.set_position(new_position);
-    }
-
-    if (Input::JustPressed(Key::Escape)) {
-        m_camera.set_position(glm::vec2(0.0f));
-        m_camera.set_zoom(1.0f);
-    }
+    ControlCamera2D(m_camera);
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
@@ -293,9 +264,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
           break;
         }
     }
-    
+
     const glm::vec2 center = m_camera.screen_center();
-    
+
     m_batch->DrawRect(center, {
         .size = glm::vec2(250.0f),
         .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
@@ -303,7 +274,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         .border_color = sge::color::BLUE,
         .border_radius = sge::BorderRadius::Absolute(14.0f)
     });
-    
+
     sge::RichText text = sge::rich_text("Hello", 80.f, sge::color::WHITE);
     m_batch->DrawText(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::GetDefaultFont());
 
@@ -315,7 +286,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
         m_renderer->RenderBatch(*m_batch);
     }
     m_renderer->EndPass();
-    
+
     m_renderer->End();
     m_batch->Reset();
 

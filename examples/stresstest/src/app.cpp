@@ -116,12 +116,12 @@ void App::DrawContent(LLGL::Extent2D viewport) {
         if (m_coloring == Coloring::Random) {
             for (uint32_t i = 0; i < m_instance_count; ++i) {
                 const glm::vec2 position = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
-                
+
                 sge::LinearRgba color;
                 color.r = sge::Random::Float(0.0f, 1.0f);
                 color.g = sge::Random::Float(0.0f, 1.0f);
                 color.b = sge::Random::Float(0.0f, 1.0f);
-                
+
                 if (m_shape_type == sge::Shape::Rect) {
                     const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
 
@@ -154,7 +154,7 @@ void App::DrawContent(LLGL::Extent2D viewport) {
         } else {
             for (uint32_t i = 0; i < m_instance_count; ++i) {
                 const glm::vec2 position = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
-                
+
                 if (m_shape_type == sge::Shape::Rect) {
                     const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
 
@@ -215,6 +215,9 @@ void App::DrawContent(LLGL::Extent2D viewport) {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
+    m_sprite_batch->Clear();
+    m_line_batch->Clear();
+
     // m_batch->BeginOrderMode();
     // {
         DrawContent(window->GetSize());
@@ -224,11 +227,12 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     m_renderer->Begin();
     {
         // m_renderer->PrepareAndUpload(*m_batch);
-        m_renderer->SubmitBatch(*m_sprite_batch);
-        m_renderer->SubmitBatch(*m_line_batch);
 
         m_renderer->BeginPass(window, m_camera);
         {
+            m_renderer->SubmitBatch(*m_sprite_batch);
+            m_renderer->SubmitBatch(*m_line_batch);
+
             static constexpr float red = ((float)0xC5) / 255.0f;
             static constexpr float green = ((float)0xC8) / 255.0f;
             static constexpr float blue = ((float)0xD3) / 255.0f;
@@ -243,7 +247,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                 ImGui::NewFrame();
                 {
                     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
-                    
+
                     ImGui::Begin("Stress Test");
                     {
                         ImGui::Text("Renderer: %s", GetRenderContext()->GetRendererInfo().rendererName.c_str());
@@ -253,7 +257,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                                 // m_batch->SetMaxCount((m_batch_limit == 0) ? UINT32_MAX : m_batch_limit);
                             }
                             ImGui::DragScalar("Instance Count", ImGuiDataType_U32, &m_instance_count);
-                            
+
                             static const char* batch_names[] = { "Line", "Shape", "Ninepatch", "Sprite" };
                             static int selected_batch_type = 0;
                             if (ImGui::Combo("Batch Type", &selected_batch_type, batch_names, IM_ARRAYSIZE(batch_names))) {
@@ -315,21 +319,21 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                         #endif
                         if (statisticHeaderOpened) {
                             ImGui::Text("Frame time: %.3f ms (%.0f FPS)", Duration::GetAs<float, std::milli>(Time::Delta()), 1.0 / sge::Time::DeltaSeconds());
-                            
+
                             #if SGE_DEBUG_LAYER_ENABLED
                             GetRenderContext()->GetFrameProfile(&m_profile);
-                            
+
                             uint64_t cpuTimeSum = 0;
                             uint64_t gpuTimeSum = 0;
-                            
+
                             for (const auto& record : m_profile.timeRecords) {
                                 cpuTimeSum += (record.cpuTicksEnd - record.cpuTicksStart);
                                 gpuTimeSum += record.elapsedTime;
                             }
-                            
+
                             float cpuTimeSec = static_cast<float>(cpuTimeSum) / LLGL::Timer::Frequency();
                             float gpuTimeSec = static_cast<float>(gpuTimeSum) / std::nano::den;
-                            
+
                             ImGui::Text("CPU time: %.3f ms", cpuTimeSec * 1000.f);
                             ImGui::Text("GPU time: %.3f ms", gpuTimeSec * 1000.f);
 
@@ -367,6 +371,4 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         #endif
     }
     m_renderer->End();
-    m_sprite_batch->Clear();
-    m_line_batch->Clear();
 }

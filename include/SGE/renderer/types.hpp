@@ -34,17 +34,6 @@ struct GpuMesh {
     sge::FrontFace frontFace;
 };
 
-struct GpuMaterial {
-    LLGL::VertexFormat instanceFormat;
-    sge::Ref<LLGL::Shader> vertexShader;
-    sge::Ref<LLGL::Shader> fragmentShader;
-    sge::Unique<LLGL::PipelineLayout> pipelineLayout;
-    sge::Unique<LLGL::ResourceHeap> resourceHeap;
-    uint64_t stateHash = 0;
-    sge::BlendMode blendMode;
-    sge::CullMode cullMode;
-};
-
 struct Vertex {
     float x;
     float y;
@@ -125,6 +114,37 @@ struct PathData {
     glm::vec4 color;
 };
 
+namespace internal {
+
+template <typename Tag>
+class ResourceId {
+    static inline constexpr uint32_t INVALID = 0;
+public:
+    ResourceId() = default;
+    explicit ResourceId(uint32_t value) : m_value(value) {}
+
+    [[nodiscard]]
+    uint32_t Value() const noexcept {
+        return m_value;
+    }
+
+    [[nodiscard]]
+    bool IsValid() const noexcept {
+        return m_value != INVALID;
+    }
+
+    friend bool operator==(const ResourceId& a, const ResourceId& b) noexcept { return a.m_value == b.m_value; }
+    friend bool operator!=(const ResourceId& a, const ResourceId& b) noexcept { return a.m_value != b.m_value; }
+private:
+    uint32_t m_value = INVALID;
+};
+
+} // namespace internal
+
+using PipelineId = internal::ResourceId<LLGL::PipelineState>;
+using RenderPassId = internal::ResourceId<LLGL::RenderPass>;
+using RenderTargetId = internal::ResourceId<LLGL::RenderTarget>;
+
 struct GraphicsPipelineConfig {
     LLGL::BlendDescriptor blend;
     LLGL::StencilDescriptor stencil;
@@ -134,7 +154,9 @@ struct GraphicsPipelineConfig {
     Ref<LLGL::Shader> vertexShader;
     Ref<LLGL::Shader> geometryShader;
     Ref<LLGL::Shader> pixelShader;
-    Handle<LLGL::RenderPass> renderPass;
+    std::vector<LLGL::VertexAttribute> inputVertexAttribs;
+    std::vector<LLGL::VertexAttribute> outputVertexAttribs;
+    RenderPassId renderPass;
     sge::PrimitiveTopology primitiveTopology = sge::PrimitiveTopology::TriangleList;
     sge::IndexFormat indexFormat = sge::IndexFormat::None;
     sge::CullMode cullMode = sge::CullMode::None;
@@ -164,7 +186,7 @@ struct AttachmentConfig {
 
 struct RenderTargetConfig {
     std::string debugName;
-    Handle<LLGL::RenderPass> renderPass;
+    RenderPassId renderPass;
     LLGL::Extent2D resolution;
     LLGL::Format format;
 
@@ -193,7 +215,7 @@ struct FramebufferConfig {
     sge::AttachmentConfig colorAttachments[LLGL_MAX_NUM_COLOR_ATTACHMENTS];
     sge::AttachmentConfig depthStencilAttachment;
 
-    const char* debugName = nullptr; 
+    const char* debugName = nullptr;
     sge::Ref<LLGL::RenderPass> renderPass;
     LLGL::Extent2D resolution;
     uint8_t samples = 1;
@@ -221,15 +243,15 @@ inline constexpr bool operator==(const BloomSettings& a, const BloomSettings& b)
 }
 
 struct SpriteBatchPipeline {
-    sge::Handle<LLGL::PipelineState> additive;
-    sge::Handle<LLGL::PipelineState> alpha_blend;
-    sge::Handle<LLGL::PipelineState> opaque;
-    sge::Handle<LLGL::PipelineState> premultiplied_alpha;
+    sge::PipelineId additive;
+    sge::PipelineId alpha_blend;
+    sge::PipelineId opaque;
+    sge::PipelineId premultiplied_alpha;
 
-    sge::Handle<LLGL::PipelineState> depth_additive;
-    sge::Handle<LLGL::PipelineState> depth_alpha_blend;
-    sge::Handle<LLGL::PipelineState> depth_opaque;
-    sge::Handle<LLGL::PipelineState> depth_premultiplied_alpha;
+    sge::PipelineId depth_additive;
+    sge::PipelineId depth_alpha_blend;
+    sge::PipelineId depth_opaque;
+    sge::PipelineId depth_premultiplied_alpha;
 };
 
 struct TextureWithSampler {
@@ -238,5 +260,12 @@ struct TextureWithSampler {
 };
 
 } // namespace sge
+
+template<typename Tag>
+struct std::hash<sge::internal::ResourceId<Tag>> {
+    size_t operator()(const sge::internal::ResourceId<Tag>& r) const noexcept {
+        return std::hash<uint32_t>{}(r.Value());
+    }
+};
 
 #endif

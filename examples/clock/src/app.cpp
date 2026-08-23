@@ -124,37 +124,7 @@ void App::OnUpdate() {
         return;
 
     sge::Camera& camera = m_cameras[window->GetID()];
-    sge::Transform& camera_transform = camera.transform();
-
-    for (const float scroll : Input::ScrollEvents()) {
-        const float zoom_factor = glm::pow(0.75f, scroll);
-        const float new_zoom = camera.zoom() * zoom_factor;
-
-        camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
-
-        const glm::vec2 mouse_pos = camera.screen_to_world(Input::CursorPosition());
-        const glm::vec2 length = mouse_pos - glm::vec2(camera_transform.translation);
-        const glm::vec2 scaledLength = length * zoom_factor;
-        const glm::vec2 deltaLength = length - scaledLength;
-
-        const sge::Rect& area = camera.get_projection_area();
-        const glm::uvec2 window_size = camera.viewport();
-
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + deltaLength;
-        camera.set_position(glm::clamp(new_position, glm::vec2(0.0f), glm::vec2(window_size) - area.size()));
-    }
-
-    if (Input::Pressed(MouseButton::Left)) {
-        const sge::Rect& area = camera.get_projection_area();
-
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) - Input::MouseDelta() * camera.zoom();
-        camera.set_position(new_position);
-    }
-
-    if (Input::JustPressed(Key::Escape)) {
-        camera.set_position(glm::vec2(0.0f));
-        camera.set_zoom(1.0f);
-    }
+    ControlCamera2D(camera);
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {

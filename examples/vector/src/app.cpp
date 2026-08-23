@@ -87,46 +87,21 @@ App::~App() {
 }
 
 void App::OnUpdate() {
-    sge::Transform& camera_transform = m_camera.transform();
-
-    for (const float scroll : Input::ScrollEvents()) {
-        const float zoom_factor = glm::pow(0.75f, scroll);
-        const float new_zoom = m_camera.zoom() * zoom_factor;
-
-        m_camera.set_zoom(glm::clamp(new_zoom, 0.0f, 1.0f));
-
-        const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::CursorPosition());
-        const glm::vec2 length = mouse_pos - glm::vec2(camera_transform.translation);
-        const glm::vec2 scaledLength = length * zoom_factor;
-        const glm::vec2 deltaLength = length - scaledLength;
-
-        const sge::Rect& area = m_camera.get_projection_area();
-        const glm::vec2 window_size = glm::vec2(m_camera.viewport());
-
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + deltaLength;
-        m_camera.set_position(glm::clamp(new_position, area.size() - window_size, window_size - area.size()));
-    }
-
-    if (Input::Pressed(MouseButton::Left)) {
-        const sge::Rect& area = m_camera.get_projection_area();
-
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + Input::MouseDelta() * m_camera.zoom() * glm::vec2(-1.f, -1.f);
-        m_camera.set_position(new_position);
-    }
+    ControlCamera2D(m_camera);
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     m_renderer->Begin();
     {
         auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), LLGL::Format::RG11B10Float);
-        
+
         m_renderer->BeginPass(*framebuffer.GetRenderTarget(), m_camera);
         {
             m_renderer->Clear(LLGL::ClearValue(0.6f, 0.3f, 0.3f, 1.0f));
             m_renderer->DrawPath(m_path, sge::LinearRgba(5.0f, 0.4f, 0.4f), sge::Transform::FromTranslation(glm::vec3(-m_path.GetBounds().size() * 0.5f, 0.0f)));
         }
         m_renderer->EndPass();
-        
+
         m_renderer->BloomPass(framebuffer);
         m_renderer->TonemapPass(framebuffer);
 

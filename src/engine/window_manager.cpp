@@ -1,9 +1,14 @@
 #include <SGE/window_manager.hpp>
+
 #include "utils.hpp"
 
-static struct {
+namespace {
+
+struct {
     sge::WindowMap window_map;
 } state;
+
+} // namespace
 
 std::expected<std::shared_ptr<sge::GlfwWindow>, const char*> sge::WindowManager::CreateWindow(const WindowSettings& window_settings) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);

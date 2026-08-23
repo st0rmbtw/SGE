@@ -38,14 +38,14 @@ public:
 
     [[nodiscard]]
     LLGL::Buffer* Get() const {
-        return m_buffer;    
+        return m_buffer;
     }
 
     [[nodiscard]]
     size_t GetStride() const {
         return m_vertex_format.GetStride();
     }
-    
+
 private:
     LLGL::VertexFormat m_vertex_format;
     sge::Unique<LLGL::Buffer> m_buffer = nullptr;

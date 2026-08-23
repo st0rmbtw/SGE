@@ -95,18 +95,31 @@ public:
         SubmitRaw(mesh, material, &instance, sizeof(TInstance));
     }
 
+    void Submit(Handle<Mesh> mesh, Handle<Material> material) {
+        SubmitRaw(mesh, material, nullptr, 0);
+    }
+
     void SubmitRaw(Handle<Mesh> mesh, Handle<Material> material, const void* instanceData, size_t instanceByteSize);
 
     Handle<Mesh> AddMesh(const sge::Mesh& mesh);
-    Handle<Material> AddMaterial(const sge::Material& material);
+
+    Handle<Material> AddMaterial(const sge::MaterialDesc& desc) {
+        auto handle = Handle<Material>(IdGenerator::Next());
+        m_materials.try_emplace(handle, std::make_shared<Material>(*m_context, desc));
+        return handle;
+    }
 
     LLGL::PipelineState& GetOrCreatePipeline(
-        const GpuMaterial& material,
+        const Material& material,
         const LLGL::VertexFormat& vertexFormat,
         sge::PrimitiveTopology topology,
         sge::FrontFace frontFace,
         sge::IndexFormat indexFormat
     );
+
+    Material& GetMaterial(Handle<Material> handle) {
+        return *m_materials.at(handle);
+    }
 
     [[nodiscard]]
     inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
@@ -171,7 +184,7 @@ protected:
             return a.vertexFormatHash == b.vertexFormatHash && a.materialHash == b.materialHash;
         }
     };
-    
+
     struct PipelineKeyHasher {
         size_t operator()(const PipelineKey& key) const noexcept {
             size_t hash = 0;
@@ -198,10 +211,10 @@ protected:
             return hash;
         }
     };
-    
+
     struct MeshBatch {
         std::shared_ptr<GpuMesh> mesh;
-        std::shared_ptr<GpuMaterial> material;
+        std::shared_ptr<Material> material;
         sge::VertexBufferPool instanceBufferPool;
         sge::Unique<LLGL::BufferArray> vertexBufferArray;
         std::vector<uint8_t> instanceBytes;
@@ -221,7 +234,7 @@ protected:
 
     Unique<LLGL::RenderPass> m_tonemap_render_pass;
     Unique<LLGL::PipelineState> m_tonemap_aces_pipeline;
-    
+
     Ref<LLGL::Buffer> m_fullscreen_triangle_vertex_buffer;
     Ref<LLGL::Shader> m_fullscreen_triangle_vertex_shader;
 
@@ -229,16 +242,16 @@ protected:
     Ref<LLGL::PipelineLayout> m_blit_pipeline_layout;
     Ref<LLGL::PipelineState> m_blit_pipeline;
     Ref<LLGL::RenderPass> m_blit_render_pass;
-    
+
     std::shared_ptr<RenderContext> m_context;
-    
+
     std::vector<sge::TemporaryFramebuffer> m_bloom_framebuffers;
 
     std::unordered_map<Handle<Mesh>, std::shared_ptr<GpuMesh>> m_meshes;
-    std::unordered_map<Handle<Material>, std::shared_ptr<GpuMaterial>> m_materials;
-    std::unordered_map<PipelineKey, sge::Unique<LLGL::PipelineState>, PipelineKeyHasher> m_pipelines;
+    std::unordered_map<Handle<Material>, std::shared_ptr<Material>> m_materials;
+    std::unordered_map<PipelineKey, PipelineId, PipelineKeyHasher> m_pipelines;
     std::unordered_map<BatchKey, MeshBatch, BatchKeyHasher> m_mesh_batches;
-    
+
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;
 

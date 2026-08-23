@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <LLGL/RenderSystemChild.h>
+#include <type_traits>
 
 namespace sge {
 
@@ -19,7 +20,9 @@ public:
     };
 
     inline void DecRefCount() const {
-        --m_ref_count;
+        if (m_ref_count > 0) {
+            --m_ref_count;
+        }
     };
 
     [[nodiscard]]
@@ -34,6 +37,8 @@ private:
 
 class LLGLResourceRC : public RefCounted {
 public:
+    LLGLResourceRC(LLGL::RenderSystemChild* data) : m_data(data) {}
+
     explicit LLGLResourceRC(std::shared_ptr<RenderContext> context, LLGL::RenderSystemChild* data) :
         m_render_context(std::move(context)),
         m_data(data)
@@ -53,6 +58,7 @@ private:
 class LLGLResource {
 public:
     LLGLResource() = default;
+    LLGLResource(std::nullptr_t) {};
 
     explicit LLGLResource(std::shared_ptr<RenderContext> context, LLGL::RenderSystemChild* data) :
         m_render_context(std::move(context)),
@@ -94,138 +100,76 @@ private:
     LLGL::RenderSystemChild* m_data = nullptr;
 };
 
-template <typename T>
-class Ref;
+namespace internal {
+    template <typename T>
+    inline bool IsDataValid(T* data) {
+        return data != nullptr;
+    }
 
-template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
-class RefWeak;
+    template <>
+    inline bool IsDataValid(LLGLResourceRC* data) {
+        return data != nullptr && data->Get() != nullptr;
+    }
 
-template <typename T> requires std::derived_from<T, RefCounted>
-class Ref<T> {
+    template <typename T>
+    inline bool IsDataValid(const LLGLResource& data) {
+        return data.Get() != nullptr;
+    }
+
+    template <typename T, typename TReturn>
+    inline TReturn* DataGet(T* data) {
+        return data;
+    }
+
+    template <typename TData, typename TReturn>
+    inline TReturn* DataGet(LLGLResourceRC* data) {
+        if (data)
+            return static_cast<TReturn*>(data->Get());
+        return nullptr;
+    }
+
+    template <typename TData, typename TReturn>
+    inline TReturn* DataGet(const LLGLResource& data) {
+        return static_cast<TReturn*>(data.Get());
+    }
+} // namespace internal
+
+template <typename TData, typename TReturn> requires std::derived_from<TData, RefCounted>
+class RefImpl {
 public:
-    constexpr Ref() = default;
-    constexpr Ref(std::nullptr_t) {}
+    constexpr RefImpl() = default;
+    constexpr RefImpl(std::nullptr_t) {}
 
-    Ref(T* data) : m_data(data) {
-        IncrementRef();
-    }
-
-    ~Ref() {
-        DecrementRef();
-    }
-
-    Ref(Ref&& other) noexcept {
-        operator=(std::move(other));
-    }
-
-    Ref(const Ref& other) {
-        operator=(other);
-    }
-
-    Ref& operator=(Ref&& other) noexcept {
-        DecrementRef();
-        m_data = other.m_data;
-        other.m_data = nullptr;
-        return *this;
-    }
-
-    Ref& operator=(const Ref& other) {
-        if (this == &other)
-            return *this;
-
-        other.IncrementRef();
-        DecrementRef();
-        m_data = other.m_data;
-        return *this;
-    }
-
-    Ref& operator=(std::nullptr_t) {
-        DecrementRef();
-        m_data = nullptr;
-        return *this;
-    }
-    
-    template <typename... Args>
-    static Ref Create(Args... args) {
-        return Ref(new T(std::forward<Args>(args)...));
-    }
-
-    T* Get() const noexcept {
-        if (!IsValid())
-            return nullptr;
-        return m_data;
-    }
-
-    [[nodiscard]]
-    inline bool IsValid() const noexcept {
-        return m_data != nullptr;
-    }
-
-    operator bool() const noexcept {
-        return IsValid();
-    }
-
-    T* operator->() const noexcept {
-        return Get();
-    }
-
-    T& operator*() const noexcept {
-        return *Get();
-    }
-
-private:
-    void IncrementRef() const {
-        if (m_data) {
-            m_data->IncRefCount();
-        }
-    }
-
-    void DecrementRef() const {
-        if (m_data) {
-            m_data->DecRefCount();
-            if (m_data->GetRefCount() == 0) {
-                delete m_data;
-            }
-        }
-    }
-
-private:
-    T* m_data = nullptr;
-};
-
-
-template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
-class Ref<T> {
-public:
-    constexpr Ref() = default;
-    constexpr Ref(std::nullptr_t) {}
-
-    Ref(std::shared_ptr<RenderContext> context, T* ptr) : 
-        m_data(new LLGLResourceRC(std::move(context), ptr))
+    explicit RefImpl(TData* data) : 
+        m_data(data)
     {
         IncrementRef();
     }
 
-    ~Ref() {
+    template <typename... TArgs>
+    static RefImpl Create(TArgs&&... args) {
+        return RefImpl(new TData(std::forward<TArgs>(args)...));
+    }
+
+    ~RefImpl() {
         DecrementRef();
     }
 
-    Ref(Ref&& other) noexcept {
+    RefImpl(RefImpl&& other) noexcept {
         operator=(std::move(other));
     }
 
-    Ref(const Ref& other) {
+    RefImpl(const RefImpl& other) {
         operator=(other);
     }
 
-    Ref& operator=(Ref&& other) noexcept {
+    RefImpl& operator=(RefImpl&& other) noexcept {
         DecrementRef();
-        m_data = other.m_data;
-        other.m_data = nullptr;
+        m_data = std::exchange(other.m_data, nullptr);
         return *this;
     }
 
-    Ref& operator=(const Ref& other) {
+    RefImpl& operator=(const RefImpl& other) {
         if (this == &other)
             return *this;
 
@@ -235,35 +179,32 @@ public:
         return *this;
     }
 
-    T* Get() const noexcept {
-        if (m_data)
-            return static_cast<T*>(m_data->Get());
-        
-        return nullptr;
+    TReturn* Get() const noexcept {
+        return internal::DataGet<TData, TReturn>(m_data);
     }
 
-    operator T*() const noexcept {
+    operator TReturn*() const noexcept {
         return Get();
     }
 
     [[nodiscard]]
     inline bool IsValid() const noexcept {
-        return m_data != nullptr && m_data->Get() != nullptr;
+        return internal::IsDataValid(m_data);
     }
 
     operator bool() const noexcept {
         return IsValid();
     }
 
-    T* operator->() const noexcept {
+    auto operator->() const noexcept {
         return Get();
     }
 
-    T& operator*() const noexcept {
+    TReturn& operator*() const noexcept {
         return *Get();
     }
 
-    bool operator==(const Ref<T>& other) const noexcept {
+    bool operator==(const RefImpl& other) const noexcept {
         return Get() == other.Get();
     }
 
@@ -284,158 +225,106 @@ private:
     }
 
 private:
-    LLGLResourceRC* m_data = nullptr;
+    TData* m_data = nullptr;
 };
 
-template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
-class RefWeak {
-public:
-    RefWeak() = default;
-    RefWeak(std::nullptr_t) {}
-    RefWeak(const Ref<T>& ref) : m_data(ref.m_data) {
-    }
+template <bool a, typename... Args>
+struct ref_impl_t;
 
-    T* Get() const noexcept {
-        if (m_data)
-            return static_cast<T*>(m_data->Get());
-        
-        return nullptr;
-    }
-
-    [[nodiscard]]
-    inline bool IsValid() const noexcept {
-        return m_data != nullptr && m_data->Get() != nullptr;
-    }
-
-    operator bool() const noexcept {
-        return IsValid();
-    }
-
-    T* operator->() const noexcept {
-        return Get();
-    }
-
-    T& operator*() const noexcept {
-        return *Get();
-    }
-
-private:
-    LLGLResource* m_data = nullptr;
+template<typename T>
+struct ref_impl_t<true, T> {
+    using type = RefImpl<LLGLResourceRC, T>;
 };
 
+template<typename T>
+struct ref_impl_t<false, T> {
+    using type = RefImpl<T, T>;
+};
 
 template <typename T>
-class Unique;
+using Ref = ref_impl_t<std::is_base_of_v<LLGL::RenderSystemChild, std::remove_cvref_t<T>>, T>::type;
 
-template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
-class Unique<T> {
+template <typename TData, typename TReturn>
+class UniqueImpl {
 public:
-    Unique() = default;
-    Unique(std::nullptr_t) {}
-    Unique(std::shared_ptr<RenderContext> context, T* data) :
-        m_data(LLGLResource(std::move(context), data))
+    UniqueImpl() = default;
+    UniqueImpl(std::nullptr_t) {}
+    UniqueImpl(TData data) :
+        m_data(std::move(data))
     {
     }
 
-    Unique(const Unique&) = delete;
-    Unique& operator=(const Unique&) = delete;
+    template <typename... TArgs>
+    static UniqueImpl Create(TArgs&&... args) requires (!std::is_pointer_v<TData>) {
+        return UniqueImpl(TData(std::forward<TArgs>(args)...));
+    }
 
-    Unique(Unique&& other) noexcept {
+    UniqueImpl(const UniqueImpl&) = delete;
+    UniqueImpl& operator=(const UniqueImpl&) = delete;
+
+    UniqueImpl(UniqueImpl&& other) noexcept {
         operator=(std::move(other));
     }
-    Unique& operator=(Unique&& other) noexcept {
-        m_data = std::move(other.m_data);
+    UniqueImpl& operator=(UniqueImpl&& other) noexcept {
+        m_data = std::exchange(other.m_data, nullptr);
         return *this;
     }
 
-    Unique& operator=(std::nullptr_t) noexcept {
+    UniqueImpl& operator=(std::nullptr_t) noexcept {
         m_data.Destroy();
         return *this;
     }
 
-    T* Get() const noexcept {
-        if (m_data.IsValid())
-            return static_cast<T*>(m_data.Get());
-        
-        return nullptr;
+    TReturn* Get() const noexcept {
+        return internal::DataGet<TData, TReturn>(m_data);
     }
 
-    operator T*() const noexcept {
+    operator TReturn*() const noexcept {
         return Get();
     }
 
     [[nodiscard]]
     inline bool IsValid() const noexcept {
-        return m_data.IsValid();
+        return internal::IsDataValid<TData>(m_data);
     }
 
     operator bool() const noexcept {
         return IsValid();
     }
 
-    T* operator->() const noexcept {
+    TReturn* operator->() const noexcept {
         return Get();
     }
 
-    T& operator*() const noexcept {
+    TReturn& operator*() const noexcept {
         return *Get();
     }
 
-private:
-    LLGLResource m_data;
-};
-
-template <typename T> requires (!std::derived_from<T, LLGL::RenderSystemChild>)
-class Unique<T> {
-public:
-    Unique() = default;
-    Unique(std::nullptr_t) {}
-    Unique(T* data) : m_data(data) {}
-
-    ~Unique() {
+    ~UniqueImpl() requires std::is_pointer_v<TData> {
         delete m_data;
     }
 
-    Unique(const Unique&) = delete;
-    Unique& operator=(const Unique&) = delete;
-
-    Unique(Unique&& other) noexcept {
-        operator=(std::move(other));
-    }
-    Unique& operator=(Unique&& other) noexcept {
-        m_data = other.m_data;
-        other.m_data = nullptr;
-        return *this;
-    }
-
-    T* Get() const noexcept {
-        return m_data;
-    }
-
-    operator T*() const noexcept {
-        return Get();
-    }
-
-    [[nodiscard]]
-    inline bool IsValid() const noexcept {
-        return m_data != nullptr;
-    }
-
-    operator bool() const noexcept {
-        return IsValid();
-    }
-
-    T* operator->() const noexcept {
-        return Get();
-    }
-
-    T& operator*() const noexcept {
-        return *Get();
-    }
+    ~UniqueImpl() = default;
 
 private:
-    T* m_data = nullptr;
+    TData m_data;
 };
+
+template <bool a, typename... Args>
+struct unique_impl_t;
+
+template<typename T>
+struct unique_impl_t<true, T> {
+    using type = UniqueImpl<LLGLResource, T>;
+};
+
+template<typename T>
+struct unique_impl_t<false, T> {
+    using type = UniqueImpl<T, T>;
+};
+
+template <typename T>
+using Unique = unique_impl_t<std::is_base_of_v<LLGL::RenderSystemChild, std::remove_cvref_t<T>>, T>::type;
 
 template <typename T>
 class Raw;
@@ -458,12 +347,12 @@ public:
 
     [[nodiscard]]
     Ref<T> AsRef() const noexcept {
-        return Ref<T>(m_context, m_ptr);
+        return Ref<T>::Create(m_context, m_ptr);
     }
 
     [[nodiscard]]
     Unique<T> AsUnique() const noexcept {
-        return Unique<T>(m_context, m_ptr);
+        return Unique<T>::Create(m_context, m_ptr);
     }
 
     [[nodiscard]]

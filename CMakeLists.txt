@@ -51,13 +51,14 @@ set(SGE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/engine.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/input.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/window_manager.cpp
-    
+
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/attributes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/batch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/camera.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/context.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/framebuffer_pool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/glfw_window.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/material.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/renderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/renderer2d.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/resource.cpp
@@ -90,7 +91,7 @@ else()
     set(LLGL_BUILD_RENDERER_METAL OFF CACHE BOOL "" FORCE)
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_METAL_BACKEND_ENABLED=0)
 endif()
-    
+
 if(SGE_BACKEND_VULKAN)
     set(LLGL_BUILD_RENDERER_VULKAN ON CACHE BOOL "" FORCE)
     set(LLGL_VK_ENABLE_SPIRV_REFLECT ON CACHE BOOL "" FORCE)

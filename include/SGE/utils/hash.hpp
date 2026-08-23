@@ -6,9 +6,10 @@
 
 namespace sge {
 
-inline uint64_t hash_fnv1a(const void* data, size_t size, uint64_t seed = 1469598103934665603ULL) {
+inline constexpr uint64_t DEFAULT_HASH = 1469598103934665603ULL;
+
+inline uint64_t hash_fnv1a(std::size_t& hash, const void* data, size_t size) {
     auto* bytes = static_cast<const uint8_t*>(data);
-    uint64_t hash = seed;
     for (size_t i = 0; i < size; ++i) {
         hash ^= bytes[i];
         hash *= 1099511628211ULL;

@@ -51,7 +51,7 @@ struct BackendData {
 
     sge::Ref<LLGL::PipelineLayout> PipelineLayout;
 
-    sge::Handle<LLGL::PipelineState> PipelineHandle;
+    sge::PipelineId PipelineId;
 
     uint32_t VertexBufferSize = 5000;
     uint32_t IndexBufferSize = 10000;
@@ -287,7 +287,7 @@ bool CreatePipelineObjects() {
         };
     }
 
-    bd->PipelineHandle = bd->Context->CreatePipelineState(config);
+    bd->PipelineId = bd->Context->CreateGraphicsPipeline(config);
     bd->ConstantBuffer = bd->Context->CreateConstantBuffer(sizeof(glm::mat4));
 
     return true;
@@ -295,7 +295,7 @@ bool CreatePipelineObjects() {
 
 void DestroyPipelineObjects() {
     BackendData* bd = GetBackendData();
-    bd->Context->DeletePipeline(bd->PipelineHandle);
+    bd->Context->DeletePipeline(bd->PipelineId);
 }
 
 void Renderer_CreateWindow(ImGuiViewport* viewport) {
@@ -385,7 +385,7 @@ void SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height) {
     };
 
     bd->CommandBuffer->UpdateBuffer(*bd->ConstantBuffer, 0, mvp, sizeof(mvp));
-    bd->CommandBuffer->SetPipelineState(bd->Context->GetOrCreatePipeline(bd->PipelineHandle));
+    bd->CommandBuffer->SetPipelineState(bd->Context->GetOrCreatePipeline(bd->PipelineId));
     bd->CommandBuffer->SetViewport(LLGL::Extent2D(fb_width, fb_height));
     bd->CommandBuffer->SetVertexBuffer(*bd->VertexBuffer);
     bd->CommandBuffer->SetIndexBuffer(*bd->IndexBuffer);
@@ -447,7 +447,7 @@ void ImGuiRenderer::NewFrame() {
     BackendData* bd = GetBackendData();
     SGE_ASSERT_M(bd != nullptr, "Context or backend not initialized! Did you call ImGuiRenderer::Init()?");
 
-    if (!bd->PipelineHandle.IsValid()) {
+    if (!bd->PipelineId.IsValid()) {
         bool result = CreatePipelineObjects();
         SGE_ASSERT_M(result, "CreatePipelineObjects failed!");
     }

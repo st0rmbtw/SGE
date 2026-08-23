@@ -151,7 +151,7 @@ float ScanlineSweep(float2 size, float2 offset, float2 p0, float2 p1, float2 p2)
 
     float min_t = saturate(max(v_min_t, h_min_t));
     float max_t = saturate(min(v_max_t, h_max_t));
-    
+
     float2 q0 = v_min_t >= h_min_t ? v_min : EvaluateBezier(p0, p1, p2, min_t);
     float2 q1 = v_max_t <= h_max_t ? v_max : EvaluateBezier(p0, p1, p2, max_t);
 
@@ -222,7 +222,7 @@ float4 PS(VSOutput inp) : SV_Target
 
     for (int partition_index = p_lo; partition_index <= p_hi; ++partition_index) {
         BezierCurvePartition partition = PartitionBuffer[inp.partition_offset + partition_index];
-        
+
         for (uint i = 0; i < partition.curve_count; ++i) {
             BezierCurve curve = CurveBuffer[partition.curve_offset + i];
 
@@ -237,7 +237,7 @@ float4 PS(VSOutput inp) : SV_Target
 
     float pixel_area = pixel_size.x * pixel_size.y;
     coverage /= pixel_area;
-    
+
     float alpha = pow(saturate(coverage), 1.f / 2.2f);
 
     return float4(inp.color, alpha);

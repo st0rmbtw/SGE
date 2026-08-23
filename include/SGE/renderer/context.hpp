@@ -1,11 +1,11 @@
 #pragma once
 
-#include "SGE/renderer/handle.hpp"
 #ifndef SGE_ENGINE_RENDERER_CONTEXT_HPP
 #define SGE_ENGINE_RENDERER_CONTEXT_HPP
 
 #include <SGE/renderer/framebuffer_pool.hpp>
 #include <SGE/renderer/glfw_window.hpp>
+#include <SGE/renderer/handle.hpp>
 #include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
@@ -29,7 +29,7 @@
 
 struct PipelineConfigKey {
     LLGL::RenderTarget* render_target;
-    uint64_t config_id;
+    sge::PipelineId config_id;
 };
 
 inline bool operator==(const PipelineConfigKey& a, const PipelineConfigKey& b) {
@@ -48,8 +48,8 @@ struct std::hash<PipelineConfigKey> {
 
 struct RenderTargetKey {
     LLGL::Extent2D resolution;
-    uint64_t config_id = 0;
-    uint64_t render_pass_id = 0;
+    sge::RenderTargetId config_id;
+    sge::RenderPassId render_pass_id;
     LLGL::Format format = LLGL::Format::Undefined;
     uint8_t samples = 1;
 };
@@ -77,7 +77,7 @@ struct std::hash<RenderTargetKey> {
 };
 
 struct RenderPassKey {
-    uint64_t config_id = 0;
+    sge::RenderPassId config_id;
     uint8_t samples = 1;
 };
 
@@ -129,12 +129,12 @@ public:
     bool Init(RenderBackend backend, ImGuiConfig imguiConfig);
     void Destroy();
     ~RenderContext();
-    
+
     void UnregisterWindow(const GlfwWindow& window);
 
-    LLGL::PipelineState& GetOrCreatePipeline(Handle<LLGL::PipelineState> handle);
-    LLGL::RenderTarget& GetOrCreateRenderTarget(Handle<LLGL::RenderTarget> handle, uint8_t samples);
-    LLGL::RenderPass& GetOrCreateRenderPass(Handle<LLGL::RenderPass> handle, uint8_t samples);
+    LLGL::PipelineState& GetOrCreatePipeline(PipelineId id);
+    LLGL::RenderTarget& GetOrCreateRenderTarget(RenderTargetId id, uint8_t samples);
+    LLGL::RenderPass& GetOrCreateRenderPass(RenderPassId, uint8_t samples);
     LLGL::SwapChain& GetOrCreateSwapChain(const std::shared_ptr<GlfwWindow>& window);
     LLGL::SwapChain* GetSwapChain(const GlfwWindow& window);
 
@@ -152,8 +152,8 @@ public:
     inline void EndImGuiFrame() {}
 #endif
 
-    void DeletePipeline(Handle<LLGL::PipelineState> handle);
-    void DeleteRenderTarget(Handle<LLGL::RenderTarget> renderTarget);
+    void DeletePipeline(PipelineId handle);
+    void DeleteRenderTarget(RenderTargetId renderTarget);
 
     void Present(const GlfwWindow& window);
 
@@ -164,18 +164,14 @@ public:
         m_context->Release(resource);
     }
 
-    inline void Release(Handle<LLGL::RenderTarget> renderTarget) {
-        DeleteRenderTarget(renderTarget);
-    }
-
     sge::Ref<Sampler>& GetLinearSampler() {
         return m_linear_sampler;
     }
-    
+
     sge::Ref<Sampler>& GetNearestSampler() {
         return m_nearest_sampler;
     }
-    
+
     Raw<Sampler> CreateSampler(const LLGL::SamplerDescriptor& descriptor);
 
     Texture CreateTexture(const sge::TextureConfig& config, const LLGL::ImageView* initialData = nullptr);
@@ -352,22 +348,22 @@ public:
         return Raw<LLGL::PipelineState>::Create(shared_from_this(), m_context->CreatePipelineState(desc));
     }
 
-    inline Handle<LLGL::PipelineState> CreatePipelineState(const GraphicsPipelineConfig& config) {
-        auto handle = Handle<LLGL::PipelineState>(IdGenerator::Next());
-        m_pipeline_configs[handle] = config;
-        return handle;
+    inline PipelineId CreateGraphicsPipeline(const GraphicsPipelineConfig& config) {
+        auto id = PipelineId(++m_pipeline_counter);
+        m_pipeline_configs[id] = config;
+        return id;
     }
 
-    inline Handle<LLGL::RenderPass> CreateRenderPass(const RenderPassConfig& config) {
-        auto handle = Handle<LLGL::RenderPass>(IdGenerator::Next());
-        m_render_pass_configs[handle] = config;
-        return handle;
+    inline RenderPassId CreateRenderPass(const RenderPassConfig& config) {
+        auto id = RenderPassId(++m_render_pass_counter);
+        m_render_pass_configs[id] = config;
+        return id;
     }
 
-    inline Handle<LLGL::RenderTarget> CreateRenderTarget(const RenderTargetConfig& config) {
-        auto handle = Handle<LLGL::RenderTarget>(IdGenerator::Next());
-        m_render_target_configs[handle] = config;
-        return handle;
+    inline RenderTargetId CreateRenderTarget(const RenderTargetConfig& config) {
+        auto id = RenderTargetId(++m_render_target_counter);
+        m_render_target_configs[id] = config;
+        return id;
     }
 
     void PushRenderTarget(LLGL::RenderTarget* target) {
@@ -382,12 +378,12 @@ public:
 
     template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
     Ref<T> CreateRef(T* resource) {
-        return Ref<T>(shared_from_this(), resource);
+        return Ref<T>::Create(shared_from_this(), resource);
     }
 
     template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
     Unique<T> CreateUnique(T* resource) {
-        return Unique<T>(shared_from_this(), resource);
+        return Unique<T>::Create(shared_from_this(), resource);
     }
 
     sge::TemporaryFramebuffer GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, uint8_t samples = 1, long bindFlags = (LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled));
@@ -447,15 +443,15 @@ public:
 
 private:
     struct CachedRenderTarget {
-        LLGL::RenderTarget* handle = nullptr;
+        LLGL::RenderTarget* ptr = nullptr;
         LLGL::Texture* colorAttachmentTextures[LLGL_MAX_NUM_COLOR_ATTACHMENTS] = {};
     };
 
 private:
     std::unordered_map<uint32_t, LLGL::SwapChain*> m_swapchain_map;
-    std::unordered_map<Handle<LLGL::PipelineState>, GraphicsPipelineConfig> m_pipeline_configs;
-    std::unordered_map<Handle<LLGL::RenderTarget>, RenderTargetConfig> m_render_target_configs;
-    std::unordered_map<Handle<LLGL::RenderPass>, RenderPassConfig> m_render_pass_configs;
+    std::unordered_map<PipelineId, GraphicsPipelineConfig> m_pipeline_configs;
+    std::unordered_map<RenderTargetId, RenderTargetConfig> m_render_target_configs;
+    std::unordered_map<RenderPassId, RenderPassConfig> m_render_pass_configs;
     std::unordered_map<PipelineConfigKey, LLGL::PipelineState*> m_pipeline_states;
     std::unordered_map<RenderTargetKey, CachedRenderTarget> m_render_targets;
     std::unordered_map<RenderPassKey, LLGL::RenderPass*> m_render_passes;
@@ -477,6 +473,10 @@ private:
 
     LLGL::CommandBuffer* m_command_buffer = nullptr;
     LLGL::RenderingDebugger* m_debugger = nullptr;
+
+    uint32_t m_pipeline_counter = 0;
+    uint32_t m_render_pass_counter = 0;
+    uint32_t m_render_target_counter = 0;
 
     sge::RenderBackend m_backend;
 };

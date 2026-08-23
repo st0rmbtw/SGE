@@ -25,8 +25,7 @@ private:
     sge::FontVector m_font;
     sge::Font m_font_sdf;
     std::unique_ptr<sge::Renderer2D> m_renderer;
-    std::unique_ptr<sge::Batch> m_batch;
-    std::unique_ptr<sge::Batch> m_ui_batch;
+    std::unique_ptr<sge::TextVectorBatch> m_batch_vector;
     ExampleConfig m_config;
     bool m_paused = false;
 };

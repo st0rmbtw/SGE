@@ -75,11 +75,11 @@ def compile_vulkan_shader(executable: str, item_path: Path, flags: tuple[str]) -
     basename = item_path.stem.upper()
     var_name = f"VULKAN_{basename}"
     flags = ("-target", "spirv") + flags
-    
+
     result = ""
     has_vertex = False
     has_fragment = False
-    
+
     fd, path = tempfile.mkstemp(suffix=".spv")
     try:
         with os.fdopen(fd, "wb") as f:
@@ -88,7 +88,7 @@ def compile_vulkan_shader(executable: str, item_path: Path, flags: tuple[str]) -
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-        
+
         if code == 0:
             has_vertex = True
             with open(path, "rb") as f:
@@ -104,21 +104,21 @@ def compile_vulkan_shader(executable: str, item_path: Path, flags: tuple[str]) -
                 stdout=sys.stdout,
                 stderr=sys.stderr
             ).wait()
-            
+
         if code == 0:
             has_fragment = True
             with open(path, "rb") as f:
                 result += write_bytes(f, f"{var_name}_FRAG")
     finally:
         os.remove(path)
-        
+
     return result, has_vertex, has_fragment
 
 def compile_d3d_shader(executable: str, item_path: Path, flags: tuple[str]) -> tuple[str, bool, bool]:
     basename = item_path.stem.upper()
     var_name = f"D3D11_{basename}"
     flags = ("-target", "hlsl") + flags
-    
+
     result = ""
     has_vertex = False
     has_fragment = False
@@ -138,7 +138,7 @@ def compile_d3d_shader(executable: str, item_path: Path, flags: tuple[str]) -> t
                 result += write_constant(f, f"{var_name}_VERT")
     finally:
         os.remove(path)
-    
+
     fd, path = tempfile.mkstemp(suffix=".hlsl", text=True)
     try:
         with os.fdopen(fd, "w") as f:
@@ -147,25 +147,25 @@ def compile_d3d_shader(executable: str, item_path: Path, flags: tuple[str]) -> t
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-            
+
         if code == 0:
             has_fragment = True
             with open(path, "r") as f:
                 result += write_constant(f, f"{var_name}_FRAG")
     finally:
         os.remove(path)
-        
+
     return result, has_vertex, has_fragment
 
 def compile_metal_shader(executable: str, item_path: Path, flags: tuple[str]) -> tuple[str, bool, bool]:
     basename = item_path.stem.upper()
     var_name = f"METAL_{basename}"
     flags = ("-target", "metal") + flags
-    
+
     result = ""
     has_vertex = False
     has_fragment = False
-    
+
     fd, path = tempfile.mkstemp(suffix=".metal", text=True)
     try:
         with os.fdopen(fd, "w") as f:
@@ -174,14 +174,14 @@ def compile_metal_shader(executable: str, item_path: Path, flags: tuple[str]) ->
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-            
+
         if code == 0:
             has_vertex = True
             with open(path, "r") as f:
                 result += write_constant(f, f"{var_name}_VERT")
     finally:
         os.remove(path)
-    
+
     fd, path = tempfile.mkstemp(suffix=".metal", text=True)
     try:
         with os.fdopen(fd, "w") as f:
@@ -190,28 +190,28 @@ def compile_metal_shader(executable: str, item_path: Path, flags: tuple[str]) ->
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-            
+
         if code == 0:
             has_fragment = True
             with open(path, "r") as f:
                 result += write_constant(f, f"{var_name}_FRAG")
     finally:
         os.remove(path)
-        
+
     result = result.replace('[[vertex]]', 'vertex')
     result = result.replace('[[fragment]]', 'fragment')
-        
+
     return result, has_vertex, has_fragment
 
 def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]) -> tuple[str, bool, bool]:
     basename = item_path.stem.upper()
     var_name = f"GL_{basename}"
     flags = ("-target", "spirv") + flags
-    
+
     result = ""
     has_vertex = False
     has_fragment = False
-    
+
     fd1, path_spv = tempfile.mkstemp(suffix=".spv")
     fd2, path_glsl = tempfile.mkstemp(suffix=".glsl", text=True)
     try:
@@ -221,7 +221,7 @@ def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]) -
                 stdout=f,
                 stderr=sys.stderr
             ).wait()
-            
+
         if code == 0:
             has_vertex = True
             with os.fdopen(fd2, "w") as f:
@@ -230,7 +230,7 @@ def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]) -
                     stdout=f,
                     stderr=sys.stderr
                 ).wait()
-            
+
             with open(path_glsl, "r") as f:
                 result += write_constant(f, f"{var_name}_VERT", True)
     finally:
@@ -242,10 +242,10 @@ def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]) -
             os.close(fd2)
         except:
             pass
-        
+
         os.remove(path_glsl)
         os.remove(path_spv)
-    
+
     fd1, path_spv = tempfile.mkstemp(suffix=".spv")
     fd2, path_glsl = tempfile.mkstemp(suffix=".glsl", text=True)
     try:
@@ -263,7 +263,7 @@ def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]) -
                     stdout=f,
                     stderr=sys.stderr
                 ).wait()
-            
+
             with open(path_glsl, "r") as f:
                 result += write_constant(f, f"{var_name}_FRAG", True)
     finally:
@@ -275,10 +275,10 @@ def compile_opengl_shader(executable: str, item_path: Path, flags: tuple[str]) -
             os.close(fd2)
         except:
             pass
-        
+
         os.remove(path_spv)
         os.remove(path_glsl)
-        
+
     return result, has_vertex, has_fragment
 
 def snake_to_pascal(snake_str):
@@ -286,18 +286,18 @@ def snake_to_pascal(snake_str):
 
 def generate_getter_function(name, results: CompileResults):
     upper = name.upper()
-    
+
     d3d_has_vertex, d3d_has_fragment = results.d3d[name] if name in results.d3d else (False, False)
     vk_has_vertex, vk_has_fragment = results.vk[name] if name in results.vk else (False, False)
     metal_has_vertex, metal_has_fragment = results.metal[name] if name in results.metal else (False, False)
     gl_has_vertex, gl_has_fragment = results.gl[name] if name in results.gl else (False, False)
 
     code = ""
-    code += f"static inline ShaderSourceCode Get{snake_to_pascal(name)}ShaderSourceCode(const sge::RenderBackend backend) {{\n"
+    code += f"static inline constexpr ShaderSourceCode Get{snake_to_pascal(name)}ShaderSourceCode(const sge::RenderBackend backend) {{\n"
     code += ' ' * 4
     code += "switch (backend) {\n"
     code += ' ' * 8
-    
+
     code += "case sge::RenderBackend::Vulkan: return ShaderSourceCode("
     if vk_has_vertex:
         code += f"VULKAN_{upper}_VERT, sizeof(VULKAN_{upper}_VERT)"
@@ -309,12 +309,12 @@ def generate_getter_function(name, results: CompileResults):
     else:
         code += "nullptr, 0"
     code += ');\n'
-    
+
     code += ' ' * 8
     code += "case sge::RenderBackend::D3D11:\n"
     code += ' ' * 8
     code += "case sge::RenderBackend::D3D12: return ShaderSourceCode("
-    
+
     if d3d_has_vertex:
         code += f"D3D11_{upper}_VERT, sizeof(D3D11_{upper}_VERT)"
     else:
@@ -325,7 +325,7 @@ def generate_getter_function(name, results: CompileResults):
     else:
         code += "nullptr, 0"
     code += ');\n'
-    
+
     code += ' ' * 8
     code += "case sge::RenderBackend::Metal: return ShaderSourceCode("
 
@@ -339,10 +339,10 @@ def generate_getter_function(name, results: CompileResults):
     else:
         code += "nullptr, 0"
     code += ');\n'
-    
+
     code += ' ' * 8
     code += "case sge::RenderBackend::OpenGL: return ShaderSourceCode("
-    
+
     if gl_has_vertex:
         code += f"GL_{upper}_VERT, sizeof(GL_{upper}_VERT)"
     else:
@@ -353,7 +353,7 @@ def generate_getter_function(name, results: CompileResults):
     else:
         code += "nullptr, 0"
     code += ');\n'
-    
+
     code += ' ' * 8
     code += "default: SGE_UNREACHABLE();\n"
     code += ' ' * 4
@@ -371,7 +371,7 @@ def main():
     compile_vulkan = True
     compile_metal = True
     compile_gl = True
-    
+
     for arg in sys.argv[2:]:
         if arg == "-d3d" or arg == "-vulkan" or arg == "-metal" or arg == "-gl":
             compile_d3d = False
@@ -379,7 +379,7 @@ def main():
             compile_metal = False
             compile_gl = False
             break
-        
+
     for arg in sys.argv[2:]:
         if arg == "-d3d":
             compile_d3d = True
@@ -412,41 +412,41 @@ def main():
 
     slang_executable = f"slangc{ext}"
     slang_flags = SLANG_FLAGS + ("-I", str(shaders_dir))
-    
+
     results: CompileResults = CompileResults()
-    
+
     for item in sorted(shaders_dir.iterdir()):
         if not item.is_file(): continue
         if item.name == "common.slang": continue
         if item.stem in shader_names: continue
         shader_names.add(item.stem)
-        
+
         item_path = item.resolve()
-        
+
         if compile_d3d:
             print(f"Compiling {item} for D3D11 ...")
             result, has_vertex, has_fragment = compile_d3d_shader(slang_executable, item_path, slang_flags)
             shaders_hpp_content += result
             results.d3d[item.stem] = (has_vertex, has_fragment)
-            
+
         if compile_vulkan:
             print(f"Compiling {item} for Vulkan ...")
             result, has_vertex, has_fragment = compile_vulkan_shader(slang_executable, item_path, slang_flags)
             shaders_hpp_content += result
             results.vk[item.stem] = (has_vertex, has_fragment)
-            
+
         if compile_metal:
             print(f"Compiling {item} for Metal ...")
             result, has_vertex, has_fragment = compile_metal_shader(slang_executable, item_path, slang_flags)
             shaders_hpp_content += result
             results.metal[item.stem] = (has_vertex, has_fragment)
-            
+
         if compile_gl:
             print(f"Compiling {item} for OpenGL ...")
             result, has_vertex, has_fragment = compile_opengl_shader(slang_executable, item_path, slang_flags)
             shaders_hpp_content += result
             results.gl[item.stem] = (has_vertex, has_fragment)
-        
+
     shaders_hpp_content += SHADER_SOURCE_STRUCTURE_CODE
     shaders_hpp_content += '\n'
 

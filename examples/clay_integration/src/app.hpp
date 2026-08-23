@@ -18,7 +18,7 @@ protected:
     bool OnInit() override;
     void OnUpdate() override;
     void OnRender(const std::shared_ptr<sge::GlfwWindow> &window) override;
-    
+
     void OnWindowResized(const std::shared_ptr<sge::GlfwWindow>&, int width, int height) override {
         m_camera.set_viewport(glm::uvec2(width, height));
     }

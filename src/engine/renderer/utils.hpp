@@ -1,6 +1,7 @@
 #ifndef RENDERER_UTILS_HPP_
 #define RENDERER_UTILS_HPP_
 
+#include "LLGL/VertexAttribute.h"
 #include <LLGL/Format.h>
 #include <LLGL/PipelineStateFlags.h>
 #include <LLGL/Utils/VertexFormat.h>
@@ -159,10 +160,13 @@ inline LLGL::VertexFormat ConvertInstanceAttributesToLLGL(sge::RenderBackend bac
     return vertexFormat;
 }
 
-inline void HashVertexFormat(uint64_t& hash, const LLGL::VertexFormat& vertexFormat) {
-    for (const auto& attribute : vertexFormat.attributes) {
+inline void HashVertexAttributes(uint64_t& hash, const std::vector<LLGL::VertexAttribute>& attributes) {
+    for (const auto& attribute : attributes) {
+        sge::hash_fnv1a(hash, attribute.name.data(), attribute.name.size());
         sge::hash_combine(hash, attribute.format);
         sge::hash_combine(hash, attribute.location);
+        sge::hash_combine(hash, attribute.semanticIndex);
+        sge::hash_combine(hash, attribute.slot);
     }
 }
 

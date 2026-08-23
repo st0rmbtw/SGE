@@ -1,9 +1,8 @@
-#include <variant>
-
 #include <SGE/assert.hpp>
 #include <SGE/log.hpp>
 #include <SGE/math/rect.hpp>
 #include <SGE/profile.hpp>
+#include <SGE/renderer/attributes.hpp>
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/renderer/context.hpp>
@@ -64,10 +63,10 @@ sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_conte
 
     m_uniform_buffer = m_context->CreateConstantBuffer(sizeof(GlobalUniforms), "Uniforms Buffer");
 
-    // m_fullscreen_triangle_vertex_format.attributes = sge::VertexAttributes(backend, {
-    //     sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position"),
-    //     sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_uv", "UV")
-    // });
+    m_fullscreen_triangle_vertex_format = sge::VertexAttributes(backend, {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position"),
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_uv", "UV")
+    });
 
     const glm::vec2 vertices[] = {
         glm::vec2(-1.0f, 1.0f),  glm::vec2(0.0f, 0.0f),
@@ -197,7 +196,7 @@ void sge::Renderer::InitBloomPipelines() {
     renderPassDesc.colorAttachments[0].format = LLGL::Format::RG11B10Float;
     renderPassDesc.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
     m_bloom_render_pass = m_context->CreateRenderPass(renderPassDesc);
-    
+
     sge::ShaderConfig shaderConfig;
     shaderConfig.fragment.outputAttribs = {
         LLGL::FragmentAttribute{ "SV_Target", LLGL::Format::RG11B10Float, 0, LLGL::SystemValue::Color }
@@ -280,7 +279,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     }
 
     auto& target = m_bloom_framebuffers[0];
-    
+
     m_command_buffer->SetViewport(target.GetResolution());
     BeginPass(*target.GetRenderTarget());
     {
@@ -295,7 +294,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     EndPass();
 
     // Downsample
-    for (uint32_t i = 1; i < m_bloom_framebuffers.size(); ++i) {  
+    for (uint32_t i = 1; i < m_bloom_framebuffers.size(); ++i) {
         m_command_buffer->SetViewport(m_bloom_framebuffers[i].GetResolution());
         BeginPass(*m_bloom_framebuffers[i].GetRenderTarget());
         {
@@ -310,7 +309,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     }
 
     // Upsample
-    for (uint32_t i = m_bloom_framebuffers.size() - 1; i --> 0;) {  
+    for (uint32_t i = m_bloom_framebuffers.size() - 1; i --> 0;) {
         m_command_buffer->SetViewport(m_bloom_framebuffers[i].GetResolution());
         BeginPass(*m_bloom_framebuffers[i].GetRenderTarget());
         {
@@ -354,8 +353,8 @@ void sge::Renderer::BlitTexture(LLGL::Texture& texture) {
 sge::Handle<sge::Mesh> sge::Renderer::AddMesh(const Mesh& mesh) {
     LLGL::VertexFormat vertexFormat = ConvertMeshAttributesToLLGL(m_context->Backend(), mesh.GetAttributes());
 
-    uint64_t layoutHash = 1469598103934665603ULL;
-    HashVertexFormat(layoutHash, vertexFormat);
+    uint64_t layoutHash = sge::DEFAULT_HASH;
+    HashVertexAttributes(layoutHash, vertexFormat.attributes);
 
     sge::Unique<LLGL::Buffer> vertex_buffer = m_context->CreateVertexBuffer(mesh.GetVertexData(), mesh.GetVertexSize(), vertexFormat);
     sge::Unique<LLGL::Buffer> index_buffer = nullptr;
@@ -383,100 +382,41 @@ sge::Handle<sge::Mesh> sge::Renderer::AddMesh(const Mesh& mesh) {
     return handle;
 }
 
-sge::Handle<sge::Material> sge::Renderer::AddMaterial(const sge::Material& material) {
-    uint64_t stateHash = 1469598103934665603ULL;
-    sge::hash_combine(stateHash, material.GetCullMode());
-    sge::hash_combine(stateHash, material.GetBlendMode());
-
-    LLGL::VertexFormat instanceFormat = ConvertInstanceAttributesToLLGL(m_context->Backend(), material.GetInstanceAttributes());
-    HashVertexFormat(stateHash, instanceFormat);
-
-    auto& bindings = material.GetBindings();
-    
-    std::vector<LLGL::ResourceViewDescriptor> resourceViews;
-    LLGL::PipelineLayoutDescriptor layoutDesc;
-    for (const auto& binding : bindings) {
-        auto resourceType = LLGL::ResourceType::Undefined;
-        auto resourceView = LLGL::ResourceViewDescriptor();
-
-        if (const auto* texture = std::get_if<sge::Ref<LLGL::Texture>>(&binding.resource)) {
-            resourceType = LLGL::ResourceType::Texture;
-            resourceView = texture->Get();
-        } else if (const auto* buffer = std::get_if<sge::Ref<LLGL::Buffer>>(&binding.resource)) {
-            resourceType = LLGL::ResourceType::Buffer;
-            resourceView = buffer->Get();
-        } else if (const auto* sampler = std::get_if<sge::Ref<LLGL::Buffer>>(&binding.resource)) {
-            resourceType = LLGL::ResourceType::Sampler;
-            resourceView = sampler->Get();
-        } else {
-            SGE_UNREACHABLE();
-        }
-
-        auto stage = LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage;
-
-        sge::hash_combine(stateHash, binding.index);
-        sge::hash_combine(stateHash, binding.bindFlags);
-        sge::hash_combine(stateHash, stage);
-        sge::hash_combine(stateHash, binding.arraySize);
-        sge::hash_combine(stateHash, resourceType);
-
-        layoutDesc.heapBindings.emplace_back(resourceType, binding.bindFlags, stage, binding.arraySize);
-        resourceViews.emplace_back(resourceView);
-    }
-
-    sge::Unique<LLGL::PipelineLayout> pipelineLayout = m_context->CreatePipelineLayout(layoutDesc);
-    sge::Unique<LLGL::ResourceHeap> resourceHeap = m_context->CreateResourceHeap(pipelineLayout, resourceViews);
-
-    GpuMaterial gpuMaterial = {
-        .instanceFormat = std::move(instanceFormat),
-        .vertexShader = material.GetVertexShader(),
-        .fragmentShader = material.GetFragmentShader(),
-        .pipelineLayout = std::move(pipelineLayout),
-        .resourceHeap = std::move(resourceHeap),
-        .stateHash = stateHash,
-        .blendMode = material.GetBlendMode(),
-        .cullMode = material.GetCullMode()
-    };
-
-    auto handle = Handle<Material>(IdGenerator::Next());
-    m_materials.try_emplace(handle, std::make_shared<GpuMaterial>(std::move(gpuMaterial)));
-    return handle;
-}
-
 LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(
-    const GpuMaterial& material,
+    const Material& material,
     const LLGL::VertexFormat& vertexFormat,
     sge::PrimitiveTopology topology,
     sge::FrontFace frontFace,
     sge::IndexFormat indexFormat
 ) {
-    auto materialHash = material.stateHash;
+    auto materialHash = material.GetStateHash();
 
-    uint64_t vertexFormatHash = 1469598103934665603ULL;
-    HashVertexFormat(vertexFormatHash, vertexFormat);
+    uint64_t vertexFormatHash = sge::DEFAULT_HASH;
+    HashVertexAttributes(vertexFormatHash, vertexFormat.attributes);
 
     auto key = PipelineKey { .vertexFormatHash = vertexFormatHash, .materialHash = materialHash };
 
     auto existingEntry = m_pipelines.find(key);
     if (existingEntry != m_pipelines.end()) {
-        return *existingEntry->second;
+        return m_context->GetOrCreatePipeline(existingEntry->second);
     }
 
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.pipelineLayout = material.pipelineLayout;
-    pipelineDesc.vertexShader = material.vertexShader;
-    pipelineDesc.fragmentShader = material.fragmentShader;
-    pipelineDesc.indexFormat = ConvertIndexFormatToLLGL(indexFormat);
-    pipelineDesc.primitiveTopology = ConvertTopologyToLLGL(topology);
-    pipelineDesc.rasterizer.frontCCW = frontFace == sge::FrontFace::CCW;
-    pipelineDesc.rasterizer.cullMode = ConvertCullModeFormatToLLGL(material.cullMode);
-    pipelineDesc.blend.targets[0] = ConvertBlendModeToLLGL(material.blendMode);
+    sge::GraphicsPipelineConfig pipelineConfig;
+    pipelineConfig.layout = material.GetPipelineLayout();
+    pipelineConfig.vertexShader = material.GetVertexShader();
+    pipelineConfig.pixelShader = material.GetFragmentShader();
+    pipelineConfig.inputVertexAttribs = vertexFormat.attributes;
+    pipelineConfig.indexFormat = indexFormat;
+    pipelineConfig.primitiveTopology = topology;
+    pipelineConfig.frontFace = frontFace;
+    pipelineConfig.cullMode = material.GetCullMode();
+    pipelineConfig.blend.targets[0] = ConvertBlendModeToLLGL(material.GetBlendMode());
 
-    sge::Unique<LLGL::PipelineState> pipeline = m_context->CreatePipelineState(pipelineDesc);
-    auto [it, success] = m_pipelines.try_emplace(key, std::move(pipeline));
+    sge::PipelineId pipeline = m_context->CreateGraphicsPipeline(pipelineConfig);
+    auto [it, success] = m_pipelines.try_emplace(key, pipeline);
     SGE_ASSERT(success);
 
-    return *it->second;
+    return m_context->GetOrCreatePipeline(pipeline);
 }
 
 void sge::Renderer::SubmitRaw(Handle<Mesh> meshHandle, Handle<Material> materialHandle, const void* instanceData, size_t instanceByteSize) {
@@ -489,39 +429,61 @@ void sge::Renderer::SubmitRaw(Handle<Mesh> meshHandle, Handle<Material> material
     if (!batch.vertexBufferArray) {
         batch.mesh = m_meshes.at(meshHandle);
         batch.material = m_materials.at(materialHandle);
-        batch.instanceBufferPool = VertexBufferPool(batch.material->instanceFormat);
+        batch.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(batch.material->GetInstanceAttribs()));
     }
 
-    const auto* bytes = static_cast<const uint8_t*>(instanceData);
-    batch.instanceBytes.insert(batch.instanceBytes.end(), bytes, bytes + instanceByteSize);
+    if (instanceData != nullptr && instanceByteSize > 0) {
+        const auto* bytes = static_cast<const uint8_t*>(instanceData);
+        batch.instanceBytes.insert(batch.instanceBytes.end(), bytes, bytes + instanceByteSize);
+    }
+
+    batch.instanceCount += 1;
 }
 
 void sge::Renderer::EndPass() {
     for (auto& [key, batch] : m_mesh_batches) {
-        const auto& material = m_materials.at(key.material);
+        if (batch.instanceCount == 0)
+            continue;
 
-        LLGL::PipelineState& pipeline = GetOrCreatePipeline(*material, batch.mesh->vertexFormat, batch.mesh->topology, batch.mesh->frontFace, batch.mesh->indexFormat);
+        const bool isInstanced = !batch.instanceBytes.empty();
 
-        if (batch.instanceBufferPool.Reserve(*m_context, batch.instanceBytes.size())) {
-            SGE_ASSERT(batch.instanceBufferPool.Get() != nullptr);
-            if (batch.vertexBufferArray)
-                m_context->Release(*batch.vertexBufferArray);
-            batch.vertexBufferArray = m_context->CreateBufferArray({ batch.mesh->vertexBuffer, batch.instanceBufferPool.Get() });
+        if (isInstanced) {
+            if (batch.instanceBufferPool.Reserve(*m_context, batch.instanceBytes.size())) {
+                SGE_ASSERT(batch.instanceBufferPool.Get() != nullptr);
+                if (batch.vertexBufferArray)
+                    m_context->Release(*batch.vertexBufferArray);
+                batch.vertexBufferArray = m_context->CreateBufferArray({ batch.mesh->vertexBuffer, batch.instanceBufferPool.Get() });
+            }
+            m_command_buffer->UpdateBuffer(*batch.instanceBufferPool.Get(), 0, batch.instanceBytes.data(), batch.instanceBytes.size());
+            m_command_buffer->SetVertexBufferArray(*batch.vertexBufferArray);
+        } else {
+            m_command_buffer->SetVertexBuffer(*batch.mesh->vertexBuffer);
         }
-        
-        m_command_buffer->SetPipelineState(pipeline);
-        m_command_buffer->SetVertexBufferArray(*batch.vertexBufferArray);
-        m_command_buffer->SetResourceHeap(*batch.material->resourceHeap);
+
+        const auto& material = m_materials.at(key.material);
+        m_command_buffer->SetPipelineState(GetOrCreatePipeline(*material, batch.mesh->vertexFormat, batch.mesh->topology, batch.mesh->frontFace, batch.mesh->indexFormat));
+        m_command_buffer->SetResourceHeap(*batch.material->GetResourceHeap());
 
         auto indexCount = batch.mesh->indexCount;
-        
+
         if (indexCount > 0) {
             m_command_buffer->SetIndexBuffer(*batch.mesh->indexBuffer);
-            m_command_buffer->DrawIndexedInstanced(indexCount, batch.instanceCount, 0);
+            if (isInstanced) {
+                m_command_buffer->DrawIndexedInstanced(indexCount, batch.instanceCount, 0);
+            } else {
+                m_command_buffer->DrawIndexed(indexCount, 0, 0);
+            }
         } else {
             auto vertexCount = batch.mesh->vertexCount;
-            m_command_buffer->DrawInstanced(vertexCount, 0, batch.instanceCount);
+            if (isInstanced) {
+                m_command_buffer->DrawInstanced(vertexCount, 0, batch.instanceCount);
+            } else {
+                m_command_buffer->Draw(vertexCount, 0);
+            }
         }
+
+        batch.instanceCount = 0;
+        batch.instanceBytes.clear();
     }
 
     m_context->PopRenderTarget();

@@ -3,12 +3,13 @@
 
 #include <LLGL/Buffer.h>
 #include <LLGL/CommandBuffer.h>
+#include <LLGL/PipelineStateFlags.h>
 
 namespace sge {
 
 /**
  * @brief Copies the data to the buffer in chunks the size of maximum `2^16` (`65536`) bytes each.
- * 
+ *
  * @param commandBuffer The command buffer.
  * @param buffer The destination buffer.
  * @param offset The offset from the start of the data;
@@ -45,6 +46,16 @@ inline consteval std::size_t GetArrayLength(const T (&)[N]) noexcept {
     return N;
 }
 
-};
+inline LLGL::BlendTargetDescriptor GetAlphaBlend() noexcept {
+    return LLGL::BlendTargetDescriptor {
+        .blendEnabled = true,
+        .srcColor = LLGL::BlendOp::SrcAlpha,
+        .dstColor = LLGL::BlendOp::InvSrcAlpha,
+        .srcAlpha = LLGL::BlendOp::SrcAlpha,
+        .dstAlpha = LLGL::BlendOp::InvSrcAlpha,
+    };
+}
+
+} // namespace sge
 
 #endif // SGE_RENDERER_UTILS_HPP_

@@ -45,7 +45,7 @@ private:
     std::unique_ptr<sge::Renderer2D> m_renderer;
     std::unique_ptr<sge::SpriteBatch> m_sprite_batch;
     std::unique_ptr<sge::LineBatch> m_line_batch;
-    
+
     sge::LinearRgba m_custom_color = sge::color::WHITE;
 
     ExampleConfig m_config;

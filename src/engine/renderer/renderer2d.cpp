@@ -2,11 +2,14 @@
 #include <execution>
 #endif
 
+#include <ranges>
+
 #include <LLGL/PipelineLayout.h>
 #include <LLGL/PipelineLayoutFlags.h>
 #include <LLGL/PipelineState.h>
 #include <LLGL/PipelineStateFlags.h>
 
+#include <SGE/assert.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/renderer/attributes.hpp>
 #include <SGE/renderer/batch.hpp>
@@ -15,8 +18,8 @@
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
 #include <SGE/types/binding_layout.hpp>
+#include <SGE/utils/hash.hpp>
 
-#include "SGE/assert.hpp"
 #include "shaders.hpp"
 
 // GNU PSTL doesn't compile with exceptions disabled
@@ -30,30 +33,6 @@ static constexpr uint32_t DEFAULT_BATCH_COUNT = 2000;
 static constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 
 namespace {
-
-namespace SpriteFlags {
-    enum : uint8_t {
-        UI = 0,
-    };
-};
-
-namespace GlyphFlags {
-    enum : uint8_t {
-        UI = 0,
-    };
-};
-
-namespace NinePatchFlags {
-    enum : uint8_t {
-        UI = 0,
-    };
-};
-
-namespace ShapeFlags {
-    enum : uint8_t {
-        UI = 0,
-    };
-};
 
 struct BatchVertexFormats {
     LLGL::VertexFormat vertex;
@@ -167,23 +146,11 @@ SGE_FORCE_INLINE sge::Ref<LLGL::Shader> CreateBatchVertexShader(const std::share
 }
 
 SGE_FORCE_INLINE sge::Handle<LLGL::PipelineState> GetPipelineByBlendMode(sge::BlendMode blend_mode, const sge::SpriteBatchPipeline& pipeline) {
-    switch (blend_mode) {
-    case sge::BlendMode::AlphaBlend: return pipeline.alpha_blend;
-    case sge::BlendMode::Additive: return pipeline.additive;
-    case sge::BlendMode::Opaque: return pipeline.opaque;
-    case sge::BlendMode::PremultipliedAlpha: return pipeline.premultiplied_alpha;
-    default: SGE_UNREACHABLE();
-    }
+
 }
 
 SGE_FORCE_INLINE sge::Handle<LLGL::PipelineState> GetDepthPipelineByBlendMode(sge::BlendMode blend_mode, const sge::SpriteBatchPipeline& pipeline) {
-    switch (blend_mode) {
-    case sge::BlendMode::AlphaBlend: return pipeline.depth_alpha_blend;
-    case sge::BlendMode::Additive: return pipeline.depth_additive;
-    case sge::BlendMode::Opaque: return pipeline.depth_opaque;
-    case sge::BlendMode::PremultipliedAlpha: return pipeline.depth_premultiplied_alpha;
-    default: SGE_UNREACHABLE();
-    }
+
 }
 
 } // namespace
@@ -304,7 +271,7 @@ sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Ren
 
 //         for (const auto& [blend_mode, pointer, pipelineName, index] : pipelines) {
 //             pipelineConfig.debugName = std::format("{}_{}", pipelineName, count);
-            
+
 //             // bool hasInitialCache = false;
 //             // auto pipelineCache = ReadPipelineCache(name, hasInitialCache);
 
@@ -509,7 +476,7 @@ sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Ren
 
 //     ShaderSourceCode shader = GetLineShaderSourceCode(backend);
 //     BatchVertexFormats vertex_formats = LineBatchVertexFormats(backend);
-    
+
 //     sge::ShaderConfig shaderConfig;
 //     shaderConfig.vertex.inputAttribs = vertex_formats.total_attributes();
 
@@ -536,64 +503,135 @@ sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Ren
 //     return GetRenderContext()->CreatePipelineState(pipelineConfig);
 // }
 
-void sge::Renderer2D::DestroyBatch(sge::Batch& batch) {
-    const SpriteBatchPipeline& sprite_pipeline = batch.SpritePipeline();
-    const auto glyph_vector_pipeline = batch.GlyphVectorPipeline();
-    const auto glyph_sdf_pipeline = batch.GlyphSDFPipeline();
-    const auto line_pipeline = batch.LinePipeline();
-    const auto shape_pipeline = batch.ShapePipeline();
+// void sge::Renderer2D::DestroyBatch(sge::Batch& batch) {
+//     const SpriteBatchPipeline& sprite_pipeline = batch.SpritePipeline();
+//     const auto glyph_vector_pipeline = batch.GlyphVectorPipeline();
+//     const auto glyph_sdf_pipeline = batch.GlyphSDFPipeline();
+//     const auto line_pipeline = batch.LinePipeline();
+//     const auto shape_pipeline = batch.ShapePipeline();
 
-    auto& context = GetRenderContext();
+//     auto& context = GetRenderContext();
 
-    context->DeletePipeline(sprite_pipeline.additive);
-    context->DeletePipeline(sprite_pipeline.alpha_blend);
-    context->DeletePipeline(sprite_pipeline.premultiplied_alpha);
-    context->DeletePipeline(sprite_pipeline.opaque);
-    context->DeletePipeline(sprite_pipeline.depth_additive);
-    context->DeletePipeline(sprite_pipeline.depth_alpha_blend);
-    context->DeletePipeline(sprite_pipeline.depth_premultiplied_alpha);
-    context->DeletePipeline(sprite_pipeline.depth_opaque);
-    context->DeletePipeline(glyph_vector_pipeline);
-    context->DeletePipeline(glyph_sdf_pipeline);
-    context->DeletePipeline(line_pipeline);
-    context->DeletePipeline(shape_pipeline);
+//     context->DeletePipeline(sprite_pipeline.additive);
+//     context->DeletePipeline(sprite_pipeline.alpha_blend);
+//     context->DeletePipeline(sprite_pipeline.premultiplied_alpha);
+//     context->DeletePipeline(sprite_pipeline.opaque);
+//     context->DeletePipeline(sprite_pipeline.depth_additive);
+//     context->DeletePipeline(sprite_pipeline.depth_alpha_blend);
+//     context->DeletePipeline(sprite_pipeline.depth_premultiplied_alpha);
+//     context->DeletePipeline(sprite_pipeline.depth_opaque);
+//     context->DeletePipeline(glyph_vector_pipeline);
+//     context->DeletePipeline(glyph_sdf_pipeline);
+//     context->DeletePipeline(line_pipeline);
+//     context->DeletePipeline(shape_pipeline);
+// }
+
+static bool BatchStateEqual(const sge::internal::BatchState& a, const sge::internal::BatchState& b, LLGL::Resource* const* resources) {
+    size_t hash_a = sge::DEFAULT_HASH;
+    sge::hash_fnv1a(hash_a, resources + a.resources_offset, a.resources_count);
+
+    size_t hash_b = sge::DEFAULT_HASH;
+    sge::hash_fnv1a(hash_b, resources + b.resources_offset, b.resources_count);
+
+    return hash_a == hash_b
+        && a.scissor == b.scissor
+        && a.order == b.order
+        && a.blend_mode == b.blend_mode;
 }
 
 void sge::Renderer2D::SubmitBatchRaw(
-    Handle<LLGL::PipelineState> pipelineHandle,
+    LLGL::PipelineState* pipeline,
     LLGL::Buffer* vertexBuffer,
     sge::VertexBufferPool& instanceBuffer,
     sge::Unique<LLGL::BufferArray>& bufferArray,
     std::vector<DrawCommand>& drawCommands,
+    LLGL::Resource* const* resources,
     uint32_t vertexCount,
-    const void* instanceData
+    void* instanceData
 ) {
     if (drawCommands.empty())
         return;
 
-    m_staging_data.clear();
-    
-    std::ranges::sort(drawCommands, [](const DrawCommand& a, const DrawCommand& b) {
-        return internal::SortTextureBatchState(a.state, b.state);
-    });
-    
-    const auto* instance_ptr = static_cast<const uint8_t*>(instanceData);
-    const auto instance_stride = instanceBuffer.GetStride();
+    m_indices.clear();
+    m_indices.reserve(drawCommands.size());
+    std::ranges::copy(std::views::iota(0u, drawCommands.size()), std::back_inserter(m_indices));
 
-    for (const DrawCommand& command : drawCommands) {
-        const auto* bytes = instance_ptr + command.instance_index * instance_stride;
-        m_staging_data.insert(m_staging_data.end(), bytes, bytes + instance_stride);
+    std::ranges::sort(m_indices, [&](const size_t ia, const size_t ib) {
+        const DrawCommand& a = drawCommands[ia];
+        const DrawCommand& b = drawCommands[ib];
+
+        if (a.state.order < b.state.order) return true;
+        if (a.state.order > b.state.order) return false;
+
+        const int a_scissor_size = a.state.scissor.width() + a.state.scissor.height();
+        const int b_scissor_size = b.state.scissor.width() + b.state.scissor.height();
+
+        if (a_scissor_size < b_scissor_size)
+            return true;
+
+        if (a_scissor_size > b_scissor_size)
+            return false;
+
+        uint8_t a_bm = static_cast<uint8_t>(a.state.blend_mode);
+        uint8_t b_bm = static_cast<uint8_t>(b.state.blend_mode);
+
+        if (a_bm < b_bm) return true;
+        if (a_bm > b_bm) return false;
+
+        size_t hash_a = sge::DEFAULT_HASH;
+        sge::hash_fnv1a(hash_a, resources + a.state.resources_offset, a.state.resources_count);
+
+        size_t hash_b = sge::DEFAULT_HASH;
+        sge::hash_fnv1a(hash_b, resources + b.state.resources_offset, b.state.resources_count);
+
+        if (hash_a < hash_b) return true;
+        if (hash_a > hash_b) return false;
+
+        return false;
+    });
+
+    static constexpr size_t TEMP_BUFFER_SIZE = 256;
+
+    auto* instance_ptr = static_cast<uint8_t*>(instanceData);
+    const auto instance_stride = instanceBuffer.GetStride();
+    const size_t instances_size = instance_stride * drawCommands.size();
+
+    SGE_ASSERT(instance_stride <= TEMP_BUFFER_SIZE);
+
+    uint8_t temp_buf[TEMP_BUFFER_SIZE];
+
+    // Sort instances and draw commands
+    for (size_t i = 0; i < m_indices.size(); ++i) {
+        size_t current_idx = i;
+
+        while (m_indices[current_idx] != i) {
+            size_t next_idx = m_indices[current_idx];
+
+            std::swap(drawCommands[current_idx], drawCommands[next_idx]);
+
+            auto* elem_curr = instance_ptr + (current_idx * instance_stride);
+            auto* elem_next = instance_ptr + (next_idx * instance_stride);
+
+            std::memcpy(temp_buf, elem_curr, instance_stride);
+            std::memcpy(elem_curr, elem_next, instance_stride);
+            std::memcpy(elem_next, temp_buf, instance_stride);
+
+            m_indices[current_idx] = current_idx;
+            current_idx = next_idx;
+        }
+        m_indices[current_idx] = current_idx;
     }
 
-    if (instanceBuffer.Reserve(*m_context, m_staging_data.size())) {
+    if (instanceBuffer.Reserve(*m_context, instances_size)) {
         bufferArray = m_context->CreateBufferArray({ vertexBuffer, instanceBuffer.Get() });
     }
 
-    m_command_buffer->UpdateBuffer(*instanceBuffer.Get(), 0, m_staging_data.data(), m_staging_data.size());
+    m_command_buffer->UpdateBuffer(*instanceBuffer.Get(), 0, instanceData, instances_size);
 
     m_submissions.push_back(BatchSubmission {
-        .pipeline = pipelineHandle,
+        .pipeline = pipeline,
         .buffer_array = bufferArray,
+        .resources = resources,
         .draw_commands = drawCommands.data(),
         .draw_commands_count = drawCommands.size(),
         .draw_commands_offset = 0,
@@ -617,9 +655,10 @@ void sge::Renderer2D::FlushBatches() {
         return min;
     };
 
-    auto flush = [&](const BatchSubmission& data, const sge::internal::BatchTextureState& state, uint32_t instance_count, uint32_t instance_offset) {
-        auto& pipeline = m_context->GetOrCreatePipeline(data.pipeline);
-        m_command_buffer->SetPipelineState(pipeline);
+    auto FlushBatch = [&](const BatchSubmission& data, const sge::internal::BatchState& state, uint32_t instance_count, uint32_t instance_offset) {
+        if (instance_count == 0) return;
+
+        m_command_buffer->SetPipelineState(*data.pipeline);
         m_command_buffer->SetVertexBufferArray(*data.buffer_array);
 
         if (state.scissor.width() > 0 && state.scissor.height() > 0) {
@@ -634,9 +673,9 @@ void sge::Renderer2D::FlushBatches() {
         }
 
         m_command_buffer->SetResource(0, *GlobalUniformBuffer());
-        if (state.texture.is_valid()) {
-            m_command_buffer->SetResource(1, *state.texture.ptr);
-            m_command_buffer->SetResource(2, *state.texture.sampler);
+        size_t binding = 1;
+        for (size_t i = 0; i < state.resources_count; ++i) {
+            m_command_buffer->SetResource(binding++, *data.resources[state.resources_offset + i]);
         }
 
         m_command_buffer->DrawInstanced(data.vertex_count, 0, instance_count, instance_offset);
@@ -662,19 +701,13 @@ void sge::Renderer2D::FlushBatches() {
             uint32_t count = 0;
 
             size_t i = submission.draw_commands_offset;
-
             if (submission.draw_commands[i].state.order == current_order) {
-                if (submission.draw_commands[i].state != data.state) {
-                    flush(submission, data.state, count, data.offset);
-                    data.offset += count;
-                    count = 0;
-                }
                 data.state = submission.draw_commands[i].state;
 
                 for (; i < submission.draw_commands_count; ++i) {
                     const DrawCommand& command = submission.draw_commands[i];
 
-                    if (command.state.order != current_order)
+                    if (!BatchStateEqual(command.state, data.state, submission.resources))
                         break;
 
                     ++count;
@@ -683,7 +716,8 @@ void sge::Renderer2D::FlushBatches() {
             submission.draw_commands_offset = i;
 
             if (count > 0) {
-                flush(submission, data.state, count, data.offset);
+                FlushBatch(submission, data.state, count, data.offset);
+                data.offset += count;
                 count = 0;
             }
         }

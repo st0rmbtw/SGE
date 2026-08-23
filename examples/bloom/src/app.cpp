@@ -7,6 +7,8 @@
 #include <SGE/math/quaternion.hpp>
 #include <SGE/renderer/attributes.hpp>
 #include <SGE/renderer/camera.hpp>
+#include <SGE/renderer/material.hpp>
+#include <SGE/renderer/mesh.hpp>
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/time/time.hpp>
@@ -60,7 +62,7 @@ bool App::OnInit() {
 
     LLGL::Extent2D resolution = window->GetContentSize();
 
-    m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
+    m_renderer = std::make_unique<sge::Renderer>(GetRenderContext());
 
     m_uniforms.projection_matrix = glm::perspectiveRH_ZO(glm::radians(45.0f), 1280.0f / 720.0f, 0.001f, 100.0f);
 
@@ -76,27 +78,7 @@ bool App::OnInit() {
 void App::InitPipeline() {
     const auto& context = GetRenderContext();
 
-    LLGL::PipelineLayoutDescriptor layoutDesc;
-    layoutDesc.bindings = sge::BindingLayout({
-        sge::BindingLayoutItem::ConstantBuffer(2, "UniformConstantBuffer", LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage)
-    });
-
-    LLGL::VertexFormat vertexFormat = sge::VertexAttributes(context->Backend(), {
-        sge::Attribute::Vertex(sge::VertexFormat::Float32x3, "a_position", "Position")
-    });
-
-    ShaderSourceCode sourceCode = GetBasicShaderSourceCode(GetRenderContext()->Backend());
-
-    sge::ShaderConfig shaderConfig;
-    shaderConfig.vertex.inputAttribs = vertexFormat.attributes;
-
-    sge::GraphicsPipelineConfig pipelineConfig;
-    pipelineConfig.layout = context->CreatePipelineLayout(layoutDesc);
-    pipelineConfig.vertexShader = context->CreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size, shaderConfig);
-    pipelineConfig.pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", sourceCode.fs_source, sourceCode.fs_size);
-    pipelineConfig.cullMode = sge::CullMode::Back;
-
-    m_pipeline_handle = context->CreatePipelineState(pipelineConfig);
+    m_uniform_buffer = context->CreateConstantBuffer(sizeof(UniformBuffer));
 
     const glm::vec3 vertices[] = {
         // 1. BACK FACE
@@ -148,9 +130,19 @@ void App::InitPipeline() {
         glm::vec3(-0.5f,  0.5f, -0.5f)
     };
 
-    m_vertex_buffer = context->CreateVertexBuffer(vertices, vertexFormat);
+    m_mesh = m_renderer->AddMesh(sge::Mesh()
+        .AddAttribute(sge::VertexFormat::Float32x3, "a_position", "Position")
+        .SetVertices(vertices)
+    );
 
-    m_uniform_buffer = GetRenderContext()->CreateConstantBuffer(sizeof(UniformBuffer));
+    ShaderSourceCode sourceCode = GetBasicShaderSourceCode(context->Backend());
+
+    m_material = m_renderer->AddMaterial(sge::MaterialDesc()
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size))
+        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", sourceCode.fs_source, sourceCode.fs_size))
+        .SetCullMode(sge::CullMode::Back)
+        .BindConstantBuffer(2, "UniformConstantBuffer", m_uniform_buffer, LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage)
+    );
 }
 
 void App::OnUpdate() {
@@ -241,10 +233,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             m_renderer->Clear(LLGL::ClearValue(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f));
             commands->SetViewport(framebuffer.GetResolution());
 
-            commands->SetVertexBuffer(*m_vertex_buffer);
-            commands->SetPipelineState(context->GetOrCreatePipeline(m_pipeline_handle));
-            commands->SetResource(0, *m_uniform_buffer);
-            commands->Draw(36, 0);
+            m_renderer->Submit(m_mesh, m_material);
         }
         m_renderer->EndPass();
 

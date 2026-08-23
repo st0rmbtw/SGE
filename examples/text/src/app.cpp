@@ -20,13 +20,11 @@
 #include <glm/trigonometric.hpp>
 
 #include "app.hpp"
+#include "SGE/renderer/batch.hpp"
 #include "SGE/types/font.hpp"
 #include "SGE/utils/text.hpp"
 
-static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
-
 namespace Input = sge::Input;
-namespace Time = sge::Time;
 using Key = sge::Key;
 using MouseButton = sge::MouseButton;
 
@@ -62,15 +60,11 @@ bool App::OnInit() {
     m_camera.set_samples(m_config.samples);
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
-    
-    m_batch = m_renderer->CreateBatch();
-    m_ui_batch = m_renderer->CreateBatch();
-    m_ui_batch->SetIsUi(true);
+
+    m_batch_vector = std::make_unique<sge::TextVectorBatch>(*m_renderer);
 
     // m_font = sge::LoadFontVector("../../examples/text/src/JetBrainsMono-Regular.ttf", *GetRenderContext());
     // m_font_sdf = sge::LoadFont("../../examples/text/src/JetBrainsMono-Regular.ttf", *GetRenderContext());
-
-    Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
     window->ShowWindow();
 
@@ -81,78 +75,11 @@ App::~App() {
 }
 
 void App::OnUpdate() {
-    sge::Transform& camera_transform = m_camera.transform();
-
-    for (const float scroll : Input::ScrollEvents()) {
-        const float new_zoom = glm::clamp(m_camera.zoom() * glm::pow(0.75f, scroll), 0.f, 10.f);
-        const float zoom_delta = new_zoom / m_camera.zoom();
-
-        m_camera.set_zoom(new_zoom);
-
-        const glm::vec2 mouse_pos = m_camera.screen_to_world(Input::CursorPosition());
-        const glm::vec2 length = mouse_pos - glm::vec2(camera_transform.translation);
-        const glm::vec2 scaled_length = length * zoom_delta;
-        const glm::vec2 delta_length = length - scaled_length;
-
-        const sge::Rect& area = m_camera.get_projection_area();
-        const glm::vec2 window_size = glm::vec2(m_camera.viewport());
-
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + delta_length;
-        m_camera.set_position(new_position);
-    }
-
-    if (Input::Pressed(MouseButton::Left)) {
-        const sge::Rect& area = m_camera.get_projection_area();
-
-        const glm::vec2 new_position = glm::vec2(camera_transform.translation) + Input::MouseDelta() * m_camera.zoom() * glm::vec2(-1.f, -1.f);
-        m_camera.set_position(new_position);
-    }
-
-    if (Input::Pressed(Key::Escape)) {
-        m_camera.set_zoom(1.f);
-        m_camera.set_position(glm::vec2(0.f));
-    }
-
-    if (Input::Pressed(Key::Minus)) {
-        float zoom = m_camera.zoom() + 5.f * Time::DeltaSeconds();
-        m_camera.set_zoom(zoom);
-    }
-
-    if (Input::Pressed(Key::Equals)) {
-        float zoom = m_camera.zoom() - 5.f * Time::DeltaSeconds();
-        m_camera.set_zoom(zoom);
-    }
-
-    constexpr float MOVE_SPEED = 1200.0f;
-
-    if (Input::Pressed(Key::W)) {
-        glm::vec2 position = m_camera.transform().translation;
-        position.y -= MOVE_SPEED * Time::DeltaSeconds();
-        m_camera.set_position(position);
-    }
-
-    if (Input::Pressed(Key::S)) {
-        glm::vec2 position = m_camera.transform().translation;
-        position.y += MOVE_SPEED * Time::DeltaSeconds();
-        m_camera.set_position(position);
-    }
-
-    if (Input::Pressed(Key::A)) {
-        glm::vec2 position = m_camera.transform().translation;
-        position.x -= MOVE_SPEED * Time::DeltaSeconds();
-        m_camera.set_position(position);
-    }
-
-    if (Input::Pressed(Key::D)) {
-        glm::vec2 position = m_camera.transform().translation;
-        position.x += MOVE_SPEED * Time::DeltaSeconds();
-        m_camera.set_position(position);
-    }
+    ControlCamera2D(m_camera);
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-    m_batch->Reset();
-    m_ui_batch->Reset();
+    m_batch_vector->Clear();
 
     sge::RichText text{{
         sge::RichTextSection("English:\n", sge::LinearRgba(0.3f, 0.8f, 0.3f), 96.f),
@@ -180,7 +107,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 14.f),
         sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 10.f),
         sge::RichTextSection("Съешь ещё этих мягких французских булок, да выпей же чаю\n", sge::color::WHITE, 8.f),
-        
+
         sge::RichTextSection("\nEspañol:\n", sge::LinearRgba(0.8f, 0.8f, 0.3f), 96.f),
         sge::RichTextSection("EL VELOZ MURCIÉLAGO HINDÚ COMÍA FELIZ CARDILLO Y KIWI\n", sge::color::WHITE, 72.f),
         sge::RichTextSection("El veloz murciélago hindú comía feliz cardillo y kiwi\n", sge::color::WHITE, 64.f),
@@ -203,21 +130,19 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
     const float text_width = sge::MeasureText(font, text).x;
 
-    m_batch->DrawTextVector(text, glm::vec2(0.0f), font);
-    m_batch->DrawText(text, glm::vec2(text_width + 50.0f, 0.0f), font_sdf);
+    m_batch_vector->Draw(text, glm::vec2(0.0f), font);
+    // m_batch_vector->Draw(text, glm::vec2(text_width + 50.0f, 0.0f), font_sdf);
 
     const float fps = 1.0 / sge::Time::DeltaSeconds();
-    m_ui_batch->DrawTextVector(sge::TempFormat("FPS: {:.0f}", fps), 16.f, sge::color::WHITE, glm::vec2(15, window->GetHeight() - 30), font);
+    m_batch_vector->DrawUI(sge::TempFormat("FPS: {:.0f}", fps), 16.f, sge::color::WHITE, glm::vec2(15, window->GetHeight() - 30), font);
 
     m_renderer->Begin();
     {
-        m_renderer->PrepareAndUpload(*m_batch, *m_ui_batch);
-
         m_renderer->BeginPass(window, m_camera);
         {
             m_renderer->Clear(LLGL::ClearValue(float(22)/0xFF, float(22)/0xFF, float(22)/0xFF, 1.f));
-            m_renderer->RenderBatch(*m_batch);
-            m_renderer->RenderBatch(*m_ui_batch);
+            m_renderer->SubmitBatch(*m_batch_vector);
+            m_renderer->FlushBatches();
         }
         m_renderer->EndPass();
     }

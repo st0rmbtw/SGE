@@ -1,7 +1,6 @@
 #ifndef _SGE_RENDERER_BATCH_HPP_
 #define _SGE_RENDERER_BATCH_HPP_
 
-#include "SGE/renderer/buffer_pool.hpp"
 #include <concepts>
 #include <vector>
 
@@ -12,6 +11,7 @@
 
 #include <SGE/defines.hpp>
 #include <SGE/math/rect.hpp>
+#include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/types/color.hpp>
@@ -31,16 +31,6 @@ class Renderer;
 
 namespace internal {
 
-enum class FlushDataType : uint8_t {
-    Sprite = 0,
-    GlyphVector,
-    GlyphSDF,
-    NinePatch,
-    Shape,
-    Line,
-    COUNT
-};
-
 struct BatchTexture {
     LLGL::Texture* ptr = nullptr;
     LLGL::Sampler* sampler = nullptr;
@@ -53,126 +43,12 @@ struct BatchTexture {
     }
 };
 
-struct BatchSimpleState {
+struct BatchState {
     sge::IRect scissor;
+    size_t resources_offset;
+    size_t resources_count;
     uint32_t order;
     sge::BlendMode blend_mode;
-
-    bool operator==(const BatchSimpleState& other) const {
-        return scissor == other.scissor 
-            && order == other.order 
-            && blend_mode == other.blend_mode;
-    }
-};
-
-struct BatchTextureState {
-    BatchTexture texture;
-    sge::IRect scissor;
-    uint32_t order;
-    sge::BlendMode blend_mode;
-
-    bool operator==(const BatchTextureState& other) const {
-        return texture == other.texture
-            && scissor == other.scissor 
-            && order == other.order 
-            && blend_mode == other.blend_mode;
-    }
-};
-
-struct BatchGlyphVectorState {
-    sge::Ref<LLGL::Buffer> curve_buffer;
-    sge::Ref<LLGL::Buffer> partition_buffer;
-    sge::IRect scissor;
-    uint32_t order;
-    sge::BlendMode blend_mode;
-
-    bool operator==(const BatchGlyphVectorState& other) const {
-        return curve_buffer == other.curve_buffer
-            && partition_buffer == other.partition_buffer
-            && scissor == other.scissor 
-            && order == other.order 
-            && blend_mode == other.blend_mode;
-    }
-};
-
-struct FlushData {
-    union {
-        BatchTexture texture = {};
-        struct {
-            LLGL::Buffer* curve_buffer;
-            LLGL::Buffer* partition_buffer;
-        } glyph_data;
-    };
-    sge::IRect scissor;
-    uint32_t offset;
-    uint32_t count;
-    FlushDataType type;
-    sge::BlendMode blend_mode;
-};
-
-struct DrawCommandSprite {
-    BatchTextureState state = {};
-    glm::quat rotation;
-    glm::vec4 uv_offset_scale;
-    glm::vec4 color;
-    glm::vec4 outline_color;
-    glm::vec3 position;
-    glm::vec2 size;
-    glm::vec2 offset;
-    float outline_thickness;
-};
-
-struct DrawCommandNinePatch {
-    BatchTextureState state = {};
-    glm::quat rotation;
-    glm::vec4 uv_offset_scale;
-    glm::vec4 color;
-    glm::uvec4 margin;
-    glm::vec2 position;
-    glm::vec2 offset;
-    glm::vec2 source_size;
-    glm::vec2 output_size;
-};
-
-struct DrawCommandGlyphVector {
-    BatchGlyphVectorState state = {};
-    glm::vec3 color;
-    glm::vec2 pos;
-    glm::vec2 size;
-    glm::vec2 em_size;
-    float font_size;
-    uint32_t partition_offset;
-    uint32_t partition_count;
-};
-
-struct DrawCommandGlyphSDF {
-    BatchTextureState state = {};
-    glm::vec3 color;
-    glm::vec2 pos;
-    glm::vec2 size;
-    glm::vec2 tex_size;
-    glm::vec2 tex_uv;
-};
-
-struct DrawCommandShape {
-    BatchSimpleState state;
-    sge::LinearRgba color;
-    sge::LinearRgba border_color;
-    glm::vec4 border_radius;
-    glm::vec2 position;
-    glm::vec2 size;
-    glm::vec2 offset;
-    float border_thickness;
-    uint8_t shape;
-};
-
-struct DrawCommandLine {
-    BatchSimpleState state;
-    sge::LinearRgba color;
-    glm::vec4 border_radius;
-    glm::vec2 start;
-    glm::vec2 end;
-    float thickness;
 };
 
 inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
@@ -191,65 +67,18 @@ inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
     return uv_offset_scale;
 }
 
-inline bool SortSimpleBatchState(const BatchSimpleState& a, const BatchSimpleState& b) {
-    if (a.order < b.order) return true;
-    if (a.order > b.order) return false;
-
-    const int a_scissor_size = a.scissor.width() + a.scissor.height();
-    const int b_scissor_size = b.scissor.width() + b.scissor.height();
-
-    if (a_scissor_size < b_scissor_size)
-        return true;
-
-    if (a_scissor_size > b_scissor_size)
-        return false;
-
-    uint8_t a_bm = static_cast<uint8_t>(a.blend_mode);
-    uint8_t b_bm = static_cast<uint8_t>(b.blend_mode);
-
-    if (a_bm < b_bm) return true;
-    if (a_bm > b_bm) return false;
-
-    return false;
-}
-
-inline bool SortTextureBatchState(const BatchTextureState& a, const BatchTextureState& b) {
-    if (a.order < b.order) return true;
-    if (a.order > b.order) return false;
-
-    const int a_scissor_size = a.scissor.width() + a.scissor.height();
-    const int b_scissor_size = b.scissor.width() + b.scissor.height();
-
-    if (a_scissor_size < b_scissor_size)
-        return true;
-
-    if (a_scissor_size > b_scissor_size)
-        return false;
-
-    if (a.texture.id < b.texture.id) return true;
-    if (a.texture.id > b.texture.id) return false;
-
-    uint8_t a_bm = static_cast<uint8_t>(a.blend_mode);
-    uint8_t b_bm = static_cast<uint8_t>(b.blend_mode);
-
-    if (a_bm < b_bm) return true;
-    if (a_bm > b_bm) return false;
-
-    return false;
-}
-
 } // namespace internal
 
 struct BatchDesc {
     /**
      * @brief Custom sprite fragment shader
-     * 
+     *
      * @note If null, the default sprite fragment shader is used
      */
     Ref<LLGL::Shader> sprite_shader = nullptr;
     /**
      * @brief Custom font fragment shader
-     * 
+     *
      * @note If null, the default font fragment shader is used
      */
     Ref<LLGL::Shader> font_shader = nullptr;
@@ -271,7 +100,7 @@ public:
         uint32_t total_count = 0;
     };
 
-    using FlushQueue = std::vector<internal::FlushData>;
+    // using FlushQueue = std::vector<internal::FlushData>;
 
     Batch(Renderer2D& renderer, const BatchDesc& desc);
 
@@ -398,23 +227,23 @@ public:
     uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius = BorderRadius(), sge::Order custom_order = {});
 
     inline void Reset() {
-        m_sprite_draw_commands.clear();
-        m_glyph_vector_draw_commands.clear();
-        m_glyph_sdf_draw_commands.clear();
-        m_ninepatch_draw_commands.clear();
-        m_shape_draw_commands.clear();
-        m_line_draw_commands.clear();
-        
-        m_flush_queue.clear();
+        // m_sprite_draw_commands.clear();
+        // m_glyph_vector_draw_commands.clear();
+        // m_glyph_sdf_draw_commands.clear();
+        // m_ninepatch_draw_commands.clear();
+        // m_shape_draw_commands.clear();
+        // m_line_draw_commands.clear();
+
+        // m_flush_queue.clear();
         m_scissors.clear();
-        
+
         m_sprite_data.Reset();
         m_glyph_vector_data.Reset();
         m_glyph_sdf_data.Reset();
         m_ninepatch_data.Reset();
         m_shape_data.Reset();
         m_line_data.Reset();
-        
+
         m_order = 0;
         m_order_mode = false;
     }
@@ -430,7 +259,7 @@ public:
     inline bool IsUi() const noexcept {
         return m_is_ui;
     }
-    
+
     [[nodiscard]]
     inline bool ScissorEnabled() const noexcept {
         return m_scissor_enabled;
@@ -480,7 +309,7 @@ public:
     inline const SpriteBatchPipeline& SpritePipeline() const noexcept {
         return m_sprite_pipeline;
     }
-    
+
     [[nodiscard]]
     inline sge::Handle<LLGL::PipelineState> NinepatchPipeline() const noexcept {
         return m_ninepatch_pipeline;
@@ -511,63 +340,63 @@ private:
     uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, sge::Order custom_order);
     uint32_t AddNinePatchDrawCommand(const sge::NinePatch& ninepatch, const glm::vec4& uv_offset_scale, sge::Order custom_order);
 
-    [[nodiscard]]
-    inline bool empty() const noexcept {
-        return (
-            m_sprite_draw_commands.empty() &&
-            m_glyph_vector_draw_commands.empty() &&
-            m_glyph_sdf_draw_commands.empty() &&
-            m_ninepatch_draw_commands.empty() &&
-            m_shape_draw_commands.empty() &&
-            m_line_draw_commands.empty()
-        );
-    }
+    // [[nodiscard]]
+    // inline bool empty() const noexcept {
+    //     return (
+    //         m_sprite_draw_commands.empty() &&
+    //         m_glyph_vector_draw_commands.empty() &&
+    //         m_glyph_sdf_draw_commands.empty() &&
+    //         m_ninepatch_draw_commands.empty() &&
+    //         m_shape_draw_commands.empty() &&
+    //         m_line_draw_commands.empty()
+    //     );
+    // }
 
-    [[nodiscard]]
-    inline const FlushQueue& flush_queue() const noexcept {
-        return m_flush_queue;
-    }
+    // [[nodiscard]]
+    // inline const FlushQueue& flush_queue() const noexcept {
+    //     return m_flush_queue;
+    // }
 
-    [[nodiscard]]
-    inline FlushQueue& flush_queue() noexcept {
-        return m_flush_queue;
-    }
+    // [[nodiscard]]
+    // inline FlushQueue& flush_queue() noexcept {
+    //     return m_flush_queue;
+    // }
 
-    [[nodiscard]]
-    std::vector<internal::DrawCommandSprite>& sprite_draw_commands() noexcept {
-        return m_sprite_draw_commands;
-    }
+    // [[nodiscard]]
+    // std::vector<internal::DrawCommandSprite>& sprite_draw_commands() noexcept {
+    //     return m_sprite_draw_commands;
+    // }
 
-    [[nodiscard]]
-    std::vector<internal::DrawCommandGlyphVector>& glyph_vector_draw_commands() noexcept {
-        return m_glyph_vector_draw_commands;
-    }
+    // [[nodiscard]]
+    // std::vector<internal::DrawCommandGlyphVector>& glyph_vector_draw_commands() noexcept {
+    //     return m_glyph_vector_draw_commands;
+    // }
 
-    [[nodiscard]]
-    std::vector<internal::DrawCommandGlyphSDF>& glyph_sdf_draw_commands() noexcept {
-        return m_glyph_sdf_draw_commands;
-    }
+    // [[nodiscard]]
+    // std::vector<internal::DrawCommandGlyphSDF>& glyph_sdf_draw_commands() noexcept {
+    //     return m_glyph_sdf_draw_commands;
+    // }
 
-    [[nodiscard]]
-    std::vector<internal::DrawCommandNinePatch>& ninepatch_draw_commands() noexcept {
-        return m_ninepatch_draw_commands;
-    }
+    // [[nodiscard]]
+    // std::vector<internal::DrawCommandNinePatch>& ninepatch_draw_commands() noexcept {
+    //     return m_ninepatch_draw_commands;
+    // }
 
-    [[nodiscard]]
-    std::vector<internal::DrawCommandShape>& shape_draw_commands() noexcept {
-        return m_shape_draw_commands;
-    }
+    // [[nodiscard]]
+    // std::vector<internal::DrawCommandShape>& shape_draw_commands() noexcept {
+    //     return m_shape_draw_commands;
+    // }
 
-    [[nodiscard]]
-    std::vector<internal::DrawCommandLine>& line_draw_commands() noexcept {
-        return m_line_draw_commands;
-    }
+    // [[nodiscard]]
+    // std::vector<internal::DrawCommandLine>& line_draw_commands() noexcept {
+    //     return m_line_draw_commands;
+    // }
 
     [[nodiscard]]
     inline Data& sprite_data() noexcept {
         return m_sprite_data;
     }
-    
+
     [[nodiscard]]
     inline Data& glyph_vector_data() noexcept {
         return m_glyph_vector_data;
@@ -587,41 +416,41 @@ private:
     inline Data& shape_data() noexcept {
         return m_shape_data;
     }
-    
+
     [[nodiscard]]
     inline Data& line_data() noexcept {
         return m_line_data;
     }
 
-    [[nodiscard]]
-    inline size_t sprites_done() const noexcept {
-        return m_sprite_draw_commands.size() - m_sprite_data.total_count;
-    }
+    // [[nodiscard]]
+    // inline size_t sprites_done() const noexcept {
+    //     return m_sprite_draw_commands.size() - m_sprite_data.total_count;
+    // }
 
-    [[nodiscard]]
-    inline size_t ninepatches_done() const noexcept {
-        return m_ninepatch_draw_commands.size() - m_ninepatch_data.total_count;
-    }
+    // [[nodiscard]]
+    // inline size_t ninepatches_done() const noexcept {
+    //     return m_ninepatch_draw_commands.size() - m_ninepatch_data.total_count;
+    // }
 
-    [[nodiscard]]
-    inline size_t glyphs_vector_done() const noexcept {
-        return m_glyph_vector_draw_commands.size() - m_glyph_vector_data.total_count;
-    }
+    // [[nodiscard]]
+    // inline size_t glyphs_vector_done() const noexcept {
+    //     return m_glyph_vector_draw_commands.size() - m_glyph_vector_data.total_count;
+    // }
 
-    [[nodiscard]]
-    inline size_t glyphs_sdf_done() const noexcept {
-        return m_glyph_sdf_draw_commands.size() - m_glyph_sdf_data.total_count;
-    }
+    // [[nodiscard]]
+    // inline size_t glyphs_sdf_done() const noexcept {
+    //     return m_glyph_sdf_draw_commands.size() - m_glyph_sdf_data.total_count;
+    // }
 
-    [[nodiscard]]
-    inline size_t shapes_done() const noexcept {
-        return m_shape_draw_commands.size() - m_shape_data.total_count;
-    }
+    // [[nodiscard]]
+    // inline size_t shapes_done() const noexcept {
+    //     return m_shape_draw_commands.size() - m_shape_data.total_count;
+    // }
 
-    [[nodiscard]]
-    inline size_t lines_done() const noexcept {
-        return m_line_draw_commands.size() - m_line_data.total_count;
-    }
+    // [[nodiscard]]
+    // inline size_t lines_done() const noexcept {
+    //     return m_line_draw_commands.size() - m_line_data.total_count;
+    // }
 
     [[nodiscard]]
     inline size_t total_remaining() const noexcept {
@@ -639,14 +468,14 @@ private:
 
     SpriteBatchPipeline m_sprite_pipeline{};
 
-    std::vector<internal::DrawCommandSprite> m_sprite_draw_commands;
-    std::vector<internal::DrawCommandGlyphVector> m_glyph_vector_draw_commands;
-    std::vector<internal::DrawCommandGlyphSDF> m_glyph_sdf_draw_commands;
-    std::vector<internal::DrawCommandNinePatch> m_ninepatch_draw_commands;
-    std::vector<internal::DrawCommandShape> m_shape_draw_commands;
-    std::vector<internal::DrawCommandLine> m_line_draw_commands;
+    // std::vector<internal::DrawCommandSprite> m_sprite_draw_commands;
+    // std::vector<internal::DrawCommandGlyphVector> m_glyph_vector_draw_commands;
+    // std::vector<internal::DrawCommandGlyphSDF> m_glyph_sdf_draw_commands;
+    // std::vector<internal::DrawCommandNinePatch> m_ninepatch_draw_commands;
+    // std::vector<internal::DrawCommandShape> m_shape_draw_commands;
+    // std::vector<internal::DrawCommandLine> m_line_draw_commands;
 
-    FlushQueue m_flush_queue;
+    // FlushQueue m_flush_queue;
 
     std::vector<sge::IRect> m_scissors;
 
@@ -680,25 +509,26 @@ private:
 
 struct DrawCommand {
     size_t instance_index;
-    internal::BatchTextureState state;
+    internal::BatchState state;
 };
 
 template <typename T>
 concept Batchable = requires (T t, sge::Unique<LLGL::BufferArray> bufferArray) {
-    { t.GetPipeline() } -> std::same_as<sge::Handle<LLGL::PipelineState>>;
-    { t.GetInstanceData() } -> std::same_as<const void*>;
+    { t.GetPipeline() } -> std::same_as<sge::PipelineId>;
+    { t.GetInstanceData() } -> std::same_as<void*>;
     { t.GetInstanceCount() } -> std::same_as<size_t>;
     { t.GetVertexCount() } -> std::same_as<uint32_t>;
     { t.GetDrawCommands() } -> std::same_as<std::vector<DrawCommand>&>;
     { t.GetInstanceBuffer() } -> std::same_as<sge::VertexBufferPool&>;
     { t.GetVertexBuffer() } -> std::same_as<LLGL::Buffer*>;
     { t.BufferArray() } -> std::same_as<sge::Unique<LLGL::BufferArray>&>;
+    { t.GetResources() } -> std::same_as<LLGL::Resource* const*>;
     { t.Clear() } -> std::same_as<void>;
 };
 
 class SpriteBatch {
 public:
-    explicit SpriteBatch(sge::Renderer& renderer);
+    explicit SpriteBatch(sge::Renderer& renderer, sge::Ref<LLGL::Shader> customPixelShader = nullptr);
 
     void Draw(const Sprite& sprite);
 
@@ -708,7 +538,7 @@ public:
     }
 
     [[nodiscard]]
-    const void* GetInstanceData() const {
+    void* GetInstanceData() {
         return m_instances.data();
     }
 
@@ -727,7 +557,7 @@ public:
     }
 
     [[nodiscard]]
-    Handle<LLGL::PipelineState> GetPipeline() const {
+    PipelineId GetPipeline() const {
         return m_pipeline;
     }
 
@@ -746,13 +576,19 @@ public:
         return m_buffer_array;
     }
 
+    [[nodiscard]]
+    LLGL::Resource* const* GetResources() const {
+        return m_resources.data();
+    }
+
 private:
     sge::VertexBufferPool m_instance_buffer;
     std::vector<DrawCommand> m_commands;
     std::vector<SpriteInstance> m_instances;
+    std::vector<LLGL::Resource*> m_resources;
     sge::Unique<LLGL::Buffer> m_vertex_buffer;
     sge::Unique<LLGL::BufferArray> m_buffer_array;
-    Handle<LLGL::PipelineState> m_pipeline;
+    PipelineId m_pipeline;
 };
 
 class LineBatch {
@@ -767,7 +603,7 @@ public:
     }
 
     [[nodiscard]]
-    const void* GetInstanceData() const {
+    void* GetInstanceData() {
         return m_instances.data();
     }
 
@@ -786,7 +622,7 @@ public:
     }
 
     [[nodiscard]]
-    Handle<LLGL::PipelineState> GetPipeline() const {
+    sge::PipelineId GetPipeline() const {
         return m_pipeline;
     }
 
@@ -804,13 +640,105 @@ public:
     sge::Unique<LLGL::BufferArray>& BufferArray() {
         return m_buffer_array;
     }
+
+    [[nodiscard]]
+    LLGL::Resource* const* GetResources() const {
+        return nullptr;
+    }
+
 private:
     sge::VertexBufferPool m_instance_buffer;
     std::vector<DrawCommand> m_commands;
     std::vector<LineInstance> m_instances;
     sge::Unique<LLGL::Buffer> m_vertex_buffer;
     sge::Unique<LLGL::BufferArray> m_buffer_array;
-    Handle<LLGL::PipelineState> m_pipeline;
+    sge::PipelineId m_pipeline;
+};
+
+class TextVectorBatch {
+public:
+    explicit TextVectorBatch(sge::Renderer& renderer);
+
+    void Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::FontVector& font, bool ui, sge::Order order);
+
+    template <size_t Size>
+    inline void Draw(const sge::RichText<Size>& text, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
+        return Draw(text.sections, Size, position, font, false, order);
+    }
+
+    template <size_t Size>
+    inline void DrawUI(const sge::RichText<Size>& text, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
+        return Draw(text.sections, Size, position, font, true, order);
+    }
+
+    inline void Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
+        sge::RichTextSection section = { .text=text, .color=color, .size=size };
+        return Draw(&section, 1, position, font, false, order);
+    }
+
+    inline void DrawUI(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
+        sge::RichTextSection section = { .text=text, .color=color, .size=size };
+        return Draw(&section, 1, position, font, true, order);
+    }
+
+    void Clear() {
+        m_commands.clear();
+        m_instances.clear();
+        m_resources.clear();
+    }
+
+    [[nodiscard]]
+    void* GetInstanceData() {
+        return m_instances.data();
+    }
+
+    [[nodiscard]]
+    size_t GetInstanceCount() const {
+        return m_instances.size();
+    }
+
+    [[nodiscard]]
+    uint32_t GetVertexCount() const {
+        return 4;
+    }
+
+    std::vector<DrawCommand>& GetDrawCommands() {
+        return m_commands;
+    }
+
+    [[nodiscard]]
+    sge::PipelineId GetPipeline() const {
+        return m_pipeline;
+    }
+
+    [[nodiscard]]
+    sge::VertexBufferPool& GetInstanceBuffer() {
+        return m_instance_buffer;
+    }
+
+    [[nodiscard]]
+    LLGL::Buffer* GetVertexBuffer() {
+        return m_vertex_buffer;
+    }
+
+    [[nodiscard]]
+    sge::Unique<LLGL::BufferArray>& BufferArray() {
+        return m_buffer_array;
+    }
+
+    [[nodiscard]]
+    LLGL::Resource* const* GetResources() const {
+        return m_resources.data();
+    }
+
+private:
+    sge::VertexBufferPool m_instance_buffer;
+    std::vector<DrawCommand> m_commands;
+    std::vector<GlyphInstanceVector> m_instances;
+    std::vector<LLGL::Resource*> m_resources;
+    sge::Unique<LLGL::Buffer> m_vertex_buffer;
+    sge::Unique<LLGL::BufferArray> m_buffer_array;
+    sge::PipelineId m_pipeline;
 };
 
 } // namespace sge

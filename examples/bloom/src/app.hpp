@@ -14,7 +14,7 @@
 struct alignas(16) UniformBuffer {
     glm::mat4x4 view_matrix;
     glm::mat4x4 projection_matrix;
-    glm::vec3 object_color = glm::vec3(2.0f, 2.0f, 10.0f);
+    glm::vec3 object_color = glm::vec3(2.5f, 0.5f, 1.0f);
 };
 
 class App : public sge::IEngine {
@@ -31,7 +31,7 @@ private:
 
 private:
     UniformBuffer m_uniforms;
-    
+
     sge::Transform m_transform;
 
     glm::vec3 m_clear_color = glm::vec3(0.4f, 0.4f, 0.4f);
@@ -41,12 +41,12 @@ private:
     float m_yaw = 0.0f;
     float m_pitch = 0.0f;
 
-    sge::Ref<LLGL::Buffer> m_vertex_buffer;
     sge::Ref<LLGL::Buffer> m_uniform_buffer;
 
-    sge::Handle<LLGL::PipelineState> m_pipeline_handle;
+    sge::Handle<sge::Mesh> m_mesh;
+    sge::Handle<sge::Material> m_material;
 
-    std::unique_ptr<sge::Renderer2D> m_renderer;
+    std::unique_ptr<sge::Renderer> m_renderer;
     ExampleConfig m_config;
 
     bool m_render_imgui = true;

@@ -141,9 +141,13 @@ public:
         return std::move(*this).SetVertices(std::span<const TVertex>(vertices.begin(), vertices.end()));
     }
 
-    template <typename TVertex>
-    Mesh&& SetVertices(std::span<const TVertex> vertices) && {
-        return std::move(*this).SetVertexData(vertices.data(), vertices.size_bytes(), static_cast<uint32_t>(vertices.size()));
+    template <typename TContainer>
+    Mesh&& SetVertices(const TContainer& vertices) && {
+        using ElementType = std::ranges::range_value_t<TContainer>;
+        const void* data = std::data(vertices);
+        const size_t size = std::size(vertices);
+        const size_t size_bytes = std::size(vertices) * sizeof(ElementType);
+        return std::move(*this).SetVertexData(data, size_bytes, static_cast<uint32_t>(size));
     }
 
     Mesh&& SetVertexData(const void* data, size_t byte_size, uint32_t vertex_count) && {
@@ -153,7 +157,7 @@ public:
         }
 
         m_vertex_count = vertex_count;
-        
+
         m_vertex_size = byte_size;
         m_vertex_data = sge::checked_alloc<uint8_t>(byte_size);
         memcpy(m_vertex_data, data, byte_size);

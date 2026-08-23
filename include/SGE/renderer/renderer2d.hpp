@@ -18,8 +18,9 @@ struct Binding {
 };
 
 struct BatchSubmission {
-    Handle<LLGL::PipelineState> pipeline;
+    LLGL::PipelineState* pipeline;
     LLGL::BufferArray* buffer_array;
+    LLGL::Resource* const* resources;
     const DrawCommand* draw_commands;
     size_t draw_commands_count;
     size_t draw_commands_offset = 0;
@@ -32,7 +33,7 @@ struct BufferPoolEntry {
 };
 
 struct BatchData {
-    sge::internal::BatchTextureState state;
+    sge::internal::BatchState state;
     uint32_t offset;
 };
 
@@ -52,17 +53,27 @@ public:
 
     template <Batchable T>
     void SubmitBatch(T& batch) {
-        SubmitBatchRaw(batch.GetPipeline(), batch.GetVertexBuffer(), batch.GetInstanceBuffer(), batch.BufferArray(), batch.GetDrawCommands(), batch.GetVertexCount(), batch.GetInstanceData());
+        SubmitBatchRaw(
+            &m_context->GetOrCreatePipeline(batch.GetPipeline()),
+            batch.GetVertexBuffer(),
+            batch.GetInstanceBuffer(),
+            batch.BufferArray(),
+            batch.GetDrawCommands(),
+            batch.GetResources(),
+            batch.GetVertexCount(),
+            batch.GetInstanceData()
+        );
     }
 
     void SubmitBatchRaw(
-        Handle<LLGL::PipelineState> pipelineHandle,
+        LLGL::PipelineState* pipeline,
         LLGL::Buffer* vertexBuffer,
         sge::VertexBufferPool& instanceBuffer,
         sge::Unique<LLGL::BufferArray>& bufferArray,
         std::vector<DrawCommand>& drawCommands,
+        LLGL::Resource* const* resources,
         uint32_t vertex_count,
-        const void* instanceData
+        void* instanceData
     );
 
     void FlushBatches();
@@ -77,7 +88,7 @@ public:
         return std::make_unique<sge::Batch>(*this, desc);
     }
 
-    void DestroyBatch(sge::Batch& batch);
+    void DestroyBatch(sge::Batch& batch) {}
 
     void DrawPath(const sge::Path& path, const sge::LinearRgba& color = sge::color::WHITE, const sge::Transform& transform = sge::Transform());
 
@@ -85,10 +96,8 @@ private:
     void InitVectorPipeline();
 
 private:
-    Ref<LLGL::Shader> m_sprite_vertex_shader;
     Ref<LLGL::Shader> m_glyph_sdf_vertex_shader;
     Ref<LLGL::Shader> m_ninepatch_vertex_shader;
-    Ref<LLGL::Shader> m_glyph_vector_vertex_shader;
 
     Ref<LLGL::Shader> m_sprite_default_fragment_shader;
     Ref<LLGL::Shader> m_glyph_sdf_default_fragment_shader;
@@ -106,7 +115,7 @@ private:
     Ref<LLGL::Buffer> m_vector_vertex_buffer;
     Ref<LLGL::Buffer> m_vector_path_data_buffer;
 
-    std::vector<uint8_t> m_staging_data;
+    std::vector<size_t> m_indices;
 
     std::vector<BatchSubmission> m_submissions;
     std::vector<BatchData> m_batch_data;

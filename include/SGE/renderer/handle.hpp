@@ -8,28 +8,29 @@ namespace sge {
 
 template <typename Tag>
 class Handle {
+    static constexpr uint64_t INVALID = 0;
+
 public:
-    Handle() = default;
+    Handle() noexcept = default;
 
-    explicit Handle(uint64_t id) : m_id(id) {}
-
-    [[nodiscard]]
-    uint64_t Id() const { return m_id; }
+    explicit Handle(uint64_t id) noexcept : m_id(id) {}
 
     [[nodiscard]]
-    bool IsValid() const { return m_id != INVALID; }
+    uint64_t Id() const noexcept { return m_id; }
+
+    [[nodiscard]]
+    bool IsValid() const noexcept { return m_id != INVALID; }
 
     friend bool operator==(const Handle& a, const Handle& b) { return a.m_id == b.m_id; }
     friend bool operator!=(const Handle& a, const Handle& b) { return a.m_id != b.m_id; }
 
 private:
-    static constexpr uint64_t INVALID = 0;
     uint64_t m_id = INVALID;
 };
 
 class IdGenerator {
 public:
-    static uint64_t Next() { return ++s_counter; }
+    static uint64_t Next() noexcept { return ++s_counter; }
 private:
     static inline uint64_t s_counter = 0;
 };
