@@ -2,6 +2,7 @@
 
 #include <SGE/engine.hpp>
 #include <SGE/input.hpp>
+#include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/time/time.hpp>
@@ -55,9 +56,7 @@ bool App::OnInit() {
     m_camera.set_viewport(resolution.width, resolution.height);
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
-
-    m_batch = m_renderer->CreateBatch();
-    m_batch->BeginBlendMode(sge::BlendMode::PremultipliedAlpha);
+    m_shape_batch = std::make_shared<sge::ShapeBatch>(*m_renderer);
 
     uint64_t totalMemorySize = Clay_MinMemorySize();
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, (char *)malloc(totalMemorySize));
@@ -74,10 +73,6 @@ bool App::OnInit() {
     return true;
 }
 
-App::~App() {
-    m_renderer->DestroyBatch(*m_batch);
-}
-
 void App::OnUpdate() {
     const glm::uvec2 window_size = m_camera.viewport();
 
@@ -90,6 +85,7 @@ void App::OnUpdate() {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
+    sge::ResetBatches(m_shape_batch, m_text_batch);
     m_renderer->Begin();
 
     Clay_BeginLayout();
@@ -132,7 +128,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
             const sge::LinearRgba color = sge::LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
             const sge::BorderRadius cornerRadius = sge::BorderRadius::Absolute(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
-            m_batch->DrawRect(position, {
+            m_shape_batch->DrawRect(position, {
                 .size = size,
                 .color = color,
                 .border_thickness = 0.0f,
@@ -153,7 +149,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                 const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y + config->cornerRadius.topLeft);
                 const glm::vec2 size = glm::vec2(config->width.left, boundingBox.height - config->cornerRadius.topLeft - config->cornerRadius.bottomLeft);
 
-                m_batch->DrawRect(position, {
+                m_shape_batch->DrawRect(position, {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
@@ -167,7 +163,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->width.right, boundingBox.y + config->cornerRadius.topRight);
                 const glm::vec2 size = glm::vec2(config->width.right, boundingBox.height - config->cornerRadius.topRight - config->cornerRadius.bottomRight);
 
-                m_batch->DrawRect(position, {
+                m_shape_batch->DrawRect(position, {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
@@ -181,7 +177,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.topLeft - config->cornerRadius.topRight, config->width.top);
 
-                m_batch->DrawRect(position, {
+                m_shape_batch->DrawRect(position, {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
@@ -196,7 +192,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->width.bottom);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.bottomLeft - config->cornerRadius.bottomRight, config->width.bottom);
 
-                m_batch->DrawRect(position, {
+                m_shape_batch->DrawRect(position, {
                     .size = size,
                     .color = color,
                     .border_thickness = 0.0f,
@@ -208,7 +204,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 
             if (config->cornerRadius.topLeft > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y + config->cornerRadius.topLeft);
-                m_batch->DrawArc(position, {
+                m_shape_batch->DrawArc(position, {
                     .outer_radius = config->cornerRadius.topLeft,
                     .inner_radius = config->cornerRadius.topLeft - config->width.top,
                     .start_angle = glm::radians(90.0f),
@@ -220,7 +216,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 
             if (config->cornerRadius.topRight > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->cornerRadius.topRight, boundingBox.y + config->cornerRadius.topRight);
-                m_batch->DrawArc(position, {
+                m_shape_batch->DrawArc(position, {
                     .outer_radius = config->cornerRadius.topRight,
                     .inner_radius = config->cornerRadius.topRight - config->width.top,
                     .start_angle = glm::radians(0.0f),
@@ -232,7 +228,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 
             if (config->cornerRadius.bottomLeft > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->cornerRadius.bottomLeft);
-                m_batch->DrawArc(position, {
+                m_shape_batch->DrawArc(position, {
                     .outer_radius = config->cornerRadius.bottomLeft,
                     .inner_radius = config->cornerRadius.bottomLeft - config->width.bottom,
                     .start_angle = glm::radians(180.0f),
@@ -244,7 +240,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 
             if (config->cornerRadius.bottomRight > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->cornerRadius.bottomRight, boundingBox.y + boundingBox.height - config->cornerRadius.bottomRight);
-                m_batch->DrawArc(position, {
+                m_shape_batch->DrawArc(position, {
                     .outer_radius = config->cornerRadius.bottomRight,
                     .inner_radius = config->cornerRadius.bottomRight - config->width.bottom,
                     .start_angle = glm::radians(270.0f),
@@ -267,7 +263,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 
     const glm::vec2 center = m_camera.screen_center();
 
-    m_batch->DrawRect(center, {
+    m_shape_batch->DrawRect(center, {
         .size = glm::vec2(250.0f),
         .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
         .border_thickness = 2.0f,
@@ -276,19 +272,17 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
     });
 
     sge::RichText text = sge::rich_text("Hello", 80.f, sge::color::WHITE);
-    m_batch->DrawText(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::GetDefaultFont());
-
-    m_renderer->PrepareAndUpload(*m_batch);
+    m_text_batch->Draw(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::GetDefaultFont());
 
     m_renderer->BeginPass(window, m_camera);
     {
         m_renderer->Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
-        m_renderer->RenderBatch(*m_batch);
+        m_renderer->SubmitBatches(m_shape_batch, m_text_batch);
+        m_renderer->FlushBatches();
     }
     m_renderer->EndPass();
 
     m_renderer->End();
-    m_batch->Reset();
 
     #if SGE_DEBUG_LAYER_ENABLED
     if (Input::Pressed(Key::C)) {

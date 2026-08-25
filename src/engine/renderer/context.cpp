@@ -12,7 +12,6 @@
 #include <SGE/defines.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/renderer/context.hpp>
-#include <SGE/renderer/handle.hpp>
 #include <SGE/renderer/types.hpp>
 
 #if SGE_IMGUI_ENABLED
@@ -253,12 +252,12 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(sge::PipelineId id)
 
     const GraphicsPipelineConfig& config = it_config->second;
 
-    LLGL::PipelineState* pipeline_state = nullptr;
+    LLGL::PipelineState* pipeline = nullptr;
 
     const PipelineConfigKey key = { .render_target=GetCurrentTarget(), .config_id=id };
     const auto it_pipeline = m_pipeline_states.find(key);
     if (it_pipeline != m_pipeline_states.end()) {
-        pipeline_state = it_pipeline->second;
+        pipeline = it_pipeline->second;
     } else {
         const LLGL::RenderPass* renderPass = GetCurrentTarget()->GetRenderPass();
         if (config.renderPass.IsValid()) {
@@ -283,16 +282,13 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(sge::PipelineId id)
         pipelineDesc.rasterizer.scissorTestEnabled = config.scissorTestEnabled;
         pipelineDesc.rasterizer.multiSampleEnabled = (GetCurrentTarget()->GetSamples() > 1);
 
-        LLGL::PipelineState* pipeline = CreatePipelineState(pipelineDesc);
+        pipeline = CreatePipelineState(pipelineDesc);
         SGE_ASSERT(pipeline != nullptr);
 
-        pipeline_state = CreatePipelineState(pipelineDesc);
-        SGE_ASSERT(pipeline_state != nullptr);
-
-        m_pipeline_states[key] = pipeline_state;
+        m_pipeline_states[key] = pipeline;
     }
 
-    return *pipeline_state;
+    return *pipeline;
 }
 
 LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(sge::RenderTargetId id, uint8_t samples) {
@@ -535,7 +531,6 @@ void sge::RenderContext::DeleteRenderTarget(sge::RenderTargetId id) {
 
     for (auto it = m_render_targets.begin(); it != m_render_targets.end();) {
         auto key = it->first;
-        auto value = it->second;
 
         if (key.config_id == id) {
             it = m_render_targets.erase(it);

@@ -18,7 +18,7 @@ namespace sge {
         LLGL::Format format;
         uint8_t samples;
     };
-    
+
     inline constexpr bool operator==(const sge::TemporaryFramebufferKey& a, const sge::TemporaryFramebufferKey& b) {
         return (
             a.width == b.width &&
@@ -143,7 +143,7 @@ class TemporaryFramebufferPool {
 public:
     TemporaryFramebuffer Get(const TemporaryFramebufferKey& key) {
         SGE_ASSERT(key.width != 0 && key.height != 0);
-        
+
         for (auto& entry : m_entries) {
             if (!entry->occupied && entry->key == key) {
                 entry->occupied = true;
@@ -173,7 +173,7 @@ public:
             return !e->occupied && (m_current_frame - e->last_used_frame) > max_unused_frames;
         });
     }
-    
+
 private:
     std::vector<std::unique_ptr<PoolEntry>> m_entries;
     uint64_t m_current_frame = 0;

@@ -130,14 +130,14 @@ void App::InitPipeline() {
         glm::vec3(-0.5f,  0.5f, -0.5f)
     };
 
-    m_mesh = m_renderer->AddMesh(sge::Mesh()
+    m_mesh = m_renderer->CreateMesh(sge::MeshDesc()
         .AddAttribute(sge::VertexFormat::Float32x3, "a_position", "Position")
         .SetVertices(vertices)
     );
 
     ShaderSourceCode sourceCode = GetBasicShaderSourceCode(context->Backend());
 
-    m_material = m_renderer->AddMaterial(sge::MaterialDesc()
+    m_material = m_renderer->CreateMaterial(sge::MaterialDesc()
         .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size))
         .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", sourceCode.fs_source, sourceCode.fs_size))
         .SetCullMode(sge::CullMode::Back)

@@ -43,8 +43,9 @@ private:
     LLGL::FrameProfile m_profile;
     sge::Texture m_sprite_texture;
     std::unique_ptr<sge::Renderer2D> m_renderer;
-    std::unique_ptr<sge::SpriteBatch> m_sprite_batch;
-    std::unique_ptr<sge::LineBatch> m_line_batch;
+    std::shared_ptr<sge::SpriteBatch> m_sprite_batch;
+    std::shared_ptr<sge::LineBatch> m_line_batch;
+    std::shared_ptr<sge::ShapeBatch> m_shape_batch;
 
     sge::LinearRgba m_custom_color = sge::color::WHITE;
 

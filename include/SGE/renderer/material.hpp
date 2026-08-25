@@ -45,6 +45,15 @@ struct BindingSlot {
     uint32_t arraySize = 0;
 };
 
+struct DynamicBindingSlot {
+    LLGL::StringLiteral name;
+    LLGL::ResourceType type;
+    uint32_t index = 0;
+    long bindFlags = 0;
+    long stage = 0;
+    uint32_t arraySize = 0;
+};
+
 struct InstanceAttribute {
     explicit InstanceAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot) :
         name(std::move(name)),
@@ -85,8 +94,9 @@ public:
         return std::move(*this);
     }
 
-    MaterialDesc&& BindTextureStorage(uint32_t slot, sge::Ref<LLGL::Texture> texture, long stage) && {
+    MaterialDesc&& BindTextureStorage(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Texture> texture, long stage) && {
         m_bindings.push_back(BindingSlot {
+            .name = std::move(name),
             .resource = texture,
             .index = slot,
             .bindFlags = LLGL::BindFlags::Storage,
@@ -150,13 +160,89 @@ public:
         return std::move(*this);
     }
 
-    MaterialDesc&& AddInstanceAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semanticName, uint32_t slot = 0) && {
-        m_instance_attributes.emplace_back(format, std::move(name), std::move(semanticName), slot);
+    MaterialDesc&& AddDynamicTextureStorage(uint32_t slot, LLGL::StringLiteral name, long stage) {
+        m_dynamic_bindings.push_back(DynamicBindingSlot {
+            .name = std::move(name),
+            .type = LLGL::ResourceType::Texture,
+            .index = slot,
+            .bindFlags = LLGL::BindFlags::Storage,
+            .stage = stage,
+        });
+        return std::move(*this);
+    }
+
+    MaterialDesc&& AddDynamicTexture(uint32_t slot, LLGL::StringLiteral name, long stage) {
+        m_dynamic_bindings.push_back(DynamicBindingSlot {
+            .name = std::move(name),
+            .type = LLGL::ResourceType::Texture,
+            .index = slot,
+            .bindFlags = LLGL::BindFlags::Sampled,
+            .stage = stage,
+        });
+        return std::move(*this);
+    }
+
+    MaterialDesc&& AddDynamicStorageBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
+        m_dynamic_bindings.push_back(DynamicBindingSlot {
+            .name = std::move(name),
+            .type = LLGL::ResourceType::Buffer,
+            .index = slot,
+            .bindFlags = LLGL::BindFlags::Storage,
+            .stage = stage,
+        });
+        return std::move(*this);
+    }
+
+    MaterialDesc&& AddDynamicBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
+        m_dynamic_bindings.push_back(DynamicBindingSlot {
+            .name = std::move(name),
+            .type = LLGL::ResourceType::Buffer,
+            .index = slot,
+            .bindFlags = LLGL::BindFlags::Sampled,
+            .stage = stage,
+        });
+        return std::move(*this);
+    }
+
+    MaterialDesc&& AddDynamicConstantBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
+        m_dynamic_bindings.push_back(DynamicBindingSlot {
+            .name = std::move(name),
+            .type = LLGL::ResourceType::Buffer,
+            .index = slot,
+            .bindFlags = LLGL::BindFlags::ConstantBuffer,
+            .stage = stage,
+        });
+        return std::move(*this);
+    }
+
+    MaterialDesc&& AddDynamicSampler(uint32_t slot, LLGL::StringLiteral name, long stage) {
+        m_dynamic_bindings.push_back(DynamicBindingSlot {
+            .name = std::move(name),
+            .type = LLGL::ResourceType::Sampler,
+            .index = slot,
+            .bindFlags = 0,
+            .stage = stage,
+        });
+        return std::move(*this);
+    }
+
+    MaterialDesc&& AddInstanceAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semanticName) && {
+        m_instance_attributes.emplace_back(format, std::move(name), std::move(semanticName), 1);
         return std::move(*this);
     }
 
     MaterialDesc&& AddInstanceAttribute(sge::InstanceAttribute attribute) && {
         m_instance_attributes.push_back(std::move(attribute));
+        return std::move(*this);
+    }
+
+    MaterialDesc&& SetScissorTestEnabled(bool enabled) && {
+        m_scissor_test_enabled = enabled;
+        return std::move(*this);
+    }
+
+    MaterialDesc&& SetDepthTestEnabled(bool enabled) && {
+        m_depth_test_enabled = enabled;
         return std::move(*this);
     }
 
@@ -168,6 +254,11 @@ public:
     [[nodiscard]]
     const std::vector<BindingSlot>& GetBindings() const {
         return m_bindings;
+    }
+
+    [[nodiscard]]
+    const std::vector<DynamicBindingSlot>& GetDynamicBindings() const {
+        return m_dynamic_bindings;
     }
 
     [[nodiscard]]
@@ -190,18 +281,32 @@ public:
         return m_blend_mode;
     }
 
+    [[nodiscard]]
+    bool IsScissorTestEnabled() const {
+        return m_scissor_test_enabled;
+    }
+
+    [[nodiscard]]
+    bool IsDepthTestEnabled() const {
+        return m_depth_test_enabled;
+    }
+
 private:
     std::vector<InstanceAttribute> m_instance_attributes;
     std::vector<BindingSlot> m_bindings;
+    std::vector<DynamicBindingSlot> m_dynamic_bindings;
 
     sge::Ref<LLGL::Shader> m_vertex_shader = nullptr;
     sge::Ref<LLGL::Shader> m_fragment_shader = nullptr;
 
     CullMode m_cull_mode = CullMode::None;
     BlendMode m_blend_mode = BlendMode::AlphaBlend;
+
+    bool m_scissor_test_enabled = false;
+    bool m_depth_test_enabled = false;
 };
 
-class Material {
+class Material : public RefCounted {
 public:
     explicit Material(sge::RenderContext& context, const MaterialDesc& desc);
 
@@ -245,6 +350,16 @@ public:
         return m_cull_mode;
     }
 
+    [[nodiscard]]
+    bool IsScissorTestEnabled() const {
+        return m_scissor_test_enabled;
+    }
+
+    [[nodiscard]]
+    bool IsDepthTestEnabled() const {
+        return m_depth_test_enabled;
+    }
+
 private:
     std::vector<LLGL::VertexAttribute> m_instance_attribs;
     sge::Ref<LLGL::Shader> m_vertex_shader;
@@ -254,6 +369,8 @@ private:
     uint64_t m_state_hash = 0;
     sge::BlendMode m_blend_mode;
     sge::CullMode m_cull_mode;
+    bool m_scissor_test_enabled = false;
+    bool m_depth_test_enabled = false;
 };
 
 } // namespace sge

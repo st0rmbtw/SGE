@@ -34,17 +34,17 @@ namespace detail {
     * returns float in the set [0, 1].
     */
     inline float hue2rgb(float p, float q, float t) {
-        if (t < 0) 
+        if (t < 0)
             t += 1;
-        if (t > 1) 
+        if (t > 1)
             t -= 1;
-        if (t < 1./6) 
+        if (t < 1./6)
             return p + (q - p) * 6 * t;
-        if (t < 1./2) 
+        if (t < 1./2)
             return q;
-        if (t < 2./3)   
+        if (t < 2./3)
             return p + (q - p) * (2./3 - t) * 6;
-            
+
         return p;
     }
 } // namespace detail
@@ -273,7 +273,7 @@ struct Srgba {
     glm::vec4 to_vec4() const {
         return glm::vec4(red, green, blue, alpha);
     }
-    
+
     [[nodiscard]]
     glm::vec3 to_vec3() const {
         return glm::vec3(red, green, blue);
@@ -406,10 +406,10 @@ inline LinearRgba detail::hsla_to_linear_rgba(const Hsla& hlsa) {
 
 inline Hsla detail::linear_rgba_to_hlsa(const LinearRgba& rgba) {
     Hsla result;
-    
+
     float max = std::max(std::max(rgba.r, rgba.g), rgba.b);
     float min = std::min(std::min(rgba.r, rgba.g), rgba.b);
-    
+
     result.hue = result.saturation = result.lightness = (max + min) / 2;
 
     if (max == min) {
@@ -417,7 +417,7 @@ inline Hsla detail::linear_rgba_to_hlsa(const LinearRgba& rgba) {
     } else {
         float d = max - min;
         result.saturation = (result.lightness > 0.5f) ? d / (2.0f - max - min) : d / (max + min);
-        
+
         if (max == rgba.r) {
             result.hue = (rgba.g - rgba.b) / d + (rgba.g < rgba.b ? 6.0f : 0);
         } else if (max == rgba.g) {
@@ -425,7 +425,7 @@ inline Hsla detail::linear_rgba_to_hlsa(const LinearRgba& rgba) {
         } else if (max == rgba.b) {
             result.hue = (rgba.r - rgba.g) / d + 4.0f;
         }
-        
+
         result.hue /= 6.0f;
     }
 
@@ -457,6 +457,9 @@ namespace color {
     inline constexpr sge::LinearRgba RED         = LinearRgba(1.f, 0.f, 0.f, 1.f);
     inline constexpr sge::LinearRgba GREEN       = LinearRgba(0.f, 1.f, 0.f, 1.f);
     inline constexpr sge::LinearRgba BLUE        = LinearRgba(0.f, 0.f, 1.f, 1.f);
+    inline constexpr sge::LinearRgba YELLOW      = LinearRgba(1.f, 1.f, 0.f, 1.f);
+    inline constexpr sge::LinearRgba PURPLE      = LinearRgba(1.f, 0.f, 1.f, 1.f);
+    inline constexpr sge::LinearRgba CYAN        = LinearRgba(0.f, 1.f, 1.f, 1.f);
 } // namespace color
 
 } // namespace sge

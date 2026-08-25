@@ -91,22 +91,38 @@ public:
     }
 
     template <typename TInstance>
-    void Submit(Handle<Mesh> mesh, Handle<Material> material, const TInstance& instance) {
+    void Submit(Ref<Mesh> mesh, Ref<Material> material, const TInstance& instance) {
         SubmitRaw(mesh, material, &instance, sizeof(TInstance));
     }
 
-    void Submit(Handle<Mesh> mesh, Handle<Material> material) {
-        SubmitRaw(mesh, material, nullptr, 0);
+    void Submit(Ref<Mesh> mesh, Ref<Material> material, std::span<LLGL::Resource* const> dynamicResources = {}) {
+        SubmitRaw(std::move(mesh), std::move(material), dynamicResources, nullptr, 0);
     }
 
-    void SubmitRaw(Handle<Mesh> mesh, Handle<Material> material, const void* instanceData, size_t instanceByteSize);
+    void SubmitRaw(
+        Ref<Mesh> mesh,
+        Ref<Material> material,
+        std::span<LLGL::Resource* const> dynamicResources,
+        const void* instanceData,
+        size_t instanceByteSize
+    );
 
-    Handle<Mesh> AddMesh(const sge::Mesh& mesh);
+    void FlushManyRaw(
+        Ref<Mesh> mesh,
+        Ref<Material> material,
+        std::span<LLGL::Resource* const> dynamicResources,
+        sge::IRect scissorBounds,
+        const void* instanceData,
+        size_t instanceDataSize,
+        uint32_t instanceCount
+    );
 
-    Handle<Material> AddMaterial(const sge::MaterialDesc& desc) {
-        auto handle = Handle<Material>(IdGenerator::Next());
-        m_materials.try_emplace(handle, std::make_shared<Material>(*m_context, desc));
-        return handle;
+    Ref<Mesh> CreateMesh(const sge::MeshDesc& desc) {
+        return Ref<Mesh>::Create(*m_context, desc);
+    }
+
+    Ref<Material> CreateMaterial(const sge::MaterialDesc& desc) {
+        return Ref<Material>::Create(*m_context, desc);
     }
 
     LLGL::PipelineState& GetOrCreatePipeline(
@@ -117,9 +133,7 @@ public:
         sge::IndexFormat indexFormat
     );
 
-    Material& GetMaterial(Handle<Material> handle) {
-        return *m_materials.at(handle);
-    }
+    sge::Ref<sge::Mesh> GetDefaultBatch2dMesh();
 
     [[nodiscard]]
     inline LLGL::CommandBuffer* CommandBuffer() const noexcept {
@@ -175,6 +189,18 @@ private:
     void InitBloomPipelines();
     void InitTonemapPipelines();
 
+    void FlushBatchRawImpl(
+        const Mesh& mesh,
+        const Material& material,
+        sge::IRect scissorBounds, // If the material has scissor test disabled - this parameter ignored
+        std::span<LLGL::Resource* const> dynamicBindings,
+        sge::Unique<LLGL::BufferArray>& bufferArray,
+        VertexBufferPool& instanceBuffer,
+        const void* instanceData,
+        size_t instanceStride,
+        uint32_t instanceCount
+    );
+
 protected:
     struct PipelineKey {
         uint64_t vertexFormatHash = 0;
@@ -195,37 +221,49 @@ protected:
     };
 
     struct BatchKey {
-        Handle<Mesh> mesh;
-        Handle<Material> material;
+        Mesh* mesh;
+        Material* material;
+        uint64_t dynamicBindingsHash = 0;
+        uint64_t scissorHash = 0;
 
         friend bool operator==(const BatchKey& a, const BatchKey& b) noexcept {
-            return a.mesh.Id() == b.mesh.Id() && a.material.Id() == b.material.Id();
+            return a.mesh == b.mesh
+                && a.material == b.material
+                && a.dynamicBindingsHash == b.dynamicBindingsHash
+                && a.scissorHash == b.scissorHash;
         }
     };
 
     struct BatchKeyHasher {
         size_t operator()(const BatchKey& key) const noexcept {
             size_t hash = 0;
-            hash_combine(hash, key.mesh.Id());
-            hash_combine(hash, key.material.Id());
+            hash_combine(hash, key.mesh);
+            hash_combine(hash, key.material);
+            hash_combine(hash, key.dynamicBindingsHash);
+            hash_combine(hash, key.scissorHash);
             return hash;
         }
     };
 
     struct MeshBatch {
-        std::shared_ptr<GpuMesh> mesh;
-        std::shared_ptr<Material> material;
         sge::VertexBufferPool instanceBufferPool;
         sge::Unique<LLGL::BufferArray> vertexBufferArray;
         std::vector<uint8_t> instanceBytes;
+        std::vector<LLGL::Resource*> dynamicBindings;
+        sge::Ref<Mesh> mesh;
+        sge::Ref<Material> material;
+        sge::IRect scissorBounds;
         size_t instanceCount;
     };
 
+    std::unordered_map<PipelineKey, PipelineId, PipelineKeyHasher> m_pipelines;
+    std::unordered_map<BatchKey, size_t, BatchKeyHasher> m_batches_map;
+    std::vector<MeshBatch> m_mesh_batches;
+
     LLGL::VertexFormat m_fullscreen_triangle_vertex_format;
 
-    Ref<LLGL::Buffer> m_uniform_buffer;
+    std::vector<sge::TemporaryFramebuffer> m_bloom_framebuffers;
     Unique<LLGL::Buffer> m_bloom_cb;
-
     Unique<LLGL::RenderPass> m_bloom_render_pass;
     Unique<LLGL::PipelineState> m_bloom_prefilter_pipeline;
     Unique<LLGL::PipelineState> m_bloom_downsample_pipeline;
@@ -243,14 +281,11 @@ protected:
     Ref<LLGL::PipelineState> m_blit_pipeline;
     Ref<LLGL::RenderPass> m_blit_render_pass;
 
+    Ref<LLGL::Buffer> m_uniform_buffer;
+
+    Ref<sge::Mesh> m_2d_batch_mesh;
+
     std::shared_ptr<RenderContext> m_context;
-
-    std::vector<sge::TemporaryFramebuffer> m_bloom_framebuffers;
-
-    std::unordered_map<Handle<Mesh>, std::shared_ptr<GpuMesh>> m_meshes;
-    std::unordered_map<Handle<Material>, std::shared_ptr<Material>> m_materials;
-    std::unordered_map<PipelineKey, PipelineId, PipelineKeyHasher> m_pipelines;
-    std::unordered_map<BatchKey, MeshBatch, BatchKeyHasher> m_mesh_batches;
 
     LLGL::CommandQueue* m_command_queue = nullptr;
     LLGL::CommandBuffer* m_command_buffer = nullptr;

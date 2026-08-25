@@ -98,13 +98,15 @@ float antialias(float d) {
     return 1.0 - smoothstep(-w, w, d);
 }
 
+static constexpr float EPSILON = 0.0001f;
+
 [shader("fragment")]
 float4 PS(VSOutput inp) : SV_Target
 {
     float4 result = inp.color;
 
     float radius = max(inp.border_radius.x, max(inp.border_radius.y, max(inp.border_radius.z, inp.border_radius.w)));
-    if (radius > 0.0) {
+    if (radius > EPSILON) {
         float external_distance = sd_rounded_box(inp.p, inp.size, inp.border_radius);
         float smoothed_alpha = antialias(external_distance);
         result = float4(inp.color.rgb, min(inp.color.a, smoothed_alpha));

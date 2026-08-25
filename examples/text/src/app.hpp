@@ -9,7 +9,6 @@
 class App : public sge::IEngine {
 public:
     explicit App(const ExampleConfig& config) : m_config(config) {}
-    ~App();
 
 protected:
     bool OnInit() override;
@@ -24,8 +23,9 @@ private:
     sge::Camera m_camera;
     sge::FontVector m_font;
     sge::Font m_font_sdf;
-    std::unique_ptr<sge::Renderer2D> m_renderer;
-    std::unique_ptr<sge::TextVectorBatch> m_batch_vector;
+    std::shared_ptr<sge::Renderer2D> m_renderer;
+    std::shared_ptr<sge::TextVectorBatch> m_batch_vector;
+    std::shared_ptr<sge::TextSdfBatch> m_batch_sdf;
     ExampleConfig m_config;
     bool m_paused = false;
 };

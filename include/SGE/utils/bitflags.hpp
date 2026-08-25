@@ -1,8 +1,8 @@
 #ifndef _SGE_UTILS_BITFLAGS_HPP_
 #define _SGE_UTILS_BITFLAGS_HPP_
 
-#include <type_traits>
 #include <initializer_list>
+#include <type_traits>
 
 namespace sge {
 
@@ -13,23 +13,23 @@ class BitFlags {
 
 public:
     constexpr BitFlags() = default;
-    constexpr BitFlags(T value) : m_data(underlying(value)) {}
+    constexpr BitFlags(T value) : m_data(bit(value)) {}
 
     constexpr BitFlags(const std::initializer_list<T> values) noexcept {
         for (const T e : values) {
-            m_data |= underlying(e);
+            m_data |= bit(e);
         }
     }
 
     inline constexpr void set(T e, bool set = true) noexcept {
         if (set)
-            m_data |= underlying(e);
+            m_data |= bit(e);
         else
-            m_data &= ~underlying(e);
+            m_data &= ~bit(e);
     }
 
     inline constexpr BitFlags& operator|=(const T e) noexcept {
-        m_data |= underlying(e);
+        m_data |= bit(e);
         return *this;
     }
 
@@ -39,17 +39,17 @@ public:
 
     [[nodiscard]]
     inline constexpr BitFlags operator&(const T e) const noexcept {
-        return BitFlags(m_data & underlying(e));
+        return BitFlags(m_data & bit(e));
     }
 
     [[nodiscard]]
     inline constexpr BitFlags operator|(const T e) const noexcept {
-        return BitFlags(m_data | underlying(e));
+        return BitFlags(m_data | bit(e));
     }
 
     [[nodiscard]]
     inline constexpr bool operator[](const T e) const noexcept {
-        return (m_data & underlying(e)) == underlying(e);
+        return (m_data & bit(e)) == bit(e);
     }
 
     [[nodiscard]]
@@ -59,7 +59,7 @@ public:
 
 private:
     [[nodiscard]]
-    static constexpr UnderlyingT underlying(T e) {
+    static constexpr UnderlyingT bit(T e) {
         return 1 << static_cast<UnderlyingT>(e);
     }
 
@@ -67,6 +67,6 @@ private:
     UnderlyingT m_data = static_cast<UnderlyingT>(0);
 };
 
-}
+} // namespace sge
 
 #endif

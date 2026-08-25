@@ -1,7 +1,7 @@
 #ifndef _SGE_RENDERER_BATCH_HPP_
 #define _SGE_RENDERER_BATCH_HPP_
 
-#include <concepts>
+#include <optional>
 #include <vector>
 
 #include <LLGL/RenderSystem.h>
@@ -13,6 +13,7 @@
 #include <SGE/math/rect.hpp>
 #include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/types/color.hpp>
 #include <SGE/types/font.hpp>
@@ -22,6 +23,7 @@
 #include <SGE/types/shape.hpp>
 #include <SGE/types/sprite.hpp>
 #include <SGE/types/texture.hpp>
+#include <SGE/utils/bitflags.hpp>
 #include <SGE/utils/containers/heaparray.hpp>
 
 namespace sge {
@@ -30,18 +32,6 @@ class Renderer2D;
 class Renderer;
 
 namespace internal {
-
-struct BatchTexture {
-    LLGL::Texture* ptr = nullptr;
-    LLGL::Sampler* sampler = nullptr;
-    int id = 0;
-
-    [[nodiscard]] inline bool is_valid() const { return id >= 0 && ptr != nullptr; }
-
-    bool operator==(const BatchTexture& other) const {
-        return id == other.id;
-    }
-};
 
 struct BatchState {
     sge::IRect scissor;
@@ -69,70 +59,77 @@ inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
 
 } // namespace internal
 
-struct BatchDesc {
-    /**
-     * @brief Custom sprite fragment shader
-     *
-     * @note If null, the default sprite fragment shader is used
-     */
-    Ref<LLGL::Shader> sprite_shader = nullptr;
-    /**
-     * @brief Custom font fragment shader
-     *
-     * @note If null, the default font fragment shader is used
-     */
-    Ref<LLGL::Shader> font_shader = nullptr;
-
-    bool enable_scissor = false;
+struct DrawCommand {
+    size_t instance_index;
+    internal::BatchState state;
 };
 
-class Batch {
-    friend class sge::Renderer2D;
+enum class BatchFlags : uint8_t {
+    UI = 0
+};
+
+struct SpriteBatchDesc {
+    sge::Ref<LLGL::Shader> customPixelShader = nullptr;
+    bool enableScissor = false;
+    bool enableDepth = false;
+};
+
+struct NinePatchBatchDesc {
+    sge::Ref<LLGL::Shader> customPixelShader = nullptr;
+    bool enableScissor = false;
+    bool enableDepth = false;
+};
+
+struct LineBatchDesc {
+    bool enableScissor = false;
+    bool enableDepth = false;
+};
+
+struct TextSdfBatchDesc {
+    sge::Ref<LLGL::Shader> customPixelShader = nullptr;
+    bool enableScissor = false;
+    bool enableDepth = false;
+};
+
+struct TextVectorBatchDesc {
+    bool enableScissor = false;
+    bool enableDepth = false;
+};
+
+struct ShapeBatchDesc {
+    bool enableScissor = false;
+    bool enableDepth = false;
+};
+
+class IBatch : public RefCounted {
+protected:
+    using FlagsType = sge::BitFlags<BatchFlags>;
+public:
+    [[nodiscard]]
+    virtual const sge::Ref<sge::Mesh>& GetMesh() const noexcept = 0;
+
+    [[nodiscard]]
+    virtual const sge::Ref<sge::Material>& GetMaterial() const noexcept = 0;
+
+    virtual void* GetInstanceData() noexcept = 0;
+
+    [[nodiscard]]
+    virtual size_t GetInstanceCount() const noexcept = 0;
+
+    [[nodiscard]]
+    virtual std::vector<DrawCommand>& GetDrawCommands() noexcept = 0;
+
+    [[nodiscard]]
+    virtual LLGL::Resource* const* GetDynamicBindings() const noexcept = 0;
+
+    virtual ~IBatch() = default;
+
+protected:
+    virtual void Clear() = 0;
 
 public:
-    struct Data {
-        void Reset() {
-            offset = 0;
-            total_count = 0;
-        }
-
-        uint32_t offset = 0;
-        uint32_t total_count = 0;
-    };
-
-    // using FlushQueue = std::vector<internal::FlushData>;
-
-    Batch(Renderer2D& renderer, const BatchDesc& desc);
-
-    Batch(const Batch&) = delete;
-    Batch& operator=(const Batch&) = delete;
-
-    Batch(Batch&&) = default;
-    Batch& operator=(Batch&&) = default;
-
-    inline void SetDepthEnabled(bool depth_enabled) noexcept {
-        m_depth_enabled = depth_enabled;
-    }
-
-    inline void SetIsUi(bool is_ui) noexcept {
-        m_is_ui = is_ui;
-    }
-
-    inline void SetBlendMode(sge::BlendMode blend_mode) noexcept {
-        m_blend_mode = blend_mode;
-    }
-
-    inline void SetMaxCount(uint32_t max_count) noexcept {
-        m_max_count = max_count;
-    }
-
-    inline void BeginBlendMode(sge::BlendMode blend_mode) noexcept {
-        m_prev_blend_mode = m_blend_mode;
-        m_blend_mode = blend_mode;
-    }
-
-    inline void EndBlendMode() noexcept {
-        m_blend_mode = m_prev_blend_mode;
+    void SetGlobalFlags(FlagsType flags) noexcept {
+        m_flags = flags;
     }
 
     inline void BeginOrderMode(int order, bool advance) noexcept {
@@ -155,591 +152,441 @@ public:
         m_global_order.advance = false;
     }
 
-    inline void BeginScissorMode(sge::Rect area) noexcept {
-        m_scissors.emplace_back(area);
+    inline void BeginScissorMode(sge::IRect scissor) {
+        m_scissor_stack.push_back(scissor);
     }
 
-    inline void EndScissorMode() noexcept {
-        if (m_scissors.empty()) return;
-        m_scissors.pop_back();
+    inline void EndScissorMode() {
+        m_scissor_stack.pop_back();
     }
-
-    uint32_t DrawTextVector(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::FontVector& font, sge::Order order = {});
-
-    template <size_t Size>
-    inline uint32_t DrawTextVector(const sge::RichText<Size>& text, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
-        return DrawTextVector(text.sections, Size, position, font, order);
-    }
-
-    inline uint32_t DrawTextVector(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
-        sge::RichTextSection section = { .text=text, .color=color, .size=size };
-        return DrawTextVector(&section, 1, position, font, order);
-    }
-
-    uint32_t DrawText(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::Font& font, sge::Order order = {});
-
-    template <size_t Size>
-    inline uint32_t DrawText(const sge::RichText<Size>& text, glm::vec2 position, const sge::Font& font, sge::Order order = {}) {
-        return DrawText(text.sections, Size, position, font, order);
-    }
-
-    inline uint32_t DrawText(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::Font& font, sge::Order order = {}) {
-        sge::RichTextSection section = { .text=text, .color=color, .size=size };
-        return DrawText(&section, 1, position, font, order);
-    }
-
-    uint32_t DrawAtlasSprite(const sge::TextureAtlasSprite& sprite, sge::Order order = {});
-
-    inline uint32_t DrawSprite(const sge::Sprite& sprite, sge::Order custom_order = {}) {
-        const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(sprite.flip_x(), sprite.flip_y());
-        return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.texture(), custom_order);
-    }
-
-    inline uint32_t DrawNinePatch(const sge::NinePatch& ninepatch, sge::Order custom_order = {}) {
-        const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(ninepatch.flip_x(), ninepatch.flip_y());
-        return AddNinePatchDrawCommand(ninepatch, uv_offset_scale, custom_order);
-    }
-
-    inline uint32_t DrawCircle(glm::vec2 position, sge::Order custom_order, const ShapeCircle& circle) {
-        return DrawShape(sge::Shape::Circle, position, glm::vec2(circle.radius * 2.0f), circle.color, circle.border_color, circle.border_thickness, BorderRadius::Absolute(0.0), circle.anchor, custom_order);
-    }
-
-    inline uint32_t DrawCircle(glm::vec2 position, const ShapeCircle& circle) {
-        return DrawCircle(position, sge::Order(), circle);
-    }
-
-    inline uint32_t DrawRect(glm::vec2 position, sge::Order custom_order, const ShapeRect& rect) {
-        return DrawShape(sge::Shape::Rect, position, rect.size, rect.color, rect.border_color, rect.border_thickness, rect.border_radius, rect.anchor, custom_order);
-    }
-
-    inline uint32_t DrawRect(glm::vec2 position, const ShapeRect& rect) {
-        return DrawRect(position, sge::Order(), rect);
-    }
-
-    inline uint32_t DrawArc(glm::vec2 position, sge::Order custom_order, const ShapeArc& arc) {
-        return DrawShape(sge::Shape::Arc, position, glm::vec2(arc.outer_radius * 2.0f), arc.color, sge::LinearRgba(0.0f), arc.inner_radius, BorderRadius::Absolute(arc.start_angle, arc.end_angle, 0.0f, 0.0f), arc.anchor, custom_order);
-    }
-
-    inline uint32_t DrawArc(glm::vec2 position, const ShapeArc& arc) {
-        return DrawArc(position, sge::Order(), arc);
-    }
-
-    uint32_t DrawLine(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius = BorderRadius(), sge::Order custom_order = {});
 
     inline void Reset() {
-        // m_sprite_draw_commands.clear();
-        // m_glyph_vector_draw_commands.clear();
-        // m_glyph_sdf_draw_commands.clear();
-        // m_ninepatch_draw_commands.clear();
-        // m_shape_draw_commands.clear();
-        // m_line_draw_commands.clear();
-
-        // m_flush_queue.clear();
-        m_scissors.clear();
-
-        m_sprite_data.Reset();
-        m_glyph_vector_data.Reset();
-        m_glyph_sdf_data.Reset();
-        m_ninepatch_data.Reset();
-        m_shape_data.Reset();
-        m_line_data.Reset();
-
+        Clear();
         m_order = 0;
         m_order_mode = false;
     }
 
-    uint32_t GetOrder(sge::Order custom_order = {});
-
-    [[nodiscard]]
-    inline bool DepthEnabled() const noexcept {
-        return m_depth_enabled;
+    inline FlagsType GetFlags() const noexcept {
+        return m_flags;
     }
 
-    [[nodiscard]]
-    inline bool IsUi() const noexcept {
-        return m_is_ui;
+    inline std::optional<sge::IRect> GetCurrentScissor() const noexcept {
+        return m_scissor_stack.empty() ? std::nullopt : std::optional(m_scissor_stack.back());
     }
 
-    [[nodiscard]]
-    inline bool ScissorEnabled() const noexcept {
-        return m_scissor_enabled;
-    }
+protected:
+    inline uint32_t GetOrder(sge::Order customOrder) {
+        const uint32_t order = m_order_mode
+            ? m_global_order.value + std::max(customOrder.value, 0)
+            : (customOrder.value >= 0 ? customOrder.value : m_order);
 
-    [[nodiscard]]
-    inline uint32_t MaxCount() const noexcept {
-        return m_max_count;
-    }
+        customOrder.advance |= m_global_order.advance;
 
-    [[nodiscard]]
-    inline uint32_t Order() const noexcept {
-        return m_order;
-    }
+        if (customOrder.advance)
+            m_order = std::max(m_order, order + 1);
 
-    [[nodiscard]]
-    inline const Data& SpriteData() const noexcept {
-        return m_sprite_data;
-    }
-
-    [[nodiscard]]
-    inline const Data& GlyphVectorData() const noexcept {
-        return m_glyph_vector_data;
-    }
-
-    [[nodiscard]]
-    inline const Data& GlyphSDFData() const noexcept {
-        return m_glyph_vector_data;
-    }
-
-    [[nodiscard]]
-    inline const Data& NinepatchData() const noexcept {
-        return m_ninepatch_data;
-    }
-
-    [[nodiscard]]
-    inline const Data& ShapeData() const noexcept {
-        return m_shape_data;
-    }
-
-    [[nodiscard]]
-    inline const Data& LineData() const noexcept {
-        return m_line_data;
-    }
-
-    [[nodiscard]]
-    inline const SpriteBatchPipeline& SpritePipeline() const noexcept {
-        return m_sprite_pipeline;
-    }
-
-    [[nodiscard]]
-    inline sge::Handle<LLGL::PipelineState> NinepatchPipeline() const noexcept {
-        return m_ninepatch_pipeline;
-    }
-
-    [[nodiscard]]
-    inline sge::Handle<LLGL::PipelineState> GlyphVectorPipeline() const noexcept {
-        return m_glyph_vector_pipeline;
-    }
-
-    [[nodiscard]]
-    inline sge::Handle<LLGL::PipelineState> GlyphSDFPipeline() const noexcept {
-        return m_glyph_sdf_pipeline;
-    }
-
-    [[nodiscard]]
-    inline sge::Handle<LLGL::PipelineState> ShapePipeline() const noexcept {
-        return m_shape_pipeline;
-    }
-
-    [[nodiscard]]
-    inline sge::Handle<LLGL::PipelineState> LinePipeline() const noexcept {
-        return m_line_pipeline;
-    }
-private:
-    uint32_t DrawShape(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& border_color, float border_thickness, BorderRadius border_radius = BorderRadius(), sge::Anchor anchor = sge::Anchor::Center, sge::Order custom_order = {});
-
-    uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, sge::Order custom_order);
-    uint32_t AddNinePatchDrawCommand(const sge::NinePatch& ninepatch, const glm::vec4& uv_offset_scale, sge::Order custom_order);
-
-    // [[nodiscard]]
-    // inline bool empty() const noexcept {
-    //     return (
-    //         m_sprite_draw_commands.empty() &&
-    //         m_glyph_vector_draw_commands.empty() &&
-    //         m_glyph_sdf_draw_commands.empty() &&
-    //         m_ninepatch_draw_commands.empty() &&
-    //         m_shape_draw_commands.empty() &&
-    //         m_line_draw_commands.empty()
-    //     );
-    // }
-
-    // [[nodiscard]]
-    // inline const FlushQueue& flush_queue() const noexcept {
-    //     return m_flush_queue;
-    // }
-
-    // [[nodiscard]]
-    // inline FlushQueue& flush_queue() noexcept {
-    //     return m_flush_queue;
-    // }
-
-    // [[nodiscard]]
-    // std::vector<internal::DrawCommandSprite>& sprite_draw_commands() noexcept {
-    //     return m_sprite_draw_commands;
-    // }
-
-    // [[nodiscard]]
-    // std::vector<internal::DrawCommandGlyphVector>& glyph_vector_draw_commands() noexcept {
-    //     return m_glyph_vector_draw_commands;
-    // }
-
-    // [[nodiscard]]
-    // std::vector<internal::DrawCommandGlyphSDF>& glyph_sdf_draw_commands() noexcept {
-    //     return m_glyph_sdf_draw_commands;
-    // }
-
-    // [[nodiscard]]
-    // std::vector<internal::DrawCommandNinePatch>& ninepatch_draw_commands() noexcept {
-    //     return m_ninepatch_draw_commands;
-    // }
-
-    // [[nodiscard]]
-    // std::vector<internal::DrawCommandShape>& shape_draw_commands() noexcept {
-    //     return m_shape_draw_commands;
-    // }
-
-    // [[nodiscard]]
-    // std::vector<internal::DrawCommandLine>& line_draw_commands() noexcept {
-    //     return m_line_draw_commands;
-    // }
-
-    [[nodiscard]]
-    inline Data& sprite_data() noexcept {
-        return m_sprite_data;
-    }
-
-    [[nodiscard]]
-    inline Data& glyph_vector_data() noexcept {
-        return m_glyph_vector_data;
-    }
-
-    [[nodiscard]]
-    inline Data& glyph_sdf_data() noexcept {
-        return m_glyph_sdf_data;
-    }
-
-    [[nodiscard]]
-    inline Data& ninepatch_data() noexcept {
-        return m_ninepatch_data;
-    }
-
-    [[nodiscard]]
-    inline Data& shape_data() noexcept {
-        return m_shape_data;
-    }
-
-    [[nodiscard]]
-    inline Data& line_data() noexcept {
-        return m_line_data;
-    }
-
-    // [[nodiscard]]
-    // inline size_t sprites_done() const noexcept {
-    //     return m_sprite_draw_commands.size() - m_sprite_data.total_count;
-    // }
-
-    // [[nodiscard]]
-    // inline size_t ninepatches_done() const noexcept {
-    //     return m_ninepatch_draw_commands.size() - m_ninepatch_data.total_count;
-    // }
-
-    // [[nodiscard]]
-    // inline size_t glyphs_vector_done() const noexcept {
-    //     return m_glyph_vector_draw_commands.size() - m_glyph_vector_data.total_count;
-    // }
-
-    // [[nodiscard]]
-    // inline size_t glyphs_sdf_done() const noexcept {
-    //     return m_glyph_sdf_draw_commands.size() - m_glyph_sdf_data.total_count;
-    // }
-
-    // [[nodiscard]]
-    // inline size_t shapes_done() const noexcept {
-    //     return m_shape_draw_commands.size() - m_shape_data.total_count;
-    // }
-
-    // [[nodiscard]]
-    // inline size_t lines_done() const noexcept {
-    //     return m_line_draw_commands.size() - m_line_data.total_count;
-    // }
-
-    [[nodiscard]]
-    inline size_t total_remaining() const noexcept {
-        return m_sprite_data.total_count
-            + m_glyph_vector_data.total_count
-            + m_glyph_sdf_data.total_count
-            + m_ninepatch_data.total_count
-            + m_shape_data.total_count
-            + m_line_data.total_count;
+        return order;
     }
 
 private:
-    static constexpr size_t MAX_QUADS = 2500;
-    static constexpr size_t MAX_GLYPHS = 2500;
-
-    SpriteBatchPipeline m_sprite_pipeline{};
-
-    // std::vector<internal::DrawCommandSprite> m_sprite_draw_commands;
-    // std::vector<internal::DrawCommandGlyphVector> m_glyph_vector_draw_commands;
-    // std::vector<internal::DrawCommandGlyphSDF> m_glyph_sdf_draw_commands;
-    // std::vector<internal::DrawCommandNinePatch> m_ninepatch_draw_commands;
-    // std::vector<internal::DrawCommandShape> m_shape_draw_commands;
-    // std::vector<internal::DrawCommandLine> m_line_draw_commands;
-
-    // FlushQueue m_flush_queue;
-
-    std::vector<sge::IRect> m_scissors;
-
-    Data m_sprite_data;
-    Data m_glyph_vector_data;
-    Data m_glyph_sdf_data;
-    Data m_ninepatch_data;
-    Data m_shape_data;
-    Data m_line_data;
-
-    sge::Handle<LLGL::PipelineState> m_ninepatch_pipeline;
-    sge::Handle<LLGL::PipelineState> m_glyph_vector_pipeline;
-    sge::Handle<LLGL::PipelineState> m_glyph_sdf_pipeline;
-    sge::Handle<LLGL::PipelineState> m_shape_pipeline;
-    sge::Handle<LLGL::PipelineState> m_line_pipeline;
-
+    std::vector<sge::IRect> m_scissor_stack;
+    Order m_global_order;
     uint32_t m_order = 0;
-
-    uint32_t m_max_count = UINT32_MAX;
-
-    sge::Order m_global_order;
-
     bool m_order_mode = false;
-    bool m_depth_enabled = false;
-    bool m_is_ui = false;
-    bool m_scissor_enabled = false;
-
-    sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
-    sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
+    FlagsType m_flags;
 };
 
-struct DrawCommand {
-    size_t instance_index;
-    internal::BatchState state;
-};
-
-template <typename T>
-concept Batchable = requires (T t, sge::Unique<LLGL::BufferArray> bufferArray) {
-    { t.GetPipeline() } -> std::same_as<sge::PipelineId>;
-    { t.GetInstanceData() } -> std::same_as<void*>;
-    { t.GetInstanceCount() } -> std::same_as<size_t>;
-    { t.GetVertexCount() } -> std::same_as<uint32_t>;
-    { t.GetDrawCommands() } -> std::same_as<std::vector<DrawCommand>&>;
-    { t.GetInstanceBuffer() } -> std::same_as<sge::VertexBufferPool&>;
-    { t.GetVertexBuffer() } -> std::same_as<LLGL::Buffer*>;
-    { t.BufferArray() } -> std::same_as<sge::Unique<LLGL::BufferArray>&>;
-    { t.GetResources() } -> std::same_as<LLGL::Resource* const*>;
-    { t.Clear() } -> std::same_as<void>;
-};
-
-class SpriteBatch {
+class SpriteBatch : public IBatch {
 public:
-    explicit SpriteBatch(sge::Renderer& renderer, sge::Ref<LLGL::Shader> customPixelShader = nullptr);
+    explicit SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc = {});
 
-    void Draw(const Sprite& sprite);
+    uint32_t Draw(const Sprite& sprite, sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+        const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(sprite.flip_x(), sprite.flip_y());
+        return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.texture(), overrideFlags, customOrder);
+    }
 
-    void Clear() {
+    uint32_t DrawAtlasSprite(const sge::TextureAtlasSprite& sprite, sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
+
+    const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
+        return m_mesh;
+    }
+
+    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
+        return m_material;
+    }
+
+    void* GetInstanceData() noexcept override {
+        return m_instances.data();
+    }
+
+    size_t GetInstanceCount() const noexcept override {
+        return m_instances.size();
+    }
+
+    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+        return m_commands;
+    }
+
+    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
+        return m_dynamic_bindings.data();
+    }
+
+    ~SpriteBatch() override = default;
+
+private:
+    void Clear() override {
         m_commands.clear();
         m_instances.clear();
     }
 
-    [[nodiscard]]
-    void* GetInstanceData() {
-        return m_instances.data();
-    }
-
-    [[nodiscard]]
-    size_t GetInstanceCount() const {
-        return m_instances.size();
-    }
-
-    [[nodiscard]]
-    uint32_t GetVertexCount() const {
-        return 4;
-    }
-
-    std::vector<DrawCommand>& GetDrawCommands() {
-        return m_commands;
-    }
-
-    [[nodiscard]]
-    PipelineId GetPipeline() const {
-        return m_pipeline;
-    }
-
-    [[nodiscard]]
-    sge::VertexBufferPool& GetInstanceBuffer() {
-        return m_instance_buffer;
-    }
-
-    [[nodiscard]]
-    LLGL::Buffer* GetVertexBuffer() {
-        return m_vertex_buffer;
-    }
-
-    [[nodiscard]]
-    sge::Unique<LLGL::BufferArray>& BufferArray() {
-        return m_buffer_array;
-    }
-
-    [[nodiscard]]
-    LLGL::Resource* const* GetResources() const {
-        return m_resources.data();
-    }
+private:
+    uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, std::optional<FlagsType> override_flags, sge::Order custom_order);
 
 private:
-    sge::VertexBufferPool m_instance_buffer;
     std::vector<DrawCommand> m_commands;
     std::vector<SpriteInstance> m_instances;
-    std::vector<LLGL::Resource*> m_resources;
-    sge::Unique<LLGL::Buffer> m_vertex_buffer;
-    sge::Unique<LLGL::BufferArray> m_buffer_array;
-    PipelineId m_pipeline;
+    std::vector<LLGL::Resource*> m_dynamic_bindings;
+    sge::Ref<sge::Mesh> m_mesh;
+    sge::Ref<sge::Material> m_material;
 };
 
-class LineBatch {
+class NinePatchBatch : public IBatch {
 public:
-    explicit LineBatch(sge::Renderer& renderer);
+    explicit NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc desc = {});
 
-    void Draw(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius border_radius = BorderRadius(), sge::Order custom_order = {});
+    uint32_t Draw(const NinePatch& sprite, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
 
-    void Clear() {
+    const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
+        return m_mesh;
+    }
+
+    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
+        return m_material;
+    }
+
+    void* GetInstanceData() noexcept override {
+        return m_instances.data();
+    }
+
+    size_t GetInstanceCount() const noexcept override {
+        return m_instances.size();
+    }
+
+    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+        return m_commands;
+    }
+
+    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
+        return m_dynamic_bindings.data();
+    }
+
+    ~NinePatchBatch() override = default;
+
+private:
+    void Clear() override {
         m_commands.clear();
         m_instances.clear();
     }
 
-    [[nodiscard]]
-    void* GetInstanceData() {
+private:
+    std::vector<DrawCommand> m_commands;
+    std::vector<NinePatchInstance> m_instances;
+    std::vector<LLGL::Resource*> m_dynamic_bindings;
+    sge::Ref<sge::Mesh> m_mesh;
+    sge::Ref<sge::Material> m_material;
+};
+
+class LineBatch : public IBatch {
+public:
+    explicit LineBatch(sge::Renderer& renderer, LineBatchDesc desc = {});
+
+    uint32_t Draw(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius borderRadius = BorderRadius(), sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
+
+    const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
+        return m_mesh;
+    }
+
+    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
+        return m_material;
+    }
+
+    void* GetInstanceData() noexcept override {
         return m_instances.data();
     }
 
-    [[nodiscard]]
-    size_t GetInstanceCount() const {
+    size_t GetInstanceCount() const noexcept override {
         return m_instances.size();
     }
 
-    [[nodiscard]]
-    uint32_t GetVertexCount() const {
-        return 4;
-    }
-
-    std::vector<DrawCommand>& GetDrawCommands() {
+    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
         return m_commands;
     }
 
-    [[nodiscard]]
-    sge::PipelineId GetPipeline() const {
-        return m_pipeline;
-    }
-
-    [[nodiscard]]
-    sge::VertexBufferPool& GetInstanceBuffer() {
-        return m_instance_buffer;
-    }
-
-    [[nodiscard]]
-    LLGL::Buffer* GetVertexBuffer() {
-        return m_vertex_buffer;
-    }
-
-    [[nodiscard]]
-    sge::Unique<LLGL::BufferArray>& BufferArray() {
-        return m_buffer_array;
-    }
-
-    [[nodiscard]]
-    LLGL::Resource* const* GetResources() const {
+    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
         return nullptr;
     }
 
+    ~LineBatch() override = default;
+
 private:
-    sge::VertexBufferPool m_instance_buffer;
-    std::vector<DrawCommand> m_commands;
-    std::vector<LineInstance> m_instances;
-    sge::Unique<LLGL::Buffer> m_vertex_buffer;
-    sge::Unique<LLGL::BufferArray> m_buffer_array;
-    sge::PipelineId m_pipeline;
-};
-
-class TextVectorBatch {
-public:
-    explicit TextVectorBatch(sge::Renderer& renderer);
-
-    void Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::FontVector& font, bool ui, sge::Order order);
-
-    template <size_t Size>
-    inline void Draw(const sge::RichText<Size>& text, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
-        return Draw(text.sections, Size, position, font, false, order);
-    }
-
-    template <size_t Size>
-    inline void DrawUI(const sge::RichText<Size>& text, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
-        return Draw(text.sections, Size, position, font, true, order);
-    }
-
-    inline void Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
-        sge::RichTextSection section = { .text=text, .color=color, .size=size };
-        return Draw(&section, 1, position, font, false, order);
-    }
-
-    inline void DrawUI(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}) {
-        sge::RichTextSection section = { .text=text, .color=color, .size=size };
-        return Draw(&section, 1, position, font, true, order);
-    }
-
-    void Clear() {
+    void Clear() override {
         m_commands.clear();
         m_instances.clear();
-        m_resources.clear();
     }
 
-    [[nodiscard]]
-    void* GetInstanceData() {
+private:
+    std::vector<DrawCommand> m_commands;
+    std::vector<LineInstance> m_instances;
+    sge::Ref<sge::Mesh> m_mesh;
+    sge::Ref<sge::Material> m_material;
+};
+
+class TextSdfBatch : public IBatch {
+public:
+    explicit TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc = {});
+
+    uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::Font& font, sge::Order order, std::optional<FlagsType> overrideFlags = std::nullopt);
+
+    template <size_t Size>
+    inline uint32_t Draw(const sge::RichText<Size>& text, glm::vec2 position, const sge::Font& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+        return Draw(text.sections, Size, position, font, order, overrideFlags);
+    }
+
+    inline uint32_t Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::Font& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+        sge::RichTextSection section = { .text=text, .color=color, .size=size };
+        return Draw(&section, 1, position, font, order, overrideFlags);
+    }
+
+    const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
+        return m_mesh;
+    }
+
+    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
+        return m_material;
+    }
+
+    void* GetInstanceData() noexcept override {
         return m_instances.data();
     }
 
-    [[nodiscard]]
-    size_t GetInstanceCount() const {
+    size_t GetInstanceCount() const noexcept override {
         return m_instances.size();
     }
 
-    [[nodiscard]]
-    uint32_t GetVertexCount() const {
-        return 4;
-    }
-
-    std::vector<DrawCommand>& GetDrawCommands() {
+    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
         return m_commands;
     }
 
-    [[nodiscard]]
-    sge::PipelineId GetPipeline() const {
-        return m_pipeline;
+    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
+        return m_dynamic_bindings.data();
     }
 
-    [[nodiscard]]
-    sge::VertexBufferPool& GetInstanceBuffer() {
-        return m_instance_buffer;
-    }
+    ~TextSdfBatch() override = default;
 
-    [[nodiscard]]
-    LLGL::Buffer* GetVertexBuffer() {
-        return m_vertex_buffer;
-    }
-
-    [[nodiscard]]
-    sge::Unique<LLGL::BufferArray>& BufferArray() {
-        return m_buffer_array;
-    }
-
-    [[nodiscard]]
-    LLGL::Resource* const* GetResources() const {
-        return m_resources.data();
+private:
+    void Clear() override {
+        m_commands.clear();
+        m_instances.clear();
     }
 
 private:
-    sge::VertexBufferPool m_instance_buffer;
+    std::vector<DrawCommand> m_commands;
+    std::vector<GlyphInstanceSDF> m_instances;
+    std::vector<LLGL::Resource*> m_dynamic_bindings;
+    sge::Ref<sge::Mesh> m_mesh;
+    sge::Ref<sge::Material> m_material;
+};
+
+class TextVectorBatch : public IBatch {
+public:
+    explicit TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {});
+
+    uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::FontVector& font, sge::Order order, std::optional<FlagsType> overrideFlags);
+
+    template <size_t Size>
+    inline uint32_t Draw(const sge::RichText<Size>& text, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+        return Draw(text.sections, Size, position, font, order, overrideFlags);
+    }
+
+    inline uint32_t Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+        sge::RichTextSection section = { .text=text, .color=color, .size=size };
+        return Draw(&section, 1, position, font, order, overrideFlags);
+    }
+
+    const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
+        return m_mesh;
+    }
+
+    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
+        return m_material;
+    }
+
+    void* GetInstanceData() noexcept override {
+        return m_instances.data();
+    }
+
+    size_t GetInstanceCount() const noexcept override {
+        return m_instances.size();
+    }
+
+    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+        return m_commands;
+    }
+
+    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
+        return m_dynamic_bindings.data();
+    }
+
+    ~TextVectorBatch() override = default;
+
+private:
+    void Clear() override {
+        m_commands.clear();
+        m_instances.clear();
+    }
+
+private:
     std::vector<DrawCommand> m_commands;
     std::vector<GlyphInstanceVector> m_instances;
-    std::vector<LLGL::Resource*> m_resources;
-    sge::Unique<LLGL::Buffer> m_vertex_buffer;
-    sge::Unique<LLGL::BufferArray> m_buffer_array;
-    sge::PipelineId m_pipeline;
+    std::vector<LLGL::Resource*> m_dynamic_bindings;
+    sge::Ref<sge::Mesh> m_mesh;
+    sge::Ref<sge::Material> m_material;
 };
+
+class ShapeBatch : public IBatch {
+public:
+    explicit ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc = {});
+
+    uint32_t Draw(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& borderColor, float borderThickness, BorderRadius borderRadius = BorderRadius(), sge::Anchor anchor = sge::Anchor::Center, sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
+
+    inline uint32_t DrawCircle(glm::vec2 position, sge::Order customOrder, std::optional<FlagsType> overrideFlags, const ShapeCircle& circle) {
+        return Draw(sge::Shape::Circle, position, glm::vec2(circle.radius * 2.0f), circle.color, circle.border_color, circle.border_thickness, BorderRadius::Absolute(0.0), circle.anchor, customOrder, overrideFlags);
+    }
+
+    inline uint32_t DrawCircle(glm::vec2 position, const ShapeCircle& circle) {
+        return DrawCircle(position, sge::Order(), std::nullopt, circle);
+    }
+
+    inline uint32_t DrawRect(glm::vec2 position, sge::Order customOrder, std::optional<FlagsType> overrideFlags, const ShapeRect& rect) {
+        return Draw(sge::Shape::Rect, position, rect.size, rect.color, rect.border_color, rect.border_thickness, rect.border_radius, rect.anchor, customOrder, overrideFlags);
+    }
+
+    inline uint32_t DrawRect(glm::vec2 position, const ShapeRect& rect) {
+        return DrawRect(position, sge::Order(), std::nullopt, rect);
+    }
+
+    inline uint32_t DrawArc(glm::vec2 position, sge::Order customOrder, std::optional<FlagsType> overrideFlags, const ShapeArc& arc) {
+        return Draw(sge::Shape::Arc, position, glm::vec2(arc.outer_radius * 2.0f), arc.color, sge::LinearRgba(0.0f), arc.inner_radius, BorderRadius::Absolute(arc.start_angle, arc.end_angle, 0.0f, 0.0f), arc.anchor, customOrder, overrideFlags);
+    }
+
+    inline uint32_t DrawArc(glm::vec2 position, const ShapeArc& arc) {
+        return DrawArc(position, sge::Order(), std::nullopt, arc);
+    }
+
+    const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
+        return m_mesh;
+    }
+
+    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
+        return m_material;
+    }
+
+    void* GetInstanceData() noexcept override {
+        return m_instances.data();
+    }
+
+    size_t GetInstanceCount() const noexcept override {
+        return m_instances.size();
+    }
+
+    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+        return m_commands;
+    }
+
+    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
+        return nullptr;
+    }
+
+    ~ShapeBatch() override = default;
+
+private:
+    void Clear() override {
+        m_commands.clear();
+        m_instances.clear();
+    }
+
+private:
+    std::vector<DrawCommand> m_commands;
+    std::vector<ShapeInstance> m_instances;
+    sge::Ref<sge::Mesh> m_mesh;
+    sge::Ref<sge::Material> m_material;
+};
+
+/**
+ * @brief Helper for beginning order mode on multiple batches at once.
+ */
+template <typename... Instances>
+void BeginOrderModes(int order, Instances&&... instances) {
+    auto method_ptr = static_cast<void (IBatch::*)(int) noexcept>(&IBatch::BeginOrderMode);
+    (..., std::invoke(method_ptr, std::forward<Instances>(instances), order));
+}
+
+/**
+ * @brief Helper for beginning order mode on multiple batches at once.
+ */
+template <typename... Instances>
+void BeginOrderModes(int order, bool advance, Instances&&... instances) {
+    auto method_ptr = static_cast<void (IBatch::*)(int, bool) noexcept>(&IBatch::BeginOrderMode);
+    (..., std::invoke(method_ptr, std::forward<Instances>(instances), order, advance));
+}
+
+/**
+ * @brief Helper for beginning order mode on multiple batches at once.
+ */
+template <typename... Instances>
+void BeginOrderModes(Instances&&... instances) {
+    auto method_ptr = static_cast<void (IBatch::*)(int) noexcept>(&IBatch::BeginOrderMode);
+    (..., std::invoke(method_ptr, std::forward<Instances>(instances), -1));
+}
+
+// End of recursion
+inline void EndOrderModes() {}
+
+/**
+ * @brief Helper for ending order mode on multiple batches at once.
+ */
+template <typename FirstInstance, typename... Instances>
+void EndOrderModes(FirstInstance&& first, Instances&&... other) {
+    EndOrderModes(std::forward<Instances>(other)...);
+    std::invoke(&IBatch::EndOrderMode, std::forward<FirstInstance>(first));
+}
+
+/**
+ * @brief Helper for beginning scissor mode on multiple batches at once.
+ */
+template <typename... Instances>
+void BeginScissorModes(sge::IRect scissor, Instances&&... instances) {
+    (..., std::invoke(&IBatch::BeginScissorMode, std::forward<Instances>(instances), scissor));
+}
+
+/**
+ * @brief Helper for ending scissor mode on multiple batches at once.
+ */
+template <typename... Instances>
+void EndScissorModes(Instances&&... instances) {
+    (..., std::invoke(&IBatch::EndScissorMode, std::forward<Instances>(instances)));
+}
+
+/**
+ * @brief Helper for resetting multiple batches at once.
+ *
+ * @tparam Instances Types of batch instances, e.g. a pointer, reference, shared_ptr, unique_ptr, etc.
+ * @param instances Batch instances
+ */
+template <typename... Instances>
+void ResetBatches(Instances&&... instances) {
+    (..., std::invoke(&IBatch::Reset, std::forward<Instances>(instances)));
+}
 
 } // namespace sge
 

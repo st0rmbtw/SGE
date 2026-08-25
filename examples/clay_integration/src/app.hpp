@@ -12,7 +12,6 @@
 class App : public sge::IEngine {
 public:
     explicit App(const ExampleConfig& config) : m_config(config) {}
-    ~App();
 
 protected:
     bool OnInit() override;
@@ -25,7 +24,8 @@ protected:
 
 private:
     std::unique_ptr<sge::Renderer2D> m_renderer;
-    std::unique_ptr<sge::Batch> m_batch;
+    std::shared_ptr<sge::ShapeBatch> m_shape_batch;
+    std::shared_ptr<sge::TextSdfBatch> m_text_batch;
     sge::Camera m_camera;
     ExampleConfig m_config;
 };

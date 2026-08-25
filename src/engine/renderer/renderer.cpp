@@ -6,7 +6,6 @@
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/renderer/context.hpp>
-#include <SGE/renderer/handle.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/mesh.hpp>
 #include <SGE/renderer/renderer.hpp>
@@ -350,38 +349,6 @@ void sge::Renderer::BlitTexture(LLGL::Texture& texture) {
     m_command_buffer->Draw(3, 0);
 }
 
-sge::Handle<sge::Mesh> sge::Renderer::AddMesh(const Mesh& mesh) {
-    LLGL::VertexFormat vertexFormat = ConvertMeshAttributesToLLGL(m_context->Backend(), mesh.GetAttributes());
-
-    uint64_t layoutHash = sge::DEFAULT_HASH;
-    HashVertexAttributes(layoutHash, vertexFormat.attributes);
-
-    sge::Unique<LLGL::Buffer> vertex_buffer = m_context->CreateVertexBuffer(mesh.GetVertexData(), mesh.GetVertexSize(), vertexFormat);
-    sge::Unique<LLGL::Buffer> index_buffer = nullptr;
-
-    auto& indices = mesh.GetIndices();
-    if (!indices.IsNone()) {
-        auto format = ConvertIndexFormatToLLGL(indices.GetFormat());
-        index_buffer = m_context->CreateIndexBuffer(indices.GetData(), indices.GetSize(), format);
-    }
-
-    GpuMesh gpuMesh = {
-        .vertexFormat = vertexFormat,
-        .vertexBuffer = std::move(vertex_buffer),
-        .indexBuffer = std::move(index_buffer),
-        .layoutHash = layoutHash,
-        .vertexCount = mesh.GetVertexCount(),
-        .indexCount = indices.GetCount(),
-        .indexFormat = indices.GetFormat(),
-        .topology = mesh.GetTopology(),
-        .frontFace = mesh.GetFrontFace(),
-    };
-
-    auto handle = Handle<Mesh>(IdGenerator::Next());
-    m_meshes.try_emplace(handle, std::make_shared<GpuMesh>(std::move(gpuMesh)));
-    return handle;
-}
-
 LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(
     const Material& material,
     const LLGL::VertexFormat& vertexFormat,
@@ -391,7 +358,7 @@ LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(
 ) {
     auto materialHash = material.GetStateHash();
 
-    uint64_t vertexFormatHash = sge::DEFAULT_HASH;
+    uint64_t vertexFormatHash = sge::HASH_INIT;
     HashVertexAttributes(vertexFormatHash, vertexFormat.attributes);
 
     auto key = PipelineKey { .vertexFormatHash = vertexFormatHash, .materialHash = materialHash };
@@ -401,16 +368,30 @@ LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(
         return m_context->GetOrCreatePipeline(existingEntry->second);
     }
 
+    std::vector<LLGL::VertexAttribute> totalAttributes = vertexFormat.attributes;
+    for (const LLGL::VertexAttribute& attribute : material.GetInstanceAttribs()) {
+        uint32_t prevLocation = totalAttributes.empty() ? 0 : totalAttributes.back().location;
+        totalAttributes.push_back(attribute);
+        totalAttributes.back().location = prevLocation + 1;
+    }
+
     sge::GraphicsPipelineConfig pipelineConfig;
     pipelineConfig.layout = material.GetPipelineLayout();
     pipelineConfig.vertexShader = material.GetVertexShader();
     pipelineConfig.pixelShader = material.GetFragmentShader();
-    pipelineConfig.inputVertexAttribs = vertexFormat.attributes;
+    pipelineConfig.inputVertexAttribs = std::move(totalAttributes);
     pipelineConfig.indexFormat = indexFormat;
     pipelineConfig.primitiveTopology = topology;
     pipelineConfig.frontFace = frontFace;
     pipelineConfig.cullMode = material.GetCullMode();
     pipelineConfig.blend.targets[0] = ConvertBlendModeToLLGL(material.GetBlendMode());
+    pipelineConfig.scissorTestEnabled = material.IsScissorTestEnabled();
+
+    if (material.IsDepthTestEnabled()) {
+        pipelineConfig.depth.testEnabled = true;
+        pipelineConfig.depth.writeEnabled = true;
+        pipelineConfig.depth.compareOp = LLGL::CompareOp::GreaterEqual;
+    }
 
     sge::PipelineId pipeline = m_context->CreateGraphicsPipeline(pipelineConfig);
     auto [it, success] = m_pipelines.try_emplace(key, pipeline);
@@ -419,71 +400,199 @@ LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(
     return m_context->GetOrCreatePipeline(pipeline);
 }
 
-void sge::Renderer::SubmitRaw(Handle<Mesh> meshHandle, Handle<Material> materialHandle, const void* instanceData, size_t instanceByteSize) {
+sge::Ref<sge::Mesh> sge::Renderer::GetDefaultBatch2dMesh() {
+    if (!m_2d_batch_mesh) {
+        glm::vec2 vertices[] = {
+            glm::vec2(0.0f, 0.0f),
+            glm::vec2(0.0f, 1.0f),
+            glm::vec2(1.0f, 0.0f),
+            glm::vec2(1.0f, 1.0f)
+        };
+
+        m_2d_batch_mesh = CreateMesh(sge::MeshDesc()
+            .AddAttribute(sge::VertexFormat::Float32x2, "inp_position", "Position")
+            .SetTopology(sge::PrimitiveTopology::TriangleStrip)
+            .SetFrontFace(sge::FrontFace::CCW)
+            .SetVertices(vertices)
+        );
+    }
+    return m_2d_batch_mesh;
+}
+
+void sge::Renderer::SubmitRaw(Ref<Mesh> mesh, Ref<Material> material, std::span<LLGL::Resource* const> dynamicBindings, const void* instanceData, size_t instanceByteSize) {
+    ZoneScoped;
+
+    uint64_t dynamicBindingsHash = sge::HASH_INIT;
+    for (LLGL::Resource* resource : dynamicBindings) {
+        sge::hash_combine(dynamicBindingsHash, resource);
+    }
+
     BatchKey key {
-        .mesh = meshHandle,
-        .material = materialHandle
+        .mesh = std::move(mesh),
+        .material = std::move(material),
+        .dynamicBindingsHash = dynamicBindingsHash
     };
 
-    auto& batch = m_mesh_batches[key];
-    if (!batch.vertexBufferArray) {
-        batch.mesh = m_meshes.at(meshHandle);
-        batch.material = m_materials.at(materialHandle);
-        batch.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(batch.material->GetInstanceAttribs()));
+    size_t batchIdx = m_mesh_batches.size();
+
+    auto it = m_batches_map.find(key);
+    if (it != m_batches_map.end()) {
+        batchIdx = it->second;
+    } else {
+        m_batches_map.emplace(key, batchIdx);
+        m_mesh_batches.emplace_back();
     }
+
+    auto& batch = m_mesh_batches[batchIdx];
+
+    if (!batch.mesh)
+        batch.mesh = std::move(mesh);
+
+    if (!batch.material)
+        batch.material = std::move(material);
 
     if (instanceData != nullptr && instanceByteSize > 0) {
         const auto* bytes = static_cast<const uint8_t*>(instanceData);
         batch.instanceBytes.insert(batch.instanceBytes.end(), bytes, bytes + instanceByteSize);
     }
 
+    if (!batch.vertexBufferArray) {
+        batch.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(key.material->GetInstanceAttribs()));
+    }
+
+    if (batch.dynamicBindings.empty()) {
+        batch.dynamicBindings.insert(batch.dynamicBindings.end(), dynamicBindings.begin(), dynamicBindings.end());
+    }
+
     batch.instanceCount += 1;
 }
 
+void sge::Renderer::FlushManyRaw(
+    Ref<Mesh> mesh,
+    Ref<Material> material,
+    std::span<LLGL::Resource* const> dynamicBindings,
+    sge::IRect scissorBounds,
+    const void* instanceData,
+    size_t instanceStride,
+    uint32_t instanceCount
+) {
+    uint64_t dynamicBindingsHash = sge::HASH_INIT;
+    for (LLGL::Resource* resource : dynamicBindings) {
+        sge::hash_combine(dynamicBindingsHash, resource);
+    }
+
+    uint64_t scissorHash = sge::HASH_INIT;
+    sge::hash_fnv1a(scissorHash, &scissorBounds, sizeof(scissorBounds));
+
+    BatchKey key {
+        .mesh = std::move(mesh),
+        .material = std::move(material),
+        .dynamicBindingsHash = dynamicBindingsHash,
+        .scissorHash = scissorHash
+    };
+
+    size_t batchIdx = m_mesh_batches.size();
+
+    auto it = m_batches_map.find(key);
+    if (it != m_batches_map.end()) {
+        batchIdx = it->second;
+    } else {
+        m_batches_map.emplace(key, batchIdx);
+        m_mesh_batches.emplace_back();
+    }
+
+    auto& batch = m_mesh_batches[batchIdx];
+
+    if (!batch.mesh)
+        batch.mesh = std::move(mesh);
+
+    if (!batch.material)
+        batch.material = std::move(material);
+
+    if (!batch.vertexBufferArray) {
+        batch.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(key.material->GetInstanceAttribs()));
+    }
+
+    if (batch.dynamicBindings.empty()) {
+        batch.dynamicBindings.insert(batch.dynamicBindings.end(), dynamicBindings.begin(), dynamicBindings.end());
+    }
+
+    FlushBatchRawImpl(*batch.mesh, *batch.material, scissorBounds, batch.dynamicBindings, batch.vertexBufferArray, batch.instanceBufferPool, instanceData, instanceStride, instanceCount);
+}
+
+void sge::Renderer::FlushBatchRawImpl(
+    const Mesh& mesh,
+    const Material& material,
+    sge::IRect scissorBounds,
+    std::span<LLGL::Resource* const> dynamicBindings,
+    sge::Unique<LLGL::BufferArray>& bufferArray,
+    VertexBufferPool& instanceBufferPool,
+    const void* instanceData,
+    size_t instanceStride,
+    uint32_t instanceCount
+) {
+    if (instanceCount == 0)
+        return;
+
+    m_command_buffer->SetPipelineState(GetOrCreatePipeline(material, mesh.GetVertexFormat(), mesh.GetTopology(), mesh.GetFrontFace(), mesh.GetIndexFormat()));
+
+    const size_t instanceDataSize = instanceCount * instanceStride;
+    const bool hasInstanceBuffer = instanceData != nullptr && instanceDataSize > 0;
+
+    if (hasInstanceBuffer) {
+        if (instanceBufferPool.Reserve(*m_context, instanceDataSize)) {
+            SGE_ASSERT(instanceBufferPool.Get() != nullptr);
+            if (bufferArray)
+                m_context->Release(*bufferArray);
+            bufferArray = m_context->CreateBufferArray({ mesh.GetVertexBuffer(), instanceBufferPool.Get() });
+        }
+        m_command_buffer->UpdateBuffer(*instanceBufferPool.Get(), 0, instanceData, instanceDataSize);
+        m_command_buffer->SetVertexBufferArray(*bufferArray);
+    } else {
+        m_command_buffer->SetVertexBuffer(*mesh.GetVertexBuffer());
+    }
+
+    m_command_buffer->SetResourceHeap(*material.GetResourceHeap());
+
+    for (size_t i = 0; i < dynamicBindings.size(); ++i) {
+        m_command_buffer->SetResource(i, *dynamicBindings[i]);
+    }
+
+    if (material.IsScissorTestEnabled()) {
+        if (scissorBounds.width() <= 0 || scissorBounds.height() <= 0) {
+            // Reset scissor
+            LLGL::Extent2D resolution = m_context->GetCurrentTarget()->GetResolution();
+            m_command_buffer->SetScissor(LLGL::Scissor(0, 0, resolution.width, resolution.height));
+        } else {
+            m_command_buffer->SetScissor(LLGL::Scissor(scissorBounds.min.x, scissorBounds.min.y, scissorBounds.max.x, scissorBounds.max.y));
+        }
+    }
+
+    auto indexCount = mesh.GetIndexCount();
+
+    if (indexCount > 0) {
+        m_command_buffer->SetIndexBuffer(*mesh.GetIndexBuffer());
+        m_command_buffer->DrawIndexedInstanced(indexCount, instanceCount, 0);
+    } else {
+        auto vertexCount = mesh.GetVertexCount();
+        m_command_buffer->DrawInstanced(vertexCount, 0, instanceCount);
+    }
+}
+
 void sge::Renderer::EndPass() {
-    for (auto& [key, batch] : m_mesh_batches) {
-        if (batch.instanceCount == 0)
-            continue;
+    ZoneScoped;
 
-        const bool isInstanced = !batch.instanceBytes.empty();
-
-        if (isInstanced) {
-            if (batch.instanceBufferPool.Reserve(*m_context, batch.instanceBytes.size())) {
-                SGE_ASSERT(batch.instanceBufferPool.Get() != nullptr);
-                if (batch.vertexBufferArray)
-                    m_context->Release(*batch.vertexBufferArray);
-                batch.vertexBufferArray = m_context->CreateBufferArray({ batch.mesh->vertexBuffer, batch.instanceBufferPool.Get() });
-            }
-            m_command_buffer->UpdateBuffer(*batch.instanceBufferPool.Get(), 0, batch.instanceBytes.data(), batch.instanceBytes.size());
-            m_command_buffer->SetVertexBufferArray(*batch.vertexBufferArray);
-        } else {
-            m_command_buffer->SetVertexBuffer(*batch.mesh->vertexBuffer);
-        }
-
-        const auto& material = m_materials.at(key.material);
-        m_command_buffer->SetPipelineState(GetOrCreatePipeline(*material, batch.mesh->vertexFormat, batch.mesh->topology, batch.mesh->frontFace, batch.mesh->indexFormat));
-        m_command_buffer->SetResourceHeap(*batch.material->GetResourceHeap());
-
-        auto indexCount = batch.mesh->indexCount;
-
-        if (indexCount > 0) {
-            m_command_buffer->SetIndexBuffer(*batch.mesh->indexBuffer);
-            if (isInstanced) {
-                m_command_buffer->DrawIndexedInstanced(indexCount, batch.instanceCount, 0);
-            } else {
-                m_command_buffer->DrawIndexed(indexCount, 0, 0);
-            }
-        } else {
-            auto vertexCount = batch.mesh->vertexCount;
-            if (isInstanced) {
-                m_command_buffer->DrawInstanced(vertexCount, 0, batch.instanceCount);
-            } else {
-                m_command_buffer->Draw(vertexCount, 0);
-            }
-        }
-
+    for (auto& batch : m_mesh_batches) {
+        FlushBatchRawImpl(
+            *batch.mesh, *batch.material,
+            batch.scissorBounds,
+            batch.dynamicBindings, batch.vertexBufferArray, batch.instanceBufferPool,
+            batch.instanceBytes.data(), batch.instanceBytes.size(),
+            batch.instanceCount
+        );
         batch.instanceCount = 0;
         batch.instanceBytes.clear();
+        batch.dynamicBindings.clear();
     }
 
     m_context->PopRenderTarget();

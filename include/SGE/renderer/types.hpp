@@ -12,7 +12,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <SGE/assert.hpp>
-#include <SGE/renderer/handle.hpp>
 #include <SGE/renderer/macros.hpp>
 #include <SGE/renderer/material.hpp>
 #include <SGE/renderer/mesh.hpp>
@@ -21,18 +20,6 @@
 #include <SGE/types/shader_def.hpp>
 
 namespace sge {
-
-struct GpuMesh {
-    LLGL::VertexFormat vertexFormat;
-    sge::Unique<LLGL::Buffer> vertexBuffer;
-    sge::Unique<LLGL::Buffer> indexBuffer;
-    uint64_t layoutHash = 0;
-    uint32_t vertexCount = 0;
-    uint32_t indexCount = 0;
-    sge::IndexFormat indexFormat;
-    sge::PrimitiveTopology topology;
-    sge::FrontFace frontFace;
-};
 
 struct Vertex {
     float x;

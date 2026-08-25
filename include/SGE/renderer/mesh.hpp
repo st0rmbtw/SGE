@@ -5,15 +5,20 @@
 #include <vector>
 
 #include <SGE/assert.hpp>
+#include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/vertex_format.hpp>
 #include <SGE/utils/alloc.hpp>
 #include <SGE/utils/containers/heaparray.hpp>
 
+#include <LLGL/Buffer.h>
 #include <LLGL/Container/StringLiteral.h>
 #include <LLGL/PipelineStateFlags.h>
+#include <LLGL/Utils/VertexFormat.h>
 
 
 namespace sge {
+
+class RenderContext;
 
 enum class IndexFormat : uint8_t {
     None = 0,
@@ -107,42 +112,42 @@ struct MeshAttribute {
     sge::VertexFormat format;
 };
 
-class Mesh {
+class MeshDesc {
 public:
-    Mesh() = default;
+    MeshDesc() = default;
 
-    Mesh&& AddAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) && {
+    MeshDesc&& AddAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semantic_name, uint32_t slot = 0) && {
         m_attributes.emplace_back(format, std::move(name), std::move(semantic_name), slot);
         return std::move(*this);
     }
 
-    Mesh&& AddAttribute(sge::MeshAttribute attribute) && {
+    MeshDesc&& AddAttribute(sge::MeshAttribute attribute) && {
         m_attributes.push_back(std::move(attribute));
         return std::move(*this);
     }
 
-    Mesh&& SetTopology(sge::PrimitiveTopology topology) && {
+    MeshDesc&& SetTopology(sge::PrimitiveTopology topology) && {
         m_topology = topology;
         return std::move(*this);
     }
 
-    Mesh&& SetFrontFace(sge::FrontFace front_face) && {
+    MeshDesc&& SetFrontFace(sge::FrontFace front_face) && {
         m_front_face = front_face;
         return std::move(*this);
     }
 
-    Mesh&& SetIndices(sge::Indices indices) && {
+    MeshDesc&& SetIndices(sge::Indices indices) && {
         m_indices = std::move(indices);
         return std::move(*this);
     }
 
     template <typename TVertex>
-    Mesh&& SetVertices(std::initializer_list<TVertex> vertices) && {
+    MeshDesc&& SetVertices(std::initializer_list<TVertex> vertices) && {
         return std::move(*this).SetVertices(std::span<const TVertex>(vertices.begin(), vertices.end()));
     }
 
     template <typename TContainer>
-    Mesh&& SetVertices(const TContainer& vertices) && {
+    MeshDesc&& SetVertices(const TContainer& vertices) && {
         using ElementType = std::ranges::range_value_t<TContainer>;
         const void* data = std::data(vertices);
         const size_t size = std::size(vertices);
@@ -150,7 +155,7 @@ public:
         return std::move(*this).SetVertexData(data, size_bytes, static_cast<uint32_t>(size));
     }
 
-    Mesh&& SetVertexData(const void* data, size_t byte_size, uint32_t vertex_count) && {
+    MeshDesc&& SetVertexData(const void* data, size_t byte_size, uint32_t vertex_count) && {
         if (m_vertex_data) {
             free(m_vertex_data);
             m_vertex_data = nullptr;
@@ -201,14 +206,75 @@ public:
     };
 
 private:
-    Indices m_indices;
     std::vector<MeshAttribute> m_attributes;
+    Indices m_indices;
     void* m_vertex_data = nullptr;
     size_t m_vertex_size = 0;
     uint32_t m_vertex_count = 0;
 
     PrimitiveTopology m_topology = PrimitiveTopology::TriangleList;
     FrontFace m_front_face = FrontFace::CCW;
+};
+
+class Mesh : public RefCounted {
+public:
+    explicit Mesh(sge::RenderContext& context, const MeshDesc& desc);
+
+    [[nodiscard]]
+    const LLGL::VertexFormat& GetVertexFormat() const noexcept {
+        return m_vertex_format;
+    }
+
+    [[nodiscard]]
+    const sge::Unique<LLGL::Buffer>& GetVertexBuffer() const noexcept {
+        return m_vertex_buffer;
+    }
+
+    [[nodiscard]]
+    const sge::Unique<LLGL::Buffer>& GetIndexBuffer() const noexcept {
+        return m_index_buffer;
+    }
+
+    [[nodiscard]]
+    uint64_t GetLayoutHash() const noexcept {
+        return m_layout_hash;
+    }
+
+    [[nodiscard]]
+    uint32_t GetVertexCount() const noexcept {
+        return m_vertex_count;
+    }
+
+    [[nodiscard]]
+    uint32_t GetIndexCount() const noexcept {
+        return m_index_count;
+    }
+
+    [[nodiscard]]
+    sge::IndexFormat GetIndexFormat() const noexcept {
+        return m_index_format;
+    }
+
+    [[nodiscard]]
+    sge::PrimitiveTopology GetTopology() const noexcept {
+        return m_topology;
+    }
+
+    [[nodiscard]]
+    sge::FrontFace GetFrontFace() const noexcept {
+        return m_front_face;
+    }
+
+private:
+    LLGL::VertexFormat m_vertex_format;
+    sge::Unique<LLGL::Buffer> m_vertex_buffer;
+    sge::Unique<LLGL::Buffer> m_index_buffer;
+    uint64_t m_layout_hash = 0;
+    uint32_t m_vertex_count = 0;
+    uint32_t m_index_count = 0;
+    sge::IndexFormat m_index_format;
+    sge::PrimitiveTopology m_topology;
+    sge::FrontFace m_front_face;
 };
 
 } // namespace sge

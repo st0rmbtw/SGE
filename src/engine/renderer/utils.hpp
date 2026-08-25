@@ -156,6 +156,7 @@ inline LLGL::VertexFormat ConvertInstanceAttributesToLLGL(sge::RenderBackend bac
         auto& name = backend.IsHLSL() ? attribute.semanticName : attribute.name;
         auto format = VertexFormatToLLGLFormat(attribute.format);
         vertexFormat.AppendAttribute(LLGL::VertexAttribute(name, format, location++, 1));
+        vertexFormat.attributes.back().slot = attribute.slot;
     }
     return vertexFormat;
 }

@@ -42,9 +42,8 @@ private:
     float m_pitch = 0.0f;
 
     sge::Ref<LLGL::Buffer> m_uniform_buffer;
-
-    sge::Handle<sge::Mesh> m_mesh;
-    sge::Handle<sge::Material> m_material;
+    sge::Ref<sge::Mesh> m_mesh;
+    sge::Ref<sge::Material> m_material;
 
     std::unique_ptr<sge::Renderer> m_renderer;
     ExampleConfig m_config;

@@ -5,7 +5,6 @@
 
 #include <SGE/renderer/framebuffer_pool.hpp>
 #include <SGE/renderer/glfw_window.hpp>
-#include <SGE/renderer/handle.hpp>
 #include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/renderer/utils.hpp>
@@ -97,6 +96,13 @@ struct std::hash<RenderPassKey> {
 
 
 namespace sge {
+
+class IdGenerator {
+public:
+    static uint64_t Next() noexcept { return ++s_counter; }
+private:
+    static inline uint64_t s_counter = 0;
+};
 
 struct ImGuiConfig {
     int ConfigFlags = ImGuiConfigFlags_None;
