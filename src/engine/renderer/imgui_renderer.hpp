@@ -8,7 +8,8 @@ namespace ImGuiRenderer {
     bool Init(std::shared_ptr<sge::RenderContext> context);
     void Shutdown();
     void NewFrame();
-    void RenderDrawData(ImDrawData* data);
+    void RenderDrawData(const ImDrawData* data);
+    bool IsActive();
 } // namespace ImGuiRenderer
 
 #endif // ENGINE_RENDERER_IMGUI_RENDERER_HPP_

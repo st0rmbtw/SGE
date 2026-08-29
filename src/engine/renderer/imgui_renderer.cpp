@@ -61,6 +61,8 @@ struct BackendData {
 
     uint8_t* VertexDataBuffer = nullptr;
     uint8_t* IndexDataBuffer = nullptr;
+
+    bool IsActive = false;
 };
 
 struct TextureData
@@ -180,7 +182,7 @@ void UpdateTexture(ImTextureData* tex) {
         textureConfig.extent.width = tex->Width;
         textureConfig.extent.height = tex->Height;
         textureConfig.sampler = bd->Context->GetNearestSampler();
-        
+
         LLGL::ImageView imageView;
         imageView.data = tex->GetPixels();
         imageView.dataSize = tex->GetSizeInBytes();
@@ -300,18 +302,18 @@ void DestroyPipelineObjects() {
 
 void Renderer_CreateWindow(ImGuiViewport* viewport) {
     BackendData* bd = GetBackendData();
-    
+
     auto* glfwHandle = static_cast<GLFWwindow*>(viewport->PlatformHandle);
 
     std::shared_ptr<GlfwSurface> surface = std::make_shared<GlfwSurface>(glfwHandle, LLGL::Extent2D(viewport->Size.x, viewport->Size.y));
-    
+
     LLGL::SwapChainDescriptor swapChainDesc;
     swapChainDesc.resolution.width = viewport->Size.x;
     swapChainDesc.resolution.height = viewport->Size.y;
     swapChainDesc.depthBits = 0;
     LLGL::SwapChain* swapChain = bd->Context->GetLLGLContext()->CreateSwapChain(swapChainDesc, surface);
     swapChain->SetVsyncInterval(0);
-    
+
     g_SwapChainMap[glfwHandle] = bd->Context->CreateUnique(swapChain);
     g_WindowMap[glfwHandle] = surface;
 }
@@ -368,7 +370,7 @@ void InitMultiViewportSupport() {
     platform_io.Renderer_SwapBuffers = Renderer_SwapBuffers;
 }
 
-void SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height) {
+void SetupRenderState(const ImDrawData* draw_data, int fb_width, int fb_height) {
     BackendData* bd = GetBackendData();
 
     float L = draw_data->DisplayPos.x;
@@ -454,9 +456,19 @@ void ImGuiRenderer::NewFrame() {
 
     bd->GlobalVtxOffset = 0;
     bd->GlobalIdxOffset = 0;
+    bd->IsActive = true;
 }
 
-void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
+bool ImGuiRenderer::IsActive() {
+    BackendData* bd = GetBackendData();
+    if (bd == nullptr) {
+        return false;
+    }
+
+    return bd->IsActive;
+}
+
+void ImGuiRenderer::RenderDrawData(const ImDrawData* draw_data) {
     int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
     int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
     if (fb_width <= 0 || fb_height <= 0)
@@ -491,7 +503,7 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
         desc.size = bd->IndexBufferSize * sizeof(ImDrawIdx);
         desc.bindFlags = LLGL::BindFlags::IndexBuffer;
         desc.format = sizeof(ImDrawIdx) == 2 ? LLGL::Format::R16UInt : LLGL::Format::R32UInt;
-        
+
         bd->IndexBuffer = bd->Context->CreateBuffer(desc);
         bd->IndexDataBuffer = new uint8_t[bd->IndexBufferSize * sizeof(ImDrawIdx)];
     }
@@ -576,6 +588,8 @@ void ImGuiRenderer::RenderDrawData(ImDrawData* draw_data) {
         bd->GlobalIdxOffset += draw_list->IdxBuffer.Size;
         bd->GlobalVtxOffset += draw_list->VtxBuffer.Size;
     }
-    
+
     bd->CommandBuffer->SetScissor(LLGL::Scissor(0, 0, (uint32_t)fb_width, (uint32_t)fb_height));
+
+    bd->IsActive = false;
 }

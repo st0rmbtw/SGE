@@ -61,8 +61,14 @@ bool App::OnInit() {
     m_cameras[window->GetID()].set_samples(m_config.samples);
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
+
+    m_batch_group = std::make_shared<sge::BatchGroup>();
+
     m_shape_batch = std::make_shared<sge::ShapeBatch>(*m_renderer);
+    m_shape_batch->SetSharedBatchGroup(m_batch_group);
+
     m_line_batch = std::make_shared<sge::LineBatch>(*m_renderer);
+    m_line_batch->SetSharedBatchGroup(m_batch_group);
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -139,6 +145,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     sge::Camera& camera = m_cameras[window->GetID()];
 
     sge::ResetBatches(m_shape_batch, m_line_batch);
+    m_batch_group->Reset();
 
     m_renderer->Begin();
 
@@ -180,7 +187,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         float hand_thickness = CLOCK_HAND_THICKNESS * size.x;
 
 
-        m_line_batch->BeginOrderMode();
+        m_batch_group->BeginOrderMode();
         for (int i = 0; i < 4; ++i) {
             float t = ((float)i) / 4.0f;
             const float sin = glm::sin(t * 2.0f * consts::PI);
@@ -208,7 +215,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
             m_line_batch->Draw(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), sge::BorderRadius::Relative(50.0f));
         }
-        m_line_batch->EndOrderMode();
+        m_batch_group->EndOrderMode();
 
         // m_shape_batch->DrawCircle(center, {
         //     .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f,
@@ -286,7 +293,6 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             }
             ImGui::Render();
         }
-        GetRenderContext()->EndImGuiFrame();
         #endif
     }
     m_renderer->EndPass();

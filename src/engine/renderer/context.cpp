@@ -489,12 +489,6 @@ void sge::RenderContext::BeginImGuiFrame(GlfwWindow& window) {
     ImGuiRenderer::NewFrame();
 }
 
-void sge::RenderContext::EndImGuiFrame() {
-    ZoneScoped;
-
-    ImGuiRenderer::RenderDrawData(ImGui::GetDrawData());
-}
-
 #endif
 
 void sge::RenderContext::DeletePipeline(sge::PipelineId id) {

@@ -152,10 +152,8 @@ public:
 
 #if SGE_IMGUI_ENABLED
     void BeginImGuiFrame(GlfwWindow& window);
-    void EndImGuiFrame();
 #else
     inline void BeginImGuiFrame(GlfwWindow&) {}
-    inline void EndImGuiFrame() {}
 #endif
 
     void DeletePipeline(PipelineId handle);

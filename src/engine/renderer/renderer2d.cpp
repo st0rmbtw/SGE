@@ -49,7 +49,6 @@ void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
     ZoneScoped;
 
     auto& drawCommands = batch->GetDrawCommands();
-    auto& mesh = batch->GetMesh();
     auto& material = batch->GetMaterial(sge::BlendMode::AlphaBlend);
     auto* instanceData = batch->GetInstanceData();
     auto* dynamicBindings = batch->GetDynamicBindings();
@@ -187,7 +186,7 @@ void sge::Renderer2D::FlushBatches() {
                 auto dynamicBindings = std::span<LLGL::Resource* const>(submission.dynamicBindings, data.state.resources_count);
                 const auto& mesh = submission.batch->GetMesh();
                 const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
-                FlushManyRaw(mesh, material, dynamicBindings, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
+                SubmitManyRaw(mesh, material, dynamicBindings, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
             } else {
                 size_t i = submission.drawCommandsOffset;
                 if (submission.drawCommands[i].state.order == currentOrder) {
@@ -208,7 +207,7 @@ void sge::Renderer2D::FlushBatches() {
                     const auto* instanceDataBytes = static_cast<const uint8_t*>(submission.instancesData);
                     const auto& mesh = submission.batch->GetMesh();
                     const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
-                    FlushManyRaw(mesh, material, dynamicBindings, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
+                    SubmitManyRaw(mesh, material, dynamicBindings, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
                     data.offset += count;
                 }
             }

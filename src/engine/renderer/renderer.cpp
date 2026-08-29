@@ -38,6 +38,11 @@
 #include "shaders.hpp"
 #include "utils.hpp"
 
+#if SGE_IMGUI_ENABLED
+    #include <imgui.h>
+    #include "imgui_renderer.hpp"
+#endif
+
 namespace {
 
 struct BloomUniforms {
@@ -354,7 +359,7 @@ LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(const Material& material
     auto materialHash = material.GetStateHash();
     auto meshHash = mesh.GetLayoutHash();
 
-    auto key = PipelineKey { .vertexFormatHash = meshHash, .materialHash = materialHash };
+    auto key = PipelineKey { .meshHash = meshHash, .materialHash = materialHash };
 
     auto existingEntry = m_pipelines.find(key);
     if (existingEntry != m_pipelines.end()) {
@@ -412,8 +417,31 @@ sge::Ref<sge::Mesh> sge::Renderer::GetDefaultBatch2dMesh() {
     return m_2d_batch_mesh;
 }
 
-void sge::Renderer::SubmitRaw(Ref<Mesh> mesh, Ref<Material> material, std::span<LLGL::Resource* const> dynamicBindings, const void* instanceData, size_t instanceByteSize) {
+template <typename TKey, typename TValue, typename MapKeyHasher>
+static inline TValue& MapFind(const TKey& key, std::unordered_map<TKey, size_t, MapKeyHasher>& map, std::vector<TValue>& pool) {
+    size_t index = pool.size();
+    auto it = map.find(key);
+    if (it != map.end()) {
+        index = it->second;
+    } else {
+        map.emplace(key, index);
+        pool.emplace_back();
+    }
+
+    return pool[index];
+}
+
+void sge::Renderer::SubmitRaw(Ref<Mesh> mesh, Ref<Material> material, std::span<LLGL::Resource* const> dynamicBindings, const void* instanceDataPtr, size_t instanceByteSize) {
     ZoneScoped;
+
+    auto materialHash = material->GetStateHash();
+    auto meshHash = mesh->GetLayoutHash();
+    auto pipelineKey = PipelineKey { .meshHash = meshHash, .materialHash = materialHash };
+
+    auto& instanceData = MapFind(pipelineKey, m_instance_data_map, m_instance_datas);
+
+    if (!instanceData.mesh)
+        instanceData.mesh = mesh;
 
     uint64_t dynamicBindingsHash = sge::HASH_INIT;
     // for (LLGL::Resource* resource : dynamicBindings) {
@@ -421,23 +449,13 @@ void sge::Renderer::SubmitRaw(Ref<Mesh> mesh, Ref<Material> material, std::span<
     // }
     sge::hash_fnv1a(dynamicBindingsHash, dynamicBindings.data(), dynamicBindings.size_bytes());
 
-    BatchKey key {
+    BatchKey batchkey {
         .mesh = std::move(mesh),
         .material = std::move(material),
         .dynamicBindingsHash = dynamicBindingsHash
     };
 
-    size_t batchIdx = m_mesh_batches.size();
-
-    auto it = m_batches_map.find(key);
-    if (it != m_batches_map.end()) {
-        batchIdx = it->second;
-    } else {
-        m_batches_map.emplace(key, batchIdx);
-        m_mesh_batches.emplace_back();
-    }
-
-    auto& batch = m_mesh_batches[batchIdx];
+    auto& batch = m_mesh_batches[batchkey];
 
     if (!batch.mesh)
         batch.mesh = std::move(mesh);
@@ -445,62 +463,71 @@ void sge::Renderer::SubmitRaw(Ref<Mesh> mesh, Ref<Material> material, std::span<
     if (!batch.material)
         batch.material = std::move(material);
 
-    if (instanceData != nullptr && instanceByteSize > 0) {
-        const auto* bytes = static_cast<const uint8_t*>(instanceData);
-        batch.instanceBytes.insert(batch.instanceBytes.end(), bytes, bytes + instanceByteSize);
-    }
-
-    if (!batch.vertexBufferArray) {
-        batch.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(key.material->GetInstanceAttribs()));
-    }
-
     if (batch.dynamicBindings.empty()) {
         batch.dynamicBindings.insert(batch.dynamicBindings.end(), dynamicBindings.begin(), dynamicBindings.end());
     }
 
-    batch.instanceCount += 1;
+    size_t instanceOffset = static_cast<size_t>(-1);
+
+    if (instanceDataPtr != nullptr && instanceByteSize > 0) {
+        instanceOffset = instanceData.totalInstanceCount;
+        if (!instanceData.vertexBufferArray) {
+            instanceData.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(batch.material->GetInstanceAttribs()));
+        }
+        const auto* bytes = static_cast<const uint8_t*>(instanceDataPtr);
+        instanceData.instanceBytes.insert(instanceData.instanceBytes.end(), bytes, bytes + instanceByteSize);
+        instanceData.totalInstanceCount += 1;
+    }
+
+    if (!m_batch_submissions.empty()) {
+        MeshBatchSubmission& submission = m_batch_submissions.back();
+        if (submission.batch == &batch) {
+            submission.instanceCount += 1;
+        }
+    } else {
+        m_batch_submissions.push_back(MeshBatchSubmission {
+            .batch = &batch,
+            .instanceOffset = instanceOffset,
+            .instanceCount = 1,
+        });
+    }
 }
 
-void sge::Renderer::FlushManyRaw(
+void sge::Renderer::SubmitManyRaw(
     Ref<Mesh> mesh,
     Ref<Material> material,
     std::span<LLGL::Resource* const> dynamicBindings,
     sge::IRect scissorBounds,
-    const void* instanceData,
+    const void* instanceDataPtr,
     size_t instanceStride,
     uint32_t instanceCount
 ) {
     if (instanceCount == 0)
         return;
 
-    uint64_t dynamicBindingsHash = sge::HASH_INIT;
-    // for (LLGL::Resource* resource : dynamicBindings) {
-    //     sge::hash_combine(dynamicBindingsHash, resource);
-    // }
+    auto materialHash = material->GetStateHash();
+    auto meshHash = mesh->GetLayoutHash();
+    auto pipelineKey = PipelineKey { .meshHash = meshHash, .materialHash = materialHash };
 
+    auto& instanceData = MapFind(pipelineKey, m_instance_data_map, m_instance_datas);
+
+    if (!instanceData.mesh)
+        instanceData.mesh = mesh;
+
+    uint64_t dynamicBindingsHash = sge::HASH_INIT;
     sge::hash_fnv1a(dynamicBindingsHash, dynamicBindings.data(), dynamicBindings.size_bytes());
 
     uint64_t scissorHash = sge::HASH_INIT;
     sge::hash_fnv1a(scissorHash, &scissorBounds, sizeof(scissorBounds));
 
-    BatchKey key {
+    BatchKey batchKey {
         .mesh = std::move(mesh),
         .material = std::move(material),
         .dynamicBindingsHash = dynamicBindingsHash,
         .scissorHash = scissorHash
     };
 
-    size_t batchIdx = m_mesh_batches.size();
-
-    auto it = m_batches_map.find(key);
-    if (it != m_batches_map.end()) {
-        batchIdx = it->second;
-    } else {
-        m_batches_map.emplace(key, batchIdx);
-        m_mesh_batches.emplace_back();
-    }
-
-    auto& batch = m_mesh_batches[batchIdx];
+    auto& batch = m_mesh_batches[batchKey];
 
     if (!batch.mesh)
         batch.mesh = std::move(mesh);
@@ -508,24 +535,33 @@ void sge::Renderer::FlushManyRaw(
     if (!batch.material)
         batch.material = std::move(material);
 
-    if (!batch.vertexBufferArray) {
-        batch.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(key.material->GetInstanceAttribs()));
-    }
-
     if (batch.dynamicBindings.empty() && !dynamicBindings.empty()) {
         batch.dynamicBindings.insert(batch.dynamicBindings.end(), dynamicBindings.begin(), dynamicBindings.end());
     }
 
-    FlushBatchRawImpl(batch, scissorBounds, instanceData, instanceStride, instanceCount);
+    const size_t instanceByteSize = instanceCount * instanceStride;
+
+    size_t instanceOffset = static_cast<size_t>(-1);
+
+    if (instanceDataPtr != nullptr && instanceByteSize > 0) {
+        instanceOffset = instanceData.totalInstanceCount;
+        if (instanceData.instanceBufferPool.GetVertexAttributes().empty()) {
+            instanceData.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(batch.material->GetInstanceAttribs()));
+        }
+        const auto* bytes = static_cast<const uint8_t*>(instanceDataPtr);
+        instanceData.instanceBytes.insert(instanceData.instanceBytes.end(), bytes, bytes + instanceByteSize);
+
+        instanceData.totalInstanceCount += instanceCount;
+    }
+
+    m_batch_submissions.push_back(MeshBatchSubmission {
+        .batch = &batch,
+        .instanceOffset = instanceOffset,
+        .instanceCount = instanceCount,
+    });
 }
 
-void sge::Renderer::FlushBatchRawImpl(
-    MeshBatch& batch,
-    sge::IRect scissorBounds,
-    const void* instanceData,
-    size_t instanceStride,
-    uint32_t instanceCount
-) {
+void sge::Renderer::FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, size_t instanceCount) {
     ZoneScoped;
 
     Mesh& mesh = *batch.mesh;
@@ -533,18 +569,18 @@ void sge::Renderer::FlushBatchRawImpl(
 
     m_command_buffer->SetPipelineState(GetOrCreatePipeline(material, mesh));
 
-    const size_t instanceDataSize = instanceCount * instanceStride;
-    const bool hasInstanceBuffer = instanceData != nullptr && instanceDataSize > 0;
+    auto pipelineKey = PipelineKey { .meshHash = mesh.GetLayoutHash(), .materialHash = material.GetStateHash() };
+
+    InstanceData* instanceData = nullptr;
+    auto it = m_instance_data_map.find(pipelineKey);
+    if (it != m_instance_data_map.end()) {
+        instanceData = &m_instance_datas[it->second];
+    }
+
+    const bool hasInstanceBuffer = instanceData != nullptr && instanceOffset < instanceData->totalInstanceCount;
 
     if (hasInstanceBuffer) {
-        if (batch.instanceBufferPool.Reserve(*m_context, instanceDataSize)) {
-            SGE_ASSERT(batch.instanceBufferPool.Get() != nullptr);
-            if (batch.vertexBufferArray)
-                m_context->Release(*batch.vertexBufferArray);
-            batch.vertexBufferArray = m_context->CreateBufferArray({ mesh.GetVertexBuffer(), batch.instanceBufferPool.Get() });
-        }
-        m_command_buffer->UpdateBuffer(*batch.instanceBufferPool.Get(), 0, instanceData, instanceDataSize);
-        m_command_buffer->SetVertexBufferArray(*batch.vertexBufferArray);
+        m_command_buffer->SetVertexBufferArray(*instanceData->vertexBufferArray);
     } else {
         m_command_buffer->SetVertexBuffer(*mesh.GetVertexBuffer());
     }
@@ -556,12 +592,14 @@ void sge::Renderer::FlushBatchRawImpl(
     }
 
     if (batch.material->IsScissorTestEnabled()) {
-        if (scissorBounds.width() <= 0 || scissorBounds.height() <= 0) {
+        sge::IRect scissor = batch.scissorBounds;
+
+        if (scissor.width() <= 0 || scissor.height() <= 0) {
             // Reset scissor
             LLGL::Extent2D resolution = m_context->GetCurrentTarget()->GetResolution();
             m_command_buffer->SetScissor(LLGL::Scissor(0, 0, resolution.width, resolution.height));
         } else {
-            m_command_buffer->SetScissor(LLGL::Scissor(scissorBounds.min.x, scissorBounds.min.y, scissorBounds.max.x, scissorBounds.max.y));
+            m_command_buffer->SetScissor(LLGL::Scissor(scissor.min.x, scissor.min.y, scissor.max.x, scissor.max.y));
         }
     }
 
@@ -569,30 +607,64 @@ void sge::Renderer::FlushBatchRawImpl(
 
     if (indexCount > 0) {
         m_command_buffer->SetIndexBuffer(*mesh.GetIndexBuffer());
-        m_command_buffer->DrawIndexedInstanced(indexCount, instanceCount, 0);
+        m_command_buffer->DrawIndexedInstanced(indexCount, instanceCount, 0, 0, instanceCount);
     } else {
         auto vertexCount = mesh.GetVertexCount();
-        m_command_buffer->DrawInstanced(vertexCount, 0, instanceCount);
+        m_command_buffer->DrawInstanced(vertexCount, 0, instanceCount, instanceOffset);
+    }
+}
+
+void sge::Renderer::UploadBatchBuffers() {
+    ZoneScoped;
+
+    for (auto& instanceData : m_instance_datas) {
+        if (instanceData.instanceBytes.empty())
+            continue;
+
+        const size_t instanceDataSize = instanceData.instanceBytes.size();
+
+        if (instanceData.instanceBufferPool.Reserve(*m_context, instanceDataSize)) {
+            SGE_ASSERT(instanceData.instanceBufferPool.Get() != nullptr);
+            if (instanceData.vertexBufferArray)
+                m_context->Release(*instanceData.vertexBufferArray);
+            instanceData.vertexBufferArray = m_context->CreateBufferArray({ instanceData.mesh->GetVertexBuffer(), instanceData.instanceBufferPool.Get() });
+        }
+        m_command_buffer->UpdateBuffer(*instanceData.instanceBufferPool.Get(), 0, instanceData.instanceBytes.data(), instanceDataSize);
+
+        instanceData.instanceBytes.clear();
     }
 }
 
 void sge::Renderer::EndPass() {
     ZoneScoped;
 
-    for (auto& batch : m_mesh_batches) {
-        if (batch.instanceCount == 0)
+    UploadBatchBuffers();
+
+    for (auto& submission : m_batch_submissions) {
+        MeshBatch& batch = *submission.batch;
+
+        if (submission.instanceCount == 0)
             continue;
 
-        FlushBatchRawImpl(
-            batch,
-            batch.scissorBounds,
-            batch.instanceBytes.data(), batch.instanceBytes.size(),
-            batch.instanceCount
-        );
-        batch.instanceCount = 0;
-        batch.instanceBytes.clear();
-        // batch.dynamicBindings.clear();
+        FlushBatchRawImpl(batch, submission.instanceOffset, submission.instanceCount);
+        submission.instanceCount = 0;
+        submission.instanceOffset = static_cast<size_t>(-1);
     }
+
+    for (auto& instanceData : m_instance_datas) {
+        instanceData.totalInstanceCount = 0;
+    }
+
+    m_batch_submissions.clear();
+
+#if SGE_IMGUI_ENABLED
+    if (ImGuiRenderer::IsActive()) {
+        auto* drawData = ImGui::GetDrawData();
+        if (drawData != nullptr) {
+            ImGuiRenderer::RenderDrawData(drawData);
+        }
+    }
+#endif
 
     m_context->PopRenderTarget();
     m_command_buffer->EndRenderPass();

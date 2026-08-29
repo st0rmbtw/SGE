@@ -107,7 +107,7 @@ public:
         size_t instanceByteSize
     );
 
-    void FlushManyRaw(
+    void SubmitManyRaw(
         Ref<Mesh> mesh,
         Ref<Material> material,
         std::span<LLGL::Resource* const> dynamicResources,
@@ -182,20 +182,20 @@ public:
         return m_blit_pipeline;
     }
 
-protected:
+private:
     struct PipelineKey {
-        uint64_t vertexFormatHash = 0;
+        uint64_t meshHash = 0;
         uint64_t materialHash = 0;
 
         friend bool operator==(const PipelineKey& a, const PipelineKey& b) noexcept {
-            return a.vertexFormatHash == b.vertexFormatHash && a.materialHash == b.materialHash;
+            return a.meshHash == b.meshHash && a.materialHash == b.materialHash;
         }
     };
 
     struct PipelineKeyHasher {
         size_t operator()(const PipelineKey& key) const noexcept {
             size_t hash = 0;
-            hash_combine(hash, key.vertexFormatHash);
+            hash_combine(hash, key.meshHash);
             hash_combine(hash, key.materialHash);
             return hash;
         }
@@ -226,33 +226,42 @@ protected:
         }
     };
 
-    struct MeshBatch {
+    struct InstanceData {
         sge::VertexBufferPool instanceBufferPool;
         sge::Unique<LLGL::BufferArray> vertexBufferArray;
         std::vector<uint8_t> instanceBytes;
+        sge::Ref<Mesh> mesh;
+        size_t totalInstanceCount;
+    };
+
+    struct MeshBatch {
         std::vector<LLGL::Resource*> dynamicBindings;
         sge::Ref<Mesh> mesh;
         sge::Ref<Material> material;
         sge::IRect scissorBounds;
-        size_t instanceCount;
+    };
+
+    struct MeshBatchSubmission {
+        MeshBatch* batch = nullptr;
+        size_t instanceOffset = static_cast<size_t>(-1);
+        size_t instanceCount = 0;
     };
 
 private:
     void InitBloomPipelines();
     void InitTonemapPipelines();
 
-    void FlushBatchRawImpl(
-        MeshBatch& batch,
-        sge::IRect scissorBounds, // If the material has scissor test disabled - this parameter ignored
-        const void* instanceData,
-        size_t instanceStride,
-        uint32_t instanceCount
-    );
+    void FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, size_t instanceCount);
+    void UploadBatchBuffers();
 
 protected:
     std::unordered_map<PipelineKey, PipelineId, PipelineKeyHasher> m_pipelines;
-    std::unordered_map<BatchKey, size_t, BatchKeyHasher> m_batches_map;
-    std::vector<MeshBatch> m_mesh_batches;
+
+    std::unordered_map<BatchKey, MeshBatch, BatchKeyHasher> m_mesh_batches;
+    std::unordered_map<PipelineKey, size_t, PipelineKeyHasher> m_instance_data_map;
+    std::vector<InstanceData> m_instance_datas;
+
+    std::vector<MeshBatchSubmission> m_batch_submissions;
 
     LLGL::VertexFormat m_fullscreen_triangle_vertex_format;
 

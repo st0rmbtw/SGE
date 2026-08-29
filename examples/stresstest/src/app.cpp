@@ -341,7 +341,6 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                 }
                 ImGui::Render();
             }
-            GetRenderContext()->EndImGuiFrame();
             #endif
         }
         m_renderer->EndPass();

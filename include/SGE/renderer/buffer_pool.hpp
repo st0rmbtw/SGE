@@ -42,6 +42,11 @@ public:
     }
 
     [[nodiscard]]
+    const std::vector<LLGL::VertexAttribute>& GetVertexAttributes() const noexcept {
+        return m_vertex_format.attributes;
+    }
+
+    [[nodiscard]]
     size_t GetStride() const {
         return m_vertex_format.GetStride();
     }
