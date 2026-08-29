@@ -44,12 +44,14 @@ void InitDefaultSdfFont(sge::RenderContext& context) {
         .glyphs = std::move(glyphs),
         .texture = context.CreateTexture(textureConfig, &imageView),
         .font_size = FONT_META_DATA.font_size,
-        .line_height = FONT_META_DATA.line_height,
+        .base_scale = FONT_META_DATA.base_scale,
+        .ascender = FONT_META_DATA.ascender,
+        .descender = FONT_META_DATA.descender
     };
 }
 
 void InitDefaultVectorFont(sge::RenderContext& context) {
-    g_font_vector = sge::LoadFontVectorFromBytes(FONT_FILE_CONTENT, context);
+    g_font_vector = sge::LoadVectorFontFromBytes(FONT_FILE_CONTENT, context);
 }
 
 } // namespace

@@ -1,5 +1,5 @@
-#ifndef _SGE_RENDERER_CAMERA_HPP_
-#define _SGE_RENDERER_CAMERA_HPP_
+#ifndef SGE_RENDERER_CAMERA_HPP_
+#define SGE_RENDERER_CAMERA_HPP_
 
 #pragma once
 

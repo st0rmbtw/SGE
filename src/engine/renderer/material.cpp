@@ -8,9 +8,9 @@
 
 #include "utils.hpp"
 
-sge::Material::Material(sge::RenderContext& context, const sge::MaterialDesc& desc) :
-    m_vertex_shader{ desc.GetVertexShader() },
-    m_fragment_shader{ desc.GetFragmentShader() },
+sge::Material::Material(sge::RenderContext& context, sge::MaterialDesc desc) :
+    m_vertex_shader{ std::move(desc.m_vertex_shader) },
+    m_fragment_shader{ std::move(desc.m_fragment_shader) },
     m_blend_mode{ desc.GetBlendMode() },
     m_cull_mode{ desc.GetCullMode() },
     m_scissor_test_enabled{ desc.IsScissorTestEnabled() },
@@ -25,7 +25,7 @@ sge::Material::Material(sge::RenderContext& context, const sge::MaterialDesc& de
 
     std::vector<LLGL::ResourceViewDescriptor> resourceViews;
     LLGL::PipelineLayoutDescriptor layoutDesc;
-    for (const auto& binding : desc.GetBindings()) {
+    for (auto& binding : desc.m_bindings) {
         auto resourceType = LLGL::ResourceType::Undefined;
         auto resourceView = LLGL::ResourceViewDescriptor();
 
@@ -49,18 +49,18 @@ sge::Material::Material(sge::RenderContext& context, const sge::MaterialDesc& de
         sge::hash_combine(stateHash, binding.stage);
         sge::hash_combine(stateHash, binding.arraySize);
 
-        layoutDesc.heapBindings.emplace_back(binding.name, resourceType, binding.bindFlags, binding.stage, LLGL::BindingSlot(binding.index), binding.arraySize);
+        layoutDesc.heapBindings.emplace_back(std::move(binding.name), resourceType, binding.bindFlags, binding.stage, LLGL::BindingSlot(binding.index), binding.arraySize);
         resourceViews.emplace_back(resourceView);
     }
 
-    for (const auto& binding : desc.GetDynamicBindings()) {
+    for (auto& binding : desc.m_dynamic_bindings) {
         sge::hash_fnv1a(stateHash, binding.name.data(), binding.name.size());
         sge::hash_combine(stateHash, binding.type);
         sge::hash_combine(stateHash, binding.index);
         sge::hash_combine(stateHash, binding.bindFlags);
         sge::hash_combine(stateHash, binding.stage);
         sge::hash_combine(stateHash, binding.arraySize);
-        layoutDesc.bindings.emplace_back(binding.name, binding.type, binding.bindFlags, binding.stage, LLGL::BindingSlot(binding.index), binding.arraySize);
+        layoutDesc.bindings.emplace_back(std::move(binding.name), binding.type, binding.bindFlags, binding.stage, LLGL::BindingSlot(binding.index), binding.arraySize);
     }
 
     sge::Ref<LLGL::PipelineLayout> pipelineLayout = context.CreatePipelineLayout(layoutDesc);

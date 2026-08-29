@@ -1,11 +1,13 @@
 #pragma once
 
-#ifndef _SGE_TYPES_FONT_HPP_
-#define _SGE_TYPES_FONT_HPP_
+#ifndef SGE_TYPES_FONT_HPP_
+#define SGE_TYPES_FONT_HPP_
 
-#include <span>
-#include <string>
+#include <cstdlib>
 #include <unordered_map>
+
+#include <SGE/font_loader.hpp>
+#include <SGE/log.hpp>
 
 #include "texture.hpp"
 
@@ -13,7 +15,7 @@ namespace sge {
 
 #if SGE_DEFAULT_FONT_ENABLED
 namespace internal {
-    
+
 void InitDefaultFont(class sge::RenderContext& context);
 
 } // namespace internal
@@ -31,7 +33,7 @@ struct GlyphDataSDF {
 
 struct Glyph {
     union {
-        GlyphDataSDF sdf;      
+        GlyphDataSDF sdf;
         GlyphDataVector vector;
     } data;
     glm::ivec2 size;
@@ -52,7 +54,9 @@ struct Font {
     std::unordered_map<uint32_t, Glyph> glyphs;
     Texture texture;
     float font_size;
-    float line_height;
+    float base_scale;
+    int16_t ascender;
+    int16_t descender;
 };
 
 #if SGE_DEFAULT_FONT_ENABLED
@@ -69,13 +73,10 @@ const Font& GetDefaultFont();
 
 #else // #if SGE_DEFAULT_FONT_ENABLED
 
-#include <cstdlib>
-#include <SGE/log.hpp>
-
 /**
  * @brief Returns the default vector font (JetBrains Mono Regular)
  */
-const FontVector& GetDefaultFontVector() {
+inline const FontVector& GetDefaultFontVector() {
     SGE_LOG_ERROR("To use the default font use must enable it with the `SGE_DEFAULT_FONT_ENABLED` option.");
     std::abort();
 }
@@ -83,19 +84,23 @@ const FontVector& GetDefaultFontVector() {
 /**
  * @brief Returns the default SDF font (JetBrains Mono Regular)
  */
-const Font& GetDefaultFont() {
+inline const Font& GetDefaultFont() {
     SGE_LOG_ERROR("To use the default font use must enable it with the `SGE_DEFAULT_FONT_ENABLED` option.");
     std::abort();
 }
 
 #endif // #if SGE_DEFAULT_FONT_ENABLED
 
-FontVector LoadFontVectorFromBytes(std::span<const uint8_t> buffer, class sge::RenderContext& context);
-FontVector LoadFontVector(const std::string& path, class sge::RenderContext& context);
+// ================== Vector ==================
+FontVector LoadVectorFontFromData(const sge::font_loader::FontDataVector& data, class sge::RenderContext& context);
+FontVector LoadVectorFontFromBytes(std::span<const uint8_t> buffer, class sge::RenderContext& context);
+FontVector LoadVectorFontFromFile(const std::string& path, class sge::RenderContext& context);
 
+// ================== SDF ==================
+Font LoadFontFromData(const sge::font_loader::FontDataSDF& data, class sge::RenderContext& context);
 Font LoadFontFromBytes(std::span<const uint8_t> buffer, class sge::RenderContext& context);
-Font LoadFont(const std::string& path, class sge::RenderContext& context);
+Font LoadFontFromFile(const std::string& path, class sge::RenderContext& context);
 
 } // namespace sge
 
-#endif
+#endif // SGE_TYPES_FONT_HPP_

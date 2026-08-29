@@ -71,30 +71,31 @@ struct InstanceAttribute {
 };
 
 class MaterialDesc {
+    friend class Material;
 public:
     MaterialDesc() = default;
 
-    MaterialDesc&& SetVertexShader(sge::Ref<LLGL::Shader> vertexShader) && {
+    MaterialDesc& SetVertexShader(sge::Ref<LLGL::Shader> vertexShader) {
         m_vertex_shader = std::move(vertexShader);
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& SetFragmentShader(sge::Ref<LLGL::Shader> fragmentShader) && {
+    MaterialDesc& SetFragmentShader(sge::Ref<LLGL::Shader> fragmentShader) {
         m_fragment_shader = std::move(fragmentShader);
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& SetCullMode(sge::CullMode cullMode) && {
+    MaterialDesc& SetCullMode(sge::CullMode cullMode) {
         m_cull_mode = cullMode;
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& SetBlendMode(sge::BlendMode blendMode) && {
+    MaterialDesc& SetBlendMode(sge::BlendMode blendMode) {
         m_blend_mode = blendMode;
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& BindTextureStorage(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Texture> texture, long stage) && {
+    MaterialDesc& BindTextureStorage(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Texture> texture, long stage) {
         m_bindings.push_back(BindingSlot {
             .name = std::move(name),
             .resource = texture,
@@ -102,10 +103,10 @@ public:
             .bindFlags = LLGL::BindFlags::Storage,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& BindTexture(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Texture> texture, long stage) && {
+    MaterialDesc& BindTexture(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Texture> texture, long stage) {
         m_bindings.push_back(BindingSlot {
             .name = std::move(name),
             .resource = texture,
@@ -113,10 +114,10 @@ public:
             .bindFlags = LLGL::BindFlags::Sampled,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& BindStorageBuffer(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Buffer> buffer, long stage) && {
+    MaterialDesc& BindStorageBuffer(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Buffer> buffer, long stage) {
         m_bindings.push_back(BindingSlot {
             .name = std::move(name),
             .resource = buffer,
@@ -124,10 +125,10 @@ public:
             .bindFlags = LLGL::BindFlags::Storage,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& BindBuffer(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Buffer> buffer, long stage) && {
+    MaterialDesc& BindBuffer(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Buffer> buffer, long stage) {
         m_bindings.push_back(BindingSlot {
             .name = std::move(name),
             .resource = buffer,
@@ -135,10 +136,10 @@ public:
             .bindFlags = LLGL::BindFlags::Sampled,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& BindConstantBuffer(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Buffer> buffer, long stage) && {
+    MaterialDesc& BindConstantBuffer(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Buffer> buffer, long stage) {
         m_bindings.push_back(BindingSlot {
             .name = std::move(name),
             .resource = buffer,
@@ -146,10 +147,10 @@ public:
             .bindFlags = LLGL::BindFlags::ConstantBuffer,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& BindSampler(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Sampler> sampler, long stage) && {
+    MaterialDesc& BindSampler(uint32_t slot, LLGL::StringLiteral name, sge::Ref<LLGL::Sampler> sampler, long stage) {
         m_bindings.push_back(BindingSlot {
             .name = std::move(name),
             .resource = sampler,
@@ -157,10 +158,10 @@ public:
             .bindFlags = 0,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& AddDynamicTextureStorage(uint32_t slot, LLGL::StringLiteral name, long stage) {
+    MaterialDesc& AddDynamicTextureStorage(uint32_t slot, LLGL::StringLiteral name, long stage) {
         m_dynamic_bindings.push_back(DynamicBindingSlot {
             .name = std::move(name),
             .type = LLGL::ResourceType::Texture,
@@ -168,10 +169,10 @@ public:
             .bindFlags = LLGL::BindFlags::Storage,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& AddDynamicTexture(uint32_t slot, LLGL::StringLiteral name, long stage) {
+    MaterialDesc& AddDynamicTexture(uint32_t slot, LLGL::StringLiteral name, long stage) {
         m_dynamic_bindings.push_back(DynamicBindingSlot {
             .name = std::move(name),
             .type = LLGL::ResourceType::Texture,
@@ -179,10 +180,10 @@ public:
             .bindFlags = LLGL::BindFlags::Sampled,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& AddDynamicStorageBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
+    MaterialDesc& AddDynamicStorageBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
         m_dynamic_bindings.push_back(DynamicBindingSlot {
             .name = std::move(name),
             .type = LLGL::ResourceType::Buffer,
@@ -190,10 +191,10 @@ public:
             .bindFlags = LLGL::BindFlags::Storage,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& AddDynamicBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
+    MaterialDesc& AddDynamicBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
         m_dynamic_bindings.push_back(DynamicBindingSlot {
             .name = std::move(name),
             .type = LLGL::ResourceType::Buffer,
@@ -201,10 +202,10 @@ public:
             .bindFlags = LLGL::BindFlags::Sampled,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& AddDynamicConstantBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
+    MaterialDesc& AddDynamicConstantBuffer(uint32_t slot, LLGL::StringLiteral name, long stage) {
         m_dynamic_bindings.push_back(DynamicBindingSlot {
             .name = std::move(name),
             .type = LLGL::ResourceType::Buffer,
@@ -212,10 +213,10 @@ public:
             .bindFlags = LLGL::BindFlags::ConstantBuffer,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& AddDynamicSampler(uint32_t slot, LLGL::StringLiteral name, long stage) {
+    MaterialDesc& AddDynamicSampler(uint32_t slot, LLGL::StringLiteral name, long stage) {
         m_dynamic_bindings.push_back(DynamicBindingSlot {
             .name = std::move(name),
             .type = LLGL::ResourceType::Sampler,
@@ -223,27 +224,27 @@ public:
             .bindFlags = 0,
             .stage = stage,
         });
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& AddInstanceAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semanticName) && {
+    MaterialDesc& AddInstanceAttribute(sge::VertexFormat format, LLGL::StringLiteral name, LLGL::StringLiteral semanticName) {
         m_instance_attributes.emplace_back(format, std::move(name), std::move(semanticName), 1);
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& AddInstanceAttribute(sge::InstanceAttribute attribute) && {
+    MaterialDesc& AddInstanceAttribute(sge::InstanceAttribute attribute) {
         m_instance_attributes.push_back(std::move(attribute));
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& SetScissorTestEnabled(bool enabled) && {
+    MaterialDesc& SetScissorTestEnabled(bool enabled) {
         m_scissor_test_enabled = enabled;
-        return std::move(*this);
+        return *this;
     }
 
-    MaterialDesc&& SetDepthTestEnabled(bool enabled) && {
+    MaterialDesc& SetDepthTestEnabled(bool enabled) {
         m_depth_test_enabled = enabled;
-        return std::move(*this);
+        return *this;
     }
 
     [[nodiscard]]
@@ -308,7 +309,7 @@ private:
 
 class Material : public RefCounted {
 public:
-    explicit Material(sge::RenderContext& context, const MaterialDesc& desc);
+    explicit Material(sge::RenderContext& context, MaterialDesc desc);
 
     [[nodiscard]]
     const std::vector<LLGL::VertexAttribute>& GetInstanceAttribs() const {

@@ -127,11 +127,11 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
     const float text_width = sge::MeasureText(font, text).x;
 
-    m_batch_vector->Draw(text, glm::vec2(0.0f), font);
-    m_batch_sdf->Draw(text, glm::vec2(text_width + 50.0f, 0.0f), font_sdf);
+    m_batch_vector->Draw(text, glm::vec2(0.0f), sge::TextAlignment::Top, font);
+    m_batch_sdf->Draw(text, glm::vec2(text_width + 50.0f, 0.0f), sge::TextAlignment::Top, font_sdf);
 
     const float fps = 1.0 / sge::Time::DeltaSeconds();
-    m_batch_vector->DrawUI(sge::TempFormat("FPS: {:.0f}", fps), 16.f, sge::color::WHITE, glm::vec2(15, window->GetHeight() - 30), font);
+    m_batch_vector->Draw(sge::TempFormat("FPS: {:.0f}", fps), 16.f, sge::color::WHITE, glm::vec2(15, window->GetHeight() - 30), sge::TextAlignment::Top, font, sge::Order(), sge::BatchFlags::UI);
 
     m_renderer->Begin();
     {

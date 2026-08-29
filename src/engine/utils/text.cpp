@@ -9,7 +9,7 @@ glm::vec2 MeasureTextInternal(const std::unordered_map<uint32_t, sge::Glyph>& gl
     auto bounds = glm::vec2(0.0f);
     float x = 0.0f;
 
-    bounds.y = line_height;
+    bounds.y = line_height * scale;
 
     uint32_t codepoint = 0;
     for (size_t i = 0; i < length;) {
@@ -25,7 +25,7 @@ glm::vec2 MeasureTextInternal(const std::unordered_map<uint32_t, sge::Glyph>& gl
         if (it == glyphs.end()) {
             it = glyphs.find(0);
         }
-        
+
         const sge::Glyph& glyph = it->second;
 
         x += glyph.advance * scale;
@@ -77,7 +77,7 @@ sge::FitResult CharsFitInLineFromStartInternal(
         if (it == glyphs.end()) {
             it = glyphs.find(0);
         }
-        
+
         const sge::Glyph& glyph = it->second;
 
         x += glyph.advance * scale;
@@ -124,7 +124,7 @@ sge::FitResult CharsFitInLineFromEndInternal(
         if (it == glyphs.end()) {
             it = glyphs.find(0);
         }
-        
+
         const sge::Glyph& glyph = it->second;
 
         x += glyph.advance * scale;
@@ -159,15 +159,15 @@ float sge::MeasureTextHeight(const FontVector& font, float size, const char* tex
 
 glm::vec2 sge::MeasureText(const sge::Font& font, float size, const char* text, size_t length) {
     ZoneScoped;
-    const float scale = size / font.font_size;
-    const float line_height = font.line_height * scale;
+    const float scale = size / font.font_size * font.base_scale;
+    const float line_height = (font.ascender - font.descender);
     return MeasureTextInternal(font.glyphs, line_height, scale, text, length);
 }
 
 float sge::MeasureTextHeight(const Font& font, float size, const char* text, size_t length) noexcept {
     ZoneScoped;
-    const float scale = size / font.font_size;
-    const float line_height = font.line_height * scale;
+    const float scale = size / font.font_size * font.base_scale;
+    const float line_height = (font.ascender - font.descender) * scale;
     return MeasureTextHeightInternal(line_height, text, length);
 }
 
@@ -179,7 +179,7 @@ sge::FitResult sge::CharsFitInLineFromStart(const sge::FontVector& font, float s
 
 sge::FitResult sge::CharsFitInLineFromStart(const sge::Font& font, float size, const char* text, size_t length, float line_width) noexcept {
     ZoneScoped;
-    const float scale = size / font.font_size;
+    const float scale = size / font.font_size * font.base_scale;
     return CharsFitInLineFromStartInternal(font.glyphs, scale, text, length, line_width);
 }
 
@@ -191,6 +191,6 @@ sge::FitResult sge::CharsFitInLineFromEnd(const FontVector& font, float size, co
 
 sge::FitResult sge::CharsFitInLineFromEnd(const Font& font, float size, const char* text, size_t length, float line_width) noexcept {
     ZoneScoped;
-    const float scale = size / font.font_size;
+    const float scale = size / font.font_size * font.base_scale;
     return CharsFitInLineFromEndInternal(font.glyphs, scale, text, length, line_width);
 }

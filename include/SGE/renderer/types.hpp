@@ -1,5 +1,5 @@
-#ifndef _SGE_RENDERER_TYPES_HPP_
-#define _SGE_RENDERER_TYPES_HPP_
+#ifndef SGE_RENDERER_TYPES_HPP_
+#define SGE_RENDERER_TYPES_HPP_
 
 #include <LLGL/FragmentAttribute.h>
 #include <LLGL/LLGL.h>
@@ -28,7 +28,7 @@ struct Vertex {
     explicit Vertex(float x, float y) noexcept : x(x), y(y) {}
 };
 
-#pragma pack(push, 1)
+// #pragma pack(push, 1)
 
 struct LineInstance {
     glm::vec2 start;
@@ -94,7 +94,7 @@ struct ShapeInstance {
     uint8_t flags;
 };
 
-#pragma pack(pop)
+// #pragma pack(pop)
 
 struct PathData {
     glm::mat4 transformMatrix;

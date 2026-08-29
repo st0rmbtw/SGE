@@ -50,7 +50,7 @@ void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
 
     auto& drawCommands = batch->GetDrawCommands();
     auto& mesh = batch->GetMesh();
-    auto& material = batch->GetMaterial();
+    auto& material = batch->GetMaterial(sge::BlendMode::AlphaBlend);
     auto* instanceData = batch->GetInstanceData();
     auto* dynamicBindings = batch->GetDynamicBindings();
 
@@ -129,8 +129,6 @@ void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
 
     m_submissions.push_back(BatchSubmission {
         .batch = std::move(batch),
-        .mesh = mesh,
-        .material = material,
         .instancesData = instancePtr,
         .instanceStride = instanceStride,
         .dynamicBindings = dynamicBindings,
@@ -187,7 +185,9 @@ void sge::Renderer2D::FlushBatches() {
             if (data.allTheSame && currentOrder == submission.drawCommands[0].state.order) {
                 submission.drawCommandsOffset = submission.drawCommands.size();
                 auto dynamicBindings = std::span<LLGL::Resource* const>(submission.dynamicBindings, data.state.resources_count);
-                FlushManyRaw(submission.mesh, submission.material, dynamicBindings, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
+                const auto& mesh = submission.batch->GetMesh();
+                const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
+                FlushManyRaw(mesh, material, dynamicBindings, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
             } else {
                 size_t i = submission.drawCommandsOffset;
                 if (submission.drawCommands[i].state.order == currentOrder) {
@@ -204,13 +204,19 @@ void sge::Renderer2D::FlushBatches() {
                 submission.drawCommandsOffset = i;
 
                 if (count > 0) {
-                    auto dynamicBindings = std::span<LLGL::Resource* const>(submission.dynamicBindings, data.state.resources_count);
+                    auto dynamicBindings = std::span<LLGL::Resource* const>(submission.dynamicBindings + data.state.resources_offset, data.state.resources_count);
                     const auto* instanceDataBytes = static_cast<const uint8_t*>(submission.instancesData);
-                    FlushManyRaw(submission.mesh, submission.material, dynamicBindings, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
+                    const auto& mesh = submission.batch->GetMesh();
+                    const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
+                    FlushManyRaw(mesh, material, dynamicBindings, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
                     data.offset += count;
                 }
             }
         }
+    }
+
+    for (const BatchSubmission& submission : m_submissions) {
+        submission.batch->Reset();
     }
 
     m_submissions.clear();

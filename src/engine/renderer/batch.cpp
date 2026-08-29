@@ -18,6 +18,22 @@
 
 #include "shaders.hpp"
 
+static constexpr float ComputeTextBaseline(sge::TextAlignment alignment, float y, float scale, int16_t ascender, int16_t descender) {
+    switch (alignment) {
+    case sge::TextAlignment::Top: {
+        return y + float(ascender) * scale;
+    }
+    case sge::TextAlignment::Center: {
+        const int16_t font_height_design = ascender - descender;
+        return y + ((font_height_design * 0.5f) - descender) * scale;
+    }
+    case sge::TextAlignment::Bottom: {
+        const int16_t font_height_design = ascender - descender;
+        return y + font_height_design * scale;
+    }
+    }
+}
+
 sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {
     const auto& context = renderer.GetRenderContext();
 
@@ -30,10 +46,9 @@ sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {
         pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size);
     }
 
-    m_material = renderer.CreateMaterial(sge::MaterialDesc()
+    auto materialDesc = sge::MaterialDesc()
         .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
         .SetFragmentShader(std::move(pixelShader))
-        .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_rotation", "I_Rotation")
@@ -47,8 +62,13 @@ sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {
         .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
         .AddDynamicTexture(3, "Texture", LLGL::StageFlags::FragmentStage)
-        .AddDynamicSampler(4, "Sampler", LLGL::StageFlags::FragmentStage)
-    );
+        .AddDynamicSampler(4, "Sampler", LLGL::StageFlags::FragmentStage);
+
+    for (uint8_t i = 0; i < 4; ++i) {
+        m_materials[i] = renderer.CreateMaterial(
+            materialDesc.SetBlendMode(static_cast<sge::BlendMode>(i))
+        );
+    }
 }
 
 uint32_t sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, std::optional<FlagsType> override_flags, sge::Order custom_order) {
@@ -59,16 +79,19 @@ uint32_t sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, c
     }
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    const auto order = GetOrder(custom_order);
+    auto& batchGroup = GetBatchGroup();
+
+    const auto order = batchGroup.GetOrder(custom_order);
     const auto flags = override_flags.value_or(GetFlags());
-    const auto scissor = GetCurrentScissor().value_or(sge::IRect());
+    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
+    const auto blendMode = batchGroup.GetBlendMode();
 
     const auto state = internal::BatchState {
         .scissor = scissor,
         .resources_offset = bindings_offset,
         .resources_count = bindings_count,
         .order = order,
-        .blend_mode = sge::BlendMode::AlphaBlend,
+        .blend_mode = blendMode
     };
 
     m_commands.push_back(DrawCommand {
@@ -127,7 +150,7 @@ sge::NinePatchBatch::NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc 
         pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size);
     }
 
-    m_material = renderer.CreateMaterial(sge::MaterialDesc()
+    auto materialDesc = sge::MaterialDesc()
         .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
         .SetFragmentShader(std::move(pixelShader))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
@@ -142,14 +165,20 @@ sge::NinePatchBatch::NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc 
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_source_size", "I_SourceSize")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_output_size", "I_OutputSize")
         .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
-        .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
         .AddDynamicTexture(3, "Texture", LLGL::StageFlags::FragmentStage)
-        .AddDynamicSampler(4, "Sampler", LLGL::StageFlags::FragmentStage)
-    );
+        .AddDynamicSampler(4, "Sampler", LLGL::StageFlags::FragmentStage);
+
+    for (uint8_t i = 0; i < 4; ++i) {
+        m_materials[i] = renderer.CreateMaterial(
+            materialDesc.SetBlendMode(static_cast<sge::BlendMode>(i))
+        );
+    }
 }
 
 uint32_t sge::NinePatchBatch::Draw(const NinePatch& ninepatch, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+    ZoneScoped;
+
     const auto& texture = ninepatch.texture();
 
     const auto bindings_offset = m_dynamic_bindings.size();
@@ -159,16 +188,19 @@ uint32_t sge::NinePatchBatch::Draw(const NinePatch& ninepatch, sge::Order custom
     }
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    const auto order = GetOrder(customOrder);
+    auto& batchGroup = GetBatchGroup();
+
+    const auto order = batchGroup.GetOrder(customOrder);
     const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = GetCurrentScissor().value_or(sge::IRect());
+    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
+    const auto blendMode = batchGroup.GetBlendMode();
 
     const auto state = internal::BatchState {
         .scissor = scissor,
         .resources_offset = bindings_offset,
         .resources_count = bindings_count,
         .order = order,
-        .blend_mode = sge::BlendMode::AlphaBlend,
+        .blend_mode = blendMode
     };
 
     const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(ninepatch.flip_x(), ninepatch.flip_y());
@@ -199,7 +231,7 @@ sge::LineBatch::LineBatch(sge::Renderer& renderer, LineBatchDesc desc) {
 
     ShaderSourceCode shaderCode = GetLineShaderSourceCode(context->Backend());
 
-    m_material = renderer.CreateMaterial(sge::MaterialDesc()
+    auto materialDesc = sge::MaterialDesc()
         .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
         .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
@@ -211,8 +243,13 @@ sge::LineBatch::LineBatch(sge::Renderer& renderer, LineBatchDesc desc) {
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_border_radius", "I_Border_Radius")
         .AddInstanceAttribute(sge::VertexFormat::Float32, "inp_i_thickness", "I_Thickness")
         .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
-        .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
-    );
+        .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage);
+
+    for (uint8_t i = 0; i < 4; ++i) {
+        m_materials[i] = renderer.CreateMaterial(
+            materialDesc.SetBlendMode(static_cast<sge::BlendMode>(i))
+        );
+    }
 }
 
 uint32_t sge::LineBatch::Draw(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius borderRadius, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
@@ -224,15 +261,19 @@ uint32_t sge::LineBatch::Draw(glm::vec2 start, glm::vec2 end, float thickness, c
         radius = glm::vec4(borderRadius.values()) * length / 100.0f;
     }
 
-    const uint32_t order = GetOrder(customOrder);
+    auto& batchGroup = GetBatchGroup();
+
+    const uint32_t order = batchGroup.GetOrder(customOrder);
     const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = GetCurrentScissor().value_or(sge::IRect());
+    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
+    const auto blendMode = batchGroup.GetBlendMode();
 
     const auto state = internal::BatchState {
         .scissor = scissor,
         .resources_offset = 0,
         .resources_count = 0,
-        .order = order
+        .order = order,
+        .blend_mode = blendMode
     };
 
     m_commands.push_back(DrawCommand {
@@ -263,7 +304,7 @@ sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) 
         pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size);
     }
 
-    m_material = renderer.CreateMaterial(sge::MaterialDesc()
+    auto materialDesc = sge::MaterialDesc()
         .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
         .SetFragmentShader(std::move(pixelShader))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
@@ -277,38 +318,51 @@ sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) 
         .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
         .AddDynamicTexture(3, "Texture", LLGL::StageFlags::FragmentStage)
-        .AddDynamicSampler(4, "Sampler", LLGL::StageFlags::FragmentStage)
-    );
+        .AddDynamicSampler(4, "Sampler", LLGL::StageFlags::FragmentStage);
+
+    for (uint8_t i = 0; i < 4; ++i) {
+        m_materials[i] = renderer.CreateMaterial(
+            materialDesc.SetBlendMode(static_cast<sge::BlendMode>(i))
+        );
+    }
 }
 
-uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::Font& font, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, sge::TextAlignment alignment, const sge::Font& font, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+    ZoneScoped;
+
     const auto bindings_offset = m_dynamic_bindings.size();
     m_dynamic_bindings.push_back(font.texture.internal().Get());
     m_dynamic_bindings.push_back(font.texture.sampler()->internal().Get());
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    const auto order = GetOrder(customOrder);
+    auto& batchGroup = GetBatchGroup();
+
+    const auto order = batchGroup.GetOrder(customOrder);
     const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = GetCurrentScissor().value_or(sge::IRect());
+    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
+    const auto blendMode = batchGroup.GetBlendMode();
 
     float x = position.x;
     float y = position.y;
 
-    for (size_t i = 0; i < size; ++i) {
-        const RichTextSection section = sections[i];
+    for (size_t sectionIdx = 0; sectionIdx < size; ++sectionIdx) {
+        const RichTextSection section = sections[sectionIdx];
         const char* str = section.text.data();
         const size_t length = section.text.size();
-        const float scale = section.size / font.font_size;
-        const float height = font.line_height * scale;
+        const float scale = (section.size / font.font_size);
 
         const glm::vec3 color = section.color.to_vec3();
+
+        float baseline_y = ComputeTextBaseline(alignment, y, font.base_scale * scale, font.ascender, font.descender);
 
         uint32_t codepoint = 0;
         for (size_t i = 0; i < length;) {
             i += utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(str) + i, codepoint);
 
             if (codepoint == '\n') {
+                const float height = (font.ascender - font.descender) * scale * font.base_scale;
                 y += height;
+                baseline_y = ComputeTextBaseline(alignment, y, font.base_scale * scale, font.ascender, font.descender);
                 x = position.x;
                 continue;
             }
@@ -321,12 +375,13 @@ uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t si
             const sge::Glyph& ch = it->second;
 
             if (codepoint == ' ') {
-                x += ch.advance * scale;
+                x += ch.advance * scale * font.base_scale;
                 continue;
             }
 
             const float xpos = x + ch.bearing.x * scale;
-            const float ypos = y + height - ch.bearing.y * scale;
+            const float ypos = baseline_y - ch.bearing.y * scale;
+
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
@@ -336,7 +391,8 @@ uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t si
                     .scissor = scissor,
                     .resources_offset = bindings_offset,
                     .resources_count = bindings_count,
-                    .order = order
+                    .order = order,
+                    .blend_mode = blendMode
                 },
             });
             m_instances.push_back(GlyphInstanceSDF {
@@ -348,7 +404,7 @@ uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t si
                 .flags = flags.data()
             });
 
-            x += ch.advance * scale;
+            x += ch.advance * scale * font.base_scale;
         }
     }
 
@@ -362,7 +418,7 @@ sge::TextVectorBatch::TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDe
 
     ShaderSourceCode shaderCode = GetFontVectorShaderSourceCode(context->Backend());
 
-    m_material = renderer.CreateMaterial(sge::MaterialDesc()
+    auto materialDesc = sge::MaterialDesc()
         .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
         .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
@@ -377,11 +433,16 @@ sge::TextVectorBatch::TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDe
         .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
         .AddDynamicBuffer(3, "CurveBuffer", LLGL::StageFlags::FragmentStage)
-        .AddDynamicBuffer(4, "PartitionBuffer", LLGL::StageFlags::FragmentStage)
-    );
+        .AddDynamicBuffer(4, "PartitionBuffer", LLGL::StageFlags::FragmentStage);
+
+    for (uint8_t i = 0; i < 4; ++i) {
+        m_materials[i] = renderer.CreateMaterial(
+            materialDesc.SetBlendMode(static_cast<sge::BlendMode>(i))
+        );
+    }
 }
 
-uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::FontVector& font, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
     ZoneScoped;
 
     float x = position.x;
@@ -392,25 +453,31 @@ uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t
     m_dynamic_bindings.push_back(font.partition_buffer.Get());
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    const auto order = GetOrder(customOrder);
-    const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = GetCurrentScissor().value_or(sge::IRect());
+    auto& batchGroup = GetBatchGroup();
 
-    for (size_t i = 0; i < size; ++i) {
-        const RichTextSection section = sections[i];
+    const auto order = batchGroup.GetOrder(customOrder);
+    const auto flags = overrideFlags.value_or(GetFlags());
+    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
+    const auto blendMode = batchGroup.GetBlendMode();
+
+    for (size_t sectionIdx = 0; sectionIdx < size; ++sectionIdx) {
+        const RichTextSection section = sections[sectionIdx];
         const char* str = section.text.data();
         const size_t length = section.text.size();
         const float scale = section.size / font.units_per_em;
-        const float height = (font.ascender - font.descender) * scale;
 
         const glm::vec3 color = section.color.to_vec3();
+
+        float baseline_y = ComputeTextBaseline(alignment, y, scale, font.ascender, font.descender);
 
         uint32_t codepoint = 0;
         for (size_t i = 0; i < length;) {
             i += utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(str) + i, codepoint);
 
             if (codepoint == '\n') {
+                const float height = (font.ascender - font.descender) * scale;
                 y += height;
+                baseline_y = ComputeTextBaseline(alignment, y, scale, font.ascender, font.descender);
                 x = position.x;
                 continue;
             }
@@ -428,7 +495,7 @@ uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t
             }
 
             const float xpos = x + ch.bearing.x * scale;
-            const float ypos = y + height - ch.bearing.y * scale;
+            const float ypos = baseline_y - ch.bearing.y * scale;
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
@@ -436,7 +503,8 @@ uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t
                 .scissor = scissor,
                 .resources_offset = bindings_offset,
                 .resources_count = bindings_count,
-                .order = order
+                .order = order,
+                .blend_mode = blendMode
             };
 
             m_commands.push_back(DrawCommand {
@@ -467,7 +535,7 @@ sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {
 
     ShaderSourceCode shaderCode = GetShapeShaderSourceCode(context->Backend());
 
-    m_material = renderer.CreateMaterial(sge::MaterialDesc()
+    auto materialDesc = sge::MaterialDesc()
         .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
         .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
@@ -482,16 +550,24 @@ sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {
         .AddInstanceAttribute(sge::VertexFormat::Float32, "inp_i_border_thickness", "I_BorderThickness")
         .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_shape", "I_Shape")
         .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
-        .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
-    );
+        .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage);
+
+    for (uint8_t i = 0; i < 4; ++i) {
+        m_materials[i] = renderer.CreateMaterial(
+            materialDesc.SetBlendMode(static_cast<sge::BlendMode>(i))
+        );
+    }
 }
 
 uint32_t sge::ShapeBatch::Draw(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& borderColor, float borderThickness, BorderRadius borderRadius, sge::Anchor anchor, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
     ZoneScoped;
 
-    const uint32_t order = GetOrder(customOrder);
+    auto& batchGroup = GetBatchGroup();
+
+    const uint32_t order = batchGroup.GetOrder(customOrder);
     const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = GetCurrentScissor().value_or(sge::IRect());
+    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
+    const auto blendMode = batchGroup.GetBlendMode();
 
     const float length = glm::min(size.x, size.y);
 
@@ -503,7 +579,8 @@ uint32_t sge::ShapeBatch::Draw(sge::Shape::Type shape, glm::vec2 position, glm::
         .scissor = scissor,
         .resources_offset = 0,
         .resources_count = 0,
-        .order = order
+        .order = order,
+        .blend_mode = blendMode
     };
 
     m_commands.push_back(DrawCommand {

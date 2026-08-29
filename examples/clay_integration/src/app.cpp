@@ -56,7 +56,14 @@ bool App::OnInit() {
     m_camera.set_viewport(resolution.width, resolution.height);
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
+
+    m_batch_group = std::make_shared<sge::BatchGroup>();
+
     m_shape_batch = std::make_shared<sge::ShapeBatch>(*m_renderer);
+    m_shape_batch->SetSharedBatchGroup(m_batch_group);
+
+    m_text_batch = std::make_shared<sge::TextSdfBatch>(*m_renderer);
+    m_text_batch->SetSharedBatchGroup(m_batch_group);
 
     uint64_t totalMemorySize = Clay_MinMemorySize();
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, (char *)malloc(totalMemorySize));
@@ -85,7 +92,7 @@ void App::OnUpdate() {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
-    sge::ResetBatches(m_shape_batch, m_text_batch);
+    m_batch_group->Reset();
     m_renderer->Begin();
 
     Clay_BeginLayout();
@@ -272,7 +279,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
     });
 
     sge::RichText text = sge::rich_text("Hello", 80.f, sge::color::WHITE);
-    m_text_batch->Draw(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::GetDefaultFont());
+    m_text_batch->Draw(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::TextAlignment::Top, sge::GetDefaultFont());
 
     m_renderer->BeginPass(window, m_camera);
     {

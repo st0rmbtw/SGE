@@ -1,3 +1,4 @@
+#include <LLGL/VertexAttribute.h>
 #include <SGE/renderer/attributes.hpp>
 
 #include "utils.hpp"
@@ -11,25 +12,47 @@ sge::Attribute::Attribute(Type type, sge::VertexFormat format, LLGL::StringLiter
 {
     const LLGL::FormatAttributes attrs = LLGL::GetFormatAttribs(VertexFormatToLLGLFormat(format));
     dataType = attrs.dataType;
-    size = attrs.bitSize / 8;   
+    size = attrs.bitSize / 8;
 }
 
 LLGL::VertexFormat sge::VertexAttributes(sge::RenderBackend backend, uint8_t location, std::span<const Attribute> attributes) {
     if (attributes.empty()) return {};
 
-    LLGL::VertexFormat vertexFormat;
-    vertexFormat.attributes.reserve(attributes.size());
-    
-    for (const auto& item : attributes) {
-        LLGL::StringLiteral name = backend.IsHLSL() ? item.semanticName : item.name;
-        LLGL::Format format = VertexFormatToLLGLFormat(item.format);
-        uint32_t instanceDivisor = item.type == Attribute::Type::PerInstance ? 1 : 0;
-        vertexFormat.AppendAttribute(LLGL::VertexAttribute(name, format, 0, instanceDivisor));
+    std::vector<LLGL::VertexAttribute> outAttributes;
+    outAttributes.reserve(attributes.size());
 
-        auto& attribute = vertexFormat.attributes.back();
-        attribute.slot = item.slot;
-        attribute.location = location++;
+    uint32_t stride = 0;
+    uint32_t offset = 0;
+    uint32_t alignment = 0;
+
+    for (const auto& attr : attributes) {
+        alignment = std::max(alignment, LLGL::DataTypeSize(attr.dataType));
     }
 
-    return vertexFormat;
+    uint32_t prevAlignment = LLGL::DataTypeSize(attributes[0].dataType);
+    for (const Attribute& item : attributes) {
+        const uint32_t itemAlignment = LLGL::DataTypeSize(item.dataType);
+        if (prevAlignment < itemAlignment)
+            offset = (offset + (alignment - 1)) & -alignment;
+
+        prevAlignment = itemAlignment;
+
+        const uint32_t instanceDivisor = item.type == Attribute::Type::PerInstance ? 1 : 0;
+        auto name = backend.IsHLSL() ? item.semanticName : item.name;
+
+        outAttributes.emplace_back(std::move(name), VertexFormatToLLGLFormat(item.format), location, offset, 0, item.slot, instanceDivisor);
+
+        stride = std::max(stride, offset + item.size);
+        offset += item.size;
+
+        ++location;
+    }
+
+    stride += (alignment - (stride % alignment)) % alignment;
+
+    for (LLGL::VertexAttribute& item : outAttributes) {
+        item.stride = stride;
+    }
+
+    return LLGL::VertexFormat(outAttributes);
 }

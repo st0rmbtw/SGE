@@ -7,6 +7,7 @@
 #include <LLGL/Utils/VertexFormat.h>
 
 #include <SGE/assert.hpp>
+#include <SGE/renderer/attributes.hpp>
 #include <SGE/renderer/material.hpp>
 #include <SGE/renderer/mesh.hpp>
 #include <SGE/renderer/vertex_format.hpp>
@@ -138,26 +139,25 @@ constexpr inline LLGL::BlendTargetDescriptor ConvertBlendModeToLLGL(sge::BlendMo
     }
 }
 
-inline LLGL::VertexFormat ConvertMeshAttributesToLLGL(sge::RenderBackend backend, const std::vector<sge::MeshAttribute>& attributes) {
-    LLGL::VertexFormat vertexFormat;
-    uint32_t location = 0;
-    for (const auto& attribute : attributes) {
-        auto& name = backend.IsHLSL() ? attribute.semanticName : attribute.name;
-        auto format = VertexFormatToLLGLFormat(attribute.format);
-        vertexFormat.AppendAttribute(LLGL::VertexAttribute(name, format, location++, 0));
+inline LLGL::VertexFormat ConvertMeshAttributesToLLGL(sge::RenderBackend backend, const std::vector<sge::MeshAttribute>& meshAttributes) {
+    std::vector<sge::Attribute> attributes;
+    attributes.reserve(meshAttributes.size());
+    for (const sge::MeshAttribute& attr : meshAttributes) {
+        attributes.emplace_back(sge::Attribute::Type::PerVertex, attr.format, attr.name, attr.semanticName, attr.slot);
     }
+
+    LLGL::VertexFormat vertexFormat = sge::VertexAttributes(backend, 0, attributes);
     return vertexFormat;
 }
 
-inline LLGL::VertexFormat ConvertInstanceAttributesToLLGL(sge::RenderBackend backend, const std::vector<sge::InstanceAttribute>& attributes) {
-    LLGL::VertexFormat vertexFormat;
-    uint32_t location = 0;
-    for (const auto& attribute : attributes) {
-        auto& name = backend.IsHLSL() ? attribute.semanticName : attribute.name;
-        auto format = VertexFormatToLLGLFormat(attribute.format);
-        vertexFormat.AppendAttribute(LLGL::VertexAttribute(name, format, location++, 1));
-        vertexFormat.attributes.back().slot = attribute.slot;
+inline LLGL::VertexFormat ConvertInstanceAttributesToLLGL(sge::RenderBackend backend, const std::vector<sge::InstanceAttribute>& instanceAttributes) {
+    std::vector<sge::Attribute> attributes;
+    attributes.reserve(instanceAttributes.size());
+    for (const sge::InstanceAttribute& attr : instanceAttributes) {
+        attributes.emplace_back(sge::Attribute::Type::PerInstance, attr.format, attr.name, attr.semanticName, attr.slot);
     }
+
+    LLGL::VertexFormat vertexFormat = sge::VertexAttributes(backend, 0, attributes);
     return vertexFormat;
 }
 

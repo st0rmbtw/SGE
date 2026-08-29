@@ -1,5 +1,5 @@
-#ifndef _SGE_RENDERER_HPP_
-#define _SGE_RENDERER_HPP_
+#ifndef SGE_RENDERER_RENDERER_HPP_
+#define SGE_RENDERER_RENDERER_HPP_
 
 #include <GLFW/glfw3.h>
 
@@ -121,16 +121,13 @@ public:
         return Ref<Mesh>::Create(*m_context, desc);
     }
 
-    Ref<Material> CreateMaterial(const sge::MaterialDesc& desc) {
-        return Ref<Material>::Create(*m_context, desc);
+    Ref<Material> CreateMaterial(sge::MaterialDesc desc) {
+        return Ref<Material>::Create(*m_context, std::move(desc));
     }
 
     LLGL::PipelineState& GetOrCreatePipeline(
         const Material& material,
-        const LLGL::VertexFormat& vertexFormat,
-        sge::PrimitiveTopology topology,
-        sge::FrontFace frontFace,
-        sge::IndexFormat indexFormat
+        const Mesh& mesh
     );
 
     sge::Ref<sge::Mesh> GetDefaultBatch2dMesh();
@@ -184,22 +181,6 @@ public:
     inline const Ref<LLGL::PipelineState>& BlitPipeline() const noexcept {
         return m_blit_pipeline;
     }
-
-private:
-    void InitBloomPipelines();
-    void InitTonemapPipelines();
-
-    void FlushBatchRawImpl(
-        const Mesh& mesh,
-        const Material& material,
-        sge::IRect scissorBounds, // If the material has scissor test disabled - this parameter ignored
-        std::span<LLGL::Resource* const> dynamicBindings,
-        sge::Unique<LLGL::BufferArray>& bufferArray,
-        VertexBufferPool& instanceBuffer,
-        const void* instanceData,
-        size_t instanceStride,
-        uint32_t instanceCount
-    );
 
 protected:
     struct PipelineKey {
@@ -256,6 +237,19 @@ protected:
         size_t instanceCount;
     };
 
+private:
+    void InitBloomPipelines();
+    void InitTonemapPipelines();
+
+    void FlushBatchRawImpl(
+        MeshBatch& batch,
+        sge::IRect scissorBounds, // If the material has scissor test disabled - this parameter ignored
+        const void* instanceData,
+        size_t instanceStride,
+        uint32_t instanceCount
+    );
+
+protected:
     std::unordered_map<PipelineKey, PipelineId, PipelineKeyHasher> m_pipelines;
     std::unordered_map<BatchKey, size_t, BatchKeyHasher> m_batches_map;
     std::vector<MeshBatch> m_mesh_batches;
@@ -297,4 +291,4 @@ protected:
 
 } // namespace sge
 
-#endif
+#endif // SGE_RENDERER_RENDERER_HPP_

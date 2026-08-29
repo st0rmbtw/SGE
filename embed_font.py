@@ -22,7 +22,7 @@ class GlyphInfo:
     advance_x: int
     col: int
     row: int
-    
+
 def bytes_as_str(b: bytes):
     return ','.join(str(x) for x in b)
 
@@ -30,44 +30,42 @@ def main():
     if len(sys.argv) < 4:
         print(f"Usage: {sys.argv[0]} <font_file> <output_file> <guard_name>")
         return
-    
+
     font_file_path_str = sys.argv[1]
     output_file_path_str = sys.argv[2]
     guard_name = sys.argv[3]
-    
+
     output_file_path = Path(output_file_path_str)
-    
+
     font_file_path = Path(font_file_path_str)
     if not font_file_path.exists():
         print(f"[ERROR] File '{font_file_path}' doesn't exist.")
         return
-    
+
     font_bytes: bytes
     with open(font_file_path, 'rb') as f:
         font_bytes = f.read()
-    
+
     face = freetype.Face(font_file_path_str)
     face.set_pixel_sizes(0, FONT_SIZE)
-    
+
+    base_scale = float(FONT_SIZE) / face.units_per_EM
+
     (character, index) = face.get_first_char()
-    
+
     glyphs: list[GlyphInfo] = []
-    
-    em_scale = FONT_SIZE / float(face.units_per_EM)
-    line_height = float(face.ascender - face.descender) * em_scale
-    
+
     while True:
         face.load_char(character, freetype.FT_LOAD_DEFAULT)
         face.glyph.render(freetype.FT_RENDER_MODE_SDF)
-        
+
         buffer = bytes()
-        
+
         if len(face.glyph.bitmap.buffer) > 0:
             buffer = bytes(face.glyph.bitmap.buffer)
-            
+
         unscaled_advance = face.get_advance(index, freetype.FT_LOAD_NO_SCALE)
-        advance = unscaled_advance * em_scale
-        
+
         info = GlyphInfo(
             character=character,
             buffer=buffer,
@@ -75,69 +73,71 @@ def main():
             bitmap_rows=face.glyph.bitmap.rows,
             bitmap_left=face.glyph.bitmap_left,
             bitmap_top=face.glyph.bitmap_top,
-            advance_x=advance,
+            advance_x=unscaled_advance,
             col=0,
             row=0
         )
         glyphs.append(info)
-        
+
         if not index:
             break
-        
+
         (character, index) = face.get_next_char(character, index)
-    
+
     packer = newPacker(PackingMode.Offline, pack_algo=GuillotineBssfMinas, rotation=False)
     print(f"Packing (using {packer._pack_algo.__name__})...")
-    
+
     packer.add_bin(TEXTURE_WIDTH, float("inf"))
-    
+
     for i, g in enumerate(glyphs):
         if len(g.buffer) == 0: continue
         packer.add_rect(g.bitmap_width + PADDING*2, g.bitmap_rows + PADDING*2, rid=i)
-    
+
     packer.pack()
-    
+
     max_used_width = 0
     max_used_height = 0
-    
+
     for rect in packer[0]:
         right_edge = rect.x + rect.width
         top_edge = rect.y + rect.height
-        
+
         if right_edge > max_used_width:
             max_used_width = right_edge
         if top_edge > max_used_height:
             max_used_height = top_edge
-        
+
         glyphs[rect.rid].col = rect.x + PADDING
         glyphs[rect.rid].row = rect.y + PADDING
-    
+
     print(max_used_width, max_used_height)
-    
+
     texture_width = max_used_width
     texture_height = max_used_height
     texture_data = bytearray(texture_width * texture_height)
-    
+
     for info in glyphs:
         if len(info.buffer) == 0: continue
         for y in range(info.bitmap_rows):
             dst_idx = (info.row + y) * texture_width + info.col
             src_idx = y * info.bitmap_width
             texture_data[dst_idx : dst_idx + info.bitmap_width] = info.buffer[src_idx : src_idx + info.bitmap_width]
-        
+
     from PIL import Image
     image = Image.frombytes("L", (texture_width, texture_height), texture_data)
     image.show()
-    
+
     with open(output_file_path, "w") as f:
         f.write(f"#ifndef {guard_name}\n")
         f.write(f"#define {guard_name}\n")
         f.write("#include <glm/vec2.hpp>\n")
-        f.write("struct EmbeddedFont { float font_size; float line_height; uint32_t texture_width; uint32_t texture_height; };\n")
+        f.write("struct EmbeddedFont { float font_size; float base_scale; int16_t ascender; int16_t descender; uint32_t texture_width; uint32_t texture_height; };\n")
         f.write("struct EmbeddedFontGlyph { glm::ivec2 size; glm::vec2 tex_size; glm::ivec2 bearing; glm::vec2 texture_coords; uint32_t character; float advance; };\n")
         f.write("static EmbeddedFont FONT_META_DATA = {\n")
         f.write(f"    .font_size = {FONT_SIZE},\n")
-        f.write(f"    .line_height = {line_height},\n")
+        f.write(f"    .base_scale = {base_scale},\n")
+        f.write(f"    .ascender = {face.ascender},\n")
+        f.write(f"    .descender = {face.descender},\n")
         f.write(f"    .texture_width = {texture_width},\n")
         f.write(f"    .texture_height = {texture_height}\n")
         f.write("};\n")
@@ -157,11 +157,11 @@ def main():
             f.write("},\n")
         f.write('\n')
         f.write("};\n")
-        
+
         f.write(f"static uint8_t FONT_TEXTURE_DATA[] = {{ {bytes_as_str(texture_data)} }};\n")
-        
+
         f.write(f"static uint8_t FONT_FILE_CONTENT[] = {{ {bytes_as_str(font_bytes)} }};\n")
-            
+
         f.write(f"#endif // {guard_name}")
 
 if __name__ == "__main__":

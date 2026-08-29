@@ -173,7 +173,7 @@ add_subdirectory(thirdparty/LLGL)
 add_subdirectory(thirdparty/glm)
 add_subdirectory(thirdparty/glfw)
 add_subdirectory(thirdparty/STB)
-add_subdirectory(thirdparty/freetype-2.13.2)
+add_subdirectory(FontLoader)
 
 target_sources(${PROJECT_NAME} PRIVATE ${SGE_SRC})
 target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/include")
@@ -189,4 +189,4 @@ endif()
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:Debug>:SGE_DEBUG>")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw LLGL freetype)
+target_link_libraries(${PROJECT_NAME} PUBLIC glm STB glfw LLGL SGE_FontLoader)

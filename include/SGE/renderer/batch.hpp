@@ -1,5 +1,5 @@
-#ifndef _SGE_RENDERER_BATCH_HPP_
-#define _SGE_RENDERER_BATCH_HPP_
+#ifndef SGE_RENDERER_BATCH_HPP_
+#define SGE_RENDERER_BATCH_HPP_
 
 #include <optional>
 #include <vector>
@@ -13,6 +13,7 @@
 #include <SGE/math/rect.hpp>
 #include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/renderer/macros.hpp>
+#include <SGE/renderer/material.hpp>
 #include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/types/color.hpp>
@@ -59,6 +60,12 @@ inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
 
 } // namespace internal
 
+enum class TextAlignment : uint8_t {
+    Top = 0,
+    Center = 1,
+    Bottom = 2
+};
+
 struct DrawCommand {
     size_t instance_index;
     internal::BatchState state;
@@ -101,37 +108,8 @@ struct ShapeBatchDesc {
     bool enableDepth = false;
 };
 
-class IBatch : public RefCounted {
-protected:
-    using FlagsType = sge::BitFlags<BatchFlags>;
+class BatchGroup {
 public:
-    [[nodiscard]]
-    virtual const sge::Ref<sge::Mesh>& GetMesh() const noexcept = 0;
-
-    [[nodiscard]]
-    virtual const sge::Ref<sge::Material>& GetMaterial() const noexcept = 0;
-
-    virtual void* GetInstanceData() noexcept = 0;
-
-    [[nodiscard]]
-    virtual size_t GetInstanceCount() const noexcept = 0;
-
-    [[nodiscard]]
-    virtual std::vector<DrawCommand>& GetDrawCommands() noexcept = 0;
-
-    [[nodiscard]]
-    virtual LLGL::Resource* const* GetDynamicBindings() const noexcept = 0;
-
-    virtual ~IBatch() = default;
-
-protected:
-    virtual void Clear() = 0;
-
-public:
-    void SetGlobalFlags(FlagsType flags) noexcept {
-        m_flags = flags;
-    }
-
     inline void BeginOrderMode(int order, bool advance) noexcept {
         m_order_mode = true;
         m_global_order.value = order < 0 ? m_order : order;
@@ -160,21 +138,15 @@ public:
         m_scissor_stack.pop_back();
     }
 
-    inline void Reset() {
-        Clear();
-        m_order = 0;
-        m_order_mode = false;
+    inline void BeginBlendMode(sge::BlendMode blendMode) {
+        m_prev_blend_mode = m_blend_mode;
+        m_blend_mode = blendMode;
     }
 
-    inline FlagsType GetFlags() const noexcept {
-        return m_flags;
+    inline void EndBlendMode() {
+        m_blend_mode = m_prev_blend_mode;
     }
 
-    inline std::optional<sge::IRect> GetCurrentScissor() const noexcept {
-        return m_scissor_stack.empty() ? std::nullopt : std::optional(m_scissor_stack.back());
-    }
-
-protected:
     inline uint32_t GetOrder(sge::Order customOrder) {
         const uint32_t order = m_order_mode
             ? m_global_order.value + std::max(customOrder.value, 0)
@@ -188,15 +160,214 @@ protected:
         return order;
     }
 
+    inline void Reset() {
+        m_order = 0;
+        m_order_mode = false;
+    }
+
+    [[nodiscard]]
+    inline std::optional<sge::IRect> GetCurrentScissor() const noexcept {
+        return m_scissor_stack.empty() ? std::nullopt : std::optional(m_scissor_stack.back());
+    }
+
+    [[nodiscard]]
+    inline sge::BlendMode GetBlendMode() const noexcept {
+        return m_blend_mode;
+    }
+
 private:
     std::vector<sge::IRect> m_scissor_stack;
     Order m_global_order;
     uint32_t m_order = 0;
+    sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
+    sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
     bool m_order_mode = false;
+};
+
+class IBatch : public RefCounted {
+protected:
+    using FlagsType = sge::BitFlags<BatchFlags>;
+
+    class BatchGroupWrapper {
+    private:
+        enum class Variant : uint8_t {
+            Owned = 0,
+            Shared = 1
+        };
+
+    public:
+        BatchGroupWrapper() :
+            m_own{},
+            m_variant(Variant::Owned)
+        {
+        }
+
+        explicit BatchGroupWrapper(BatchGroup group) :
+            m_own{ std::move(group) },
+            m_variant(Variant::Owned)
+        {}
+
+        explicit BatchGroupWrapper(std::shared_ptr<BatchGroup> shared) :
+            m_shared{ std::move(shared) },
+            m_variant{ Variant::Shared }
+        {}
+
+        BatchGroupWrapper(const BatchGroupWrapper& other) {
+            copy(other);
+        }
+
+        BatchGroupWrapper& operator=(const BatchGroupWrapper& other) noexcept {
+            if (this != &other) {
+                copy(other);
+            }
+            return *this;
+        }
+
+        BatchGroupWrapper(BatchGroupWrapper&& other) noexcept {
+            move(std::move(other));
+        }
+
+        BatchGroupWrapper& operator=(BatchGroupWrapper&& other) noexcept {
+            move(std::move(other));
+            return *this;
+        }
+
+        BatchGroup& Get() noexcept {
+            return m_variant == Variant::Owned ? m_own : *m_shared;
+        }
+
+        [[nodiscard]]
+        const BatchGroup& Get() const noexcept {
+            return m_variant == Variant::Owned ? m_own : *m_shared;
+        }
+
+        ~BatchGroupWrapper() {
+            if (m_variant == Variant::Shared) {
+                m_shared.~shared_ptr();
+            } else {
+                m_own.~BatchGroup();
+            }
+        }
+
+    private:
+
+        void copy(const BatchGroupWrapper& from) {
+            if (from.m_variant == Variant::Owned) {
+                m_own = from.m_own;
+            } else {
+                m_shared = from.m_shared;
+            }
+            m_variant = from.m_variant;
+        }
+
+        void move(BatchGroupWrapper&& from) {
+            if (from.m_variant == Variant::Owned) {
+                m_own = std::move(from.m_own);
+            } else {
+                m_shared = std::move(from.m_shared);
+            }
+            m_variant = from.m_variant;
+        }
+
+    private:
+        union {
+            BatchGroup m_own;
+            std::shared_ptr<BatchGroup> m_shared;
+        };
+        Variant m_variant;
+    };
+
+public:
+    [[nodiscard]]
+    virtual const sge::Ref<sge::Mesh>& GetMesh() const noexcept = 0;
+
+    [[nodiscard]]
+    virtual const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept = 0;
+
+    virtual void* GetInstanceData() noexcept = 0;
+
+    [[nodiscard]]
+    virtual size_t GetInstanceCount() const noexcept = 0;
+
+    [[nodiscard]]
+    virtual std::vector<DrawCommand>& GetDrawCommands() noexcept = 0;
+
+    [[nodiscard]]
+    virtual LLGL::Resource* const* GetDynamicBindings() const noexcept = 0;
+
+    virtual ~IBatch() = default;
+
+protected:
+    virtual void Clear() = 0;
+
+public:
+    void SetGlobalFlags(FlagsType flags) noexcept {
+        m_flags = flags;
+    }
+
+    void SetSharedBatchGroup(std::shared_ptr<BatchGroup> shared) {
+        m_batch_group = BatchGroupWrapper(std::move(shared));
+    }
+
+    void SetOwnedBatchGroup(BatchGroup group) {
+        m_batch_group = BatchGroupWrapper(std::move(group));
+    }
+
+    void BeginOrderMode(int order, bool advance) noexcept {
+        m_batch_group.Get().BeginOrderMode(order, advance);
+    }
+
+    void BeginOrderMode(int order = -1) noexcept {
+        BeginOrderMode(order, true);
+    }
+
+    void BeginOrderMode(bool advance) noexcept {
+        BeginOrderMode(-1, advance);
+    }
+
+    void EndOrderMode() noexcept {
+        m_batch_group.Get().EndOrderMode();
+    }
+
+    void BeginScissorMode(sge::IRect scissor) {
+        m_batch_group.Get().BeginScissorMode(scissor);
+    }
+
+    void EndScissorMode() {
+        m_batch_group.Get().EndScissorMode();
+    }
+
+    void BeginBlendMode(sge::BlendMode blendMode) {
+        m_batch_group.Get().BeginBlendMode(blendMode);
+    }
+
+    void EndBlendMode() {
+        m_batch_group.Get().EndBlendMode();
+    }
+
+    void Reset() {
+        Clear();
+        m_batch_group.Get().Reset();
+    }
+
+    FlagsType GetFlags() const noexcept {
+        return m_flags;
+    }
+
+    BatchGroup& GetBatchGroup() noexcept {
+        return m_batch_group.Get();
+    }
+
+    const BatchGroup& GetBatchGroup() const noexcept {
+        return m_batch_group.Get();
+    }
+
+private:
+    BatchGroupWrapper m_batch_group;
     FlagsType m_flags;
 };
 
-class SpriteBatch : public IBatch {
+class SpriteBatch final : public IBatch {
 public:
     explicit SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc = {});
 
@@ -211,8 +382,8 @@ public:
         return m_mesh;
     }
 
-    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
-        return m_material;
+    const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept override {
+        return m_materials[static_cast<uint8_t>(blendMode)];
     }
 
     void* GetInstanceData() noexcept override {
@@ -233,10 +404,11 @@ public:
 
     ~SpriteBatch() override = default;
 
-private:
+protected:
     void Clear() override {
         m_commands.clear();
         m_instances.clear();
+        m_dynamic_bindings.clear();
     }
 
 private:
@@ -247,10 +419,10 @@ private:
     std::vector<SpriteInstance> m_instances;
     std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
-    sge::Ref<sge::Material> m_material;
+    sge::Ref<sge::Material> m_materials[4];
 };
 
-class NinePatchBatch : public IBatch {
+class NinePatchBatch final : public IBatch {
 public:
     explicit NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc desc = {});
 
@@ -260,8 +432,8 @@ public:
         return m_mesh;
     }
 
-    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
-        return m_material;
+    const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept override {
+        return m_materials[static_cast<uint8_t>(blendMode)];
     }
 
     void* GetInstanceData() noexcept override {
@@ -282,10 +454,11 @@ public:
 
     ~NinePatchBatch() override = default;
 
-private:
+protected:
     void Clear() override {
         m_commands.clear();
         m_instances.clear();
+        m_dynamic_bindings.clear();
     }
 
 private:
@@ -293,10 +466,10 @@ private:
     std::vector<NinePatchInstance> m_instances;
     std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
-    sge::Ref<sge::Material> m_material;
+    sge::Ref<sge::Material> m_materials[4];
 };
 
-class LineBatch : public IBatch {
+class LineBatch final : public IBatch {
 public:
     explicit LineBatch(sge::Renderer& renderer, LineBatchDesc desc = {});
 
@@ -306,8 +479,8 @@ public:
         return m_mesh;
     }
 
-    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
-        return m_material;
+    const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept override {
+        return m_materials[static_cast<uint8_t>(blendMode)];
     }
 
     void* GetInstanceData() noexcept override {
@@ -328,7 +501,7 @@ public:
 
     ~LineBatch() override = default;
 
-private:
+protected:
     void Clear() override {
         m_commands.clear();
         m_instances.clear();
@@ -338,31 +511,31 @@ private:
     std::vector<DrawCommand> m_commands;
     std::vector<LineInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
-    sge::Ref<sge::Material> m_material;
+    sge::Ref<sge::Material> m_materials[4];
 };
 
-class TextSdfBatch : public IBatch {
+class TextSdfBatch final : public IBatch {
 public:
     explicit TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc = {});
 
-    uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::Font& font, sge::Order order, std::optional<FlagsType> overrideFlags = std::nullopt);
+    uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, TextAlignment alignment, const sge::Font& font, sge::Order order, std::optional<FlagsType> overrideFlags = std::nullopt);
 
     template <size_t Size>
-    inline uint32_t Draw(const sge::RichText<Size>& text, glm::vec2 position, const sge::Font& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
-        return Draw(text.sections, Size, position, font, order, overrideFlags);
+    inline uint32_t Draw(const sge::RichText<Size>& text, glm::vec2 position, TextAlignment alignment, const sge::Font& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+        return Draw(text.sections, Size, position, alignment, font, order, overrideFlags);
     }
 
-    inline uint32_t Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::Font& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+    inline uint32_t Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, TextAlignment alignment, const sge::Font& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
         sge::RichTextSection section = { .text=text, .color=color, .size=size };
-        return Draw(&section, 1, position, font, order, overrideFlags);
+        return Draw(&section, 1, position, alignment, font, order, overrideFlags);
     }
 
     const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
         return m_mesh;
     }
 
-    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
-        return m_material;
+    const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept override {
+        return m_materials[static_cast<uint8_t>(blendMode)];
     }
 
     void* GetInstanceData() noexcept override {
@@ -383,10 +556,11 @@ public:
 
     ~TextSdfBatch() override = default;
 
-private:
+protected:
     void Clear() override {
         m_commands.clear();
         m_instances.clear();
+        m_dynamic_bindings.clear();
     }
 
 private:
@@ -394,31 +568,31 @@ private:
     std::vector<GlyphInstanceSDF> m_instances;
     std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
-    sge::Ref<sge::Material> m_material;
+    sge::Ref<sge::Material> m_materials[4];
 };
 
-class TextVectorBatch : public IBatch {
+class TextVectorBatch final : public IBatch {
 public:
     explicit TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {});
 
-    uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, const sge::FontVector& font, sge::Order order, std::optional<FlagsType> overrideFlags);
+    uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order order, std::optional<FlagsType> overrideFlags);
 
     template <size_t Size>
-    inline uint32_t Draw(const sge::RichText<Size>& text, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
-        return Draw(text.sections, Size, position, font, order, overrideFlags);
+    inline uint32_t Draw(const sge::RichText<Size>& text, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+        return Draw(text.sections, Size, position, alignment, font, order, overrideFlags);
     }
 
-    inline uint32_t Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, const sge::FontVector& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+    inline uint32_t Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
         sge::RichTextSection section = { .text=text, .color=color, .size=size };
-        return Draw(&section, 1, position, font, order, overrideFlags);
+        return Draw(&section, 1, position, alignment, font, order, overrideFlags);
     }
 
     const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
         return m_mesh;
     }
 
-    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
-        return m_material;
+    const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept override {
+        return m_materials[static_cast<uint8_t>(blendMode)];
     }
 
     void* GetInstanceData() noexcept override {
@@ -439,10 +613,11 @@ public:
 
     ~TextVectorBatch() override = default;
 
-private:
+protected:
     void Clear() override {
         m_commands.clear();
         m_instances.clear();
+        m_dynamic_bindings.clear();
     }
 
 private:
@@ -450,10 +625,10 @@ private:
     std::vector<GlyphInstanceVector> m_instances;
     std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
-    sge::Ref<sge::Material> m_material;
+    sge::Ref<sge::Material> m_materials[4];
 };
 
-class ShapeBatch : public IBatch {
+class ShapeBatch final : public IBatch {
 public:
     explicit ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc = {});
 
@@ -487,8 +662,8 @@ public:
         return m_mesh;
     }
 
-    const sge::Ref<sge::Material>& GetMaterial() const noexcept override {
-        return m_material;
+    const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept override {
+        return m_materials[static_cast<uint8_t>(blendMode)];
     }
 
     void* GetInstanceData() noexcept override {
@@ -509,7 +684,7 @@ public:
 
     ~ShapeBatch() override = default;
 
-private:
+protected:
     void Clear() override {
         m_commands.clear();
         m_instances.clear();
@@ -519,7 +694,7 @@ private:
     std::vector<DrawCommand> m_commands;
     std::vector<ShapeInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
-    sge::Ref<sge::Material> m_material;
+    sge::Ref<sge::Material> m_materials[4];
 };
 
 /**

@@ -1,5 +1,5 @@
-#ifndef _SGE_RENDERER_2D_HPP_
-#define _SGE_RENDERER_2D_HPP_
+#ifndef SGE_RENDERER_RENDERER_2D_HPP_
+#define SGE_RENDERER_RENDERER_2D_HPP_
 
 #include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/types/transform.hpp>
@@ -13,8 +13,6 @@ namespace sge {
 
 struct BatchSubmission {
     std::shared_ptr<IBatch> batch; // Needed to hold the reference to the batch so it doesn't get released
-    sge::Ref<sge::Mesh> mesh;
-    sge::Ref<sge::Material> material;
     const uint8_t* instancesData;
     size_t instanceStride;
     LLGL::Resource* const* dynamicBindings;
@@ -36,10 +34,6 @@ struct BatchData {
 class Renderer2D : public Renderer {
 public:
     explicit Renderer2D(const std::shared_ptr<RenderContext>& context);
-
-    void Begin() {
-        Renderer::Begin();
-    }
 
     void SubmitBatch(std::shared_ptr<IBatch> batch);
     void FlushBatches();
@@ -74,4 +68,4 @@ private:
 
 } // namespace sge
 
-#endif // _SGE_RENDERER_2D_HPP_
+#endif // SGE_RENDERER_RENDERER_2D_HPP_

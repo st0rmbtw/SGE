@@ -1,5 +1,5 @@
-#ifndef _SGE_RENDERER_CUSTOM_SURFACE_HPP_
-#define _SGE_RENDERER_CUSTOM_SURFACE_HPP_
+#ifndef SGE_RENDERER_CUSTOM_SURFACE_HPP_
+#define SGE_RENDERER_CUSTOM_SURFACE_HPP_
 
 #pragma once
 
@@ -28,7 +28,7 @@ public:
         Fullscreen,
         Focused,
     };
-    
+
     class EventListener {
     public:
         virtual void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods) = 0;
