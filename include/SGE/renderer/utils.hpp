@@ -41,11 +41,6 @@ inline consteval std::size_t GetArraySize(const T (&)[N]) noexcept {
     return (N * sizeof(T));
 }
 
-template <typename T, std::size_t N>
-inline consteval std::size_t GetArrayLength(const T (&)[N]) noexcept {
-    return N;
-}
-
 inline LLGL::BlendTargetDescriptor GetAlphaBlend() noexcept {
     return LLGL::BlendTargetDescriptor {
         .blendEnabled = true,

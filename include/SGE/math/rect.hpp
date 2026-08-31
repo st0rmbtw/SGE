@@ -125,6 +125,11 @@ public:
         );
     }
 
+    template <typename S> constexpr self operator+(const S rhs) const noexcept = delete;
+    template <typename S> constexpr self operator-(const S rhs) const noexcept = delete;
+    template <typename S> constexpr self operator*(const S rhs) const noexcept = delete;
+    template <typename S> constexpr self operator/(const S rhs) const noexcept = delete;
+
     [[nodiscard]]
     inline constexpr self inset(const T l) const noexcept {
         return from_corners(this->min - l, this->max + l);

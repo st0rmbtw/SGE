@@ -25,6 +25,7 @@
 #include <concepts>
 #include <filesystem>
 #include <stack>
+#include <ranges>
 
 struct PipelineConfigKey {
     LLGL::RenderTarget* render_target;
@@ -219,32 +220,49 @@ public:
         return Raw<LLGL::BufferArray>::Create(shared_from_this(), m_context->CreateBufferArray(buffers));
     }
 
-    template <typename Container>
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(const Container& vertices, size_t stride, const char* debugName = nullptr) {
-        LLGL::BufferDescriptor bufferDesc;
-        bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
-        bufferDesc.size           = GetArraySize(vertices);
-        bufferDesc.stride         = stride;
-        bufferDesc.debugName      = debugName;
-        return CreateBuffer(bufferDesc, &vertices[0]);
-    }
-
     inline Raw<LLGL::Buffer> CreateVertexBuffer(const void* data, size_t size, size_t stride, const char* debugName = nullptr) {
+        SGE_ASSERT((size % stride) == 0);
+
         LLGL::BufferDescriptor bufferDesc;
         bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
         bufferDesc.size           = size;
         bufferDesc.stride         = stride;
         bufferDesc.debugName      = debugName;
+        if (data == nullptr) {
+            bufferDesc.miscFlags |= LLGL::MiscFlags::NoInitialData;
+        }
         return CreateBuffer(bufferDesc, data);
     }
 
     inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t size, size_t stride, const char* debugName = nullptr) {
-        LLGL::BufferDescriptor bufferDesc;
-        bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
-        bufferDesc.size           = size;
-        bufferDesc.stride         = stride;
-        bufferDesc.debugName      = debugName;
-        return CreateBuffer(bufferDesc);
+        return CreateVertexBuffer(nullptr, size, stride, debugName);
+    }
+
+    template <typename T>
+    inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t count, const char* debugName = nullptr) {
+        const size_t byteSize = count * sizeof(T);
+        return CreateVertexBuffer(nullptr, byteSize, sizeof(T), debugName);
+    }
+
+    template <typename T>
+    inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t count, const void* data, const char* debugName = nullptr) {
+        const size_t byteSize = count * sizeof(T);
+        return CreateVertexBuffer(data, byteSize, sizeof(T), debugName);
+    }
+
+    template <std::ranges::contiguous_range R>
+    inline Raw<LLGL::Buffer> CreateVertexBuffer(R&& vertices, size_t stride, const char* debugName = nullptr) {
+        auto span = std::span(std::forward<R>(vertices));
+        auto sizeBytes = span.size_bytes();
+        return CreateVertexBuffer(span.data(), sizeBytes, stride, debugName);
+    }
+
+    template <std::ranges::contiguous_range R>
+    inline Raw<LLGL::Buffer> CreateVertexBuffer(R&& vertices, const char* debugName = nullptr) {
+        auto span = std::span(std::forward<R>(vertices));
+        auto sizeBytes = span.size_bytes();
+        auto stride = sizeBytes / span.size();
+        return CreateVertexBuffer(span.data(), sizeBytes, stride, debugName);
     }
 
     template <typename Container>
@@ -286,6 +304,9 @@ public:
     }
 
     inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, LLGL::Format format, const void* initialData, const char* debugName = nullptr) {
+        SGE_ASSERT(stride > 0);
+        SGE_ASSERT((size % stride) == 0);
+
         LLGL::BufferDescriptor bufferDesc;
         bufferDesc.size           = size;
         bufferDesc.stride         = stride;
