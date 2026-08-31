@@ -63,9 +63,14 @@ bool App::OnInit() {
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
 
-    m_sprite_batch = std::make_shared<sge::SpriteBatch>(*m_renderer);
-    m_line_batch = std::make_shared<sge::LineBatch>(*m_renderer);
-    m_shape_batch = std::make_shared<sge::ShapeBatch>(*m_renderer);
+    m_sprite_batch = std::make_shared<sge::SpriteBatch>(m_batch_manager, *m_renderer);
+    m_sprite_batch->SetSharedBatchGroup(m_batch_group);
+
+    m_line_batch = std::make_shared<sge::LineBatch>(m_batch_manager, *m_renderer);
+    m_line_batch->SetSharedBatchGroup(m_batch_group);
+
+    m_shape_batch = std::make_shared<sge::ShapeBatch>(m_batch_manager, *m_renderer);
+    m_shape_batch->SetSharedBatchGroup(m_batch_group);
 
     sge::TextureConfig textureConfig;
     textureConfig.sampler = GetRenderContext()->GetNearestSampler();
@@ -217,13 +222,14 @@ void App::DrawContent(LLGL::Extent2D viewport) {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-    sge::ResetBatches(m_sprite_batch, m_line_batch, m_shape_batch);
+    m_batch_manager->ResetAll();
+    m_batch_group->Reset();
 
-    sge::BeginOrderModes(m_sprite_batch, m_line_batch, m_shape_batch);
+    m_batch_group->BeginOrderMode();
     {
         DrawContent(window->GetSize());
     }
-    sge::EndOrderModes(m_sprite_batch, m_line_batch, m_shape_batch);
+    m_batch_group->EndOrderMode();
 
     m_renderer->Begin();
     {

@@ -2,6 +2,7 @@
 #define SGE_RENDERER_BATCH_HPP_
 
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include <LLGL/RenderSystem.h>
@@ -34,7 +35,7 @@ class Renderer;
 
 namespace internal {
 
-struct BatchState {
+struct DrawCommandState {
     sge::IRect scissor;
     size_t resources_offset;
     size_t resources_count;
@@ -68,7 +69,7 @@ enum class TextAlignment : uint8_t {
 
 struct DrawCommand {
     size_t instance_index;
-    internal::BatchState state;
+    internal::DrawCommandState state;
 };
 
 enum class BatchFlags : uint8_t {
@@ -184,9 +185,46 @@ private:
     bool m_order_mode = false;
 };
 
+class IBatch;
+
+class BatchManager {
+public:
+    BatchManager() = default;
+
+    void Register(IBatch* batch) {
+        auto it = std::ranges::find(m_batches, batch);
+        if (it == m_batches.end()) {
+            m_batches.push_back(batch);
+        }
+    }
+
+    void Unregister(IBatch* batch) {
+        auto it = std::ranges::find(m_batches, batch);
+        if (it != m_batches.end()) {
+            std::iter_swap(it, m_batches.end() - 1);
+            m_batches.pop_back();
+        }
+    }
+
+    void ResetAll();
+
+private:
+    std::vector<IBatch*> m_batches;
+};
+
 class IBatch : public RefCounted {
 protected:
     using FlagsType = sge::BitFlags<BatchFlags>;
+
+    IBatch() = default;
+
+    explicit IBatch(std::shared_ptr<BatchManager> manager) :
+        m_manager{ std::move(manager) }
+    {
+        if (m_manager) {
+            m_manager->Register(this);
+        }
+    }
 
     class BatchGroupWrapper {
     private:
@@ -239,6 +277,11 @@ protected:
         [[nodiscard]]
         const BatchGroup& Get() const noexcept {
             return m_variant == Variant::Owned ? m_own : *m_shared;
+        }
+
+        [[nodiscard]]
+        bool IsShared() const noexcept {
+            return m_variant == Variant::Shared;
         }
 
         ~BatchGroupWrapper() {
@@ -295,7 +338,11 @@ public:
     [[nodiscard]]
     virtual LLGL::Resource* const* GetDynamicBindings() const noexcept = 0;
 
-    virtual ~IBatch() = default;
+    virtual ~IBatch() {
+        if (m_manager) {
+            m_manager->Unregister(this);
+        }
+    }
 
 protected:
     virtual void Clear() = 0;
@@ -303,6 +350,10 @@ protected:
 public:
     void SetGlobalFlags(FlagsType flags) noexcept {
         m_flags = flags;
+    }
+
+    void SetManager(std::shared_ptr<BatchManager> manager) {
+        m_manager = std::move(manager);
     }
 
     void SetSharedBatchGroup(std::shared_ptr<BatchGroup> shared) {
@@ -347,7 +398,9 @@ public:
 
     void Reset() {
         Clear();
-        m_batch_group.Get().Reset();
+        if (!m_batch_group.IsShared()) {
+            m_batch_group.Get().Reset();
+        }
     }
 
     FlagsType GetFlags() const noexcept {
@@ -364,12 +417,16 @@ public:
 
 private:
     BatchGroupWrapper m_batch_group;
+    std::shared_ptr<BatchManager> m_manager = nullptr;
     FlagsType m_flags;
 };
 
 class SpriteBatch final : public IBatch {
 public:
-    explicit SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc = {});
+    explicit SpriteBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, SpriteBatchDesc desc = {});
+    explicit SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc = {})
+        : SpriteBatch(nullptr, renderer, std::move(desc))
+    {}
 
     uint32_t Draw(const Sprite& sprite, sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
         const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(sprite.flip_x(), sprite.flip_y());
@@ -424,7 +481,10 @@ private:
 
 class NinePatchBatch final : public IBatch {
 public:
-    explicit NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc desc = {});
+    explicit NinePatchBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, NinePatchBatchDesc desc = {});
+    explicit NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc desc = {})
+        : NinePatchBatch(nullptr, renderer, std::move(desc))
+    {}
 
     uint32_t Draw(const NinePatch& sprite, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
 
@@ -471,7 +531,10 @@ private:
 
 class LineBatch final : public IBatch {
 public:
-    explicit LineBatch(sge::Renderer& renderer, LineBatchDesc desc = {});
+    explicit LineBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, LineBatchDesc desc = {});
+    explicit LineBatch(sge::Renderer& renderer, LineBatchDesc desc = {})
+        : LineBatch(nullptr, renderer, desc)
+    {}
 
     uint32_t Draw(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius borderRadius = BorderRadius(), sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
 
@@ -516,7 +579,10 @@ private:
 
 class TextSdfBatch final : public IBatch {
 public:
-    explicit TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc = {});
+    explicit TextSdfBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, TextSdfBatchDesc desc = {});
+    explicit TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc = {})
+        : TextSdfBatch(nullptr, renderer, std::move(desc))
+    {}
 
     uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, TextAlignment alignment, const sge::Font& font, sge::Order order, std::optional<FlagsType> overrideFlags = std::nullopt);
 
@@ -573,7 +639,10 @@ private:
 
 class TextVectorBatch final : public IBatch {
 public:
-    explicit TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {});
+    explicit TextVectorBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, TextVectorBatchDesc desc = {});
+    explicit TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {})
+        : TextVectorBatch(nullptr, renderer, desc)
+    {}
 
     uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order order, std::optional<FlagsType> overrideFlags);
 
@@ -630,7 +699,10 @@ private:
 
 class ShapeBatch final : public IBatch {
 public:
-    explicit ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc = {});
+    explicit ShapeBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, ShapeBatchDesc desc = {});
+    explicit ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc = {})
+        : ShapeBatch(nullptr, renderer, desc)
+    {}
 
     uint32_t Draw(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& borderColor, float borderThickness, BorderRadius borderRadius = BorderRadius(), sge::Anchor anchor = sge::Anchor::Center, sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
 

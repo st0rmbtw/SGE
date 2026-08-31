@@ -24,7 +24,7 @@ protected:
 
 private:
     std::unique_ptr<sge::Renderer2D> m_renderer;
-    std::shared_ptr<sge::BatchGroup> m_batch_group;
+    std::shared_ptr<sge::BatchGroup> m_batch_group = std::make_shared<sge::BatchGroup>();
     std::shared_ptr<sge::ShapeBatch> m_shape_batch;
     std::shared_ptr<sge::TextSdfBatch> m_text_batch;
     sge::Camera m_camera;

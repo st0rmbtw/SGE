@@ -57,8 +57,6 @@ bool App::OnInit() {
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
 
-    m_batch_group = std::make_shared<sge::BatchGroup>();
-
     m_shape_batch = std::make_shared<sge::ShapeBatch>(*m_renderer);
     m_shape_batch->SetSharedBatchGroup(m_batch_group);
 

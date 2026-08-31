@@ -22,7 +22,7 @@ namespace {
 
 inline constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 
-bool BatchStateEqual(const sge::internal::BatchState& a, const sge::internal::BatchState& b, LLGL::Resource* const* dynamicResources) {
+bool DrawCommandStateEqual(const sge::internal::DrawCommandState& a, const sge::internal::DrawCommandState& b, LLGL::Resource* const* dynamicResources) {
     size_t hash_a = sge::HASH_INIT;
     sge::hash_fnv1a(hash_a, dynamicResources + a.resources_offset, a.resources_count);
 
@@ -153,7 +153,7 @@ void sge::Renderer2D::FlushBatches() {
     m_batch_data.clear();
     for (const auto& submission : m_submissions) {
         // Draw commands are sorted, so checking only first and last is enough
-        const bool allTheSame = BatchStateEqual(submission.drawCommands.front().state, submission.drawCommands.back().state, submission.dynamicBindings);
+        const bool allTheSame = DrawCommandStateEqual(submission.drawCommands.front().state, submission.drawCommands.back().state, submission.dynamicBindings);
         m_batch_data.push_back(BatchData {
             .state = submission.drawCommands[0].state,
             .offset = 0,
@@ -191,7 +191,7 @@ void sge::Renderer2D::FlushBatches() {
                     for (; i < submission.drawCommands.size(); ++i) {
                         const DrawCommand& command = submission.drawCommands[i];
 
-                        if (!BatchStateEqual(command.state, data.state, submission.dynamicBindings))
+                        if (!DrawCommandStateEqual(command.state, data.state, submission.dynamicBindings))
                             break;
                     }
                 }

@@ -11,62 +11,55 @@ namespace sge {
 template <class T>
 struct rect {
 private:
-    using vec2 = glm::vec<2, T>;
-    using Self = rect<T>;
+    using vec_t = glm::vec<2, T>;
+    using self = rect<T>;
 
 public:
-    vec2 min;
-    vec2 max;
+    vec_t min;
+    vec_t max;
 
     constexpr rect() :
         min(static_cast<T>(0)),
         max(static_cast<T>(0)) {}
 
     template <typename T2>
-    constexpr rect(const rect<T2>& r) :
-        min(r.min),
-        max(r.max) {}
+    explicit constexpr rect(const rect<T2>& r) :
+        min(vec_t(r.min)),
+        max(vec_t(r.max)) {}
 
-    constexpr rect(vec2 min, vec2 max) :
+    constexpr rect(vec_t min, vec_t max) :
         min(min),
         max(max) {}
 
-    template <typename T2>
-    inline constexpr Self& operator=(const rect<T2>& other) noexcept {
-        this->min = other.min;
-        this->max = other.max;
-        return *this;
+    [[nodiscard]]
+    inline constexpr static self uninitialized() noexcept {
+        return self(vec_t(std::numeric_limits<T>::max()), vec_t(std::numeric_limits<T>::min()));
     }
 
     [[nodiscard]]
-    inline constexpr static Self uninitialized() noexcept {
-        return Self(vec2(std::numeric_limits<T>::max()), vec2(std::numeric_limits<T>::min()));
+    inline constexpr static self from_corners(vec_t p1, vec_t p2) noexcept {
+        return self(glm::min(p1, p2), glm::max(p1, p2));
     }
 
     [[nodiscard]]
-    inline constexpr static Self from_corners(vec2 p1, vec2 p2) noexcept {
-        return Self(glm::min(p1, p2), glm::max(p1, p2));
+    inline constexpr static self from_top_left(vec_t origin, vec_t size) noexcept {
+        return self(origin, origin + size);
     }
 
     [[nodiscard]]
-    inline constexpr static Self from_top_left(vec2 origin, vec2 size) noexcept {
-        return Self(origin, origin + size);
+    inline constexpr static self from_center_size(vec_t origin, vec_t size) noexcept {
+        const vec_t half_size = size / static_cast<T>(2);
+        return self::from_center_half_size(origin, half_size);
     }
 
     [[nodiscard]]
-    inline constexpr static Self from_center_size(vec2 origin, vec2 size) noexcept {
-        const vec2 half_size = size / static_cast<T>(2);
-        return Self::from_center_half_size(origin, half_size);
+    inline constexpr static self from_center_half_size(vec_t origin, vec_t half_size) noexcept {
+        return self(origin - half_size, origin + half_size);
     }
 
     [[nodiscard]]
-    inline constexpr static Self from_center_half_size(vec2 origin, vec2 half_size) noexcept {
-        return Self(origin - half_size, origin + half_size);
-    }
-
-    [[nodiscard]]
-    inline constexpr Self merge(Self other) {
-        return Self(glm::min(min, other.min), glm::max(max, other.max));
+    inline constexpr self merge(self other) {
+        return self(glm::min(min, other.min), glm::max(max, other.max));
     }
 
     [[nodiscard]]
@@ -82,13 +75,13 @@ public:
     inline constexpr T half_height() const noexcept { return this->height() / static_cast<T>(2); }
 
     [[nodiscard]]
-    inline constexpr vec2 center() const noexcept { return (this->min + this->max) / static_cast<T>(2); }
+    inline constexpr vec_t center() const noexcept { return (this->min + this->max) / static_cast<T>(2); }
 
     [[nodiscard]]
-    inline constexpr vec2 size() const noexcept { return vec2(this->width(), this->height()); }
+    inline constexpr vec_t size() const noexcept { return vec_t(this->width(), this->height()); }
 
     [[nodiscard]]
-    inline constexpr vec2 half_size() const noexcept { return vec2(this->half_width(), this->half_height()); }
+    inline constexpr vec_t half_size() const noexcept { return vec_t(this->half_width(), this->half_height()); }
 
     [[nodiscard]]
     inline constexpr T left() const noexcept { return this->min.x; }
@@ -103,7 +96,7 @@ public:
     inline constexpr T top() const noexcept { return this->max.y; }
 
     [[nodiscard]]
-    inline constexpr rect<T> clamp(vec2 min, vec2 max) const {
+    inline constexpr rect<T> clamp(vec_t min, vec_t max) const {
         return rect::from_corners(glm::max(this->min, min), glm::min(this->max, max));
     }
 
@@ -113,7 +106,7 @@ public:
     }
 
     [[nodiscard]]
-    inline constexpr bool contains(const vec2& point) const noexcept {
+    inline constexpr bool contains(const vec_t& point) const noexcept {
         return (
             point.x >= this->min.x &&
             point.y >= this->min.y &&
@@ -133,59 +126,59 @@ public:
     }
 
     [[nodiscard]]
-    inline constexpr Self inset(const T l) const noexcept {
+    inline constexpr self inset(const T l) const noexcept {
         return from_corners(this->min - l, this->max + l);
     }
 
-    inline constexpr Self operator/(const Self &rhs) const noexcept {
+    inline constexpr self operator/(const self &rhs) const noexcept {
         return from_corners(this->min * rhs.min, this->max * rhs.max);
     }
 
-    inline constexpr Self operator/(const T rhs) const noexcept {
+    inline constexpr self operator/(const T rhs) const noexcept {
         return from_corners(this->min / rhs, this->max / rhs);
     }
 
-    inline constexpr Self operator*(const Self &rhs) const noexcept {
+    inline constexpr self operator*(const self &rhs) const noexcept {
         return from_corners(this->min * rhs, this->max * rhs);
     }
 
-    inline constexpr Self operator*(const T rhs) const noexcept {
+    inline constexpr self operator*(const T rhs) const noexcept {
         return from_corners(this->min * rhs, this->max * rhs);
     }
 
-    inline constexpr Self operator+(const Self &rhs) const noexcept {
+    inline constexpr self operator+(const self &rhs) const noexcept {
         return from_corners(this->min + rhs.min, this->max + rhs.max);
     }
 
-    inline constexpr Self operator+(const T rhs) const noexcept {
+    inline constexpr self operator+(const T rhs) const noexcept {
         return from_corners(this->min + rhs, this->max + rhs);
     }
 
-    inline constexpr Self operator-(const Self &rhs) const noexcept {
+    inline constexpr self operator-(const self &rhs) const noexcept {
         return from_corners(this->min - rhs.min, this->max - rhs.max);
     }
 
-    inline constexpr Self operator-(const T rhs) const noexcept {
+    inline constexpr self operator-(const T rhs) const noexcept {
         return from_corners(this->min - rhs, this->max - rhs);
     }
 
-    inline constexpr Self operator-(const vec2& rhs) const noexcept {
+    inline constexpr self operator-(const vec_t& rhs) const noexcept {
         return from_corners(this->min - rhs, this->max - rhs);
     }
 
-    inline constexpr Self operator/(const vec2& rhs) const noexcept {
+    inline constexpr self operator/(const vec_t& rhs) const noexcept {
         return from_corners(this->min / rhs, this->max / rhs);
     }
 
-    inline constexpr Self operator*(const vec2& rhs) const noexcept {
+    inline constexpr self operator*(const vec_t& rhs) const noexcept {
         return from_corners(this->min * rhs, this->max * rhs);
     }
 
-    inline constexpr Self operator+(const vec2& rhs) const noexcept {
+    inline constexpr self operator+(const vec_t& rhs) const noexcept {
         return from_corners(this->min + rhs, this->max + rhs);
     }
 
-    inline constexpr bool operator==(const Self& rhs) const noexcept {
+    inline constexpr bool operator==(const self& rhs) const noexcept {
         return this->min == rhs.min && this->max == rhs.max;
     }
 };

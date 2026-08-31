@@ -38,7 +38,15 @@ constexpr float ComputeTextBaseline(sge::TextAlignment alignment, float y, float
 
 }
 
-sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {
+void sge::BatchManager::ResetAll() {
+    ZoneScoped;
+
+    for (sge::IBatch* batch : m_batches) {
+        batch->Reset();
+    }
+}
+
+sge::SpriteBatch::SpriteBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, SpriteBatchDesc desc) : IBatch(std::move(manager)) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -90,7 +98,7 @@ uint32_t sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, c
     const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
     const auto blendMode = batchGroup.GetBlendMode();
 
-    const auto state = internal::BatchState {
+    const auto state = internal::DrawCommandState {
         .scissor = scissor,
         .resources_offset = bindings_offset,
         .resources_count = bindings_count,
@@ -142,7 +150,7 @@ uint32_t sge::SpriteBatch::DrawAtlasSprite(const sge::TextureAtlasSprite& sprite
     return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.atlas().texture(), overrideFlags, customOrder);
 }
 
-sge::NinePatchBatch::NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc desc) {
+sge::NinePatchBatch::NinePatchBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, NinePatchBatchDesc desc) : IBatch(std::move(manager)) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -199,7 +207,7 @@ uint32_t sge::NinePatchBatch::Draw(const NinePatch& ninepatch, sge::Order custom
     const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
     const auto blendMode = batchGroup.GetBlendMode();
 
-    const auto state = internal::BatchState {
+    const auto state = internal::DrawCommandState {
         .scissor = scissor,
         .resources_offset = bindings_offset,
         .resources_count = bindings_count,
@@ -228,7 +236,7 @@ uint32_t sge::NinePatchBatch::Draw(const NinePatch& ninepatch, sge::Order custom
     return order;
 }
 
-sge::LineBatch::LineBatch(sge::Renderer& renderer, LineBatchDesc desc) {
+sge::LineBatch::LineBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, LineBatchDesc desc) : IBatch(std::move(manager)) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -272,7 +280,7 @@ uint32_t sge::LineBatch::Draw(glm::vec2 start, glm::vec2 end, float thickness, c
     const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
     const auto blendMode = batchGroup.GetBlendMode();
 
-    const auto state = internal::BatchState {
+    const auto state = internal::DrawCommandState {
         .scissor = scissor,
         .resources_offset = 0,
         .resources_count = 0,
@@ -296,7 +304,7 @@ uint32_t sge::LineBatch::Draw(glm::vec2 start, glm::vec2 end, float thickness, c
     return order;
 }
 
-sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) {
+sge::TextSdfBatch::TextSdfBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, TextSdfBatchDesc desc) : IBatch(std::move(manager)) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -391,7 +399,7 @@ uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t si
 
             m_commands.push_back(DrawCommand {
                 .instance_index = m_instances.size(),
-                .state = internal::BatchState {
+                .state = internal::DrawCommandState {
                     .scissor = scissor,
                     .resources_offset = bindings_offset,
                     .resources_count = bindings_count,
@@ -415,7 +423,7 @@ uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t si
     return order;
 }
 
-sge::TextVectorBatch::TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc) {
+sge::TextVectorBatch::TextVectorBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, TextVectorBatchDesc desc) : IBatch(std::move(manager)) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -503,7 +511,7 @@ uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            const auto state = internal::BatchState {
+            const auto state = internal::DrawCommandState {
                 .scissor = scissor,
                 .resources_offset = bindings_offset,
                 .resources_count = bindings_count,
@@ -532,7 +540,7 @@ uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t
     return order;
 }
 
-sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {
+sge::ShapeBatch::ShapeBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, ShapeBatchDesc desc) : IBatch(std::move(manager)) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -579,7 +587,7 @@ uint32_t sge::ShapeBatch::Draw(sge::Shape::Type shape, glm::vec2 position, glm::
         ? glm::vec4(borderRadius.values()) / 100.0f * length
         : glm::vec4(borderRadius.values());
 
-    const auto state = internal::BatchState {
+    const auto state = internal::DrawCommandState {
         .scissor = scissor,
         .resources_offset = 0,
         .resources_count = 0,

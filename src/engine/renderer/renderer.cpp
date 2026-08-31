@@ -452,69 +452,6 @@ static inline TValue& MapFind(const TKey& key, std::unordered_map<TKey, size_t, 
     return pool[index];
 }
 
-void sge::Renderer::SubmitRaw(Ref<Mesh> mesh, Ref<Material> material, std::span<LLGL::Resource* const> dynamicBindings, const void* instanceDataPtr, size_t instanceByteSize) {
-    ZoneScoped;
-
-    auto materialHash = material->GetStateHash();
-    auto meshHash = mesh->GetLayoutHash();
-    auto pipelineKey = PipelineKey { .meshHash = meshHash, .materialHash = materialHash };
-
-    auto& instanceData = MapFind(pipelineKey, m_instance_data_map, m_instance_datas);
-
-    if (!instanceData.mesh)
-        instanceData.mesh = mesh;
-
-    uint64_t dynamicBindingsHash = sge::HASH_INIT;
-    // for (LLGL::Resource* resource : dynamicBindings) {
-    //     sge::hash_combine(dynamicBindingsHash, resource);
-    // }
-    sge::hash_fnv1a(dynamicBindingsHash, dynamicBindings.data(), dynamicBindings.size_bytes());
-
-    BatchKey batchkey {
-        .mesh = std::move(mesh),
-        .material = std::move(material),
-        .dynamicBindingsHash = dynamicBindingsHash
-    };
-
-    auto& batch = m_mesh_batches[batchkey];
-
-    if (!batch.mesh)
-        batch.mesh = std::move(mesh);
-
-    if (!batch.material)
-        batch.material = std::move(material);
-
-    if (batch.dynamicBindings.empty()) {
-        batch.dynamicBindings.insert(batch.dynamicBindings.end(), dynamicBindings.begin(), dynamicBindings.end());
-    }
-
-    size_t instanceOffset = static_cast<size_t>(-1);
-
-    if (instanceDataPtr != nullptr && instanceByteSize > 0) {
-        instanceOffset = instanceData.totalInstanceCount;
-        if (!instanceData.vertexBufferArray) {
-            LLGL::BufferDescriptor desc = LLGL::VertexBufferDesc(0, batch.material->GetInstanceAttribsStride());
-            instanceData.instanceBufferPool = BufferPool(*m_context, desc);
-        }
-        const auto* bytes = static_cast<const uint8_t*>(instanceDataPtr);
-        instanceData.instanceBytes.insert(instanceData.instanceBytes.end(), bytes, bytes + instanceByteSize);
-        instanceData.totalInstanceCount += 1;
-    }
-
-    if (!m_batch_submissions.empty()) {
-        MeshBatchSubmission& submission = m_batch_submissions.back();
-        if (submission.batch == &batch) {
-            submission.instanceCount += 1;
-        }
-    } else {
-        m_batch_submissions.push_back(MeshBatchSubmission {
-            .batch = &batch,
-            .instanceOffset = instanceOffset,
-            .instanceCount = 1,
-        });
-    }
-}
-
 void sge::Renderer::SubmitManyRaw(
     Ref<Mesh> mesh,
     Ref<Material> material,
@@ -524,6 +461,8 @@ void sge::Renderer::SubmitManyRaw(
     size_t instanceStride,
     uint32_t instanceCount
 ) {
+    ZoneScoped;
+
     if (instanceCount == 0)
         return;
 
@@ -537,10 +476,10 @@ void sge::Renderer::SubmitManyRaw(
         instanceData.mesh = mesh;
 
     uint64_t dynamicBindingsHash = sge::HASH_INIT;
-    sge::hash_fnv1a(dynamicBindingsHash, dynamicBindings.data(), dynamicBindings.size_bytes());
+    sge::hash_fnv1a(dynamicBindingsHash, dynamicBindings.data(), dynamicBindings.size());
 
     uint64_t scissorHash = sge::HASH_INIT;
-    sge::hash_fnv1a(scissorHash, &scissorBounds, sizeof(scissorBounds));
+    sge::hash_fnv1a(scissorHash, &scissorBounds);
 
     BatchKey batchKey {
         .mesh = std::move(mesh),
@@ -577,6 +516,14 @@ void sge::Renderer::SubmitManyRaw(
         instanceData.totalInstanceCount += instanceCount;
     }
 
+    if (!m_batch_submissions.empty()) {
+        MeshBatchSubmission& submission = m_batch_submissions.back();
+        if (submission.batch == &batch) {
+            submission.instanceCount += instanceCount;
+            return;
+        }
+    }
+
     m_batch_submissions.push_back(MeshBatchSubmission {
         .batch = &batch,
         .instanceOffset = instanceOffset,
@@ -606,6 +553,7 @@ void sge::Renderer::FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, s
         m_command_buffer->SetVertexBufferArray(*instanceData->vertexBufferArray);
     } else {
         m_command_buffer->SetVertexBuffer(*mesh.GetVertexBuffer());
+        instanceOffset = 0;
     }
 
     m_command_buffer->SetResourceHeap(*material.GetResourceHeap());
@@ -633,8 +581,7 @@ void sge::Renderer::FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, s
         m_command_buffer->DrawIndexedInstanced(indexCount, instanceCount, 0, 0, instanceCount);
     } else {
         auto vertexCount = mesh.GetVertexCount();
-        const uint32_t actualInstanceOffset = hasInstanceBuffer ? instanceOffset : 0;
-        m_command_buffer->DrawInstanced(vertexCount, 0, instanceCount, actualInstanceOffset);
+        m_command_buffer->DrawInstanced(vertexCount, 0, instanceCount, instanceOffset);
     }
 }
 

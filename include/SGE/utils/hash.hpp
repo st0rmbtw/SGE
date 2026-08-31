@@ -8,13 +8,14 @@ namespace sge {
 
 inline constexpr uint64_t HASH_INIT = 1469598103934665603ULL;
 
-inline uint64_t hash_fnv1a(std::size_t& hash, const void* data, size_t size) {
-    auto* bytes = static_cast<const uint8_t*>(data);
-    for (size_t i = 0; i < size; ++i) {
+template <typename T> requires std::is_trivially_copyable_v<T>
+inline void hash_fnv1a(std::size_t& hash, const T* data, size_t count = 1) {
+    const auto* bytes = reinterpret_cast<const uint8_t*>(data);
+    const size_t size_bytes = sizeof(T) * count;
+    for (size_t i = 0; i < size_bytes; ++i) {
         hash ^= bytes[i];
         hash *= 1099511628211ULL;
     }
-    return hash;
 }
 
 template <class T>

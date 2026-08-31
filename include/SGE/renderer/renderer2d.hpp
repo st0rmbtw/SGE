@@ -26,7 +26,7 @@ struct BufferPoolEntry {
 };
 
 struct BatchData {
-    sge::internal::BatchState state;
+    sge::internal::DrawCommandState state;
     uint32_t offset;
     bool allTheSame;
 };

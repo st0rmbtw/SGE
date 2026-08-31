@@ -102,10 +102,12 @@ public:
     void SubmitRaw(
         Ref<Mesh> mesh,
         Ref<Material> material,
-        std::span<LLGL::Resource* const> dynamicResources,
+        std::span<LLGL::Resource* const> dynamicBindings,
         const void* instanceData,
         size_t instanceByteSize
-    );
+    ) {
+        SubmitManyRaw(std::move(mesh), std::move(material), dynamicBindings, sge::IRect(), instanceData, instanceByteSize, 1);
+    }
 
     void SubmitManyRaw(
         Ref<Mesh> mesh,

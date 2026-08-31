@@ -24,6 +24,7 @@ option(SGE_ENABLE_IMGUI "Enable ImGui integration" OFF)
 option(SGE_BACKEND_VULKAN "Enable the Vulkan backend" OFF)
 option(SGE_DEBUG_LAYER "Enable the debug layer" OFF)
 option(SGE_ENABLE_DEFAULT_FONT "Enable the default font" ON)
+option(SGE_ENABLE_HARDENING "Enable hardening" OFF)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 
@@ -38,6 +39,10 @@ else()
 endif()
 
 add_compile_definitions(GLM_FORCE_INTRINSICS)
+
+if(SGE_ENABLE_HARDENING)
+    add_compile_definitions(_MSVC_STL_HARDENING=1 _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE _FORTIFY_SOURCE=3 _GLIBCXX_ASSERTIONS)
+endif()
 
 set(LLGL_BUILD_RENDERER_NULL OFF CACHE BOOL "" FORCE)
 

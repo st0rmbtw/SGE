@@ -2,6 +2,7 @@
 #define APP_HPP
 
 #include <SGE/engine.hpp>
+#include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/time/stopwatch.hpp>
 #include <SGE/types/color.hpp>
@@ -43,6 +44,8 @@ private:
     LLGL::FrameProfile m_profile;
     sge::Texture m_sprite_texture;
     std::unique_ptr<sge::Renderer2D> m_renderer;
+    std::shared_ptr<sge::BatchManager> m_batch_manager = std::make_shared<sge::BatchManager>();
+    std::shared_ptr<sge::BatchGroup> m_batch_group = std::make_shared<sge::BatchGroup>();
     std::shared_ptr<sge::SpriteBatch> m_sprite_batch;
     std::shared_ptr<sge::LineBatch> m_line_batch;
     std::shared_ptr<sge::ShapeBatch> m_shape_batch;
