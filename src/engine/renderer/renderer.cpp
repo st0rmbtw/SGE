@@ -11,6 +11,7 @@
 #include <SGE/renderer/renderer.hpp>
 #include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/types.hpp>
+#include <SGE/renderer/utils.hpp>
 #include <SGE/types/binding_layout.hpp>
 #include <SGE/types/framebuffer.hpp>
 #include <SGE/utils/alloc.hpp>
@@ -32,6 +33,7 @@
 #include <LLGL/Texture.h>
 #include <LLGL/TextureFlags.h>
 #include <LLGL/Types.h>
+#include <LLGL/Utils/Utility.h>
 #include <LLGL/Utils/VertexFormat.h>
 #include <LLGL/VertexAttribute.h>
 
@@ -45,12 +47,18 @@
 
 namespace {
 
-struct BloomUniforms {
+struct alignas(16) BloomUniforms {
     float threshold;
     float knee;
     float filterRadius;
     float intensity;
 };
+
+struct alignas(16) TonemapUniforms {
+    float exposure;
+};
+
+constexpr LLGL::Format HDR_TEXTURE_FORMAT = LLGL::Format::RG11B10Float;
 
 } // namespace
 
@@ -67,23 +75,22 @@ sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_conte
 
     m_uniform_buffer = m_context->CreateConstantBuffer(sizeof(GlobalUniforms), "Uniforms Buffer");
 
-    m_fullscreen_triangle_vertex_format = sge::VertexAttributes(backend, {
-        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position"),
-        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_uv", "UV")
-    });
-
     const glm::vec2 vertices[] = {
         glm::vec2(-1.0f, 1.0f),  glm::vec2(0.0f, 0.0f),
         glm::vec2(3.0f,  1.0f),  glm::vec2(2.0f, 0.0f),
         glm::vec2(-1.0f, -3.0f), glm::vec2(0.0f, 2.0f),
     };
-    m_fullscreen_triangle_vertex_buffer = context->CreateVertexBuffer(vertices, m_fullscreen_triangle_vertex_format);
 
-    sge::ShaderConfig shaderConfig;
-    shaderConfig.vertex.inputAttribs = m_fullscreen_triangle_vertex_format.attributes;
+    m_fullscreen_triangle_mesh = CreateMesh(MeshDesc()
+        .SetTopology(sge::PrimitiveTopology::TriangleList)
+        .SetFrontFace(sge::FrontFace::CW)
+        .AddAttribute(sge::VertexFormat::Float32x2, "a_position", "Position")
+        .AddAttribute(sge::VertexFormat::Float32x2, "a_uv", "UV")
+        .SetVertices(vertices)
+    );
 
     ShaderSourceCode shader = GetFullscreenTriangleShaderSourceCode(backend);
-    m_fullscreen_triangle_vertex_shader = context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
+    m_fullscreen_triangle_vertex_shader = context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size);
     m_blit_pixel_shader = context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
 
     LLGL::PipelineLayoutDescriptor layoutDesc;
@@ -98,17 +105,14 @@ sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_conte
     renderPassDesc.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
     m_blit_render_pass = m_context->CreateRenderPass(renderPassDesc);
 
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    LLGL::GraphicsPipelineDescriptor pipelineDesc = GraphicsPipelineDescFromMesh(*m_fullscreen_triangle_mesh);
     pipelineDesc.pipelineLayout = m_blit_pipeline_layout;
     pipelineDesc.vertexShader = m_fullscreen_triangle_vertex_shader;
     pipelineDesc.fragmentShader = m_blit_pixel_shader;
     pipelineDesc.renderPass = m_blit_render_pass;
-    pipelineDesc.indexFormat = LLGL::Format::Undefined;
     pipelineDesc.depth.testEnabled = false;
     pipelineDesc.depth.writeEnabled = false;
     m_blit_pipeline = m_context->CreatePipelineState(pipelineDesc);
-
-    m_bloom_cb = m_context->CreateConstantBuffer(sizeof(BloomUniforms), "Bloom Constant Buffer");
 }
 
 void sge::Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) {
@@ -132,63 +136,87 @@ void sge::Renderer::BeginPass(LLGL::RenderTarget& target, const Camera& camera) 
     m_command_buffer->SetViewport(m_viewport);
 }
 
-void sge::Renderer::InitTonemapPipelines() {
-    LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindings = sge::BindingLayout({
-        sge::BindingLayoutItem::Texture(4, "MainTexture", LLGL::StageFlags::FragmentStage),
-        sge::BindingLayoutItem::Sampler(5, "MainSampler", LLGL::StageFlags::FragmentStage),
-    });
+void sge::Renderer::InitTonemapPipeline(sge::Tonemapping method) {
+    if (!m_tonemap_cb) {
+        m_tonemap_cb = m_context->CreateConstantBuffer(sizeof(TonemapUniforms), "TonemapConstantBuffer");
+    }
 
-    LLGL::RenderPassDescriptor renderPassDesc;
-    renderPassDesc.colorAttachments[0].format = LLGL::Format::RG11B10Float;
-    renderPassDesc.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
-    m_tonemap_render_pass = m_context->CreateRenderPass(renderPassDesc);
+    if (!m_tonemap_pipeline_layout) {
+        LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
+        pipelineLayoutDesc.bindings = sge::BindingLayout({
+            sge::BindingLayoutItem::ConstantBuffer(3, "TonemapConstantBuffer", LLGL::StageFlags::FragmentStage),
+            sge::BindingLayoutItem::Texture(4, "MainTexture", LLGL::StageFlags::FragmentStage),
+            sge::BindingLayoutItem::Sampler(5, "MainSampler", LLGL::StageFlags::FragmentStage),
+        });
 
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
-    pipelineDesc.pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
+        m_tonemap_pipeline_layout =  m_context->CreatePipelineLayout(pipelineLayoutDesc);;
+    }
+
+    if (!m_tonemap_render_pass) {
+        LLGL::RenderPassDescriptor renderPassDesc;
+        renderPassDesc.colorAttachments[0].format = HDR_TEXTURE_FORMAT;
+        renderPassDesc.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
+        m_tonemap_render_pass = m_context->CreateRenderPass(renderPassDesc);
+    }
+
+    ShaderSourceCode shaderSource;
+
+    switch (method) {
+    case Tonemapping::AcesFit:
+        shaderSource = GetTonemapAcesFittedShaderSourceCode(m_context->Backend());
+    break;
+    case Tonemapping::Aces:
+        shaderSource = GetTonemapAcesShaderSourceCode(m_context->Backend());
+    break;
+    default:
+        SGE_UNREACHABLE();
+    }
+
+    LLGL::GraphicsPipelineDescriptor pipelineDesc = GraphicsPipelineDescFromMesh(*m_fullscreen_triangle_mesh);
+    pipelineDesc.pipelineLayout = m_tonemap_pipeline_layout;
     pipelineDesc.renderPass = m_tonemap_render_pass;
     pipelineDesc.vertexShader = FullscreenTriangleVertexShader();
-    pipelineDesc.indexFormat = LLGL::Format::Undefined;
+    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size);
     pipelineDesc.depth.testEnabled = false;
     pipelineDesc.depth.writeEnabled = false;
 
-    ShaderSourceCode shaderSource = GetTonemapAcesShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size);
-    m_tonemap_aces_pipeline = m_context->CreatePipelineState(pipelineDesc);
+    m_tonemap_pipelines[static_cast<uint8_t>(method)] = m_context->CreatePipelineState(pipelineDesc);
 }
 
-void sge::Renderer::TonemapPass(sge::Framebuffer& framebuffer) {
-    if (!m_tonemap_aces_pipeline)
-        InitTonemapPipelines();
+void sge::Renderer::TonemapPass(sge::Framebuffer& framebuffer, const sge::TonemapSettings& settings) {
+    const auto& pipeline = m_tonemap_pipelines[static_cast<uint8_t>(settings.method)];
+
+    if (!pipeline)
+        InitTonemapPipeline(settings.method);
+
+    if (m_prev_tonemap_settings != settings) {
+        m_prev_tonemap_settings = settings;
+
+        auto uniforms = TonemapUniforms {
+            .exposure = glm::exp2(settings.exposure)
+        };
+
+        m_command_buffer->UpdateBuffer(*m_tonemap_cb, 0, &uniforms, sizeof(uniforms));
+    }
 
     LLGL::Extent2D resolution = framebuffer.GetResolution();
-
-    auto tonemap_framebuffer = m_context->GetTemporaryFramebuffer(resolution, LLGL::Format::RG11B10Float);
-
-    m_command_buffer->SetViewport(resolution);
-    BeginPass(*tonemap_framebuffer.GetRenderTarget());
-    {
-        m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
-        m_command_buffer->SetPipelineState(*BlitPipeline());
-        m_command_buffer->SetResource(0, *framebuffer.GetTexture(0));
-        m_command_buffer->SetResource(1, *m_context->GetLinearSampler());
-        m_command_buffer->Draw(3, 0);
-    }
-    EndPass();
 
     m_command_buffer->SetViewport(resolution);
     BeginPass(*framebuffer.GetRenderTarget());
     {
-        m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
-        m_command_buffer->SetPipelineState(*m_tonemap_aces_pipeline);
-        m_command_buffer->SetResource(0, *tonemap_framebuffer.GetTexture(0));
-        m_command_buffer->SetResource(1, *m_context->GetLinearSampler());
+        m_command_buffer->SetVertexBuffer(*m_fullscreen_triangle_mesh->GetVertexBuffer());
+        m_command_buffer->SetPipelineState(*pipeline);
+        m_command_buffer->SetResource(0, *m_tonemap_cb);
+        m_command_buffer->SetResource(1, *framebuffer.GetTexture(0));
+        m_command_buffer->SetResource(2, *m_context->GetLinearSampler());
         m_command_buffer->Draw(3, 0);
     }
     EndPass();
 }
 
 void sge::Renderer::InitBloomPipelines() {
+    m_bloom_cb = m_context->CreateConstantBuffer(sizeof(BloomUniforms), "BloomConstantBuffer");
+
     LLGL::PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindings = sge::BindingLayout({
         sge::BindingLayoutItem::ConstantBuffer(3, "BloomConstantBuffer", LLGL::StageFlags::FragmentStage),
@@ -197,20 +225,19 @@ void sge::Renderer::InitBloomPipelines() {
     });
 
     LLGL::RenderPassDescriptor renderPassDesc;
-    renderPassDesc.colorAttachments[0].format = LLGL::Format::RG11B10Float;
+    renderPassDesc.colorAttachments[0].format = HDR_TEXTURE_FORMAT;
     renderPassDesc.colorAttachments[0].storeOp = LLGL::AttachmentStoreOp::Store;
     m_bloom_render_pass = m_context->CreateRenderPass(renderPassDesc);
 
     sge::ShaderConfig shaderConfig;
     shaderConfig.fragment.outputAttribs = {
-        LLGL::FragmentAttribute{ "SV_Target", LLGL::Format::RG11B10Float, 0, LLGL::SystemValue::Color }
+        LLGL::FragmentAttribute{ "SV_Target", HDR_TEXTURE_FORMAT, 0, LLGL::SystemValue::Color }
     };
 
-    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    LLGL::GraphicsPipelineDescriptor pipelineDesc = GraphicsPipelineDescFromMesh(*m_fullscreen_triangle_mesh);
     pipelineDesc.pipelineLayout = m_context->CreatePipelineLayout(pipelineLayoutDesc);
     pipelineDesc.renderPass = m_bloom_render_pass;
     pipelineDesc.vertexShader = FullscreenTriangleVertexShader();
-    pipelineDesc.indexFormat = LLGL::Format::Undefined;
     pipelineDesc.depth.testEnabled = false;
     pipelineDesc.depth.writeEnabled = false;
 
@@ -224,34 +251,31 @@ void sge::Renderer::InitBloomPipelines() {
     pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     m_bloom_downsample_pipeline = m_context->CreatePipelineState(pipelineDesc);
 
-    // Upsample Pipeline
-    shaderSource = GetBloomUpsampleShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     pipelineDesc.blend.targets[0] = LLGL::BlendTargetDescriptor {
         .blendEnabled = true,
         .srcColor = LLGL::BlendOp::One,
         .dstColor = LLGL::BlendOp::One,
         .srcAlpha = LLGL::BlendOp::One,
-        .dstAlpha = LLGL::BlendOp::One,
+        .dstAlpha = LLGL::BlendOp::Zero,
     };
+
+    // Upsample Pipeline
+    shaderSource = GetBloomUpsampleShaderSourceCode(m_context->Backend());
+    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     m_bloom_upsample_pipeline = m_context->CreatePipelineState(pipelineDesc);
 
     // Composite Pipeline
     shaderSource = GetBloomCompositeShaderSourceCode(m_context->Backend());
     pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
-    pipelineDesc.blend.targets[0] = LLGL::BlendTargetDescriptor {
-        .blendEnabled = true,
-        .srcColor = LLGL::BlendOp::One,
-        .dstColor = LLGL::BlendOp::One,
-        .srcAlpha = LLGL::BlendOp::One,
-        .dstAlpha = LLGL::BlendOp::One,
-    };
     m_bloom_composite_pipeline = m_context->CreatePipelineState(pipelineDesc);
 }
 
 void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSettings& settings) {
     if (settings.maxIterations <= 0)
         return;
+
+    if (!m_bloom_prefilter_pipeline)
+        InitBloomPipelines();
 
     if (m_prev_bloom_settings != settings) {
         m_prev_bloom_settings = settings;
@@ -266,9 +290,6 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
         m_command_buffer->UpdateBuffer(*m_bloom_cb, 0, &uniforms, sizeof(uniforms));
     }
 
-    if (!m_bloom_prefilter_pipeline)
-        InitBloomPipelines();
-
     LLGL::Extent2D resolution = framebuffer.GetResolution();
     resolution.width /= 2;
     resolution.height /= 2;
@@ -276,7 +297,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     for (uint8_t i = 0; i < settings.maxIterations; ++i) {
         if (resolution.width < 8 || resolution.height < 8) break;
 
-        m_bloom_framebuffers.emplace_back(m_context->GetTemporaryFramebuffer(resolution, LLGL::Format::RG11B10Float));
+        m_bloom_framebuffers.emplace_back(m_context->GetTemporaryFramebuffer(resolution, HDR_TEXTURE_FORMAT));
 
         resolution.width /= 2;
         resolution.height /= 2;
@@ -289,7 +310,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     {
         Clear();
         m_command_buffer->SetPipelineState(*m_bloom_prefilter_pipeline);
-        m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
+        m_command_buffer->SetVertexBuffer(*m_fullscreen_triangle_mesh->GetVertexBuffer());
         m_command_buffer->SetResource(0, *m_bloom_cb);
         m_command_buffer->SetResource(1, *framebuffer.GetTexture(0));
         m_command_buffer->SetResource(2, *m_context->GetLinearSampler());
@@ -302,7 +323,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
         m_command_buffer->SetViewport(m_bloom_framebuffers[i].GetResolution());
         BeginPass(*m_bloom_framebuffers[i].GetRenderTarget());
         {
-            m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
+            m_command_buffer->SetVertexBuffer(*m_fullscreen_triangle_mesh->GetVertexBuffer());
             m_command_buffer->SetPipelineState(*m_bloom_downsample_pipeline);
             m_command_buffer->SetResource(0, *m_bloom_cb);
             m_command_buffer->SetResource(1, *m_bloom_framebuffers[i - 1].GetTexture(0));
@@ -317,7 +338,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
         m_command_buffer->SetViewport(m_bloom_framebuffers[i].GetResolution());
         BeginPass(*m_bloom_framebuffers[i].GetRenderTarget());
         {
-            m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
+            m_command_buffer->SetVertexBuffer(*m_fullscreen_triangle_mesh->GetVertexBuffer());
             m_command_buffer->SetPipelineState(*m_bloom_upsample_pipeline);
             m_command_buffer->SetResource(0, *m_bloom_cb);
             m_command_buffer->SetResource(1, *m_bloom_framebuffers[i + 1].GetTexture(0));
@@ -330,7 +351,7 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     m_command_buffer->SetViewport(framebuffer.GetResolution());
     BeginPass(*framebuffer.GetRenderTarget());
     {
-        m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
+        m_command_buffer->SetVertexBuffer(*m_fullscreen_triangle_mesh->GetVertexBuffer());
         m_command_buffer->SetPipelineState(*m_bloom_composite_pipeline);
         m_command_buffer->SetResource(0, *m_bloom_cb);
         m_command_buffer->SetResource(1, *m_bloom_framebuffers[0].GetTexture(0));
@@ -348,7 +369,7 @@ void sge::Renderer::BlitTexture(LLGL::Texture& texture) {
 
     m_command_buffer->SetViewport(target->GetResolution());
     m_command_buffer->SetPipelineState(*m_blit_pipeline);
-    m_command_buffer->SetVertexBuffer(*FullscreenTriangleVertexBuffer());
+    m_command_buffer->SetVertexBuffer(*m_fullscreen_triangle_mesh->GetVertexBuffer());
     m_command_buffer->SetResource(0, texture);
     m_command_buffer->SetResource(1, *m_context->GetNearestSampler());
     m_command_buffer->Draw(3, 0);
@@ -366,7 +387,7 @@ LLGL::PipelineState& sge::Renderer::GetOrCreatePipeline(const Material& material
         return m_context->GetOrCreatePipeline(existingEntry->second);
     }
 
-    std::vector<LLGL::VertexAttribute> totalAttributes = mesh.GetVertexFormat().attributes;
+    std::vector<LLGL::VertexAttribute> totalAttributes = mesh.GetVertexAttributes();
     for (const LLGL::VertexAttribute& attribute : material.GetInstanceAttribs()) {
         uint32_t prevLocation = totalAttributes.empty() ? 0 : totalAttributes.back().location;
         totalAttributes.push_back(attribute);
@@ -472,7 +493,8 @@ void sge::Renderer::SubmitRaw(Ref<Mesh> mesh, Ref<Material> material, std::span<
     if (instanceDataPtr != nullptr && instanceByteSize > 0) {
         instanceOffset = instanceData.totalInstanceCount;
         if (!instanceData.vertexBufferArray) {
-            instanceData.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(batch.material->GetInstanceAttribs()));
+            LLGL::BufferDescriptor desc = LLGL::VertexBufferDesc(0, batch.material->GetInstanceAttribsStride());
+            instanceData.instanceBufferPool = BufferPool(*m_context, desc);
         }
         const auto* bytes = static_cast<const uint8_t*>(instanceDataPtr);
         instanceData.instanceBytes.insert(instanceData.instanceBytes.end(), bytes, bytes + instanceByteSize);
@@ -545,8 +567,9 @@ void sge::Renderer::SubmitManyRaw(
 
     if (instanceDataPtr != nullptr && instanceByteSize > 0) {
         instanceOffset = instanceData.totalInstanceCount;
-        if (instanceData.instanceBufferPool.GetVertexAttributes().empty()) {
-            instanceData.instanceBufferPool = VertexBufferPool(LLGL::VertexFormat(batch.material->GetInstanceAttribs()));
+        if (instanceData.instanceBufferPool.GetStride() == 0) {
+            LLGL::BufferDescriptor desc = LLGL::VertexBufferDesc(0, batch.material->GetInstanceAttribsStride());
+            instanceData.instanceBufferPool = BufferPool(*m_context, desc);
         }
         const auto* bytes = static_cast<const uint8_t*>(instanceDataPtr);
         instanceData.instanceBytes.insert(instanceData.instanceBytes.end(), bytes, bytes + instanceByteSize);
@@ -610,7 +633,8 @@ void sge::Renderer::FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, s
         m_command_buffer->DrawIndexedInstanced(indexCount, instanceCount, 0, 0, instanceCount);
     } else {
         auto vertexCount = mesh.GetVertexCount();
-        m_command_buffer->DrawInstanced(vertexCount, 0, instanceCount, instanceOffset);
+        const uint32_t actualInstanceOffset = hasInstanceBuffer ? instanceOffset : 0;
+        m_command_buffer->DrawInstanced(vertexCount, 0, instanceCount, actualInstanceOffset);
     }
 }
 
@@ -627,7 +651,7 @@ void sge::Renderer::UploadBatchBuffers() {
             SGE_ASSERT(instanceData.instanceBufferPool.Get() != nullptr);
             if (instanceData.vertexBufferArray)
                 m_context->Release(*instanceData.vertexBufferArray);
-            instanceData.vertexBufferArray = m_context->CreateBufferArray({ instanceData.mesh->GetVertexBuffer(), instanceData.instanceBufferPool.Get() });
+            instanceData.vertexBufferArray = m_context->CreateBufferArray({ instanceData.mesh->GetVertexBuffer().Get(), instanceData.instanceBufferPool.Get() });
         }
         m_command_buffer->UpdateBuffer(*instanceData.instanceBufferPool.Get(), 0, instanceData.instanceBytes.data(), instanceDataSize);
 

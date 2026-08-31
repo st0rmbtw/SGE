@@ -10,6 +10,7 @@
 #include <SGE/renderer/attributes.hpp>
 #include <SGE/renderer/material.hpp>
 #include <SGE/renderer/mesh.hpp>
+#include <SGE/renderer/types.hpp>
 #include <SGE/renderer/vertex_format.hpp>
 #include <SGE/types/backend.hpp>
 #include <SGE/utils/hash.hpp>
@@ -169,6 +170,24 @@ inline void HashVertexAttributes(uint64_t& hash, const std::vector<LLGL::VertexA
         sge::hash_combine(hash, attribute.semanticIndex);
         sge::hash_combine(hash, attribute.slot);
     }
+}
+
+inline LLGL::GraphicsPipelineDescriptor GraphicsPipelineDescFromMesh(const Mesh& mesh) {
+    LLGL::GraphicsPipelineDescriptor pipelineDesc;
+    pipelineDesc.inputVertexAttribs = mesh.GetVertexAttributes();
+    pipelineDesc.primitiveTopology = ConvertTopologyToLLGL(mesh.GetTopology());
+    pipelineDesc.rasterizer.frontCCW = mesh.GetFrontFace() == sge::FrontFace::CCW;
+    pipelineDesc.indexFormat = ConvertIndexFormatToLLGL(mesh.GetIndexFormat());
+    return pipelineDesc;
+}
+
+inline sge::GraphicsPipelineConfig GraphicsPipelineConfigFromMesh(const Mesh& mesh) {
+    sge::GraphicsPipelineConfig pipelineConfig;
+    pipelineConfig.inputVertexAttribs = mesh.GetVertexAttributes();
+    pipelineConfig.primitiveTopology = mesh.GetTopology();
+    pipelineConfig.frontFace = mesh.GetFrontFace();
+    pipelineConfig.indexFormat = mesh.GetIndexFormat();
+    return pipelineConfig;
 }
 
 } // namespace sge

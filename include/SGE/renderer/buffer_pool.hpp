@@ -1,8 +1,6 @@
 #ifndef SGE_RENDERER_BUFFER_POOL_HPP_
 #define SGE_RENDERER_BUFFER_POOL_HPP_
 
-#include <utility>
-
 #include <LLGL/Buffer.h>
 
 #include <SGE/renderer/context.hpp>
@@ -10,49 +8,44 @@
 
 namespace sge {
 
-class VertexBufferPool {
+class BufferPool {
 public:
-    explicit VertexBufferPool() = default;
+    BufferPool() = default;
 
-    explicit VertexBufferPool(LLGL::VertexFormat vertexFormat) :
-        m_vertex_format(std::move(vertexFormat))
-    {
-    }
-
-    explicit VertexBufferPool(sge::RenderContext& context, LLGL::VertexFormat vertexFormat, size_t size)
-        : m_vertex_format(std::move(vertexFormat))
-    {
-        Reserve(context, size);
+    explicit BufferPool(sge::RenderContext& context, const LLGL::BufferDescriptor& desc) : m_desc(desc) {
+        if (desc.size > 0) {
+            Reserve(context, desc.size);
+        }
     }
 
     bool Reserve(sge::RenderContext& context, size_t size) {
-        const size_t stride = m_vertex_format.GetStride();
-        if (stride > 0 && size > m_capacity) {
-            const size_t sizeBytes = ((size + stride - 1) / stride) * stride;
-            m_buffer = context.CreateVertexBuffer(sizeBytes, m_vertex_format);
-            m_capacity = sizeBytes;
-            return true;
+        if (size <= m_capacity)
+            return false;
+
+        const auto stride = m_desc.stride;
+
+        if (stride > 0) {
+            size = ((size + stride - 1) / stride) * stride;
         }
-        return false;
+
+        m_buffer = context.CreateVertexBuffer(size, stride);
+        m_capacity = size;
+
+        return true;
     }
 
     [[nodiscard]]
-    LLGL::Buffer* Get() const {
+    LLGL::Buffer* Get() const noexcept {
         return m_buffer;
     }
 
     [[nodiscard]]
-    const std::vector<LLGL::VertexAttribute>& GetVertexAttributes() const noexcept {
-        return m_vertex_format.attributes;
-    }
-
-    [[nodiscard]]
-    size_t GetStride() const {
-        return m_vertex_format.GetStride();
+    size_t GetStride() const noexcept {
+        return m_desc.stride;
     }
 
 private:
-    LLGL::VertexFormat m_vertex_format;
+    LLGL::BufferDescriptor m_desc = {};
     sge::Unique<LLGL::Buffer> m_buffer = nullptr;
     size_t m_capacity = 0;
 };

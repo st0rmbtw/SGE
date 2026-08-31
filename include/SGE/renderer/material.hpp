@@ -317,6 +317,11 @@ public:
     }
 
     [[nodiscard]]
+    uint32_t GetInstanceAttribsStride() const noexcept {
+        return !m_instance_attribs.empty() ? m_instance_attribs[0].stride : 0;
+    }
+
+    [[nodiscard]]
     const sge::Ref<LLGL::Shader>& GetVertexShader() const {
         return m_vertex_shader;
     }

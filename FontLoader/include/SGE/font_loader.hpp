@@ -54,8 +54,12 @@ struct FontDataVector {
     int16_t descender;
 };
 
-FontDataSDF LoadSdfFontDataFromBytes(std::span<const uint8_t> buffer);
-FontDataSDF LoadSdfFontDataFromFile(const std::string& path);
+struct SdfSettings {
+    uint16_t font_size = 96;
+};
+
+FontDataSDF LoadSdfFontDataFromBytes(std::span<const uint8_t> buffer, const SdfSettings& settings = {});
+FontDataSDF LoadSdfFontDataFromFile(const std::string& path, const SdfSettings& settings = {});
 
 FontDataVector LoadVectorFontDataFromBytes(std::span<const uint8_t> buffer);
 FontDataVector LoadVectorFontDataFromFile(const std::string& path);

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <SGE/engine.hpp>
+#include <SGE/renderer/types.hpp>
 #include <SGE/renderer/renderer2d.hpp>
 #include <SGE/types/backend.hpp>
 
@@ -37,6 +38,7 @@ private:
     glm::vec3 m_clear_color = glm::vec3(0.4f, 0.4f, 0.4f);
 
     sge::BloomSettings m_bloom_settings;
+    sge::TonemapSettings m_tonemap_settings;
 
     float m_yaw = 0.0f;
     float m_pitch = 0.0f;

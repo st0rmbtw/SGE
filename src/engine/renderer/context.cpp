@@ -775,7 +775,6 @@ sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_t
         shader_desc.profile = shader_type.Profile(backend);
     }
 
-    shader_desc.vertex = config.vertex;
     shader_desc.fragment = config.fragment;
 
     if (backend.IsOpenGL() && shader_type.IsFragment()) {

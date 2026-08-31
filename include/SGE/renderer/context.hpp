@@ -215,34 +215,34 @@ public:
         return Raw<LLGL::Buffer>::Create(shared_from_this(), m_context->CreateBuffer(desc, initialData));
     }
 
-    inline Raw<LLGL::BufferArray> CreateBufferArray(std::initializer_list<LLGL::Buffer*> buffers) {
-        return Raw<LLGL::BufferArray>::Create(shared_from_this(), m_context->CreateBufferArray(buffers.size(), buffers.begin()));
+    inline Raw<LLGL::BufferArray> CreateBufferArray(std::initializer_list<LLGL::VertexBufferView> buffers) {
+        return Raw<LLGL::BufferArray>::Create(shared_from_this(), m_context->CreateBufferArray(buffers));
     }
 
     template <typename Container>
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(const Container& vertices, const LLGL::VertexFormat& vertexFormat, const char* debugName = nullptr) {
+    inline Raw<LLGL::Buffer> CreateVertexBuffer(const Container& vertices, size_t stride, const char* debugName = nullptr) {
         LLGL::BufferDescriptor bufferDesc;
-        bufferDesc.size           = GetArraySize(vertices);
         bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
-        bufferDesc.vertexAttribs  = vertexFormat.attributes;
+        bufferDesc.size           = GetArraySize(vertices);
+        bufferDesc.stride         = stride;
         bufferDesc.debugName      = debugName;
         return CreateBuffer(bufferDesc, &vertices[0]);
     }
 
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(const void* data, size_t size, const LLGL::VertexFormat& vertexFormat, const char* debugName = nullptr) {
+    inline Raw<LLGL::Buffer> CreateVertexBuffer(const void* data, size_t size, size_t stride, const char* debugName = nullptr) {
         LLGL::BufferDescriptor bufferDesc;
-        bufferDesc.size           = size;
         bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
-        bufferDesc.vertexAttribs  = vertexFormat.attributes;
+        bufferDesc.size           = size;
+        bufferDesc.stride         = stride;
         bufferDesc.debugName      = debugName;
         return CreateBuffer(bufferDesc, data);
     }
 
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t size, const LLGL::VertexFormat& vertexFormat, const char* debugName = nullptr) {
+    inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t size, size_t stride, const char* debugName = nullptr) {
         LLGL::BufferDescriptor bufferDesc;
-        bufferDesc.size           = size;
         bufferDesc.bindFlags      = LLGL::BindFlags::VertexBuffer;
-        bufferDesc.vertexAttribs  = vertexFormat.attributes;
+        bufferDesc.size           = size;
+        bufferDesc.stride         = stride;
         bufferDesc.debugName      = debugName;
         return CreateBuffer(bufferDesc);
     }

@@ -18,10 +18,12 @@
 
 #include "shaders.hpp"
 
-static constexpr float ComputeTextBaseline(sge::TextAlignment alignment, float y, float scale, int16_t ascender, int16_t descender) {
+namespace {
+
+constexpr float ComputeTextBaseline(sge::TextAlignment alignment, float y, float scale, int16_t ascender, int16_t descender) {
     switch (alignment) {
     case sge::TextAlignment::Top: {
-        return y + float(ascender) * scale;
+        return y + static_cast<float>(ascender) * scale;
     }
     case sge::TextAlignment::Center: {
         const int16_t font_height_design = ascender - descender;
@@ -32,6 +34,8 @@ static constexpr float ComputeTextBaseline(sge::TextAlignment alignment, float y
         return y + font_height_design * scale;
     }
     }
+}
+
 }
 
 sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {

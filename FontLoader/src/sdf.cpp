@@ -13,7 +13,6 @@
 #include "common.hpp"
 
 namespace {
-    constexpr uint32_t SDF_FONT_SIZE = 96;
     constexpr uint32_t SDF_PADDING = 2;
 
     struct GlyphInfo {
@@ -46,7 +45,10 @@ namespace {
     };
 } // namespace
 
-sge::font_loader::FontDataSDF sge::font_loader::LoadSdfFontDataFromBytes(std::span<const uint8_t> buffer) {
+sge::font_loader::FontDataSDF sge::font_loader::LoadSdfFontDataFromBytes(
+    std::span<const uint8_t> buffer,
+    const SdfSettings& settings
+) {
     FT_Library library;
     FT_Init_FreeType(&library);
 
@@ -55,7 +57,7 @@ sge::font_loader::FontDataSDF sge::font_loader::LoadSdfFontDataFromBytes(std::sp
 
     FT_Face face;
     FT_New_Memory_Face(library, buffer.data(), buffer.size(), 0, &face);
-    FT_Set_Pixel_Sizes(face, 0, SDF_FONT_SIZE);
+    FT_Set_Pixel_Sizes(face, 0, settings.font_size);
 
     FT_UInt index;
     FT_ULong character = FT_Get_First_Char(face, &index);
@@ -156,7 +158,7 @@ sge::font_loader::FontDataSDF sge::font_loader::LoadSdfFontDataFromBytes(std::sp
         });
     }
 
-    const float base_scale = float(SDF_FONT_SIZE) / float(face->units_per_EM);
+    const float base_scale = static_cast<float>(settings.font_size) / static_cast<float>(face->units_per_EM);
 
     return FontDataSDF {
         .glyphs = std::move(glyphs),
@@ -164,15 +166,18 @@ sge::font_loader::FontDataSDF sge::font_loader::LoadSdfFontDataFromBytes(std::sp
         .atlas_data_size = atlas_data_size,
         .atlas_width = atlas_width,
         .atlas_height = atlas_height,
-        .font_size = SDF_FONT_SIZE,
+        .font_size = static_cast<float>(settings.font_size),
         .base_scale = base_scale,
         .ascender = face->ascender,
         .descender = face->descender
     };
 }
 
-sge::font_loader::FontDataSDF sge::font_loader::LoadSdfFontDataFromFile(const std::string& path) {
+sge::font_loader::FontDataSDF sge::font_loader::LoadSdfFontDataFromFile(
+    const std::string& path,
+    const SdfSettings& settings
+) {
     std::vector<uint8_t> buffer;
     common::ReadEntireFile(path, buffer);
-    return sge::font_loader::LoadSdfFontDataFromBytes(buffer);
+    return sge::font_loader::LoadSdfFontDataFromBytes(buffer, settings);
 }

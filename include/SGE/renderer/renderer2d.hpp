@@ -21,7 +21,7 @@ struct BatchSubmission {
 };
 
 struct BufferPoolEntry {
-    VertexBufferPool buffer;
+    BufferPool buffer;
     bool occupied;
 };
 
@@ -49,7 +49,6 @@ private:
     void InitVectorPipeline();
 
 private:
-    LLGL::VertexFormat m_vector_vertex_format;
     Ref<LLGL::Shader> m_vector_vertex_shader;
     Ref<LLGL::Shader> m_vector_fragment_shader;
     Ref<LLGL::PipelineLayout> m_vector_stencil_pipeline_layout;

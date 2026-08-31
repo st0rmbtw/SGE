@@ -71,7 +71,7 @@ public:
         BeginPass(m_context->GetOrCreateSwapChain(window), camera);
     }
 
-    void TonemapPass(sge::Framebuffer& framebuffer);
+    void TonemapPass(sge::Framebuffer& framebuffer, const sge::TonemapSettings& settings = {});
     void BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSettings& settings = {});
 
     inline void Clear(const LLGL::ClearValue& clear_value = LLGL::ClearValue(0.0f, 0.0f, 0.0f, 1.0f), long clear_flags = LLGL::ClearFlags::Color) {
@@ -153,13 +153,8 @@ public:
     }
 
     [[nodiscard]]
-    inline const Ref<LLGL::Buffer>& FullscreenTriangleVertexBuffer() const noexcept {
-        return m_fullscreen_triangle_vertex_buffer;
-    }
-
-    [[nodiscard]]
-    inline const LLGL::VertexFormat& FullscreenTriangleVertexFormat() const noexcept {
-        return m_fullscreen_triangle_vertex_format;
+    inline const Ref<Mesh>& FullscreenTriangleMesh() const noexcept {
+        return m_fullscreen_triangle_mesh;
     }
 
     [[nodiscard]]
@@ -227,7 +222,7 @@ private:
     };
 
     struct InstanceData {
-        sge::VertexBufferPool instanceBufferPool;
+        sge::BufferPool instanceBufferPool;
         sge::Unique<LLGL::BufferArray> vertexBufferArray;
         std::vector<uint8_t> instanceBytes;
         sge::Ref<Mesh> mesh;
@@ -249,7 +244,7 @@ private:
 
 private:
     void InitBloomPipelines();
-    void InitTonemapPipelines();
+    void InitTonemapPipeline(Tonemapping method);
 
     void FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, size_t instanceCount);
     void UploadBatchBuffers();
@@ -263,7 +258,7 @@ protected:
 
     std::vector<MeshBatchSubmission> m_batch_submissions;
 
-    LLGL::VertexFormat m_fullscreen_triangle_vertex_format;
+    sge::Ref<Mesh> m_fullscreen_triangle_mesh;
 
     std::vector<sge::TemporaryFramebuffer> m_bloom_framebuffers;
     Unique<LLGL::Buffer> m_bloom_cb;
@@ -273,10 +268,11 @@ protected:
     Unique<LLGL::PipelineState> m_bloom_upsample_pipeline;
     Unique<LLGL::PipelineState> m_bloom_composite_pipeline;
 
+    Unique<LLGL::Buffer> m_tonemap_cb;
+    Unique<LLGL::PipelineLayout> m_tonemap_pipeline_layout;
     Unique<LLGL::RenderPass> m_tonemap_render_pass;
-    Unique<LLGL::PipelineState> m_tonemap_aces_pipeline;
+    Unique<LLGL::PipelineState> m_tonemap_pipelines[2];
 
-    Ref<LLGL::Buffer> m_fullscreen_triangle_vertex_buffer;
     Ref<LLGL::Shader> m_fullscreen_triangle_vertex_shader;
 
     Ref<LLGL::Shader> m_blit_pixel_shader;
@@ -296,6 +292,7 @@ protected:
     LLGL::Extent2D m_viewport = LLGL::Extent2D(0, 0);
 
     BloomSettings m_prev_bloom_settings = { .maxIterations = 0 };
+    TonemapSettings m_prev_tonemap_settings = { .exposure = -1231232.0f };
 };
 
 } // namespace sge

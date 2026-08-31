@@ -39,10 +39,6 @@ bool BatchStateEqual(const sge::internal::BatchState& a, const sge::internal::Ba
 } // namespace
 
 sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Renderer(context) {
-    m_vector_vertex_format = sge::VertexAttributes(m_context->Backend(), {
-        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position")
-    });
-    m_vector_vertex_buffer = m_context->CreateVertexBuffer(VECTOR_VERTEX_BUFFER_SIZE * sizeof(glm::vec2), m_vector_vertex_format, "Vector Vertex Buffer");
 }
 
 void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
@@ -222,12 +218,14 @@ void sge::Renderer2D::FlushBatches() {
 }
 
 void sge::Renderer2D::InitVectorPipeline() {
-    sge::ShaderConfig shaderConfig;
-    shaderConfig.vertex.inputAttribs = m_vector_vertex_format.attributes;
+    LLGL::VertexFormat vertexFormat = sge::VertexAttributes(m_context->Backend(), {
+        sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "a_position", "Position")
+    });
+    m_vector_vertex_buffer = m_context->CreateVertexBuffer(VECTOR_VERTEX_BUFFER_SIZE * sizeof(glm::vec2), vertexFormat.GetStride(), "Vector Vertex Buffer");
 
     ShaderSourceCode shader = GetVectorShaderSourceCode(m_context->Backend());
-    m_vector_vertex_shader = m_context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
-    m_vector_fragment_shader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size, shaderConfig);
+    m_vector_vertex_shader = m_context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size);
+    m_vector_fragment_shader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
 
     {
         LLGL::PipelineLayoutDescriptor layoutDesc;
@@ -242,6 +240,7 @@ void sge::Renderer2D::InitVectorPipeline() {
         stencilPipelineDesc.debugName = "Vector Stencil Pipeline";
         stencilPipelineDesc.pipelineLayout = m_vector_stencil_pipeline_layout;
         stencilPipelineDesc.vertexShader = m_vector_vertex_shader;
+        stencilPipelineDesc.inputVertexAttribs = vertexFormat.attributes;
 
         stencilPipelineDesc.blend.targets[0].blendEnabled = false;
         stencilPipelineDesc.blend.targets[0].colorMask = LLGL::ColorMaskFlags::Zero;
@@ -276,6 +275,7 @@ void sge::Renderer2D::InitVectorPipeline() {
         coverPipelineDesc.pipelineLayout = m_vector_cover_pipeline_layout;
         coverPipelineDesc.vertexShader = m_vector_vertex_shader;
         coverPipelineDesc.fragmentShader = m_vector_fragment_shader;
+        coverPipelineDesc.inputVertexAttribs = vertexFormat.attributes;
 
         coverPipelineDesc.stencil.testEnabled = true;
         coverPipelineDesc.stencil.front.compareOp = LLGL::CompareOp::NotEqual;

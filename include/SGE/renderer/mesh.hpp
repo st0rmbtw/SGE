@@ -150,22 +150,20 @@ public:
     MeshDesc&& SetVertices(const TContainer& vertices) && {
         using ElementType = std::ranges::range_value_t<TContainer>;
         const void* data = std::data(vertices);
-        const size_t size = std::size(vertices);
-        const size_t size_bytes = std::size(vertices) * sizeof(ElementType);
-        return std::move(*this).SetVertexData(data, size_bytes, static_cast<uint32_t>(size));
+        const size_t sizeBytes = std::size(vertices) * sizeof(ElementType);
+        return std::move(*this).SetVertexData(data, sizeBytes);
     }
 
-    MeshDesc&& SetVertexData(const void* data, size_t byte_size, uint32_t vertex_count) && {
+    MeshDesc&& SetVertexData(const void* data, size_t byteSize) && {
         if (m_vertex_data) {
             free(m_vertex_data);
             m_vertex_data = nullptr;
         }
 
-        m_vertex_count = vertex_count;
+        m_vertex_data = sge::checked_alloc<uint8_t>(byteSize);
+        m_vertex_data_size = byteSize;
 
-        m_vertex_size = byte_size;
-        m_vertex_data = sge::checked_alloc<uint8_t>(byte_size);
-        memcpy(m_vertex_data, data, byte_size);
+        memcpy(m_vertex_data, data, byteSize);
 
         return std::move(*this);
     }
@@ -186,13 +184,8 @@ public:
     }
 
     [[nodiscard]]
-    size_t GetVertexSize() const {
-        return m_vertex_size;
-    }
-
-    [[nodiscard]]
-    uint32_t GetVertexCount() const {
-        return m_vertex_count;
+    size_t GetVertexDataSize() const {
+        return m_vertex_data_size;
     }
 
     [[nodiscard]]
@@ -209,8 +202,7 @@ private:
     std::vector<MeshAttribute> m_attributes;
     Indices m_indices;
     void* m_vertex_data = nullptr;
-    size_t m_vertex_size = 0;
-    uint32_t m_vertex_count = 0;
+    size_t m_vertex_data_size = 0;
 
     PrimitiveTopology m_topology = PrimitiveTopology::TriangleList;
     FrontFace m_front_face = FrontFace::CCW;
@@ -221,8 +213,8 @@ public:
     explicit Mesh(sge::RenderContext& context, const MeshDesc& desc);
 
     [[nodiscard]]
-    const LLGL::VertexFormat& GetVertexFormat() const noexcept {
-        return m_vertex_format;
+    const std::vector<LLGL::VertexAttribute>& GetVertexAttributes() const noexcept {
+        return m_vertex_attributes;
     }
 
     [[nodiscard]]
@@ -266,7 +258,7 @@ public:
     }
 
 private:
-    LLGL::VertexFormat m_vertex_format;
+    std::vector<LLGL::VertexAttribute> m_vertex_attributes;
     sge::Unique<LLGL::Buffer> m_vertex_buffer;
     sge::Unique<LLGL::Buffer> m_index_buffer;
     uint64_t m_layout_hash = 0;

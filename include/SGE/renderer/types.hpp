@@ -209,7 +209,6 @@ struct FramebufferConfig {
 };
 
 struct ShaderConfig {
-    LLGL::VertexShaderAttributes vertex;
     LLGL::FragmentShaderAttributes fragment;
 };
 
@@ -227,6 +226,21 @@ inline constexpr bool operator==(const BloomSettings& a, const BloomSettings& b)
            a.intensity == b.intensity &&
            a.scatter == b.scatter &&
            a.maxIterations == b.maxIterations;
+}
+
+enum class Tonemapping : uint8_t {
+    AcesFit = 0,
+    Aces,
+};
+
+struct TonemapSettings {
+    float exposure = 0.67f;
+    Tonemapping method = Tonemapping::AcesFit;
+};
+
+inline constexpr bool operator==(const TonemapSettings& a, const TonemapSettings& b) noexcept {
+    return a.exposure == b.exposure
+        && a.method == b.method;
 }
 
 struct SpriteBatchPipeline {

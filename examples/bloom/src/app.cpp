@@ -238,7 +238,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         m_renderer->EndPass();
 
         m_renderer->BloomPass(framebuffer, m_bloom_settings);
-        m_renderer->TonemapPass(framebuffer);
+        m_renderer->TonemapPass(framebuffer, m_tonemap_settings);
 
         m_renderer->BeginPass(window);
         {
@@ -251,15 +251,21 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                     ImGui::NewFrame();
                     {
                         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
-                        ImGui::Begin("Bloom");
+                        ImGui::Begin("Settings");
                         {
-                            ImGui::DragFloat("Threshold", &m_bloom_settings.threshold, 0.05f, 0.0f, 100.0f);
-                            ImGui::DragFloat("Knee", &m_bloom_settings.knee, 0.01f, 0.0001f, 1.0f);
-                            ImGui::DragFloat("Intensity", &m_bloom_settings.intensity, 0.01f, 0.0f, 10.0f);
-                            ImGui::DragFloat("Scatter", &m_bloom_settings.scatter, 0.1f, 0.0f, 10.0f);
-                            ImGui::DragScalar("Max Iterations", ImGuiDataType_U8, &m_bloom_settings.maxIterations);
-                            ImGui::ColorPicker3("Clear Color", &m_clear_color.r);
-                            ImGui::ColorPicker3("Object Color", &m_uniforms.object_color.r, ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoPicker);
+                            if (ImGui::CollapsingHeader("Tonemap")) {
+                                ImGui::DragFloat("Exposure", &m_tonemap_settings.exposure, 0.05f, 0.0f, 0.0f, "%.5f");
+                            }
+
+                            if (ImGui::CollapsingHeader("Bloom")) {
+                                ImGui::DragFloat("Threshold", &m_bloom_settings.threshold, 0.05f, 0.0f, 100.0f);
+                                ImGui::DragFloat("Knee", &m_bloom_settings.knee, 0.01f, 0.0001f, 1.0f);
+                                ImGui::DragFloat("Intensity", &m_bloom_settings.intensity, 0.01f, 0.0f, 10.0f);
+                                ImGui::DragFloat("Scatter", &m_bloom_settings.scatter, 0.1f, 0.0f, 10.0f);
+                                ImGui::DragScalar("Max Iterations", ImGuiDataType_U8, &m_bloom_settings.maxIterations);
+                                ImGui::ColorPicker3("Clear Color", &m_clear_color.r);
+                                ImGui::ColorPicker3("Object Color", &m_uniforms.object_color.r, ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoPicker);
+                            }
                         }
                         ImGui::End();
                     }

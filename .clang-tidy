@@ -11,4 +11,5 @@ Checks: >
     -bugprone-narrowing-conversions,
     -bugprone-easily-swappable-parameters,
     -misc-non-private-member-variables-in-classes,
-    readability-static-definition-in-anonymous-namespace,
+    -llvm-*,
+    readability-static-definition-in-anonymous-namespace

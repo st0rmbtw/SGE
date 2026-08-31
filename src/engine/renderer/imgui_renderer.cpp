@@ -41,8 +41,6 @@
 
 namespace {
 struct BackendData {
-    LLGL::VertexFormat VertexFormat;
-
     std::shared_ptr<sge::RenderContext> Context;
     sge::Unique<LLGL::Buffer> ConstantBuffer;
     sge::Unique<LLGL::Buffer> IndexBuffer;
@@ -52,6 +50,8 @@ struct BackendData {
     sge::Ref<LLGL::PipelineLayout> PipelineLayout;
 
     sge::PipelineId PipelineId;
+
+    uint32_t VerticesStride;
 
     uint32_t VertexBufferSize = 5000;
     uint32_t IndexBufferSize = 10000;
@@ -255,18 +255,17 @@ bool CreatePipelineObjects() {
     };
     bd->PipelineLayout = bd->Context->CreatePipelineLayout(layoutDesc);
 
-    bd->VertexFormat = sge::VertexAttributes(bd->Context->Backend(), {
+    LLGL::VertexFormat vertexFormat = sge::VertexAttributes(bd->Context->Backend(), {
         sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_position", "Position"),
         sge::Attribute::Vertex(sge::VertexFormat::Float32x2, "inp_uv", "UV"),
         sge::Attribute::Vertex(sge::VertexFormat::Unorm8x4, "inp_color", "Color"),
     });
 
+    bd->VerticesStride = vertexFormat.GetStride();
+
     ShaderSourceCode shader = GetImguiShaderSourceCode(bd->Context->Backend());
 
-    sge::ShaderConfig shaderConfig;
-    shaderConfig.vertex.inputAttribs = bd->VertexFormat.attributes;
-
-    sge::Ref<LLGL::Shader> vertexShader = bd->Context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size, shaderConfig);
+    sge::Ref<LLGL::Shader> vertexShader = bd->Context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size);
     sge::Ref<LLGL::Shader> pixelShader = bd->Context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
 
     sge::GraphicsPipelineConfig config;
@@ -274,6 +273,7 @@ bool CreatePipelineObjects() {
         config.layout = bd->PipelineLayout;
         config.vertexShader = std::move(vertexShader);
         config.pixelShader = std::move(pixelShader);
+        config.inputVertexAttribs = vertexFormat.attributes;
         config.indexFormat = sizeof(ImDrawIdx) == 2 ? sge::IndexFormat::U16 : sge::IndexFormat::U32;
         config.cullMode = sge::CullMode::None;
         config.scissorTestEnabled = true;
@@ -486,10 +486,10 @@ void ImGuiRenderer::RenderDrawData(const ImDrawData* draw_data) {
         bd->VertexBufferSize = bd->GlobalVtxOffset + draw_data->TotalVtxCount + 5000;
 
         LLGL::BufferDescriptor desc;
+        desc.bindFlags = LLGL::BindFlags::VertexBuffer;
         desc.miscFlags = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
         desc.size = bd->VertexBufferSize * sizeof(ImDrawVert);
-        desc.bindFlags = LLGL::BindFlags::VertexBuffer;
-        desc.vertexAttribs = bd->VertexFormat.attributes;
+        desc.stride = bd->VerticesStride;
 
         bd->VertexBuffer = bd->Context->CreateBuffer(desc);
         bd->VertexDataBuffer = new uint8_t[bd->VertexBufferSize * sizeof(ImDrawVert)];
@@ -499,9 +499,9 @@ void ImGuiRenderer::RenderDrawData(const ImDrawData* draw_data) {
         bd->IndexBufferSize = bd->GlobalIdxOffset + draw_data->TotalIdxCount + 10000;
 
         LLGL::BufferDescriptor desc;
+        desc.bindFlags = LLGL::BindFlags::IndexBuffer;
         desc.miscFlags = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
         desc.size = bd->IndexBufferSize * sizeof(ImDrawIdx);
-        desc.bindFlags = LLGL::BindFlags::IndexBuffer;
         desc.format = sizeof(ImDrawIdx) == 2 ? LLGL::Format::R16UInt : LLGL::Format::R32UInt;
 
         bd->IndexBuffer = bd->Context->CreateBuffer(desc);

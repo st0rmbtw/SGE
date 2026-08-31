@@ -57,17 +57,19 @@ def write_bytes(f, name):
     return f"static const unsigned char {name}[] = {{{content}}};\n\n"
 
 SHADER_SOURCE_STRUCTURE_CODE = """struct ShaderSourceCode {
+    ShaderSourceCode() = default;
+
     ShaderSourceCode(const void* v, size_t vs, const void* f, size_t fs) :
         vs_source(v),
         vs_size(vs),
         fs_source(f),
         fs_size(fs) {}
 
-    const void* vs_source;
-    size_t vs_size;
+    const void* vs_source = nullptr;
+    size_t vs_size = 0;
 
-    const void* fs_source;
-    size_t fs_size;
+    const void* fs_source = nullptr;
+    size_t fs_size = 0;
 };
 """
 
