@@ -21,10 +21,10 @@ option(SGE_BUILD_STATIC "Build SGE as static library" ON)
 option(SGE_BUILD_EXAMPLES "Build examples" OFF)
 option(SGE_ENABLE_PROFILE "Enable profiling via Tracy" OFF)
 option(SGE_ENABLE_IMGUI "Enable ImGui integration" OFF)
-option(SGE_BACKEND_VULKAN "Enable the Vulkan backend" OFF)
-option(SGE_DEBUG_LAYER "Enable the debug layer" OFF)
+option(SGE_ENABLE_BACKEND_VULKAN "Enable the Vulkan backend" OFF)
 option(SGE_ENABLE_DEFAULT_FONT "Enable the default font" ON)
 option(SGE_ENABLE_HARDENING "Enable hardening" OFF)
+option(SGE_DEBUG_LAYER "Enable the debug layer" OFF)
 
 set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
 

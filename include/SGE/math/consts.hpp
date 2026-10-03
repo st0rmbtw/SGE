@@ -30,7 +30,7 @@ namespace sge::consts {
     namespace vec2 {
         inline glm::vec2 ONE = glm::vec2(1.f);
         inline glm::vec2 ZERO = glm::vec2(0.f);
-        
+
         inline glm::vec2 X = glm::vec2(1.f, 0.f);
         inline glm::vec2 Y = glm::vec2(0.f, 1.f);
 

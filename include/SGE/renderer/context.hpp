@@ -293,14 +293,16 @@ public:
         return CreateBuffer(bufferDesc);
     }
 
-    template <typename Container>
-    inline Raw<LLGL::Buffer> CreateConstantBuffer(const Container& data, const char* debugName = nullptr) {
+    template <std::ranges::contiguous_range R>
+    inline Raw<LLGL::Buffer> CreateConstantBuffer(R&& data, const char* debugName = nullptr) {
+        auto span = std::span(std::forward<R>(data));
+
         LLGL::BufferDescriptor bufferDesc;
-        bufferDesc.size           = GetArraySize(data);
+        bufferDesc.size           = span.size_bytes();
         bufferDesc.bindFlags      = LLGL::BindFlags::ConstantBuffer;
         bufferDesc.miscFlags      = LLGL::MiscFlags::DynamicUsage;
         bufferDesc.debugName      = debugName;
-        return CreateBuffer(bufferDesc, data);
+        return CreateBuffer(bufferDesc, span.data());
     }
 
     inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, LLGL::Format format, const void* initialData, const char* debugName = nullptr) {

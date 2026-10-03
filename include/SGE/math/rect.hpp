@@ -125,6 +125,15 @@ public:
         );
     }
 
+    [[nodiscard]]
+    inline constexpr self union_point(const vec_t& point) {
+        auto min_x = glm::min(this->min.x, point.x);
+        auto min_y = glm::min(this->min.y, point.y);
+        auto max_x = glm::max(this->max.x, point.x);
+        auto max_y = glm::max(this->max.y, point.y);
+        return self(vec_t(min_x, min_y), vec_t(max_x, max_y));
+    }
+
     template <typename S> constexpr self operator+(const S rhs) const noexcept = delete;
     template <typename S> constexpr self operator-(const S rhs) const noexcept = delete;
     template <typename S> constexpr self operator*(const S rhs) const noexcept = delete;
