@@ -61,7 +61,7 @@ bool App::OnInit() {
     m_cameras[window->GetID()].set_samples(m_config.samples);
 
     m_renderer = std::make_shared<sge::Renderer2D>(GetRenderContext());
-    m_draw_ctx = std::make_unique<sge::DrawContext>(m_renderer);
+    m_draw_ctx = std::make_unique<sge::BatchGroup>(m_renderer);
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -319,4 +319,3 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     }
     #endif
 }
-

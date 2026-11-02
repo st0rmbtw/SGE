@@ -113,7 +113,7 @@ struct DrawState {
     sge::IRect scissor;
     uint32_t order;
     sge::BlendMode blendMode;
-    sge::BitFlags<BatchFlags> flags;
+    std::optional<sge::BitFlags<BatchFlags>> customFlags;
 };
 
 class IBatch : public RefCounted {
@@ -636,6 +636,7 @@ size_t BatchTypeId() {
     return id;
 }
 
+// Utility template struct for mapping a drawable item to the batch that renders it.
 template<class Item> struct BatchFor;
 template<> struct BatchFor<Sprite> { using type = SpriteBatch; };
 template<> struct BatchFor<TextureAtlasSprite> { using type = SpriteBatch; };
@@ -647,9 +648,9 @@ template<> struct BatchFor<SdfTextDrawData> { using type = TextSdfBatch; };
 /*
  * A helper class for dispatching different types of draw commands to corresponding Batch instances.
  */
-class DrawContext {
+class BatchGroup {
 public:
-    explicit DrawContext(std::shared_ptr<Renderer2D> renderer) :
+    explicit BatchGroup(std::shared_ptr<Renderer2D> renderer) :
         m_renderer(std::move(renderer)) {}
 
     // Construct (or replace) a batch with custom ctor args.
@@ -677,7 +678,7 @@ public:
         state.scissor = GetCurrentScissor().value_or(sge::IRect());
         state.order = GetOrder();
         state.blendMode = m_blend_mode;
-        state.flags = {}; // TODO: flags
+        state.customFlags = std::nullopt;
         Batch<typename BatchFor<Item>::type>().Add(item, state);
         return state.order;
     }
@@ -688,7 +689,7 @@ public:
         state.scissor = GetCurrentScissor().value_or(sge::IRect());
         state.order = GetOrder(call.GetCustomOrder());
         state.blendMode = m_blend_mode;
-        state.flags = call.GetCustomFlags().value_or({}); // TODO: flags
+        state.customFlags = call.GetCustomFlags();
 
         using WithoutCvRef = std::remove_cvref_t<Item>;
         using PureType = std::remove_pointer_t<WithoutCvRef>;

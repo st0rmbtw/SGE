@@ -60,7 +60,7 @@ bool App::OnInit() {
     m_camera.set_samples(m_config.samples);
 
     m_renderer = std::make_shared<sge::Renderer2D>(GetRenderContext());
-    m_draw_ctx = std::make_unique<sge::DrawContext>(m_renderer);
+    m_draw_ctx = std::make_unique<sge::BatchGroup>(m_renderer);
 
     // m_font = sge::LoadFontVector("../../examples/text/src/JetBrainsMono-Regular.ttf", *GetRenderContext());
     // m_font_sdf = sge::LoadFont("../../examples/text/src/JetBrainsMono-Regular.ttf", *GetRenderContext());

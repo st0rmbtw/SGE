@@ -24,7 +24,7 @@ protected:
 
 private:
     std::shared_ptr<sge::Renderer2D> m_renderer;
-    std::unique_ptr<sge::DrawContext> m_draw_ctx;
+    std::unique_ptr<sge::BatchGroup> m_draw_ctx;
     sge::Camera m_camera;
     ExampleConfig m_config;
 };

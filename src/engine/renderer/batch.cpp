@@ -102,7 +102,7 @@ void sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, const
         .size = sprite.size(),
         .offset = sprite.anchor().to_vec2(),
         .outline_thickness = sprite.outline_thickness(),
-        .flags = state.flags.data()
+        .flags = state.customFlags.value_or(GetFlags()).data()
     });
 }
 
@@ -204,7 +204,7 @@ void sge::NinePatchBatch::Add(const NinePatch& ninepatch, const DrawState& state
         .offset = ninepatch.anchor().to_vec2(),
         .source_size = glm::vec2(ninepatch.texture().size()),
         .output_size = ninepatch.size(),
-        .flags = state.flags.data()
+        .flags = state.customFlags.value_or(GetFlags()).data()
     });
 }
 
@@ -263,7 +263,7 @@ void sge::LineBatch::Add(const LineDrawData& data, const DrawState& state) {
         .color = data.color.to_vec4(),
         .border_radius = radius,
         .thickness = data.thickness,
-        .flags = state.flags.data()
+        .flags = state.customFlags.value_or(GetFlags()).data()
     });
 }
 
@@ -369,7 +369,7 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
                 .size = size,
                 .tex_size = ch.data.sdf.tex_size,
                 .uv = ch.data.sdf.texture_coords,
-                .flags = state.flags.data()
+                .flags = state.customFlags.value_or(GetFlags()).data()
             });
 
             x += ch.advance * scale * data.font.base_scale;
@@ -477,7 +477,7 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
                 .em_size = ch.size,
                 .partition_offset = ch.data.vector.partition_offset,
                 .partition_count = ch.data.vector.partition_count,
-                .flags = state.flags.data()
+                .flags = state.customFlags.value_or(GetFlags()).data()
             });
 
             x += ch.advance * scale;
@@ -546,11 +546,11 @@ void sge::ShapeBatch::Add(const sge::ShapeDrawData& data, const sge::DrawState& 
         .offset = data.anchor.to_vec2(),
         .border_thickness = data.borderThickness,
         .shape = data.type,
-        .flags = state.flags.data(),
+        .flags = state.customFlags.value_or(GetFlags()).data(),
     });
 }
 
-void sge::DrawContext::Submit() {
+void sge::BatchGroup::Submit() {
     for (auto& batch : m_batches) {
         m_renderer->SubmitBatch(batch);
     }

@@ -57,7 +57,7 @@ bool App::OnInit() {
     m_camera.set_viewport(resolution.width, resolution.height);
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
-    m_draw_ctx = std::make_unique<sge::DrawContext>(m_renderer);
+    m_draw_ctx = std::make_unique<sge::BatchGroup>(m_renderer);
 
     uint64_t totalMemorySize = Clay_MinMemorySize();
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, (char *)malloc(totalMemorySize));

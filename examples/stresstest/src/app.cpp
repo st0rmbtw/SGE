@@ -62,7 +62,7 @@ bool App::OnInit() {
     m_camera.set_samples(m_config.samples);
 
     m_renderer = std::make_shared<sge::Renderer2D>(GetRenderContext());
-    m_draw_ctx = std::make_unique<sge::DrawContext>(m_renderer);
+    m_draw_ctx = std::make_unique<sge::BatchGroup>(m_renderer);
 
     sge::TextureConfig textureConfig;
     textureConfig.sampler = GetRenderContext()->GetNearestSampler();

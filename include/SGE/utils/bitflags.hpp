@@ -1,5 +1,5 @@
-#ifndef _SGE_UTILS_BITFLAGS_HPP_
-#define _SGE_UTILS_BITFLAGS_HPP_
+#ifndef SGE_UTILS_BITFLAGS_HPP_
+#define SGE_UTILS_BITFLAGS_HPP_
 
 #include <initializer_list>
 #include <type_traits>

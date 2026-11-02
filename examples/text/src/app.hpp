@@ -24,7 +24,7 @@ private:
     sge::FontVector m_font;
     sge::Font m_font_sdf;
     std::shared_ptr<sge::Renderer2D> m_renderer;
-    std::unique_ptr<sge::DrawContext> m_draw_ctx;
+    std::unique_ptr<sge::BatchGroup> m_draw_ctx;
     ExampleConfig m_config;
     bool m_paused = false;
 };
