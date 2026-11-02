@@ -14,8 +14,6 @@
 
 #include <LLGL/ShaderFlags.h>
 
-#include <optional>
-
 #include "shaders.hpp"
 
 namespace {
@@ -38,15 +36,7 @@ constexpr float ComputeTextBaseline(sge::TextAlignment alignment, float y, float
 
 }
 
-void sge::BatchManager::ResetAll() {
-    ZoneScoped;
-
-    for (sge::IBatch* batch : m_batches) {
-        batch->Reset();
-    }
-}
-
-sge::SpriteBatch::SpriteBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, SpriteBatchDesc desc) : IBatch(std::move(manager)) {
+sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -83,7 +73,7 @@ sge::SpriteBatch::SpriteBatch(std::shared_ptr<BatchManager> manager, sge::Render
     }
 }
 
-uint32_t sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, std::optional<FlagsType> override_flags, sge::Order custom_order) {
+void sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, const DrawState& state) {
     const auto bindings_offset = m_dynamic_bindings.size();
     if (texture.is_valid()) {
         m_dynamic_bindings.push_back(texture.internal().Get());
@@ -91,24 +81,17 @@ uint32_t sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, c
     }
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    auto& batchGroup = GetBatchGroup();
-
-    const auto order = batchGroup.GetOrder(custom_order);
-    const auto flags = override_flags.value_or(GetFlags());
-    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
-    const auto blendMode = batchGroup.GetBlendMode();
-
-    const auto state = internal::DrawCommandState {
-        .scissor = scissor,
+    const auto commandState = internal::DrawCommandState {
+        .scissor = state.scissor,
         .resources_offset = bindings_offset,
         .resources_count = bindings_count,
-        .order = order,
-        .blend_mode = blendMode
+        .order = state.order,
+        .blend_mode = state.blendMode
     };
 
     m_commands.push_back(DrawCommand {
         .instance_index = m_instances.size(),
-        .state = state
+        .state = commandState
     });
     m_instances.push_back(SpriteInstance {
         .rotation = glm::quat(sprite.rotation()),
@@ -119,13 +102,11 @@ uint32_t sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, c
         .size = sprite.size(),
         .offset = sprite.anchor().to_vec2(),
         .outline_thickness = sprite.outline_thickness(),
-        .flags = flags.data()
+        .flags = state.flags.data()
     });
-
-    return order;
 }
 
-uint32_t sge::SpriteBatch::DrawAtlasSprite(const sge::TextureAtlasSprite& sprite, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+void sge::SpriteBatch::Add(const sge::TextureAtlasSprite& sprite, const DrawState& state) {
     ZoneScoped;
 
     const sge::Rect& rect = sprite.atlas().get_rect(sprite.index());
@@ -147,10 +128,10 @@ uint32_t sge::SpriteBatch::DrawAtlasSprite(const sge::TextureAtlasSprite& sprite
         uv_offset_scale.w *= -1.0f;
     }
 
-    return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.atlas().texture(), overrideFlags, customOrder);
+    AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.atlas().texture(), state);
 }
 
-sge::NinePatchBatch::NinePatchBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, NinePatchBatchDesc desc) : IBatch(std::move(manager)) {
+sge::NinePatchBatch::NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc desc) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -188,7 +169,7 @@ sge::NinePatchBatch::NinePatchBatch(std::shared_ptr<BatchManager> manager, sge::
     }
 }
 
-uint32_t sge::NinePatchBatch::Draw(const NinePatch& ninepatch, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+void sge::NinePatchBatch::Add(const NinePatch& ninepatch, const DrawState& state) {
     ZoneScoped;
 
     const auto& texture = ninepatch.texture();
@@ -200,26 +181,19 @@ uint32_t sge::NinePatchBatch::Draw(const NinePatch& ninepatch, sge::Order custom
     }
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    auto& batchGroup = GetBatchGroup();
-
-    const auto order = batchGroup.GetOrder(customOrder);
-    const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
-    const auto blendMode = batchGroup.GetBlendMode();
-
-    const auto state = internal::DrawCommandState {
-        .scissor = scissor,
+    const auto commandState = internal::DrawCommandState {
+        .scissor = state.scissor,
         .resources_offset = bindings_offset,
         .resources_count = bindings_count,
-        .order = order,
-        .blend_mode = blendMode
+        .order = state.order,
+        .blend_mode = state.blendMode
     };
 
     const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(ninepatch.flip_x(), ninepatch.flip_y());
 
     m_commands.push_back(DrawCommand {
         .instance_index = m_instances.size(),
-        .state = state
+        .state = commandState
     });
     m_instances.push_back(NinePatchInstance {
         .rotation = glm::quat(ninepatch.rotation()),
@@ -230,13 +204,11 @@ uint32_t sge::NinePatchBatch::Draw(const NinePatch& ninepatch, sge::Order custom
         .offset = ninepatch.anchor().to_vec2(),
         .source_size = glm::vec2(ninepatch.texture().size()),
         .output_size = ninepatch.size(),
-        .flags = flags.data()
+        .flags = state.flags.data()
     });
-
-    return order;
 }
 
-sge::LineBatch::LineBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, LineBatchDesc desc) : IBatch(std::move(manager)) {
+sge::LineBatch::LineBatch(sge::Renderer& renderer, LineBatchDesc desc) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -264,47 +236,38 @@ sge::LineBatch::LineBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& 
     }
 }
 
-uint32_t sge::LineBatch::Draw(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius borderRadius, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+void sge::LineBatch::Add(const LineDrawData& data, const DrawState& state) {
     ZoneScoped;
 
-    glm::vec4 radius = glm::vec4(borderRadius.values());
-    if (borderRadius.is_relative()) {
-        const float length = glm::min(glm::length(glm::dot(start, end)), thickness);
-        radius = glm::vec4(borderRadius.values()) * length / 100.0f;
+    glm::vec4 radius = glm::vec4(data.borderRadius.values());
+    if (data.borderRadius.is_relative()) {
+        const float length = glm::min(glm::distance(data.start, data.end), data.thickness);
+        radius = glm::vec4(data.borderRadius.values()) * length / 100.0f;
     }
 
-    auto& batchGroup = GetBatchGroup();
-
-    const uint32_t order = batchGroup.GetOrder(customOrder);
-    const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
-    const auto blendMode = batchGroup.GetBlendMode();
-
-    const auto state = internal::DrawCommandState {
-        .scissor = scissor,
+    const auto commandState = internal::DrawCommandState {
+        .scissor = state.scissor,
         .resources_offset = 0,
         .resources_count = 0,
-        .order = order,
-        .blend_mode = blendMode
+        .order = state.order,
+        .blend_mode = state.blendMode
     };
 
     m_commands.push_back(DrawCommand {
         .instance_index = m_instances.size(),
-        .state = state
+        .state = commandState
     });
     m_instances.push_back(LineInstance {
-        .start = start,
-        .end = end,
-        .color = color.to_vec4(),
+        .start = data.start,
+        .end = data.end,
+        .color = data.color.to_vec4(),
         .border_radius = radius,
-        .thickness = thickness,
-        .flags = flags.data()
+        .thickness = data.thickness,
+        .flags = state.flags.data()
     });
-
-    return order;
 }
 
-sge::TextSdfBatch::TextSdfBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, TextSdfBatchDesc desc) : IBatch(std::move(manager)) {
+sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -339,55 +302,48 @@ sge::TextSdfBatch::TextSdfBatch(std::shared_ptr<BatchManager> manager, sge::Rend
     }
 }
 
-uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, sge::TextAlignment alignment, const sge::Font& font, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state) {
     ZoneScoped;
 
     const auto bindings_offset = m_dynamic_bindings.size();
-    m_dynamic_bindings.push_back(font.texture.internal().Get());
-    m_dynamic_bindings.push_back(font.texture.sampler()->internal().Get());
+    m_dynamic_bindings.push_back(data.font.texture.internal().Get());
+    m_dynamic_bindings.push_back(data.font.texture.sampler()->internal().Get());
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    auto& batchGroup = GetBatchGroup();
+    float x = data.position.x;
+    float y = data.position.y;
 
-    const auto order = batchGroup.GetOrder(customOrder);
-    const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
-    const auto blendMode = batchGroup.GetBlendMode();
-
-    float x = position.x;
-    float y = position.y;
-
-    for (size_t sectionIdx = 0; sectionIdx < size; ++sectionIdx) {
-        const RichTextSection section = sections[sectionIdx];
+    for (size_t sectionIdx = 0; sectionIdx < data.sections.size(); ++sectionIdx) {
+        const RichTextSection section = data.sections[sectionIdx];
         const char* str = section.text.data();
         const size_t length = section.text.size();
-        const float scale = (section.size / font.font_size);
+        const float scale = (section.size / data.font.font_size);
 
         const glm::vec3 color = section.color.to_vec3();
 
-        float baseline_y = ComputeTextBaseline(alignment, y, font.base_scale * scale, font.ascender, font.descender);
+        float baseline_y = ComputeTextBaseline(data.alignment, y, data.font.base_scale * scale, data.font.ascender, data.font.descender);
 
         uint32_t codepoint = 0;
         for (size_t i = 0; i < length;) {
             i += utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(str) + i, codepoint);
 
             if (codepoint == '\n') {
-                const float height = (font.ascender - font.descender) * scale * font.base_scale;
+                const float height = (data.font.ascender - data.font.descender) * scale * data.font.base_scale;
                 y += height;
-                baseline_y = ComputeTextBaseline(alignment, y, font.base_scale * scale, font.ascender, font.descender);
-                x = position.x;
+                baseline_y = ComputeTextBaseline(data.alignment, y, data.font.base_scale * scale, data.font.ascender, data.font.descender);
+                x = data.position.x;
                 continue;
             }
 
-            auto it = font.glyphs.find(codepoint);
-            if (it == font.glyphs.end()) {
-                it = font.glyphs.find(0);
+            auto it = data.font.glyphs.find(codepoint);
+            if (it == data.font.glyphs.end()) {
+                it = data.font.glyphs.find(0);
             }
 
             const sge::Glyph& ch = it->second;
 
             if (codepoint == ' ') {
-                x += ch.advance * scale * font.base_scale;
+                x += ch.advance * scale * data.font.base_scale;
                 continue;
             }
 
@@ -400,11 +356,11 @@ uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t si
             m_commands.push_back(DrawCommand {
                 .instance_index = m_instances.size(),
                 .state = internal::DrawCommandState {
-                    .scissor = scissor,
+                    .scissor = state.scissor,
                     .resources_offset = bindings_offset,
                     .resources_count = bindings_count,
-                    .order = order,
-                    .blend_mode = blendMode
+                    .order = state.order,
+                    .blend_mode = state.blendMode
                 },
             });
             m_instances.push_back(GlyphInstanceSDF {
@@ -413,17 +369,15 @@ uint32_t sge::TextSdfBatch::Draw(const sge::RichTextSection* sections, size_t si
                 .size = size,
                 .tex_size = ch.data.sdf.tex_size,
                 .uv = ch.data.sdf.texture_coords,
-                .flags = flags.data()
+                .flags = state.flags.data()
             });
 
-            x += ch.advance * scale * font.base_scale;
+            x += ch.advance * scale * data.font.base_scale;
         }
     }
-
-    return order;
 }
 
-sge::TextVectorBatch::TextVectorBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, TextVectorBatchDesc desc) : IBatch(std::move(manager)) {
+sge::TextVectorBatch::TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -454,49 +408,42 @@ sge::TextVectorBatch::TextVectorBatch(std::shared_ptr<BatchManager> manager, sge
     }
 }
 
-uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& state) {
     ZoneScoped;
 
-    float x = position.x;
-    float y = position.y;
+    float x = data.position.x;
+    float y = data.position.y;
 
     const auto bindings_offset = m_dynamic_bindings.size();
-    m_dynamic_bindings.push_back(font.curve_buffer.Get());
-    m_dynamic_bindings.push_back(font.partition_buffer.Get());
+    m_dynamic_bindings.push_back(data.font.curve_buffer.Get());
+    m_dynamic_bindings.push_back(data.font.partition_buffer.Get());
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    auto& batchGroup = GetBatchGroup();
-
-    const auto order = batchGroup.GetOrder(customOrder);
-    const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
-    const auto blendMode = batchGroup.GetBlendMode();
-
-    for (size_t sectionIdx = 0; sectionIdx < size; ++sectionIdx) {
-        const RichTextSection section = sections[sectionIdx];
+    for (size_t sectionIdx = 0; sectionIdx < data.sections.size(); ++sectionIdx) {
+        const RichTextSection section = data.sections[sectionIdx];
         const char* str = section.text.data();
         const size_t length = section.text.size();
-        const float scale = section.size / font.units_per_em;
+        const float scale = section.size / data.font.units_per_em;
 
         const glm::vec3 color = section.color.to_vec3();
 
-        float baseline_y = ComputeTextBaseline(alignment, y, scale, font.ascender, font.descender);
+        float baseline_y = ComputeTextBaseline(data.alignment, y, scale, data.font.ascender, data.font.descender);
 
         uint32_t codepoint = 0;
         for (size_t i = 0; i < length;) {
             i += utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(str) + i, codepoint);
 
             if (codepoint == '\n') {
-                const float height = (font.ascender - font.descender) * scale;
+                const float height = (data.font.ascender - data.font.descender) * scale;
                 y += height;
-                baseline_y = ComputeTextBaseline(alignment, y, scale, font.ascender, font.descender);
-                x = position.x;
+                baseline_y = ComputeTextBaseline(data.alignment, y, scale, data.font.ascender, data.font.descender);
+                x = data.position.x;
                 continue;
             }
 
-            auto it = font.glyphs.find(codepoint);
-            if (it == font.glyphs.end()) {
-                it = font.glyphs.find(0);
+            auto it = data.font.glyphs.find(codepoint);
+            if (it == data.font.glyphs.end()) {
+                it = data.font.glyphs.find(0);
             }
 
             const sge::Glyph& ch = it->second;
@@ -511,17 +458,17 @@ uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            const auto state = internal::DrawCommandState {
-                .scissor = scissor,
+            const auto commandState = internal::DrawCommandState {
+                .scissor = state.scissor,
                 .resources_offset = bindings_offset,
                 .resources_count = bindings_count,
-                .order = order,
-                .blend_mode = blendMode
+                .order = state.order,
+                .blend_mode = state.blendMode
             };
 
             m_commands.push_back(DrawCommand {
                 .instance_index = m_instances.size(),
-                .state = state,
+                .state = commandState,
             });
             m_instances.push_back(GlyphInstanceVector {
                 .color = color,
@@ -530,17 +477,15 @@ uint32_t sge::TextVectorBatch::Draw(const sge::RichTextSection* sections, size_t
                 .em_size = ch.size,
                 .partition_offset = ch.data.vector.partition_offset,
                 .partition_count = ch.data.vector.partition_count,
-                .flags = flags.data()
+                .flags = state.flags.data()
             });
 
             x += ch.advance * scale;
         }
     }
-
-    return order;
 }
 
-sge::ShapeBatch::ShapeBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, ShapeBatchDesc desc) : IBatch(std::move(manager)) {
+sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {
     const auto& context = renderer.GetRenderContext();
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
@@ -571,45 +516,42 @@ sge::ShapeBatch::ShapeBatch(std::shared_ptr<BatchManager> manager, sge::Renderer
     }
 }
 
-uint32_t sge::ShapeBatch::Draw(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& borderColor, float borderThickness, BorderRadius borderRadius, sge::Anchor anchor, sge::Order customOrder, std::optional<FlagsType> overrideFlags) {
+void sge::ShapeBatch::Add(const sge::ShapeDrawData& data, const sge::DrawState& state) {
     ZoneScoped;
 
-    auto& batchGroup = GetBatchGroup();
+    const float length = glm::min(data.size.x, data.size.y);
 
-    const uint32_t order = batchGroup.GetOrder(customOrder);
-    const auto flags = overrideFlags.value_or(GetFlags());
-    const auto scissor = batchGroup.GetCurrentScissor().value_or(sge::IRect());
-    const auto blendMode = batchGroup.GetBlendMode();
+    const glm::vec4 radius = data.borderRadius.is_relative()
+        ? glm::vec4(data.borderRadius.values()) / 100.0f * length
+        : glm::vec4(data.borderRadius.values());
 
-    const float length = glm::min(size.x, size.y);
-
-    const glm::vec4 radius = borderRadius.is_relative()
-        ? glm::vec4(borderRadius.values()) / 100.0f * length
-        : glm::vec4(borderRadius.values());
-
-    const auto state = internal::DrawCommandState {
-        .scissor = scissor,
+    const auto commandState = internal::DrawCommandState {
+        .scissor = state.scissor,
         .resources_offset = 0,
         .resources_count = 0,
-        .order = order,
-        .blend_mode = blendMode
+        .order = state.order,
+        .blend_mode = state.blendMode
     };
 
     m_commands.push_back(DrawCommand {
         .instance_index = m_instances.size(),
-        .state = state
+        .state = commandState
     });
     m_instances.push_back(ShapeInstance {
-        .color = color.to_vec4(),
-        .border_color = borderColor.to_vec4(),
+        .color = data.color.to_vec4(),
+        .border_color = data.borderColor.to_vec4(),
         .border_radius = radius,
-        .position = glm::vec3(position, 0.0f),
-        .size = size,
-        .offset = anchor.to_vec2(),
-        .border_thickness = borderThickness,
-        .shape = shape,
-        .flags = flags.data(),
+        .position = glm::vec3(data.position, 0.0f),
+        .size = data.size,
+        .offset = data.anchor.to_vec2(),
+        .border_thickness = data.borderThickness,
+        .shape = data.type,
+        .flags = state.flags.data(),
     });
+}
 
-    return order;
+void sge::DrawContext::Submit() {
+    for (auto& batch : m_batches) {
+        m_renderer->SubmitBatch(batch);
+    }
 }

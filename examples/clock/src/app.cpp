@@ -60,13 +60,8 @@ bool App::OnInit() {
     m_cameras[window->GetID()] = sge::Camera(resolution, sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });
     m_cameras[window->GetID()].set_samples(m_config.samples);
 
-    m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
-
-    m_shape_batch = std::make_shared<sge::ShapeBatch>(*m_renderer);
-    m_shape_batch->SetSharedBatchGroup(m_batch_group);
-
-    m_line_batch = std::make_shared<sge::LineBatch>(*m_renderer);
-    m_line_batch->SetSharedBatchGroup(m_batch_group);
+    m_renderer = std::make_shared<sge::Renderer2D>(GetRenderContext());
+    m_draw_ctx = std::make_unique<sge::DrawContext>(m_renderer);
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
 
@@ -142,8 +137,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
     sge::Camera& camera = m_cameras[window->GetID()];
 
-    sge::ResetBatches(m_shape_batch, m_line_batch);
-    m_batch_group->Reset();
+    m_draw_ctx->Reset();
 
     m_renderer->Begin();
 
@@ -156,13 +150,13 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
     const float radius = background_size.y * 0.2f;
 
-    m_shape_batch->DrawRect(center, {
+    m_draw_ctx->Draw(sge::Draw::Rect(center, {
         .size = background_size,
         .color = sge::LinearRgba(0.0f, 0.0f, 0.0f),
-        .border_thickness = CLOCK_BORDER_WIDTH * background_size.x / 2.0f,
-        .border_color = sge::LinearRgba(0x3B, 0x40, 0x43),
-        .border_radius = sge::BorderRadius::Absolute(radius)
-    });
+        .borderThickness = CLOCK_BORDER_WIDTH * background_size.x / 2.0f,
+        .borderColor = sge::LinearRgba(0x3B, 0x40, 0x43),
+        .borderRadius = sge::BorderRadius::Absolute(radius)
+    }));
 
     {
         const float padding = CLOCK_BORDER_WIDTH * background_size.x;
@@ -170,22 +164,22 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         const float aspect = size.x / size.y;
         size.y *= aspect;
 
-        m_shape_batch->DrawRect(center, {
+        m_draw_ctx->Draw(sge::Draw::Rect(center, {
             .size = size,
             .color = sge::LinearRgba(0x05, 0x0C, 0x0B),
-            .border_radius = sge::BorderRadius::Absolute(radius - padding)
-        });
+            .borderRadius = sge::BorderRadius::Absolute(radius - padding)
+        }));
 
-        m_shape_batch->DrawCircle(center, {
+        m_draw_ctx->Draw(sge::Draw::Circle(center, {
             .radius = CLOCK_CIRCLE_RADIUS * size.x / 2.0f,
             .color = sge::color::WHITE,
-        });
+        }));
 
         float tick_thickness = CLOCK_TICK_THICKNESS * size.x;
         float hand_thickness = CLOCK_HAND_THICKNESS * size.x;
 
 
-        m_batch_group->BeginOrderMode();
+        m_draw_ctx->BeginOrderMode();
         for (int i = 0; i < 4; ++i) {
             float t = ((float)i) / 4.0f;
             const float sin = glm::sin(t * 2.0f * consts::PI);
@@ -196,7 +190,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f - (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH - (size * CLOCK_TICKS_LENGTH) * 0.2f);
 
-            m_line_batch->Draw(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), sge::BorderRadius::Relative(50.0f));
+            m_draw_ctx->Draw(sge::Draw::Line(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), sge::BorderRadius::Relative(50.0f)));
         }
 
         for (int i = 0; i < 12; ++i) {
@@ -211,22 +205,22 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             glm::vec2 start = center - dir * (size * 0.5f - CLOCK_FACE_PADDING * size * 0.5f + (size * CLOCK_TICKS_LENGTH) * 0.2f);
             glm::vec2 line_dir = dir * (size * CLOCK_TICKS_LENGTH);
 
-            m_line_batch->Draw(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), sge::BorderRadius::Relative(50.0f));
+            m_draw_ctx->Draw(sge::Draw::Line(start, start + line_dir, tick_thickness, sge::LinearRgba(0xFF, 0xFF, 0xFF), sge::BorderRadius::Relative(50.0f)));
         }
-        m_batch_group->EndOrderMode();
+        m_draw_ctx->EndOrderMode();
 
-        // m_shape_batch->DrawCircle(center, {
+        // m_draw_ctx->Draw(sge::Draw::Circle(center, {
         //     .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH) - (size.x * CLOCK_TICKS_LENGTH) * 0.2f,
-        //     .color = sge::LinearRgba::transparent(),
-        //     .border_thickness = 2.0f,
-        //     .border_color = sge::LinearRgba(1.0f, 1.0f, 0.0f)
-        // });
-        // m_shape_batch->DrawCircle(center, {
+        //     .color = sge::color::TRANSPARENT,
+        //     .borderThickness = 2.0f,
+        //     .borderColor = sge::LinearRgba(1.0f, 1.0f, 0.0f)
+        // }));
+        // m_draw_ctx->Draw(sge::Draw::Circle(center, {
         //     .radius = (size.x * 0.5f - CLOCK_FACE_PADDING * size.x * 0.5f + (size.x * CLOCK_TICKS_LENGTH) * 0.2f) - (size.x * CLOCK_TICKS_LENGTH),
-        //     .color = sge::LinearRgba::transparent(),
-        //     .border_thickness = 2.0f,
-        //     .border_color = sge::LinearRgba::blue()
-        // });
+        //     .color = sge::color::TRANSPARENT,
+        //     .borderThickness = 2.0f,
+        //     .borderColor = sge::color::BLUE
+        // }));
 
         const float wh = m_t.hours / 12.0f * (2.0f * consts::PI);
         const float wm = m_t.minutes / 60.0f * (2.0f * consts::PI);
@@ -243,7 +237,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_HOUR_HAND_OFFSET * size.x;
 
-            m_line_batch->Draw(start, start + line_dir * length, hand_thickness, sge::color::WHITE, sge::BorderRadius::Relative(50.0f));
+            m_draw_ctx->Draw(sge::Draw::Line(start, start + line_dir * length, hand_thickness, sge::color::WHITE, sge::BorderRadius::Relative(50.0f)));
         }
 
         // Minute hand
@@ -255,7 +249,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             const glm::vec2 start = glm::vec2(center - line_dir * CLOCK_HAND_OFFSET * size.x);
             const float length = hand_length - CLOCK_MINUTE_HAND_OFFSET * size.x;
 
-            m_line_batch->Draw(start, start + line_dir * length, hand_thickness, sge::color::WHITE, sge::BorderRadius::Relative(50.0f));
+            m_draw_ctx->Draw(sge::Draw::Line(start, start + line_dir * length, hand_thickness, sge::color::WHITE, sge::BorderRadius::Relative(50.0f)));
         }
 
         // Second hand
@@ -267,7 +261,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             const glm::vec2 start = center - line_dir * CLOCK_HAND_OFFSET * size.x;
             const float length = hand_length - CLOCK_SECOND_HAND_OFFSET * size.x;
 
-            m_line_batch->Draw(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), sge::BorderRadius::Relative(50.0f));
+            m_draw_ctx->Draw(sge::Draw::Line(start, start + line_dir * length, hand_thickness, sge::LinearRgba(0xDA, 0x30, 0x3B), sge::BorderRadius::Relative(50.0f)));
         }
     }
 
@@ -278,7 +272,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         float blue = ((float)0xD3) / 255.0f;
         m_renderer->Clear(LLGL::ClearValue(red, green, blue, 1.0f));
 
-        m_renderer->SubmitBatches(m_shape_batch, m_line_batch);
+        m_draw_ctx->Submit();
         m_renderer->FlushBatches();
 
         #if SGE_IMGUI_ENABLED

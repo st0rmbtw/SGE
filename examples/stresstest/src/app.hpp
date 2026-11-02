@@ -43,12 +43,8 @@ private:
     sge::Camera m_camera;
     LLGL::FrameProfile m_profile;
     sge::Texture m_sprite_texture;
-    std::unique_ptr<sge::Renderer2D> m_renderer;
-    std::shared_ptr<sge::BatchManager> m_batch_manager = std::make_shared<sge::BatchManager>();
-    std::shared_ptr<sge::BatchGroup> m_batch_group = std::make_shared<sge::BatchGroup>();
-    std::shared_ptr<sge::SpriteBatch> m_sprite_batch;
-    std::shared_ptr<sge::LineBatch> m_line_batch;
-    std::shared_ptr<sge::ShapeBatch> m_shape_batch;
+    std::shared_ptr<sge::Renderer2D> m_renderer;
+    std::unique_ptr<sge::DrawContext> m_draw_ctx;
 
     sge::LinearRgba m_custom_color = sge::color::WHITE;
 

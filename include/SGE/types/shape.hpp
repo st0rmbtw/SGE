@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef _SGE_TYPES_SHAPE_HPP_
-#define _SGE_TYPES_SHAPE_HPP_
+#ifndef SGE_TYPES_SHAPE_HPP_
+#define SGE_TYPES_SHAPE_HPP_
 
 #include <cstdint>
 
@@ -90,28 +90,28 @@ private:
 struct ShapeCircle {
     float radius = 0.0f;
     LinearRgba color = sge::color::WHITE;
-    float border_thickness = 0.0f;
-    LinearRgba border_color = sge::color::TRANSPARENT;
+    float borderThickness = 0.0f;
+    LinearRgba borderColor = sge::color::TRANSPARENT;
     Anchor anchor = sge::Anchor::Center;
 };
 
 struct ShapeRect {
     glm::vec2 size = glm::vec2(0.0f);
     LinearRgba color = sge::color::WHITE;
-    float border_thickness = 0.0f;
-    LinearRgba border_color = sge::color::TRANSPARENT;
+    float borderThickness = 0.0f;
+    LinearRgba borderColor = sge::color::TRANSPARENT;
     // [topLeft, topRight, bottomLeft, bottomRight]
-    BorderRadius border_radius{};
+    BorderRadius borderRadius{};
     Anchor anchor = sge::Anchor::Center;
 };
 
 struct ShapeArc {
-    float outer_radius;
-    float inner_radius;
+    float outerRadius;
+    float innerRadius;
     /// @note In radians
-    float start_angle;
+    float startAngle;
     /// @note In radians
-    float end_angle;
+    float endAngle;
     sge::LinearRgba color;
     Anchor anchor = sge::Anchor::Center;
 };

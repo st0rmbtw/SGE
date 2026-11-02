@@ -20,13 +20,13 @@
 
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
+#include <memory>
 
 #include "app.hpp"
 
 static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
 
 namespace Time = sge::Time;
-namespace Duration = sge::Duration;
 using Key = sge::Key;
 using MouseButton = sge::MouseButton;
 
@@ -61,16 +61,8 @@ bool App::OnInit() {
     m_camera = sge::Camera(resolution, sge::CameraConfig { .origin = sge::CameraOrigin::TopLeft });
     m_camera.set_samples(m_config.samples);
 
-    m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
-
-    m_sprite_batch = std::make_shared<sge::SpriteBatch>(m_batch_manager, *m_renderer);
-    m_sprite_batch->SetSharedBatchGroup(m_batch_group);
-
-    m_line_batch = std::make_shared<sge::LineBatch>(m_batch_manager, *m_renderer);
-    m_line_batch->SetSharedBatchGroup(m_batch_group);
-
-    m_shape_batch = std::make_shared<sge::ShapeBatch>(m_batch_manager, *m_renderer);
-    m_shape_batch->SetSharedBatchGroup(m_batch_group);
+    m_renderer = std::make_shared<sge::Renderer2D>(GetRenderContext());
+    m_draw_ctx = std::make_unique<sge::DrawContext>(m_renderer);
 
     sge::TextureConfig textureConfig;
     textureConfig.sampler = GetRenderContext()->GetNearestSampler();
@@ -109,14 +101,14 @@ void App::DrawContent(LLGL::Extent2D viewport) {
                 color.g = sge::Random::Float(0.0f, 1.0f);
                 color.b = sge::Random::Float(0.0f, 1.0f);
 
-                m_line_batch->Draw(start, end, 1.0f, color);
+                m_draw_ctx->Draw(sge::Draw::Line(start, end, 1.0f, color));
             }
         } else {
             for (uint32_t i = 0; i < m_instance_count; ++i) {
                 const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
                 const glm::vec2 start = sge::Random::UVec2(glm::uvec2(0), glm::uvec2(viewport.width, viewport.height));
                 const glm::vec2 end = start + size;
-                m_line_batch->Draw(start, end, 1.0f, m_custom_color);
+                m_draw_ctx->Draw(sge::Draw::Line(start, end, 1.0f, m_custom_color));
             }
         }
     } else if (m_batch_type == BatchType::Shape) {
@@ -132,30 +124,30 @@ void App::DrawContent(LLGL::Extent2D viewport) {
                 if (m_shape_type == sge::Shape::Rect) {
                     const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
 
-                    m_shape_batch->DrawRect(position, sge::ShapeRect {
+                    m_draw_ctx->Draw(sge::Draw::Rect(position, sge::ShapeRect {
                         .size = size,
                         .color = color
-                    });
+                    }));
                 } else if (m_shape_type == sge::Shape::Circle) {
                     const float radius = sge::Random::Float(m_radius_from, m_radius_to);
 
-                    m_shape_batch->DrawCircle(position, sge::ShapeCircle {
+                    m_draw_ctx->Draw(sge::Draw::Circle(position, sge::ShapeCircle {
                         .radius = radius,
                         .color = color
-                    });
+                    }));
                 } else if (m_shape_type == sge::Shape::Arc) {
                     const float outer_radius = sge::Random::Float(m_outer_radius_from, m_outer_radius_to);
                     const float inner_radius = sge::Random::Float(m_inner_radius_from, m_inner_radius_to);
                     const float start_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
                     const float end_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
 
-                    m_shape_batch->DrawArc(position, sge::ShapeArc {
-                        .outer_radius = outer_radius,
-                        .inner_radius = inner_radius,
-                        .start_angle = start_angle,
-                        .end_angle = end_angle,
+                    m_draw_ctx->Draw(sge::Draw::Arc(position, sge::ShapeArc {
+                        .outerRadius = outer_radius,
+                        .innerRadius = inner_radius,
+                        .startAngle = start_angle,
+                        .endAngle = end_angle,
                         .color = color
-                    });
+                    }));
                 }
             }
         } else {
@@ -165,30 +157,30 @@ void App::DrawContent(LLGL::Extent2D viewport) {
                 if (m_shape_type == sge::Shape::Rect) {
                     const glm::vec2 size = sge::Random::UVec2(m_size_from, m_size_to);
 
-                    m_shape_batch->DrawRect(position, sge::ShapeRect {
+                    m_draw_ctx->Draw(sge::Draw::Rect(position, sge::ShapeRect {
                         .size = size,
                         .color = m_custom_color
-                    });
+                    }));
                 } else if (m_shape_type == sge::Shape::Circle) {
                     const float radius = sge::Random::Float(m_radius_from, m_radius_to);
 
-                    m_shape_batch->DrawCircle(position, sge::ShapeCircle {
+                    m_draw_ctx->Draw(sge::Draw::Circle(position, sge::ShapeCircle {
                         .radius = radius,
                         .color = m_custom_color
-                    });
+                    }));
                 } else if (m_shape_type == sge::Shape::Arc) {
                     const float outer_radius = sge::Random::Float(m_outer_radius_from, m_outer_radius_to);
                     const float inner_radius = sge::Random::Float(m_inner_radius_from, m_inner_radius_to);
                     const float start_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
                     const float end_angle = sge::Random::Float(-sge::consts::PI, sge::consts::PI);
 
-                    m_shape_batch->DrawArc(position, sge::ShapeArc {
-                        .outer_radius = outer_radius,
-                        .inner_radius = inner_radius,
-                        .start_angle = start_angle,
-                        .end_angle = end_angle,
+                    m_draw_ctx->Draw(sge::Draw::Arc(position, sge::ShapeArc {
+                        .outerRadius = outer_radius,
+                        .innerRadius = inner_radius,
+                        .startAngle = start_angle,
+                        .endAngle = end_angle,
                         .color = m_custom_color
-                    });
+                    }));
                 }
             }
         }
@@ -216,20 +208,19 @@ void App::DrawContent(LLGL::Extent2D viewport) {
             sprite.set_custom_size(size);
             sprite.set_texture(m_sprite_texture);
 
-            m_sprite_batch->Draw(sprite);
+            m_draw_ctx->Draw(sprite);
         }
     }
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-    m_batch_manager->ResetAll();
-    m_batch_group->Reset();
+    m_draw_ctx->Reset();
 
-    m_batch_group->BeginOrderMode();
+    m_draw_ctx->BeginOrderMode();
     {
         DrawContent(window->GetSize());
     }
-    m_batch_group->EndOrderMode();
+    m_draw_ctx->EndOrderMode();
 
     m_renderer->Begin();
     {
@@ -240,10 +231,12 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             static constexpr float blue = ((float)0xD3) / 255.0f;
             m_renderer->Clear(LLGL::ClearValue(red, green, blue, 1.0f));
 
-            m_renderer->SubmitBatches(m_sprite_batch, m_line_batch, m_shape_batch);
+            m_draw_ctx->Submit();
             m_renderer->FlushBatches();
 
             #if SGE_IMGUI_ENABLED
+            namespace Duration = sge::Duration;
+
             GetRenderContext()->BeginImGuiFrame(*window);
             {
                 ImGui::NewFrame();

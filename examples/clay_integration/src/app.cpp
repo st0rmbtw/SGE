@@ -15,6 +15,7 @@
 #include <SGE/utils/text.hpp>
 
 #include <glm/trigonometric.hpp>
+#include <memory>
 
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
@@ -56,12 +57,7 @@ bool App::OnInit() {
     m_camera.set_viewport(resolution.width, resolution.height);
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
-
-    m_shape_batch = std::make_shared<sge::ShapeBatch>(*m_renderer);
-    m_shape_batch->SetSharedBatchGroup(m_batch_group);
-
-    m_text_batch = std::make_shared<sge::TextSdfBatch>(*m_renderer);
-    m_text_batch->SetSharedBatchGroup(m_batch_group);
+    m_draw_ctx = std::make_unique<sge::DrawContext>(m_renderer);
 
     uint64_t totalMemorySize = Clay_MinMemorySize();
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, (char *)malloc(totalMemorySize));
@@ -90,7 +86,7 @@ void App::OnUpdate() {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
-    m_batch_group->Reset();
+    m_draw_ctx->Reset();
     m_renderer->Begin();
 
     Clay_BeginLayout();
@@ -133,14 +129,14 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
             const sge::LinearRgba color = sge::LinearRgba(config->backgroundColor.r / 255.0f, config->backgroundColor.g / 255.0f, config->backgroundColor.b / 255.0f, config->backgroundColor.a / 255.0f);
             const sge::BorderRadius cornerRadius = sge::BorderRadius::Absolute(config->cornerRadius.topLeft, config->cornerRadius.topRight, config->cornerRadius.bottomLeft, config->cornerRadius.bottomRight);
 
-            m_shape_batch->DrawRect(position, {
+            m_draw_ctx->Draw(sge::Draw::Rect(position, {
                 .size = size,
                 .color = color,
-                .border_thickness = 0.0f,
-                .border_color = color,
-                .border_radius = cornerRadius,
+                .borderThickness = 0.0f,
+                .borderColor = color,
+                .borderRadius = cornerRadius,
                 .anchor = sge::Anchor::TopLeft
-            });
+            }));
         } break;
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
             Clay_BorderRenderData *config = &drawCommand->renderData.border;
@@ -154,42 +150,42 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                 const glm::vec2 position = glm::vec2(boundingBox.x, boundingBox.y + config->cornerRadius.topLeft);
                 const glm::vec2 size = glm::vec2(config->width.left, boundingBox.height - config->cornerRadius.topLeft - config->cornerRadius.bottomLeft);
 
-                m_shape_batch->DrawRect(position, {
+                m_draw_ctx->Draw(sge::Draw::Rect(position, {
                     .size = size,
                     .color = color,
-                    .border_thickness = 0.0f,
-                    .border_color = sge::color::BLACK,
-                    .border_radius = cornerRadius,
+                    .borderThickness = 0.0f,
+                    .borderColor = sge::color::BLACK,
+                    .borderRadius = cornerRadius,
                     .anchor = sge::Anchor::TopLeft
-                });
+                }));
             }
             // Right border
             if (config->width.right > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->width.right, boundingBox.y + config->cornerRadius.topRight);
                 const glm::vec2 size = glm::vec2(config->width.right, boundingBox.height - config->cornerRadius.topRight - config->cornerRadius.bottomRight);
 
-                m_shape_batch->DrawRect(position, {
+                m_draw_ctx->Draw(sge::Draw::Rect(position, {
                     .size = size,
                     .color = color,
-                    .border_thickness = 0.0f,
-                    .border_color = sge::color::BLACK,
-                    .border_radius = cornerRadius,
+                    .borderThickness = 0.0f,
+                    .borderColor = sge::color::BLACK,
+                    .borderRadius = cornerRadius,
                     .anchor = sge::Anchor::TopLeft
-                });
+                }));
             }
             // Top border
             if (config->width.top > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.topLeft - config->cornerRadius.topRight, config->width.top);
 
-                m_shape_batch->DrawRect(position, {
+                m_draw_ctx->Draw(sge::Draw::Rect(position, {
                     .size = size,
                     .color = color,
-                    .border_thickness = 0.0f,
-                    .border_color = sge::color::BLACK,
-                    .border_radius = cornerRadius,
+                    .borderThickness = 0.0f,
+                    .borderColor = sge::color::BLACK,
+                    .borderRadius = cornerRadius,
                     .anchor = sge::Anchor::TopLeft
-                });
+                }));
             }
 
             // Bottom border
@@ -197,62 +193,62 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->width.bottom);
                 const glm::vec2 size = glm::vec2(boundingBox.width - config->cornerRadius.bottomLeft - config->cornerRadius.bottomRight, config->width.bottom);
 
-                m_shape_batch->DrawRect(position, {
+                m_draw_ctx->Draw(sge::Draw::Rect(position, {
                     .size = size,
                     .color = color,
-                    .border_thickness = 0.0f,
-                    .border_color = sge::color::BLACK,
-                    .border_radius = cornerRadius,
+                    .borderThickness = 0.0f,
+                    .borderColor = sge::color::BLACK,
+                    .borderRadius = cornerRadius,
                     .anchor = sge::Anchor::TopLeft
-                });
+                }));
             }
 
             if (config->cornerRadius.topLeft > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.topLeft, boundingBox.y + config->cornerRadius.topLeft);
-                m_shape_batch->DrawArc(position, {
-                    .outer_radius = config->cornerRadius.topLeft,
-                    .inner_radius = config->cornerRadius.topLeft - config->width.top,
-                    .start_angle = glm::radians(90.0f),
-                    .end_angle = glm::radians(180.0f),
+                m_draw_ctx->Draw(sge::Draw::Arc(position, {
+                    .outerRadius = config->cornerRadius.topLeft,
+                    .innerRadius = config->cornerRadius.topLeft - config->width.top,
+                    .startAngle = glm::radians(90.0f),
+                    .endAngle = glm::radians(180.0f),
                     .color = color,
                     .anchor = sge::Anchor::TopLeft
-                });
+                }));
             }
 
             if (config->cornerRadius.topRight > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->cornerRadius.topRight, boundingBox.y + config->cornerRadius.topRight);
-                m_shape_batch->DrawArc(position, {
-                    .outer_radius = config->cornerRadius.topRight,
-                    .inner_radius = config->cornerRadius.topRight - config->width.top,
-                    .start_angle = glm::radians(0.0f),
-                    .end_angle = glm::radians(90.0f),
+                m_draw_ctx->Draw(sge::Draw::Arc(position, {
+                    .outerRadius = config->cornerRadius.topRight,
+                    .innerRadius = config->cornerRadius.topRight - config->width.top,
+                    .startAngle = glm::radians(0.0f),
+                    .endAngle = glm::radians(90.0f),
                     .color = color,
                     .anchor = sge::Anchor::TopLeft
-                });
+                }));
             }
 
             if (config->cornerRadius.bottomLeft > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + config->cornerRadius.bottomLeft, boundingBox.y + boundingBox.height - config->cornerRadius.bottomLeft);
-                m_shape_batch->DrawArc(position, {
-                    .outer_radius = config->cornerRadius.bottomLeft,
-                    .inner_radius = config->cornerRadius.bottomLeft - config->width.bottom,
-                    .start_angle = glm::radians(180.0f),
-                    .end_angle = glm::radians(270.0f),
+                m_draw_ctx->Draw(sge::Draw::Arc(position, {
+                    .outerRadius = config->cornerRadius.bottomLeft,
+                    .innerRadius = config->cornerRadius.bottomLeft - config->width.bottom,
+                    .startAngle = glm::radians(180.0f),
+                    .endAngle = glm::radians(270.0f),
                     .color = color,
                     .anchor = sge::Anchor::TopLeft
-                });
+                }));
             }
 
             if (config->cornerRadius.bottomRight > 0) {
                 const glm::vec2 position = glm::vec2(boundingBox.x + boundingBox.width - config->cornerRadius.bottomRight, boundingBox.y + boundingBox.height - config->cornerRadius.bottomRight);
-                m_shape_batch->DrawArc(position, {
-                    .outer_radius = config->cornerRadius.bottomRight,
-                    .inner_radius = config->cornerRadius.bottomRight - config->width.bottom,
-                    .start_angle = glm::radians(270.0f),
-                    .end_angle = glm::radians(360.0f),
+                m_draw_ctx->Draw(sge::Draw::Arc(position, {
+                    .outerRadius = config->cornerRadius.bottomRight,
+                    .innerRadius = config->cornerRadius.bottomRight - config->width.bottom,
+                    .startAngle = glm::radians(270.0f),
+                    .endAngle = glm::radians(360.0f),
                     .color = color,
                     .anchor = sge::Anchor::TopLeft
-                });
+                }));
             }
         }
         break;
@@ -268,21 +264,21 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow> &window) {
 
     const glm::vec2 center = m_camera.screen_center();
 
-    m_shape_batch->DrawRect(center, {
+    m_draw_ctx->Draw(sge::Draw::Rect(center, {
         .size = glm::vec2(250.0f),
         .color = sge::LinearRgba(0.2f, 0.2f, 0.9f),
-        .border_thickness = 2.0f,
-        .border_color = sge::color::BLUE,
-        .border_radius = sge::BorderRadius::Absolute(14.0f)
-    });
+        .borderThickness = 2.0f,
+        .borderColor = sge::color::BLUE,
+        .borderRadius = sge::BorderRadius::Absolute(14.0f)
+    }));
 
     sge::RichText text = sge::rich_text("Hello", 80.f, sge::color::WHITE);
-    m_text_batch->Draw(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::TextAlignment::Top, sge::GetDefaultFont());
+    m_draw_ctx->Draw(sge::Draw::TextSdf(text, center - sge::MeasureText(sge::GetDefaultFont(), text) * 0.5f, sge::TextAlignment::Top, sge::GetDefaultFont()));
 
     m_renderer->BeginPass(window, m_camera);
     {
         m_renderer->Clear(LLGL::ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
-        m_renderer->SubmitBatches(m_shape_batch, m_text_batch);
+        m_draw_ctx->Submit();
         m_renderer->FlushBatches();
     }
     m_renderer->EndPass();

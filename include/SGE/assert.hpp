@@ -1,5 +1,5 @@
-#ifndef _SGE_ASSERT_HPP_
-#define _SGE_ASSERT_HPP_
+#ifndef SGE_ASSERT_HPP_
+#define SGE_ASSERT_HPP_
 
 #pragma once
 
@@ -38,6 +38,9 @@
     #endif
 #endif
 
-
+#define SGE_PANIC(message) do {                                           \
+    std::println(stderr, "panic at {}:{}: " message, __FILE__, __LINE__); \
+    std::abort();                                                         \
+} while (0)
 
 #endif

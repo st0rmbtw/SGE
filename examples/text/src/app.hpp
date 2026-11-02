@@ -24,8 +24,7 @@ private:
     sge::FontVector m_font;
     sge::Font m_font_sdf;
     std::shared_ptr<sge::Renderer2D> m_renderer;
-    std::shared_ptr<sge::TextVectorBatch> m_batch_vector;
-    std::shared_ptr<sge::TextSdfBatch> m_batch_sdf;
+    std::unique_ptr<sge::DrawContext> m_draw_ctx;
     ExampleConfig m_config;
     bool m_paused = false;
 };

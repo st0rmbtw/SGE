@@ -109,107 +109,11 @@ struct ShapeBatchDesc {
     bool enableDepth = false;
 };
 
-class BatchGroup {
-public:
-    inline void BeginOrderMode(int order, bool advance) noexcept {
-        m_order_mode = true;
-        m_global_order.value = order < 0 ? m_order : order;
-        m_global_order.advance = advance;
-    }
-
-    inline void BeginOrderMode(int order = -1) noexcept {
-        BeginOrderMode(order, true);
-    }
-
-    inline void BeginOrderMode(bool advance) noexcept {
-        BeginOrderMode(-1, advance);
-    }
-
-    inline void EndOrderMode() noexcept {
-        m_order_mode = false;
-        m_global_order.value = 0;
-        m_global_order.advance = false;
-    }
-
-    inline void BeginScissorMode(sge::IRect scissor) {
-        m_scissor_stack.push_back(scissor);
-    }
-
-    inline void EndScissorMode() {
-        m_scissor_stack.pop_back();
-    }
-
-    inline void BeginBlendMode(sge::BlendMode blendMode) {
-        m_prev_blend_mode = m_blend_mode;
-        m_blend_mode = blendMode;
-    }
-
-    inline void EndBlendMode() {
-        m_blend_mode = m_prev_blend_mode;
-    }
-
-    inline uint32_t GetOrder(sge::Order customOrder) {
-        const uint32_t order = m_order_mode
-            ? m_global_order.value + std::max(customOrder.value, 0)
-            : (customOrder.value >= 0 ? customOrder.value : m_order);
-
-        customOrder.advance |= m_global_order.advance;
-
-        if (customOrder.advance)
-            m_order = std::max(m_order, order + 1);
-
-        return order;
-    }
-
-    inline void Reset() {
-        m_order = 0;
-        m_order_mode = false;
-    }
-
-    [[nodiscard]]
-    inline std::optional<sge::IRect> GetCurrentScissor() const noexcept {
-        return m_scissor_stack.empty() ? std::nullopt : std::optional(m_scissor_stack.back());
-    }
-
-    [[nodiscard]]
-    inline sge::BlendMode GetBlendMode() const noexcept {
-        return m_blend_mode;
-    }
-
-private:
-    std::vector<sge::IRect> m_scissor_stack;
-    Order m_global_order;
-    uint32_t m_order = 0;
-    sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
-    sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
-    bool m_order_mode = false;
-};
-
-class IBatch;
-
-class BatchManager {
-public:
-    BatchManager() = default;
-
-    void Register(IBatch* batch) {
-        auto it = std::ranges::find(m_batches, batch);
-        if (it == m_batches.end()) {
-            m_batches.push_back(batch);
-        }
-    }
-
-    void Unregister(IBatch* batch) {
-        auto it = std::ranges::find(m_batches, batch);
-        if (it != m_batches.end()) {
-            std::iter_swap(it, m_batches.end() - 1);
-            m_batches.pop_back();
-        }
-    }
-
-    void ResetAll();
-
-private:
-    std::vector<IBatch*> m_batches;
+struct DrawState {
+    sge::IRect scissor;
+    uint32_t order;
+    sge::BlendMode blendMode;
+    sge::BitFlags<BatchFlags> flags;
 };
 
 class IBatch : public RefCounted {
@@ -217,108 +121,6 @@ protected:
     using FlagsType = sge::BitFlags<BatchFlags>;
 
     IBatch() = default;
-
-    explicit IBatch(std::shared_ptr<BatchManager> manager) :
-        m_manager{ std::move(manager) }
-    {
-        if (m_manager) {
-            m_manager->Register(this);
-        }
-    }
-
-    class BatchGroupWrapper {
-    private:
-        enum class Variant : uint8_t {
-            Owned = 0,
-            Shared = 1
-        };
-
-    public:
-        BatchGroupWrapper() :
-            m_own{},
-            m_variant(Variant::Owned)
-        {
-        }
-
-        explicit BatchGroupWrapper(BatchGroup group) :
-            m_own{ std::move(group) },
-            m_variant(Variant::Owned)
-        {}
-
-        explicit BatchGroupWrapper(std::shared_ptr<BatchGroup> shared) :
-            m_shared{ std::move(shared) },
-            m_variant{ Variant::Shared }
-        {}
-
-        BatchGroupWrapper(const BatchGroupWrapper& other) {
-            copy(other);
-        }
-
-        BatchGroupWrapper& operator=(const BatchGroupWrapper& other) noexcept {
-            if (this != &other) {
-                copy(other);
-            }
-            return *this;
-        }
-
-        BatchGroupWrapper(BatchGroupWrapper&& other) noexcept {
-            move(std::move(other));
-        }
-
-        BatchGroupWrapper& operator=(BatchGroupWrapper&& other) noexcept {
-            move(std::move(other));
-            return *this;
-        }
-
-        BatchGroup& Get() noexcept {
-            return m_variant == Variant::Owned ? m_own : *m_shared;
-        }
-
-        [[nodiscard]]
-        const BatchGroup& Get() const noexcept {
-            return m_variant == Variant::Owned ? m_own : *m_shared;
-        }
-
-        [[nodiscard]]
-        bool IsShared() const noexcept {
-            return m_variant == Variant::Shared;
-        }
-
-        ~BatchGroupWrapper() {
-            if (m_variant == Variant::Shared) {
-                m_shared.~shared_ptr();
-            } else {
-                m_own.~BatchGroup();
-            }
-        }
-
-    private:
-
-        void copy(const BatchGroupWrapper& from) {
-            if (from.m_variant == Variant::Owned) {
-                m_own = from.m_own;
-            } else {
-                m_shared = from.m_shared;
-            }
-            m_variant = from.m_variant;
-        }
-
-        void move(BatchGroupWrapper&& from) {
-            if (from.m_variant == Variant::Owned) {
-                m_own = std::move(from.m_own);
-            } else {
-                m_shared = std::move(from.m_shared);
-            }
-            m_variant = from.m_variant;
-        }
-
-    private:
-        union {
-            BatchGroup m_own;
-            std::shared_ptr<BatchGroup> m_shared;
-        };
-        Variant m_variant;
-    };
 
 public:
     [[nodiscard]]
@@ -338,11 +140,7 @@ public:
     [[nodiscard]]
     virtual LLGL::Resource* const* GetDynamicBindings() const noexcept = 0;
 
-    virtual ~IBatch() {
-        if (m_manager) {
-            m_manager->Unregister(this);
-        }
-    }
+    virtual ~IBatch() = default;
 
 protected:
     virtual void Clear() = 0;
@@ -352,88 +150,27 @@ public:
         m_flags = flags;
     }
 
-    void SetManager(std::shared_ptr<BatchManager> manager) {
-        m_manager = std::move(manager);
-    }
-
-    void SetSharedBatchGroup(std::shared_ptr<BatchGroup> shared) {
-        m_batch_group = BatchGroupWrapper(std::move(shared));
-    }
-
-    void SetOwnedBatchGroup(BatchGroup group) {
-        m_batch_group = BatchGroupWrapper(std::move(group));
-    }
-
-    void BeginOrderMode(int order, bool advance) noexcept {
-        m_batch_group.Get().BeginOrderMode(order, advance);
-    }
-
-    void BeginOrderMode(int order = -1) noexcept {
-        BeginOrderMode(order, true);
-    }
-
-    void BeginOrderMode(bool advance) noexcept {
-        BeginOrderMode(-1, advance);
-    }
-
-    void EndOrderMode() noexcept {
-        m_batch_group.Get().EndOrderMode();
-    }
-
-    void BeginScissorMode(sge::IRect scissor) {
-        m_batch_group.Get().BeginScissorMode(scissor);
-    }
-
-    void EndScissorMode() {
-        m_batch_group.Get().EndScissorMode();
-    }
-
-    void BeginBlendMode(sge::BlendMode blendMode) {
-        m_batch_group.Get().BeginBlendMode(blendMode);
-    }
-
-    void EndBlendMode() {
-        m_batch_group.Get().EndBlendMode();
-    }
-
     void Reset() {
         Clear();
-        if (!m_batch_group.IsShared()) {
-            m_batch_group.Get().Reset();
-        }
     }
 
     FlagsType GetFlags() const noexcept {
         return m_flags;
     }
 
-    BatchGroup& GetBatchGroup() noexcept {
-        return m_batch_group.Get();
-    }
-
-    const BatchGroup& GetBatchGroup() const noexcept {
-        return m_batch_group.Get();
-    }
-
 private:
-    BatchGroupWrapper m_batch_group;
-    std::shared_ptr<BatchManager> m_manager = nullptr;
     FlagsType m_flags;
 };
 
 class SpriteBatch final : public IBatch {
 public:
-    explicit SpriteBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, SpriteBatchDesc desc = {});
-    explicit SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc = {})
-        : SpriteBatch(nullptr, renderer, std::move(desc))
-    {}
+    explicit SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc = {});
 
-    uint32_t Draw(const Sprite& sprite, sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
+    void Add(const Sprite& sprite, const DrawState& state) {
         const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(sprite.flip_x(), sprite.flip_y());
-        return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.texture(), overrideFlags, customOrder);
+        return AddSpriteDrawCommand(sprite, uv_offset_scale, sprite.texture(), state);
     }
-
-    uint32_t DrawAtlasSprite(const sge::TextureAtlasSprite& sprite, sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
+    void Add(const TextureAtlasSprite& sprite, const DrawState& state);
 
     const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
         return m_mesh;
@@ -469,7 +206,7 @@ protected:
     }
 
 private:
-    uint32_t AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, std::optional<FlagsType> override_flags, sge::Order custom_order);
+    void AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, const DrawState& state);
 
 private:
     std::vector<DrawCommand> m_commands;
@@ -481,12 +218,9 @@ private:
 
 class NinePatchBatch final : public IBatch {
 public:
-    explicit NinePatchBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, NinePatchBatchDesc desc = {});
-    explicit NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc desc = {})
-        : NinePatchBatch(nullptr, renderer, std::move(desc))
-    {}
+    explicit NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc desc = {});
 
-    uint32_t Draw(const NinePatch& sprite, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
+    void Add(const NinePatch& ninepatch, const DrawState& state);
 
     const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
         return m_mesh;
@@ -529,14 +263,19 @@ private:
     sge::Ref<sge::Material> m_materials[4];
 };
 
+struct LineDrawData {
+    glm::vec2 start;
+    glm::vec2 end;
+    float thickness = 1.0f;
+    sge::LinearRgba color = sge::color::WHITE;
+    BorderRadius borderRadius = BorderRadius();
+};
+
 class LineBatch final : public IBatch {
 public:
-    explicit LineBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, LineBatchDesc desc = {});
-    explicit LineBatch(sge::Renderer& renderer, LineBatchDesc desc = {})
-        : LineBatch(nullptr, renderer, desc)
-    {}
+    explicit LineBatch(sge::Renderer& renderer, LineBatchDesc desc = {});
 
-    uint32_t Draw(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius borderRadius = BorderRadius(), sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
+    void Add(const LineDrawData& data, const DrawState& state);
 
     const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
         return m_mesh;
@@ -577,24 +316,18 @@ private:
     sge::Ref<sge::Material> m_materials[4];
 };
 
+struct SdfTextDrawData {
+    std::span<const sge::RichTextSection> sections;
+    const sge::Font& font;
+    glm::vec2 position;
+    sge::TextAlignment alignment;
+};
+
 class TextSdfBatch final : public IBatch {
 public:
-    explicit TextSdfBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, TextSdfBatchDesc desc = {});
-    explicit TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc = {})
-        : TextSdfBatch(nullptr, renderer, std::move(desc))
-    {}
+    explicit TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc = {});
 
-    uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, TextAlignment alignment, const sge::Font& font, sge::Order order, std::optional<FlagsType> overrideFlags = std::nullopt);
-
-    template <size_t Size>
-    inline uint32_t Draw(const sge::RichText<Size>& text, glm::vec2 position, TextAlignment alignment, const sge::Font& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
-        return Draw(text.sections, Size, position, alignment, font, order, overrideFlags);
-    }
-
-    inline uint32_t Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, TextAlignment alignment, const sge::Font& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
-        sge::RichTextSection section = { .text=text, .color=color, .size=size };
-        return Draw(&section, 1, position, alignment, font, order, overrideFlags);
-    }
+    void Add(const SdfTextDrawData& data, const DrawState& state);
 
     const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
         return m_mesh;
@@ -637,24 +370,18 @@ private:
     sge::Ref<sge::Material> m_materials[4];
 };
 
+struct VectorTextDrawData {
+    std::span<const sge::RichTextSection> sections;
+    const sge::FontVector& font;
+    glm::vec2 position;
+    sge::TextAlignment alignment;
+};
+
 class TextVectorBatch final : public IBatch {
 public:
-    explicit TextVectorBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, TextVectorBatchDesc desc = {});
-    explicit TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {})
-        : TextVectorBatch(nullptr, renderer, desc)
-    {}
+    explicit TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {});
 
-    uint32_t Draw(const sge::RichTextSection* sections, size_t size, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order order, std::optional<FlagsType> overrideFlags);
-
-    template <size_t Size>
-    inline uint32_t Draw(const sge::RichText<Size>& text, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
-        return Draw(text.sections, Size, position, alignment, font, order, overrideFlags);
-    }
-
-    inline uint32_t Draw(const std::string& text, float size, sge::LinearRgba color, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font, sge::Order order = {}, std::optional<FlagsType> overrideFlags = std::nullopt) {
-        sge::RichTextSection section = { .text=text, .color=color, .size=size };
-        return Draw(&section, 1, position, alignment, font, order, overrideFlags);
-    }
+    void Add(const VectorTextDrawData& data, const DrawState& state);
 
     const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
         return m_mesh;
@@ -697,38 +424,22 @@ private:
     sge::Ref<sge::Material> m_materials[4];
 };
 
+struct ShapeDrawData {
+    glm::vec2 position;
+    glm::vec2 size;
+    sge::LinearRgba color;
+    sge::LinearRgba borderColor;
+    float borderThickness;
+    BorderRadius borderRadius = BorderRadius();
+    sge::Anchor anchor = sge::Anchor::Center;
+    sge::Shape::Type type;
+};
+
 class ShapeBatch final : public IBatch {
 public:
-    explicit ShapeBatch(std::shared_ptr<BatchManager> manager, sge::Renderer& renderer, ShapeBatchDesc desc = {});
-    explicit ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc = {})
-        : ShapeBatch(nullptr, renderer, desc)
-    {}
+    explicit ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc = {});
 
-    uint32_t Draw(sge::Shape::Type shape, glm::vec2 position, glm::vec2 size, const sge::LinearRgba& color, const sge::LinearRgba& borderColor, float borderThickness, BorderRadius borderRadius = BorderRadius(), sge::Anchor anchor = sge::Anchor::Center, sge::Order customOrder = {}, std::optional<FlagsType> overrideFlags = std::nullopt);
-
-    inline uint32_t DrawCircle(glm::vec2 position, sge::Order customOrder, std::optional<FlagsType> overrideFlags, const ShapeCircle& circle) {
-        return Draw(sge::Shape::Circle, position, glm::vec2(circle.radius * 2.0f), circle.color, circle.border_color, circle.border_thickness, BorderRadius::Absolute(0.0), circle.anchor, customOrder, overrideFlags);
-    }
-
-    inline uint32_t DrawCircle(glm::vec2 position, const ShapeCircle& circle) {
-        return DrawCircle(position, sge::Order(), std::nullopt, circle);
-    }
-
-    inline uint32_t DrawRect(glm::vec2 position, sge::Order customOrder, std::optional<FlagsType> overrideFlags, const ShapeRect& rect) {
-        return Draw(sge::Shape::Rect, position, rect.size, rect.color, rect.border_color, rect.border_thickness, rect.border_radius, rect.anchor, customOrder, overrideFlags);
-    }
-
-    inline uint32_t DrawRect(glm::vec2 position, const ShapeRect& rect) {
-        return DrawRect(position, sge::Order(), std::nullopt, rect);
-    }
-
-    inline uint32_t DrawArc(glm::vec2 position, sge::Order customOrder, std::optional<FlagsType> overrideFlags, const ShapeArc& arc) {
-        return Draw(sge::Shape::Arc, position, glm::vec2(arc.outer_radius * 2.0f), arc.color, sge::LinearRgba(0.0f), arc.inner_radius, BorderRadius::Absolute(arc.start_angle, arc.end_angle, 0.0f, 0.0f), arc.anchor, customOrder, overrideFlags);
-    }
-
-    inline uint32_t DrawArc(glm::vec2 position, const ShapeArc& arc) {
-        return DrawArc(position, sge::Order(), std::nullopt, arc);
-    }
+    void Add(const ShapeDrawData& data, const DrawState& state);
 
     const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
         return m_mesh;
@@ -769,71 +480,313 @@ private:
     sge::Ref<sge::Material> m_materials[4];
 };
 
-/**
- * @brief Helper for beginning order mode on multiple batches at once.
- */
-template <typename... Instances>
-void BeginOrderModes(int order, Instances&&... instances) {
-    auto method_ptr = static_cast<void (IBatch::*)(int) noexcept>(&IBatch::BeginOrderMode);
-    (..., std::invoke(method_ptr, std::forward<Instances>(instances), order));
+template<typename Item>
+class DrawCall {
+public:
+    explicit DrawCall(Item item) : m_item(std::move(item)) {}
+
+    DrawCall& WithCustomOrder(sge::Order order) & {
+        m_order = order;
+        return *this;
+    }
+
+    DrawCall& WithCustomFlags(std::optional<sge::BitFlags<BatchFlags>> flags) & {
+        m_flags = flags;
+        return *this;
+    }
+
+    DrawCall WithCustomOrder(sge::Order order) && {
+        m_order = order;
+        return std::move(*this);
+    }
+
+    DrawCall WithCustomFlags(std::optional<sge::BitFlags<BatchFlags>> flags) && {
+        m_flags = flags;
+        return std::move(*this);
+    }
+
+    [[nodiscard]]
+    const Item& GetItem() const noexcept {
+        return m_item;
+    }
+
+    [[nodiscard]]
+    sge::Order GetCustomOrder() const noexcept {
+        return m_order;
+    };
+
+    [[nodiscard]]
+    std::optional<sge::BitFlags<BatchFlags>> GetCustomFlags() const noexcept {
+        return m_flags;
+    };
+
+private:
+    Item m_item;
+    sge::Order m_order = sge::Order();
+    std::optional<sge::BitFlags<BatchFlags>> m_flags = std::nullopt;
+};
+
+namespace Draw {
+    inline DrawCall<const Sprite&> Sprite(const Sprite& sprite) {
+        return DrawCall<const class Sprite&>(sprite);
+    }
+
+    inline DrawCall<const TextureAtlasSprite&> AtlasSprite(const TextureAtlasSprite& sprite) {
+        return DrawCall<const TextureAtlasSprite&>(sprite);
+    }
+
+    inline DrawCall<ShapeDrawData> Rect(glm::vec2 position, const ShapeRect& rect) {
+        return DrawCall(ShapeDrawData {
+            .position = position,
+            .size = rect.size,
+            .color = rect.color,
+            .borderColor = rect.borderColor,
+            .borderThickness = rect.borderThickness,
+            .borderRadius = rect.borderRadius,
+            .anchor = rect.anchor,
+            .type = Shape::Rect
+        });
+    }
+
+    inline DrawCall<ShapeDrawData> Circle(glm::vec2 position, const ShapeCircle& circle) {
+        return DrawCall(ShapeDrawData {
+            .position = position,
+            .size = glm::vec2(circle.radius * 2.0f),
+            .color = circle.color,
+            .borderColor = circle.borderColor,
+            .borderThickness = circle.borderThickness,
+            .borderRadius = BorderRadius::Absolute(0.0),
+            .anchor = circle.anchor,
+            .type = Shape::Circle
+        });
+    }
+
+    inline DrawCall<ShapeDrawData> Arc(glm::vec2 position, const ShapeArc& arc) {
+        return DrawCall(ShapeDrawData {
+            .position = position,
+            .size = glm::vec2(arc.outerRadius * 2.0f),
+            .color = arc.color,
+            .borderColor = sge::color::TRANSPARENT,
+            .borderThickness = arc.innerRadius,
+            .borderRadius = BorderRadius::Absolute(arc.startAngle, arc.endAngle, 0.0f, 0.0f),
+            .anchor = arc.anchor,
+            .type = Shape::Arc
+        });
+    }
+
+    inline DrawCall<LineDrawData> Line(glm::vec2 start, glm::vec2 end, float thickness, const sge::LinearRgba& color, BorderRadius borderRadius = BorderRadius()) {
+        return DrawCall(LineDrawData {
+            .start = start,
+            .end = end,
+            .thickness = thickness,
+            .color = color,
+            .borderRadius = borderRadius
+        });
+    }
+
+    template<size_t Size>
+    inline DrawCall<SdfTextDrawData> TextSdf(sge::RichText<Size> text, glm::vec2 position, sge::TextAlignment alignment, const sge::Font& font) {
+        return DrawCall(SdfTextDrawData {
+            .sections = std::span(text.data(), text.size()),
+            .font = font,
+            .position = position,
+            .alignment = alignment
+        });
+    }
+
+    inline DrawCall<SdfTextDrawData> TextSdf(std::string_view text, float size, sge::LinearRgba color, glm::vec2 position, sge::TextAlignment alignment, const sge::Font& font) {
+        sge::RichTextSection section{ .text=text, .color=color, .size=size };
+        return DrawCall(SdfTextDrawData {
+            .sections = std::span(&section, 1),
+            .font = font,
+            .position = position,
+            .alignment = alignment
+        });
+    }
+
+    template<size_t Size>
+    inline DrawCall<VectorTextDrawData> TextVector(sge::RichText<Size> text, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font) {
+        return DrawCall(VectorTextDrawData {
+            .sections = std::span(text.data(), text.size()),
+            .font = font,
+            .position = position,
+            .alignment = alignment
+        });
+    }
+
+    inline DrawCall<VectorTextDrawData> TextVector(std::string_view text, float size, sge::LinearRgba color, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font) {
+        sge::RichTextSection section{ .text=text, .color=color, .size=size };
+        return DrawCall(VectorTextDrawData {
+            .sections = std::span(&section, 1),
+            .font = font,
+            .position = position,
+            .alignment = alignment
+        });
+    }
+};
+
+inline size_t NextBatchTypeId() {
+    static size_t n = 0;
+    return n++;
 }
 
-/**
- * @brief Helper for beginning order mode on multiple batches at once.
- */
-template <typename... Instances>
-void BeginOrderModes(int order, bool advance, Instances&&... instances) {
-    auto method_ptr = static_cast<void (IBatch::*)(int, bool) noexcept>(&IBatch::BeginOrderMode);
-    (..., std::invoke(method_ptr, std::forward<Instances>(instances), order, advance));
+template<class T>
+size_t BatchTypeId() {
+    static const size_t id = NextBatchTypeId();
+    return id;
 }
 
-/**
- * @brief Helper for beginning order mode on multiple batches at once.
- */
-template <typename... Instances>
-void BeginOrderModes(Instances&&... instances) {
-    auto method_ptr = static_cast<void (IBatch::*)(int) noexcept>(&IBatch::BeginOrderMode);
-    (..., std::invoke(method_ptr, std::forward<Instances>(instances), -1));
-}
+template<class Item> struct BatchFor;
+template<> struct BatchFor<Sprite> { using type = SpriteBatch; };
+template<> struct BatchFor<TextureAtlasSprite> { using type = SpriteBatch; };
+template<> struct BatchFor<ShapeDrawData> { using type = ShapeBatch; };
+template<> struct BatchFor<LineDrawData> { using type = LineBatch; };
+template<> struct BatchFor<VectorTextDrawData> { using type = TextVectorBatch; };
+template<> struct BatchFor<SdfTextDrawData> { using type = TextSdfBatch; };
 
-// End of recursion
-inline void EndOrderModes() {}
-
-/**
- * @brief Helper for ending order mode on multiple batches at once.
+/*
+ * A helper class for dispatching different types of draw commands to corresponding Batch instances.
  */
-template <typename FirstInstance, typename... Instances>
-void EndOrderModes(FirstInstance&& first, Instances&&... other) {
-    EndOrderModes(std::forward<Instances>(other)...);
-    std::invoke(&IBatch::EndOrderMode, std::forward<FirstInstance>(first));
-}
+class DrawContext {
+public:
+    explicit DrawContext(std::shared_ptr<Renderer2D> renderer) :
+        m_renderer(std::move(renderer)) {}
 
-/**
- * @brief Helper for beginning scissor mode on multiple batches at once.
- */
-template <typename... Instances>
-void BeginScissorModes(sge::IRect scissor, Instances&&... instances) {
-    (..., std::invoke(&IBatch::BeginScissorMode, std::forward<Instances>(instances), scissor));
-}
+    // Construct (or replace) a batch with custom ctor args.
+    // The first argument (sge::Renderer) is provided automatically.
+    template<class B, class... Args>
+    B& Emplace(Args&&... args) {
+        auto& slot = Slot<B>();
+        slot = std::make_unique<B>(m_renderer, std::forward<Args>(args)...);
+        return static_cast<B&>(*slot);
+    }
 
-/**
- * @brief Helper for ending scissor mode on multiple batches at once.
- */
-template <typename... Instances>
-void EndScissorModes(Instances&&... instances) {
-    (..., std::invoke(&IBatch::EndScissorMode, std::forward<Instances>(instances)));
-}
+    // Hot path: same lookup as before, creation only happens on a miss
+    template<class B>
+    B& Batch() {
+        auto& slot = Slot<B>();
+        if (!slot) [[unlikely]] {
+            slot = CreateDefault<B>();
+        }
+        return static_cast<B&>(*slot);
+    }
 
-/**
- * @brief Helper for resetting multiple batches at once.
- *
- * @tparam Instances Types of batch instances, e.g. a pointer, reference, shared_ptr, unique_ptr, etc.
- * @param instances Batch instances
- */
-template <typename... Instances>
-void ResetBatches(Instances&&... instances) {
-    (..., std::invoke(&IBatch::Reset, std::forward<Instances>(instances)));
-}
+    template<class Item>
+    uint32_t Draw(const Item& item) {
+        DrawState state;
+        state.scissor = GetCurrentScissor().value_or(sge::IRect());
+        state.order = GetOrder();
+        state.blendMode = m_blend_mode;
+        state.flags = {}; // TODO: flags
+        Batch<typename BatchFor<Item>::type>().Add(item, state);
+        return state.order;
+    }
+
+    template<class Item>
+    uint32_t Draw(const DrawCall<Item>& call) {
+        DrawState state;
+        state.scissor = GetCurrentScissor().value_or(sge::IRect());
+        state.order = GetOrder(call.GetCustomOrder());
+        state.blendMode = m_blend_mode;
+        state.flags = call.GetCustomFlags().value_or({}); // TODO: flags
+
+        using WithoutCvRef = std::remove_cvref_t<Item>;
+        using PureType = std::remove_pointer_t<WithoutCvRef>;
+        Batch<typename BatchFor<PureType>::type>().Add(call.GetItem(), state);
+        return state.order;
+    }
+
+    void Submit();
+
+    void Reset() {
+        m_order = 0;
+        m_order_mode = false;
+        for (auto& batch : m_batches) {
+            batch->Reset();
+        }
+    }
+
+    void BeginOrderMode(int order, bool advance) noexcept {
+        m_order_mode = true;
+        m_global_order.value = order < 0 ? m_order : order;
+        m_global_order.advance = advance;
+    }
+
+    void BeginOrderMode(int order = -1) noexcept {
+        BeginOrderMode(order, true);
+    }
+
+    void BeginOrderMode(bool advance) noexcept {
+        BeginOrderMode(-1, advance);
+    }
+
+    void EndOrderMode() noexcept {
+        m_order_mode = false;
+        m_global_order.value = 0;
+        m_global_order.advance = false;
+    }
+
+    void BeginScissorMode(sge::IRect scissor) {
+        m_scissor_stack.push_back(scissor);
+    }
+
+    void EndScissorMode() {
+        m_scissor_stack.pop_back();
+    }
+
+    void BeginBlendMode(sge::BlendMode blendMode) {
+        m_prev_blend_mode = m_blend_mode;
+        m_blend_mode = blendMode;
+    }
+
+    void EndBlendMode() {
+        m_blend_mode = m_prev_blend_mode;
+    }
+
+    [[nodiscard]]
+    inline std::optional<sge::IRect> GetCurrentScissor() const noexcept {
+        return m_scissor_stack.empty() ? std::nullopt : std::optional(m_scissor_stack.back());
+    }
+
+private:
+    template<class B>
+    std::shared_ptr<IBatch>& Slot() {
+        const size_t id = BatchTypeId<B>();
+        if (id >= m_batches.size()) m_batches.resize(id + 1);
+        return m_batches[id];
+    }
+
+    template<class B>
+    std::shared_ptr<IBatch> CreateDefault() {
+        if constexpr (std::is_constructible_v<B, Renderer2D&>) {
+            return std::make_unique<B>(*m_renderer);
+        } else {
+            SGE_PANIC("Batch is not configured, call ctx.Emplace<B>(...) first");
+        }
+    }
+
+    uint32_t GetOrder(const sge::Order customOrder = Order()) {
+        const uint32_t order = m_order_mode
+            ? m_global_order.value + std::max(customOrder.value, 0)
+            : (customOrder.value >= 0 ? customOrder.value : m_order);
+
+        if (customOrder.advance || m_global_order.advance)
+            m_order = std::max(m_order, order + 1);
+
+        return order;
+    }
+
+private:
+    std::shared_ptr<Renderer2D> m_renderer;
+    LLGL::SmallVector<std::shared_ptr<IBatch>, 6> m_batches;
+
+    std::vector<sge::IRect> m_scissor_stack;
+    Order m_global_order;
+    uint32_t m_order = 0;
+    sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
+    sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
+    bool m_order_mode = false;
+};
 
 } // namespace sge
 

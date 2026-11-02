@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef SGE_TYPES_SHAPE_HPP_
-#define SGE_TYPES_SHAPE_HPP_
+#ifndef SGE_TYPES_SIZE_HPP_
+#define SGE_TYPES_SIZE_HPP_
 
 #include <cstdint>
 

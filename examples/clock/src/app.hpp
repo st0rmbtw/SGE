@@ -32,10 +32,8 @@ private:
 
 private:
     std::unordered_map<uint32_t, sge::Camera> m_cameras;
-    std::unique_ptr<sge::Renderer2D> m_renderer;
-    std::shared_ptr<sge::BatchGroup> m_batch_group = std::make_shared<sge::BatchGroup>();
-    std::shared_ptr<sge::ShapeBatch> m_shape_batch;
-    std::shared_ptr<sge::LineBatch> m_line_batch;
+    std::shared_ptr<sge::Renderer2D> m_renderer;
+    std::unique_ptr<sge::DrawContext> m_draw_ctx;
     CurrentTime m_t;
     ExampleConfig m_config;
     bool m_paused = false;
