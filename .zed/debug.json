@@ -4,13 +4,25 @@
 // see: https://zed.dev/docs/debugger
 [
   {
-    "label": "Debug native binary",
+    "label": "Debug ClockExample",
     "build": {
       "command": "cmake",
       "args": ["--build", "$ZED_WORKTREE_ROOT/build"],
       "cwd": "$ZED_WORKTREE_ROOT"
     },
     "program": "$ZED_WORKTREE_ROOT/build/examples/clock/ClockExample.exe",
+    "request": "launch",
+    "adapter": "CodeLLDB",
+    "cwd": "$ZED_WORKTREE_ROOT/build/examples"
+  },
+  {
+    "label": "Debug StresstestExample",
+    "build": {
+      "command": "cmake",
+      "args": ["--build", "$ZED_WORKTREE_ROOT/build"],
+      "cwd": "$ZED_WORKTREE_ROOT"
+    },
+    "program": "$ZED_WORKTREE_ROOT/build/examples/stresstest/StressTestExample.exe",
     "request": "launch",
     "adapter": "CodeLLDB",
     "cwd": "$ZED_WORKTREE_ROOT/build/examples"
