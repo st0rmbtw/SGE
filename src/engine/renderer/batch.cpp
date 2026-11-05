@@ -419,15 +419,13 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
     m_dynamic_bindings.push_back(data.font.partition_buffer.Get());
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
-    auto xGlyph = data.font.glyphs.find('x');
-
     for (size_t sectionIdx = 0; sectionIdx < data.sections.size(); ++sectionIdx) {
         const RichTextSection section = data.sections[sectionIdx];
         const char* str = section.text.data();
         const size_t length = section.text.size();
         const float sx = section.size / data.font.units_per_em;
-        const float xhPx = std::max(1.0f, std::round(xGlyph->second.bearing.y * sx));
-        const float sy = xhPx / xGlyph->second.bearing.y;
+        const float xhPx = std::max(1.0f, std::round(data.font.xHeight * sx));
+        const float sy = xhPx / data.font.xHeight;
 
         const glm::vec3 color = section.color.to_vec3();
 

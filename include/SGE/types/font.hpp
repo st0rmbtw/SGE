@@ -48,6 +48,7 @@ struct FontVector {
     uint16_t units_per_em;
     int16_t ascender;
     int16_t descender;
+    float xHeight;
 };
 
 struct Font {

@@ -10,6 +10,7 @@
 #include FT_MODULE_H
 #include FT_OUTLINE_H
 #include FT_ADVANCES_H
+#include FT_TRUETYPE_TABLES_H
 
 #include "common.hpp"
 
@@ -373,15 +374,20 @@ sge::font_loader::FontDataVector sge::font_loader::LoadVectorFontDataFromBytes(s
     std::vector<std::pair<QuadraticBezier, int>> pieces;
     std::vector<std::vector<QuadraticBezier>> bands;
 
+    FT_Short xHeight = 0;
+
     while (true) {
         FT_Load_Glyph(face, index, FT_LOAD_DEFAULT | FT_LOAD_NO_BITMAP | FT_LOAD_NO_SCALE);
         if (face->glyph->format != FT_GLYPH_FORMAT_OUTLINE) continue;
+
+        if (character == 'x') {
+            xHeight = face->glyph->metrics.height;
+        }
 
         FT_Outline_Decompose(&face->glyph->outline, &callbacks, &curves);
         const uint32_t curve_count = curves.size();
 
         uint32_t partition_offset = 0;
-
         int total_bands = 0;
 
         if (curve_count > 0) {
@@ -446,6 +452,12 @@ sge::font_loader::FontDataVector sge::font_loader::LoadVectorFontDataFromBytes(s
     std::memcpy(partition_data.get(), partitions.data(), partitions_data_size);
     partitions.clear();
 
+    // Try to get x-height from OS/2
+    TT_OS2* os2 = (TT_OS2*)FT_Get_Sfnt_Table(face, FT_SFNT_OS2);
+    if (os2 && os2->sxHeight != 0) {
+        xHeight = os2->sxHeight;
+    }
+
     return FontDataVector {
         .glyphs = glyphs,
         .curves_data = std::move(curves_data),
@@ -457,6 +469,7 @@ sge::font_loader::FontDataVector sge::font_loader::LoadVectorFontDataFromBytes(s
         .units_per_em = face->units_per_EM,
         .ascender = static_cast<int16_t>(face->ascender),
         .descender = static_cast<int16_t>(face->descender),
+        .xHeight = xHeight
     };
 }
 

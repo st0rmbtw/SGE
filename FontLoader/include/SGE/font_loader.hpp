@@ -52,6 +52,7 @@ struct FontDataVector {
     uint16_t units_per_em;
     int16_t ascender;
     int16_t descender;
+    int16_t xHeight;
 };
 
 struct SdfSettings {

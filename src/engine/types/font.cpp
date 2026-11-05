@@ -25,7 +25,8 @@ sge::FontVector sge::LoadVectorFontFromData(const sge::font_loader::FontDataVect
         .partition_buffer = context.CreateStructuredBuffer(data.partitions_data_size, data.partitions_data_stride, data.partitions_data.get()),
         .units_per_em = data.units_per_em,
         .ascender = data.ascender,
-        .descender = data.descender
+        .descender = data.descender,
+        .xHeight = static_cast<float>(data.xHeight)
     };
 }
 
