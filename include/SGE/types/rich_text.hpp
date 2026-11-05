@@ -1,9 +1,9 @@
 #pragma once
 
-#ifndef _SGE_RICH_TEXT_HPP_
-#define _SGE_RICH_TEXT_HPP_
+#ifndef SGE_RICH_TEXT_HPP_
+#define SGE_RICH_TEXT_HPP_
 
-#include <string>
+#include <span>
 #include <string_view>
 
 #include <glm/vec3.hpp>
@@ -19,6 +19,28 @@ struct RichTextSection {
 };
 
 template <size_t Size>
+struct RichText;
+
+template <>
+struct RichText<1> {
+    RichTextSection section;
+
+    explicit RichText(std::string_view text, float size, sge::LinearRgba color) :
+        section{ .text=text, .color=color, .size=size }
+    {}
+
+    [[nodiscard]]
+    constexpr inline size_t size() const noexcept {
+        return 1;
+    }
+
+    [[nodiscard]]
+    constexpr inline const RichTextSection* data() const noexcept {
+        return &section;
+    }
+};
+
+template <size_t Size>
 struct RichText {
     RichTextSection sections[Size];
 
@@ -31,18 +53,14 @@ struct RichText {
     constexpr inline const RichTextSection* data() const noexcept {
         return sections;
     }
+
+    operator std::span<const RichTextSection>() {
+        return std::span(data(), size());
+    }
 };
 
 inline RichText<1> rich_text(std::string_view text, float size, sge::LinearRgba color) {
-    return RichText<1>{{ {.text=text, .color=color, .size=size} }};
-}
-
-inline RichText<1> rich_text(const std::string& text, float size, sge::LinearRgba color) {
-    return RichText<1>{{ {.text=std::string_view(text), .color=color, .size=size} }};
-}
-
-inline RichText<1> rich_text(const char* text, float size, sge::LinearRgba color) {
-    return RichText<1>{{ {.text=text, .color=color, .size=size} }};
+    return RichText<1>(text, size, color);
 }
 
 } // namespace sge

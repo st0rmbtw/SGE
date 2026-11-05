@@ -13,6 +13,7 @@
 #include <SGE/profile.hpp>
 #include <SGE/renderer/context.hpp>
 #include <SGE/renderer/types.hpp>
+#include <SGE/renderer/framebuffer_pool.hpp>
 
 #if SGE_IMGUI_ENABLED
     #include <imgui.h>
@@ -673,6 +674,13 @@ sge::Framebuffer sge::RenderContext::CreateFramebuffer(const sge::FramebufferCon
 }
 
 sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, uint8_t samples, long bindFlags) {
+#if SGE_DEBUG
+    if (resolution.width == 0 || resolution.height == 0) {
+        SGE_LOG_ERROR("Requested temporary framebuffer resolution is invalid! Width and height must be greater than zero.");
+        return sge::TemporaryFramebuffer();
+    }
+#endif
+
     auto key = TemporaryFramebufferKey {
         .width = resolution.width,
         .height = resolution.height,

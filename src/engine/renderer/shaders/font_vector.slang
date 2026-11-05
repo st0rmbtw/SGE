@@ -40,9 +40,11 @@ VSOutput VS(VSInput inp)
 
     float2 position = mad(inp.position, inp.i_size, inp.i_position);
 
+    float2 emPx = float2(1.0, 1.0) / inp.i_em_size;
+
     VSOutput outp;
     outp.color = inp.i_color;
-    outp.uv = inp.position * inp.i_em_size;
+    outp.uv = inp.position * (inp.i_em_size + emPx*2.0) - emPx;
     outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = 1.0f;
     outp.partition_offset = inp.i_partition_offset;
@@ -74,6 +76,11 @@ float2 EvaluateBezier(float2 p0, float2 p1, float2 p2, float t)
     float2 a = lerp(p0, p1, t);
     float2 b = lerp(p1, p2, t);
     return lerp(a, b, t);
+}
+
+float dydt(float2 p0, float2 p1, float2 p2, float t)
+{
+    return 2.0 * lerp(p1.y - p0.y, p2.y - p1.y, t);
 }
 
 float ScanlineSweep(float2 size, float2 offset, float2 p0, float2 p1, float2 p2)
@@ -169,7 +176,12 @@ float ScanlineSweep(float2 size, float2 offset, float2 p0, float2 p1, float2 p2)
     float h = q1.y - q0.y;
     float b = mad(-0.5h, q0.x + q1.x, size.x);
 
-    coverage += b * h;
+    float  tm = 0.5 * (min_t + max_t);
+    float2 qm = EvaluateBezier(p0, p1, p2, tm);
+    float f0 = (size.x - q0.x) * dydt(p0, p1, p2, min_t);
+    float fm = (size.x - qm.x) * dydt(p0, p1, p2, tm);
+    float f1 = (size.x - q1.x) * dydt(p0, p1, p2, max_t);
+    coverage += (max_t - min_t) * (f0 + 4.0 * fm + f1) * (1.0 / 6.0);
 
     return coverage;
 }
@@ -212,11 +224,13 @@ float4 PS(VSOutput inp) : SV_Target
             break;
     }
 
-    float y_lo = inp.uv.y - pixel_size.y;
-    float y_hi = inp.uv.y + pixel_size.y;
+    float2 half_px = pixel_size * 0.5;
+    float y_lo = inp.uv.y - half_px.y;
+    float y_hi = inp.uv.y + half_px.x;
 
-    int p_lo = clamp((int)floor(y_lo / PARTITION_HEIGHT), 0, int(inp.partition_count) - 1);
-    int p_hi = clamp((int)floor(y_hi / PARTITION_HEIGHT), 0, int(inp.partition_count) - 1);
+    int last = int(inp.partition_count) - 1;
+    int p_lo = clamp((int)floor(y_lo / PARTITION_HEIGHT), 0, last);
+    int p_hi = clamp((int)floor(y_hi / PARTITION_HEIGHT), 0, last);
 
     float coverage = 0.h;
 
@@ -231,15 +245,16 @@ float4 PS(VSOutput inp) : SV_Target
             float2 p1 = UnpackPoint(curve.p1);
             float2 p2 = UnpackPoint(curve.p2);
 
-            coverage += ScanlineSweep(pixel_size, inp.uv, p0, p1, p2);
+            // Curve stored in several partitions must be counted once
+            int first = clamp((int)floor(min(p0.y, p2.y) / PARTITION_HEIGHT), 0, last);
+            if (partition_index != max(first, p_lo)) continue;
+
+            coverage += ScanlineSweep(pixel_size, inp.uv - half_px, p0, p1, p2);
         }
     }
 
     float pixel_area = pixel_size.x * pixel_size.y;
     coverage /= pixel_area;
 
-    float alpha = pow(saturate(coverage), 1.f / 2.2f);
-
-    return float4(inp.color, alpha);
+    return float4(inp.color, saturate(coverage));
 };
-

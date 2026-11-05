@@ -389,9 +389,6 @@ sge::font_loader::FontDataVector sge::font_loader::LoadVectorFontDataFromBytes(s
             // The winding order is clockwise, converting it to counter-clockwise
             if (sum < 0)
                 curves.reverse();
-            else {
-                (void)0;
-            };
 
             FT_BBox bbox;
             FT_Outline_Get_CBox(&face->glyph->outline, &bbox);

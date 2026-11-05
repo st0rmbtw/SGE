@@ -419,24 +419,27 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
     m_dynamic_bindings.push_back(data.font.partition_buffer.Get());
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
+    auto xGlyph = data.font.glyphs.find('x');
+
     for (size_t sectionIdx = 0; sectionIdx < data.sections.size(); ++sectionIdx) {
         const RichTextSection section = data.sections[sectionIdx];
         const char* str = section.text.data();
         const size_t length = section.text.size();
-        const float scale = section.size / data.font.units_per_em;
+        const float sx = section.size / data.font.units_per_em;
+        const float xhPx = std::max(1.0f, std::round(xGlyph->second.bearing.y * sx));
+        const float sy = xhPx / xGlyph->second.bearing.y;
 
         const glm::vec3 color = section.color.to_vec3();
 
-        float baseline_y = ComputeTextBaseline(data.alignment, y, scale, data.font.ascender, data.font.descender);
+        float baseline = std::round(ComputeTextBaseline(data.alignment, y, sy, data.font.ascender, data.font.descender));
 
         uint32_t codepoint = 0;
         for (size_t i = 0; i < length;) {
             i += utf8_codepoint_to_utf32(reinterpret_cast<const uint8_t*>(str) + i, codepoint);
 
             if (codepoint == '\n') {
-                const float height = (data.font.ascender - data.font.descender) * scale;
-                y += height;
-                baseline_y = ComputeTextBaseline(data.alignment, y, scale, data.font.ascender, data.font.descender);
+                y += (data.font.ascender - data.font.descender) * sy;
+                baseline = std::round(ComputeTextBaseline(data.alignment, y, sy, data.font.ascender, data.font.descender));
                 x = data.position.x;
                 continue;
             }
@@ -449,14 +452,14 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
             const sge::Glyph& ch = it->second;
 
             if (codepoint == ' ') {
-                x += ch.advance * scale;
+                x += ch.advance * sx;
                 continue;
             }
 
-            const float xpos = x + ch.bearing.x * scale;
-            const float ypos = baseline_y - ch.bearing.y * scale;
-            const glm::vec2 pos = glm::vec2(xpos, ypos);
-            const glm::vec2 size = glm::vec2(ch.size) * scale;
+            const float xpos = std::round(x) + ch.bearing.x * sx;
+            const float ypos = baseline - ch.bearing.y * sy;
+            const glm::vec2 pos = glm::vec2(xpos - 1.0f, ypos - 1.0f);
+            const glm::vec2 size = glm::vec2(ch.size + 1) * glm::vec2(sx, sy);
 
             const auto commandState = internal::DrawCommandState {
                 .scissor = state.scissor,
@@ -480,7 +483,7 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
                 .flags = state.customFlags.value_or(GetFlags()).data()
             });
 
-            x += ch.advance * scale;
+            x += ch.advance * sx;
         }
     }
 }

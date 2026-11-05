@@ -613,16 +613,6 @@ namespace Draw {
             .alignment = alignment
         });
     }
-
-    inline DrawCall<VectorTextDrawData> TextVector(std::string_view text, float size, sge::LinearRgba color, glm::vec2 position, sge::TextAlignment alignment, const sge::FontVector& font) {
-        sge::RichTextSection section{ .text=text, .color=color, .size=size };
-        return DrawCall(VectorTextDrawData {
-            .sections = std::span(&section, 1),
-            .font = font,
-            .position = position,
-            .alignment = alignment
-        });
-    }
 };
 
 inline size_t NextBatchTypeId() {
