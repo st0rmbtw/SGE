@@ -19,6 +19,7 @@
 #include <SGE/types/framebuffer.hpp>
 #include <SGE/types/shape.hpp>
 #include <SGE/types/window_settings.hpp>
+#include <SGE/utils/string.hpp>
 #include <SGE/window_manager.hpp>
 
 #if SGE_IMGUI_ENABLED
@@ -164,8 +165,6 @@ void App::OnUpdate() {
 
     const float dt = Time::DeltaSeconds();
 
-    bool changed = false;
-
     float prev_yaw = m_yaw;
     float prev_pitch = m_pitch;
 
@@ -173,11 +172,11 @@ void App::OnUpdate() {
     m_pitch -= Input::MouseDelta().y * 0.05f;
 
     if (!sge::ApproxEquals(prev_yaw, m_yaw))
-        changed = true;
+        m_transform_changed = true;
     if (!sge::ApproxEquals(prev_pitch, m_pitch))
-        changed = true;
+        m_transform_changed = true;
 
-    if (changed) {
+    if (m_transform_changed) {
         m_yaw = std::fmod(m_yaw, 360.0f);
         m_pitch = glm::clamp(m_pitch, -89.0f, 89.0f);
         m_transform.rotation = sge::Quaternion::FromEuler(glm::radians(m_yaw), glm::radians(m_pitch), 0.f);
@@ -190,31 +189,32 @@ void App::OnUpdate() {
 
     if (Input::Pressed(sge::Key::W)) {
         m_transform.translation += m_transform.Forward() * speed * dt;
-        changed = true;
+        m_transform_changed = true;
     }
     if (Input::Pressed(sge::Key::S)) {
         m_transform.translation -= m_transform.Forward() * speed * dt;
-        changed = true;
+        m_transform_changed = true;
     }
     if (Input::Pressed(sge::Key::D)) {
         m_transform.translation += m_transform.Right() * speed * dt;
-        changed = true;
+        m_transform_changed = true;
     }
     if (Input::Pressed(sge::Key::A)) {
         m_transform.translation -= m_transform.Right() * speed * dt;
-        changed = true;
+        m_transform_changed = true;
     }
     if (Input::Pressed(sge::Key::Space)) {
         m_transform.translation += m_transform.Up() * speed * dt;
-        changed = true;
+        m_transform_changed = true;
     }
     if (Input::Pressed(sge::Key::LeftShift)) {
         m_transform.translation -= m_transform.Up() * speed * dt;
-        changed = true;
+        m_transform_changed = true;
     }
 
-    if (changed) {
+    if (m_transform_changed) {
         m_uniforms.view_matrix = glm::inverse(m_transform.ComputeMatrix());
+        m_transform_changed = false;
     }
 }
 
@@ -253,6 +253,9 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
                         ImGui::Begin("Settings");
                         {
+                            ImGui::Text("Position: [%.2f, %.2f, %.2f]", m_transform.translation.x, m_transform.translation.y, m_transform.translation.z);
+                            ImGui::Text("Rotation (yaw, pitch): [%.2f, %.2f, %.2f]", m_transform.rotation.GetYaw(), m_transform.rotation.GetPitch(), 0.0);
+
                             if (ImGui::CollapsingHeader("Tonemap")) {
                                 ImGui::DragFloat("Exposure", &m_tonemap_settings.exposure, 0.05f, 0.0f, 0.0f, "%.5f");
                             }
