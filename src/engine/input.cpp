@@ -15,6 +15,7 @@ struct InputState {
     std::vector<uint32_t> codepoint_queue;
     glm::vec2 cursor_position;
     glm::vec2 mouse_delta;
+    bool cursor_position_initialized = false;
 } input_state;
 
 } // namespace
@@ -63,10 +64,12 @@ void sge::Input::ProcessEvent(const InputEvent& inputEvent) {
     break;
     case InputEventType::CursorMove: {
         const glm::vec2 newPosition = inputEvent.CursorMoveEvent.Pos;
-        const glm::vec2 delta = newPosition - input_state.cursor_position;
-
-        input_state.mouse_delta += delta;
+        if (input_state.cursor_position_initialized) [[likely]] {
+            const glm::vec2 delta = newPosition - input_state.cursor_position;
+            input_state.mouse_delta += delta;
+        }
         input_state.cursor_position = newPosition;
+        input_state.cursor_position_initialized = true;
     }
     break;
     case InputEventType::Scroll: {
