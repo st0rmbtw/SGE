@@ -203,7 +203,7 @@ StructuredBuffer<BezierCurve> CurveBuffer : register(t3);
 [vk::binding(4)]
 StructuredBuffer<BezierCurvePartition> PartitionBuffer : register(t4);
 
-static constexpr float PARTITION_HEIGHT = 75.f;
+static const float PARTITION_HEIGHT = 75.f;
 
 inline float2 UnpackPoint(uint packed)
 {

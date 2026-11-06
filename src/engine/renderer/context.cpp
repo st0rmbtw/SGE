@@ -765,14 +765,17 @@ sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
     return sge::Raw<LLGL::Shader>::Create(shared_from_this(), shader);
 }
 
-sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t length, const sge::ShaderConfig& config) {
+sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t dataSize, const sge::ShaderConfig& config) {
+    SGE_ASSERT_M(data != nullptr, "Data must not be null!");
+    SGE_ASSERT_M(dataSize > 0, "Data size must be greater than zero!");
+
     const RenderBackend backend = m_backend;
 
     LLGL::ShaderDescriptor shader_desc;
     shader_desc.type = shader_type.ToLLGLType();
     shader_desc.sourceType = LLGL::ShaderSourceType::CodeString;
     shader_desc.source = static_cast<const char*>(data);
-    shader_desc.sourceSize = length;
+    shader_desc.sourceSize = dataSize;
 
     if (backend.IsVulkan()) {
         shader_desc.sourceType = LLGL::ShaderSourceType::BinaryBuffer;

@@ -197,7 +197,7 @@ protected:
         if (LLGL::SwapChain* swap_chain = m_context->GetSwapChain(*window)) {
             swap_chain->ResizeBuffers(LLGL::Extent2D(width, height));
         }
-        
+
         OnFramebufferResize(window, width, height);
     }
 
@@ -237,7 +237,7 @@ protected:
         SGE_UNUSED(mods);
 
     #if SGE_IMGUI_ENABLED
-        if (ImGui::GetCurrentContext())    
+        if (ImGui::GetCurrentContext())
             ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
     #endif
 
@@ -266,7 +266,7 @@ protected:
     void OnWindowRefreshEvent(GLFWwindow* handle) override {
         auto window = WindowManager::FindByHandle(handle);
         SGE_ASSERT(window != nullptr);
-        
+
         Update();
         Render(window);
         OnPostRender();

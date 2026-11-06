@@ -6,24 +6,25 @@
 #if SGE_DEBUG
     #include <cstdlib>
     #include <print>
+    #include <exception>
 
     #define SGE_ASSERT(expression) do {                                                                 \
         if (!(expression)) {                                                                            \
             std::println(stderr, "Assertion `" #expression "` failed at {}:{}", __FILE__, __LINE__);    \
-            std::abort();                                                                               \
+            std::terminate();                                                                           \
         }                                                                                               \
     } while (0)
 
     #define SGE_ASSERT_M(expression, message) do {                                                                     \
         if (!(expression)) {                                                                                           \
-            std::println(stderr, "Assertion failed at {}:{}: " message, __FILE__, __LINE__);    \
-            std::abort();                                                                                              \
+            std::println(stderr, "Assertion failed at {}:{}: " message, __FILE__, __LINE__);                           \
+            std::terminate();                                                                                          \
         }                                                                                                              \
     } while (0)
 
     #define SGE_UNREACHABLE() do {                                                        \
         std::println(stderr, "Reached unreachable code at {}:{}", __FILE__, __LINE__);    \
-        std::abort();                                                                     \
+        std::terminate();                                                                 \
     } while (0)
 #else
     #define SGE_ASSERT(expression) ((void)0)
@@ -40,7 +41,7 @@
 
 #define SGE_PANIC(message) do {                                           \
     std::println(stderr, "panic at {}:{}: " message, __FILE__, __LINE__); \
-    std::abort();                                                         \
+    std::terminate();                                                     \
 } while (0)
 
 #endif

@@ -224,7 +224,7 @@ sge::LineBatch::LineBatch(sge::Renderer& renderer, LineBatchDesc desc) {
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_start", "I_Start")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_end", "I_End")
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_border_radius", "I_Border_Radius")
+        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_corner_radii", "I_CornerRadii")
         .AddInstanceAttribute(sge::VertexFormat::Float32, "inp_i_thickness", "I_Thickness")
         .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage);
@@ -501,7 +501,7 @@ sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {
         .SetDepthTestEnabled(desc.enableDepth)
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color")
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_border_color", "I_BorderColor")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_border_radius", "I_BorderRadius")
+        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_corner_radii", "I_CornerRadii")
         .AddInstanceAttribute(sge::VertexFormat::Float32x3, "inp_i_position", "I_Position")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset")
