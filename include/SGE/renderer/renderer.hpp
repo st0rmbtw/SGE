@@ -227,6 +227,7 @@ private:
         sge::BufferPool instanceBufferPool;
         sge::Unique<LLGL::BufferArray> vertexBufferArray;
         std::vector<uint8_t> instanceBytes;
+        std::vector<uint8_t> prevInstanceBytes;
         sge::Ref<Mesh> mesh;
         size_t totalInstanceCount;
     };

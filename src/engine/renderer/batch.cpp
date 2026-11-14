@@ -553,6 +553,7 @@ void sge::ShapeBatch::Add(const sge::ShapeDrawData& data, const sge::DrawState& 
 
 void sge::BatchGroup::Submit() {
     for (auto& batch : m_batches) {
+        if (!batch) continue;
         m_renderer->SubmitBatch(batch);
     }
 }

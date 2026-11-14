@@ -27,8 +27,8 @@
         std::terminate();                                                                 \
     } while (0)
 #else
-    #define SGE_ASSERT(expression) ((void)0)
-    #define SGE_ASSERT_M(expression, message) ((void)0)
+    #define SGE_ASSERT(expression) ((void)(expression))
+    #define SGE_ASSERT_M(expression, message) ((void)(expression))
 
     #if defined(__GNUC__) || defined(__clang__)
         #define SGE_UNREACHABLE() __builtin_unreachable()

@@ -23,13 +23,10 @@ namespace {
 inline constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 
 bool DrawCommandStateEqual(const sge::internal::DrawCommandState& a, const sge::internal::DrawCommandState& b, LLGL::Resource* const* dynamicResources) {
-    size_t hash_a = sge::HASH_INIT;
-    sge::hash_fnv1a(hash_a, dynamicResources + a.resources_offset, a.resources_count);
+    const auto resourcesA = std::span(dynamicResources + a.resources_offset, a.resources_count);
+    const auto resourcesB = std::span(dynamicResources + b.resources_offset, b.resources_count);
 
-    size_t hash_b = sge::HASH_INIT;
-    sge::hash_fnv1a(hash_b, dynamicResources + b.resources_offset, b.resources_count);
-
-    return hash_a == hash_b
+    return std::ranges::equal(resourcesA, resourcesB)
         && a.scissor == b.scissor
         && a.order == b.order
         && a.blend_mode == b.blend_mode;

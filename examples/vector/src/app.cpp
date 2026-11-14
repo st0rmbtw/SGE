@@ -59,21 +59,21 @@ bool App::OnInit() {
 
     m_renderer = std::make_unique<sge::Renderer2D>(GetRenderContext());
 
-    m_path.SetScale(glm::vec2(350.0f));
+    m_path.SetScale(glm::vec2(350.0f) / 16.0f);
 
-    m_path.Begin(glm::vec2(1.24264, 8.24264) / 16.0f);
-    m_path.LineTo(glm::vec2(8, 15) / 16.0f);
-    m_path.LineTo(glm::vec2(14.7574, 8.24264) / 16.0f);
-    m_path.CubicBezierTo(glm::vec2(15.553, 7.44699) / 16.0f, glm::vec2(16, 6.36786) / 16.0f, glm::vec2(16, 5.24264) / 16.0f);
-    m_path.VerticalTo(5.05234 / 16.0f);
-    m_path.CubicBezierTo(glm::vec2(16, 2.8143) / 16.0f, glm::vec2(14.1857, 1)  / 16.0f, glm::vec2(11.9477, 1) / 16.0f);
-    m_path.CubicBezierTo(glm::vec2(10.7166, 1) / 16.0f, glm::vec2(9.55233, 1.55959) / 16.0f, glm::vec2(8.78331, 2.52086) / 16.0f);
-    m_path.LineTo(glm::vec2(8, 3.5) / 16.0f);
-    m_path.LineTo(glm::vec2(7.21669, 2.52086) / 16.0f);
-    m_path.CubicBezierTo(glm::vec2(6.44767, 1.55959)  / 16.0f, glm::vec2(5.28338, 1) / 16.0f, glm::vec2(4.05234, 1) / 16.0f);
-    m_path.CubicBezierTo(glm::vec2(1.8143, 1) / 16.0f, glm::vec2(0, 2.8143) / 16.0f, glm::vec2(0, 5.05234) / 16.0f);
-    m_path.VerticalTo(5.24264 / 16.0f);
-    m_path.CubicBezierTo(glm::vec2(0, 6.36786) / 16.0f, glm::vec2(0.44699, 7.44699) / 16.0f, glm::vec2(1.24264, 8.24264) / 16.0f);
+    m_path.Begin(glm::vec2(1.24264, 8.24264));
+    m_path.LineTo(glm::vec2(8, 15));
+    m_path.LineTo(glm::vec2(14.7574, 8.24264));
+    m_path.CubicBezierTo(glm::vec2(15.553, 7.44699), glm::vec2(16, 6.36786), glm::vec2(16, 5.24264));
+    m_path.VerticalTo(5.05234);
+    m_path.CubicBezierTo(glm::vec2(16, 2.8143), glm::vec2(14.1857, 1) , glm::vec2(11.9477, 1));
+    m_path.CubicBezierTo(glm::vec2(10.7166, 1), glm::vec2(9.55233, 1.55959), glm::vec2(8.78331, 2.52086));
+    m_path.LineTo(glm::vec2(8, 3.5));
+    m_path.LineTo(glm::vec2(7.21669, 2.52086));
+    m_path.CubicBezierTo(glm::vec2(6.44767, 1.55959) , glm::vec2(5.28338, 1), glm::vec2(4.05234, 1));
+    m_path.CubicBezierTo(glm::vec2(1.8143, 1), glm::vec2(0, 2.8143), glm::vec2(0, 5.05234));
+    m_path.VerticalTo(5.24264);
+    m_path.CubicBezierTo(glm::vec2(0, 6.36786), glm::vec2(0.44699, 7.44699), glm::vec2(1.24264, 8.24264));
     m_path.End();
 
     Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
@@ -93,7 +93,7 @@ void App::OnUpdate() {
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     m_renderer->Begin();
     {
-        auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), LLGL::Format::RG11B10Float);
+        auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), LLGL::Format::RG11B10Float, window->GetSamples(), LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled | LLGL::BindFlags::CopySrc | LLGL::BindFlags::CopyDst);
 
         m_renderer->BeginPass(*framebuffer.GetRenderTarget(), m_camera);
         {

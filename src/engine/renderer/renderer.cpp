@@ -593,14 +593,28 @@ void sge::Renderer::UploadBatchBuffers() {
             continue;
 
         const size_t instanceDataSize = instanceData.instanceBytes.size();
+        const bool vertexBufferDirty = instanceData.instanceBufferPool.Reserve(*m_context, instanceDataSize);
 
-        if (instanceData.instanceBufferPool.Reserve(*m_context, instanceDataSize)) {
+        if (vertexBufferDirty) {
             SGE_ASSERT(instanceData.instanceBufferPool.Get() != nullptr);
             if (instanceData.vertexBufferArray)
                 m_context->Release(*instanceData.vertexBufferArray);
             instanceData.vertexBufferArray = m_context->CreateBufferArray({ instanceData.mesh->GetVertexBuffer().Get(), instanceData.instanceBufferPool.Get() });
         }
-        m_command_buffer->UpdateBuffer(*instanceData.instanceBufferPool.Get(), 0, instanceData.instanceBytes.data(), instanceDataSize);
+
+        bool instanceDataChanged = false;
+        if (instanceDataSize > instanceData.prevInstanceBytes.size())
+            instanceDataChanged = true;
+
+        if (!instanceDataChanged) {
+            // Only upload instances to the GPU if they have changed
+            instanceDataChanged = !std::equal(instanceData.instanceBytes.begin(), instanceData.instanceBytes.end(), instanceData.prevInstanceBytes.begin());
+        }
+
+        if (vertexBufferDirty || instanceDataChanged) {
+            m_command_buffer->UpdateBuffer(*instanceData.instanceBufferPool.Get(), 0, instanceData.instanceBytes.data(), instanceDataSize);
+            std::swap(instanceData.instanceBytes, instanceData.prevInstanceBytes);
+        }
 
         instanceData.instanceBytes.clear();
     }

@@ -35,6 +35,13 @@ class Renderer;
 
 namespace internal {
 
+inline std::atomic<size_t> g_batch_id_counter = 0;
+
+template <class T>
+struct BatchTypeIdentifier {
+    inline static const size_t id = g_batch_id_counter++;
+};
+
 struct DrawCommandState {
     sge::IRect scissor;
     size_t resources_offset;
@@ -615,17 +622,6 @@ namespace Draw {
     }
 };
 
-inline size_t NextBatchTypeId() {
-    static size_t n = 0;
-    return n++;
-}
-
-template<class T>
-size_t BatchTypeId() {
-    static const size_t id = NextBatchTypeId();
-    return id;
-}
-
 // Utility template struct for mapping a drawable item to the batch that renders it.
 template<class Item> struct BatchFor;
 template<> struct BatchFor<Sprite> { using type = SpriteBatch; };
@@ -693,6 +689,7 @@ public:
         m_order = 0;
         m_order_mode = false;
         for (auto& batch : m_batches) {
+            if (!batch) continue;
             batch->Reset();
         }
     }
@@ -742,7 +739,7 @@ public:
 private:
     template<class B>
     std::shared_ptr<IBatch>& Slot() {
-        const size_t id = BatchTypeId<B>();
+        const size_t id = internal::BatchTypeIdentifier<B>::id;
         if (id >= m_batches.size()) m_batches.resize(id + 1);
         return m_batches[id];
     }
