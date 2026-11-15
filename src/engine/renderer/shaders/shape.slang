@@ -43,60 +43,23 @@ static const uint SHAPE_ARC = 2;
 [shader("vertex")]
 VSOutput VS(VSInput inp)
 {
-    // const float qxx = inp.i_rotation.x * inp.i_rotation.x;
-    // const float qyy = inp.i_rotation.y * inp.i_rotation.y;
-    // const float qzz = inp.i_rotation.z * inp.i_rotation.z;
-    // const float qxz = inp.i_rotation.x * inp.i_rotation.z;
-    // const float qxy = inp.i_rotation.x * inp.i_rotation.y;
-    // const float qyz = inp.i_rotation.y * inp.i_rotation.z;
-    // const float qwx = inp.i_rotation.w * inp.i_rotation.x;
-    // const float qwy = inp.i_rotation.w * inp.i_rotation.y;
-    // const float qwz = inp.i_rotation.w * inp.i_rotation.z;
-
-    // const float4x4 rotation_matrix = float4x4(
-    //     float4(1.0 - 2.0 * (qyy + qzz), 2.0 * (qxy - qwz)      , 2.0 * (qxz + qwy)      , 0.0),
-    //     float4(2.0 * (qxy + qwz)      , 1.0 - 2.0 * (qxx + qzz), 2.0 * (qyz - qwx)      , 0.0),
-    //     float4(2.0 * (qxz - qwy)      , 2.0 * (qyz + qwx)      , 1.0 - 2.0 * (qxx + qyy), 0.0),
-    //     float4(0.0                    , 0.0                    , 0.0                    , 1.0)
-    // );
-
-    var transform = float4x4(
-        float4(1.0, 0.0, 0.0, inp.i_position.x),
-        float4(0.0, 1.0, 0.0, inp.i_position.y),
-        float4(0.0, 0.0, 1.0, 0.0),
-        float4(0.0, 0.0, 0.0, 1.0)
-    );
-
-    // transform = mul(transform, rotation_matrix);
-
-    let offset = -inp.i_offset * inp.i_size;
-
-    // translate
-    transform[0][3] = transform[0][0] * offset[0] + transform[0][1] * offset[1] + transform[0][2] * 0.0 + transform[0][3];
-    transform[1][3] = transform[1][0] * offset[0] + transform[1][1] * offset[1] + transform[1][2] * 0.0 + transform[1][3];
-    transform[2][3] = transform[2][0] * offset[0] + transform[2][1] * offset[1] + transform[2][2] * 0.0 + transform[2][3];
-    transform[3][3] = transform[3][0] * offset[0] + transform[3][1] * offset[1] + transform[3][2] * 0.0 + transform[3][3];
-
-    //scale
-    transform[0][0] = transform[0][0] * inp.i_size[0];
-    transform[1][0] = transform[1][0] * inp.i_size[0];
-    transform[2][0] = transform[2][0] * inp.i_size[0];
-    transform[3][0] = transform[3][0] * inp.i_size[0];
-
-    transform[0][1] = transform[0][1] * inp.i_size[1];
-    transform[1][1] = transform[1][1] * inp.i_size[1];
-    transform[2][1] = transform[2][1] * inp.i_size[1];
-    transform[3][1] = transform[3][1] * inp.i_size[1];
-
     let is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
+    let proj = is_ui ? uniforms.screen_projection : uniforms.view_projection;
 
-    let mvp = mul(is_ui ? uniforms.screen_projection : uniforms.view_projection, transform);
+    let center = inp.i_position.xy + (0.5 - inp.i_offset) * inp.i_size;
+    var local = (inp.position - 0.5) * inp.i_size;
+
+    let pad = float2(
+        ceil(AA_RADIUS*2) / max(pixels_per_unit(proj, center + local, float2(1, 0), uniforms.window_size), 1e-6),
+        ceil(AA_RADIUS*2) / max(pixels_per_unit(proj, center + local, float2(0, 1), uniforms.window_size), 1e-6)
+    ); // 1px margin
+    local = (inp.position - 0.5) * (inp.i_size + 2.0 * pad);
 
     VSOutput outp;
-    outp.position = mul(mvp, float4(inp.position, 0.0, 1.0));
+    outp.position = mul(proj, float4(center + local, 0.0, 1.0));
     outp.position.z = inp.i_position.z;
-    outp.uv = inp.position;
-    outp.p = (inp.position - 0.5) * inp.i_size;
+    outp.p = local;
+    outp.uv = local / inp.i_size + 0.5;
     outp.size = inp.i_size;
     outp.color = inp.i_color;
     outp.borderColor = inp.i_border_color;

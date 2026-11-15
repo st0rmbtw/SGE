@@ -1,4 +1,5 @@
 static const float TAU = 6.283185307179586;
+static const float AA_RADIUS = 0.8;
 
 #if 0
 // A heat map color for debugging (blue -> cyan -> green -> yellow -> red).
@@ -77,96 +78,60 @@ float pick_corner_radius(float2 center_to_point, float4 corner_radii) {
     }
 }
 
-float4 over(float4 below, float4 above) {
-    let alpha = above.a + below.a * (1.0 - above.a);
-    let color = (above.rgb * above.a + below.rgb * below.a * (1.0 - above.a)) / alpha;
-    return float4(color, alpha);
+// Exact for r == 0 as well (gives a true Euclidean distance at corners).
+float sdf_rounded_box(float2 p, float2 halfSize, float r)
+{
+    float2 q = abs(p) - halfSize + r;
+    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
 // corner_radii:
 //    x: top left, y: top right, z: bottom left, w: bottom right
-float4 sdf_rect(float2 point, float2 size, float4 color, float4 cornerRadii, float borderThickness, float4 borderColor) {
-    let isUnrounded = all(cornerRadii == 0.0);
-    if (borderThickness == 0.0 && isUnrounded) {
-        return color;
+float4 sdf_rect(float2 p, float2 size, float4 color, float4 cornerRadii, float borderThickness, float4 borderColor)
+{
+    let dpdx = ddx(p);
+    let dpdy = ddy(p);
+    let pixelSize = max(sqrt(0.5 * (dot(dpdx, dpdx) + dot(dpdy, dpdy))), 1e-6);
+
+    let halfSize = size * 0.5;
+    let r = min(pick_corner_radius(p, cornerRadii), min(halfSize.x, halfSize.y));
+
+    let outerSdf = sdf_rounded_box(p, halfSize, r);
+    // let outerCov = saturate(0.5 - outerSdf / pixelSize);
+    var outerCov = smoothstep(-AA_RADIUS, AA_RADIUS, -outerSdf / pixelSize);
+    outerCov = pow(outerCov, 1.0 / 2.2);
+
+    // Work in premultiplied alpha so interpolation is correct and there is no divide.
+    let fill = float4(color.rgb * color.a, color.a);
+    var result = fill;
+
+    if (borderThickness > 0.0) {
+        let bt = min(borderThickness, min(halfSize.x, halfSize.y));
+        let innerSdf = sdf_rounded_box(p, halfSize - bt, max(r - bt, 0.0));
+        // let fillCov  = saturate(0.5 - innerSdf / pixelSize);
+        var fillCov  = smoothstep(-AA_RADIUS, AA_RADIUS, -innerSdf / pixelSize);
+        fillCov = pow(fillCov, 1.0 / 2.2);
+
+        let border = float4(borderColor.rgb * borderColor.a, borderColor.a);
+        let borderOverFill = border + fill * (1.0 - border.a);
+        result = lerp(borderOverFill, fill, fillCov);
     }
 
-    // Signed distance field threshold for inclusion of pixels. 0.5 is the
-    // minimum distance between the center of the pixel and the edge.
-    let antialiasThreshold = 0.5;
+    result *= outerCov;
 
-    let reducedBorder = select(borderThickness == 0.0, -antialiasThreshold, borderThickness);
-
-    // Radius of the nearest corner
-    let cornerRadius = pick_corner_radius(point, cornerRadii);
-
-    let cornerToPoint = abs(point) - size * 0.5;
-
-    let cornerCenterToPoint = cornerToPoint + cornerRadius;
-
-    let isNearRoundedCorner =
-        cornerCenterToPoint.x >= 0 &&
-        cornerCenterToPoint.y >= 0;
-
-    let straightBorderInnerCornerToPoint = cornerToPoint + reducedBorder;
-
-    let isBeyondInnerStraightBorder =
-        straightBorderInnerCornerToPoint.x > 0 ||
-        straightBorderInnerCornerToPoint.y > 0;
-
-    // Whether the point is far enough inside the quad, such that the pixels are
-    // not affected by the straight border.
-    let isWithinInnerStraightBorder =
-        straightBorderInnerCornerToPoint.x < (-antialiasThreshold) &&
-        straightBorderInnerCornerToPoint.y < (-antialiasThreshold);
-
-    // Fast path for points that must be part of the background.
-    if (isWithinInnerStraightBorder && !isNearRoundedCorner) {
-        return color;
-    }
-
-    let pixelSize = max(length(float2(ddx(point.x), ddy(point.y))), 1e-5);
-
-    // Signed distance of the point to the outside edge of the quad's border. It
-    // is positive outside this edge, and negative inside.
-    let outer_sdf = sdf_rect_impl(cornerCenterToPoint, cornerRadius);
-
-    var inner_sdf = 0.0;
-    if (cornerCenterToPoint.x <= 0 || cornerCenterToPoint.y <= 0) {
-        // Fast paths for straight borders.
-        inner_sdf = -max(straightBorderInnerCornerToPoint.x,
-                            straightBorderInnerCornerToPoint.y);
-    } else if (isBeyondInnerStraightBorder) {
-        // Fast path for points that must be outside the inner edge.
-        inner_sdf = -borderThickness;
-    } else { // if (reducedBorder == reducedBorder)
-        // Fast path for circular inner edge.
-        inner_sdf = -(outer_sdf + reducedBorder);
-    }
-    // else {
-    //     let ellipse_radii = max(float2(0.0, 0.0), cornerRadius - reducedBorder);
-    //     inner_sdf = sdf_quarter_ellipse(cornerCenterToPoint, ellipse_radii);
-    // }
-
-    // Negative when inside the border
-    let border_sdf = max(inner_sdf, outer_sdf);
-
-    if (border_sdf < antialiasThreshold) {
-        let blended_border = over(color, borderColor);
-        color = lerp(color, blended_border, saturate(0.5 - inner_sdf / pixelSize));
-    }
-
-    return float4(color.rgb, color.a * saturate(0.5 - outer_sdf / pixelSize));
+    // Back to straight alpha
+    let a = result.a;
+    return float4(a > 0.0 ? result.rgb / a : float3(0.0), a);
 }
 
-float sdf_rect_impl(float2 corner_center_to_point, float corner_radius) {
-    if (corner_radius == 0.0) {
-        return max(corner_center_to_point.x, corner_center_to_point.y);
-    } else {
-        let signed_distance_to_inset_quad =
-            length(max(float2(0.0, 0.0), corner_center_to_point))
-            + min(0.0, max(corner_center_to_point.x, corner_center_to_point.y));
+// Pixels per local unit along `dir` at `pos`. Valid for any projection.
+float pixels_per_unit(float4x4 proj, float2 pos, float2 dir, float2 viewport_size)
+{
+    let c = mul(proj, float4(pos, 0.0, 1.0));
+    let d = mul(proj, float4(dir, 0.0, 0.0)); // w = 0: linear part only, no translation
 
-        return signed_distance_to_inset_quad - corner_radius;
-    }
+    let ndc0 = c.xy / c.w;
+    let ndc1 = (c.xy + d.xy) / (c.w + d.w); // same as projecting pos + dir
+
+    return length((ndc1 - ndc0) * 0.5 * viewport_size);
 }

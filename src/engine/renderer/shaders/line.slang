@@ -35,31 +35,35 @@ static const uint FLAG_UI = 1 << 0;
 VSOutput VS(VSInput inp)
 {
     let is_ui = (inp.i_flags & FLAG_UI) == FLAG_UI;
+    let proj  = is_ui ? uniforms.screen_projection : uniforms.view_projection;
 
-    let mvp = is_ui ? uniforms.screen_projection : uniforms.view_projection;
-
-    let d = inp.i_end - inp.i_start;
+    let d   = inp.i_end - inp.i_start;
     let len = length(d);
-    let perp = (float2(d.y, -d.x) / len) * inp.i_thickness * 0.5;
+    let dir = len > 1e-6 ? d / len : float2(1.0, 0.0);
+    let nrm = float2(dir.y, -dir.x);
 
-    let vertices: float2[] = {
-        float2(inp.i_start - perp),
-        float2(inp.i_start + perp),
-        float2(inp.i_end - perp),
-        float2(inp.i_end + perp)
-    };
+    let size   = float2(len, inp.i_thickness);
+    let center = (inp.i_start + inp.i_end) * 0.5;
 
-    float2 size = float2(len, inp.i_thickness);
+    let local0 = (inp.position - 0.5) * size;
+    let pos0   = center + dir * local0.x + nrm * local0.y;
+
+    let pad = float2(
+        ceil(AA_RADIUS*2) / max(pixels_per_unit(proj, pos0, dir, uniforms.window_size), 1e-6),
+        ceil(AA_RADIUS*2) / max(pixels_per_unit(proj, pos0, nrm, uniforms.window_size), 1e-6),
+    );
+
+    let local = (inp.position - 0.5) * (size + 2.0 * pad);
+    let world = center + dir * local.x + nrm * local.y;
 
     VSOutput outp;
-    outp.color = inp.i_color;
+    outp.position    = mul(proj, float4(world, 0.0, 1.0));
+    outp.position.z  = 1.0;
+    outp.color       = inp.i_color;
     outp.cornerRadii = inp.i_corner_radii;
-    outp.size = size;
-    outp.p = (inp.position - 0.5) * size;
-    outp.position = mul(mvp, float4(vertices[inp.vid], 0.0, 1.0));
-    outp.position.z = 1.0;
-
-	return outp;
+    outp.size        = size;
+    outp.p           = local; // extends slightly beyond ±size/2
+    return outp;
 }
 
 static const float EPSILON = 0.0001f;
