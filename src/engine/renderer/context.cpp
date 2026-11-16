@@ -34,12 +34,12 @@ bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfi
     LLGL::RenderSystemDescriptor rendererDesc;
     rendererDesc.moduleName = backend.ToString();
 
+    LLGL::RendererConfigurationOpenGL glConfig;
     if (backend.IsOpenGL()) {
-        LLGL::RendererConfigurationOpenGL* config = new LLGL::RendererConfigurationOpenGL();
-        config->contextProfile = LLGL::OpenGLContextProfile::CoreProfile;
+        glConfig.contextProfile = LLGL::OpenGLContextProfile::CoreProfile;
 
-        rendererDesc.rendererConfig = config;
-        rendererDesc.rendererConfigSize = sizeof(LLGL::RendererConfigurationOpenGL);
+        rendererDesc.rendererConfig = &glConfig;
+        rendererDesc.rendererConfigSize = sizeof(glConfig);
     }
 
 #if SGE_DEBUG_LAYER_ENABLED
@@ -51,10 +51,6 @@ bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfi
 #endif
 
     m_context = LLGL::RenderSystem::Load(rendererDesc, &report);
-
-    if (backend.IsOpenGL()) {
-        delete (LLGL::OpenGLContextProfile*) rendererDesc.rendererConfig;
-    }
 
     if (report.HasErrors()) {
         SGE_LOG_ERROR("An error occured while loading render system: {}", report.GetText());
