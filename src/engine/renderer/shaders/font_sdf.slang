@@ -10,11 +10,11 @@ struct VSInput
 {
     float2 position : Position;
 
-    float3 i_color : I_Color;
     float2 i_position : I_Position;
     float2 i_size : I_Size;
     float2 i_tex_size : I_TexSize;
     float2 i_uv : I_UV;
+    uint i_color : I_Color;
     uint i_flags : I_Flags;
 };
 
@@ -39,7 +39,7 @@ VSOutput VS(VSInput inp)
     const float2 uv = inp.i_uv + inp.position * inp.i_tex_size;
 
     VSOutput outp;
-    outp.color = inp.i_color;
+    outp.color = UnpackRGBA8Unorm(inp.i_color).rgb;
     outp.uv = uv;
     outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = 1.0f;

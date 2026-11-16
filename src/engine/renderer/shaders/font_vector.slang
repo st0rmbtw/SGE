@@ -10,10 +10,10 @@ struct VSInput
 {
     float2 position : Position;
 
-    float3 i_color : I_Color;
     float2 i_position : I_Position;
     float2 i_size : I_Size;
     float2 i_em_size : I_Em_Size;
+    uint i_color : I_Color;
     uint i_partition_offset : I_PartitionOffset;
     uint i_partition_count : I_PartitionCount;
     uint i_flags : I_Flags;
@@ -43,7 +43,7 @@ VSOutput VS(VSInput inp)
     float2 emPx = float2(1.0, 1.0) / inp.i_em_size;
 
     VSOutput outp;
-    outp.color = inp.i_color;
+    outp.color = UnpackRGBA8Unorm(inp.i_color).rgb;
     outp.uv = inp.position * (inp.i_em_size + emPx*2.0) - emPx;
     outp.position = mul(mvp, float4(position, 0.0, 1.0));
     outp.position.z = 1.0f;

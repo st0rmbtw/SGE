@@ -11,13 +11,13 @@ struct VSInput
 {
     float2 position : Position;
 
-    float4 i_color : I_Color;
-    float4 i_border_color : I_BorderColor;
     float4 i_corner_radii: I_CornerRadii;
     float3 i_position : I_Position;
     float2 i_size : I_Size;
     float2 i_offset : I_Offset;
     float i_border_thickness : I_BorderThickness;
+    uint i_color : I_Color;
+    uint i_border_color : I_BorderColor;
     uint i_shape : I_Shape;
     uint i_flags : I_Flags;
 };
@@ -61,8 +61,8 @@ VSOutput VS(VSInput inp)
     outp.p = local;
     outp.uv = local / inp.i_size + 0.5;
     outp.size = inp.i_size;
-    outp.color = inp.i_color;
-    outp.borderColor = inp.i_border_color;
+    outp.color = UnpackRGBA8Unorm(inp.i_color);
+    outp.borderColor = UnpackRGBA8Unorm(inp.i_border_color);
     outp.borderThickness = inp.i_border_thickness;
     outp.cornerRadii = inp.i_corner_radii;
     outp.shape = inp.i_shape;

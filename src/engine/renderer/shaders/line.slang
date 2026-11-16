@@ -12,12 +12,10 @@ struct VSInput
     float2 position : Position;
     float2 i_start : I_Start;
     float2 i_end : I_End;
-    float4 i_color : I_Color;
     float4 i_corner_radii : I_CornerRadii;
     float i_thickness : I_Thickness;
+    uint i_color : I_Color;
     uint i_flags : I_Flags;
-
-    uint vid : SV_VertexID;
 };
 
 struct VSOutput
@@ -59,7 +57,7 @@ VSOutput VS(VSInput inp)
     VSOutput outp;
     outp.position    = mul(proj, float4(world, 0.0, 1.0));
     outp.position.z  = 1.0;
-    outp.color       = inp.i_color;
+    outp.color       = UnpackRGBA8Unorm(inp.i_color);
     outp.cornerRadii = inp.i_corner_radii;
     outp.size        = size;
     outp.p           = local; // extends slightly beyond ±size/2

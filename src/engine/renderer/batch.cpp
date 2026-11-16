@@ -10,9 +10,11 @@
 #include <SGE/renderer/utils.hpp>
 #include <SGE/renderer/vertex_format.hpp>
 #include <SGE/types/binding_layout.hpp>
+#include <SGE/utils/hash.hpp>
 #include <SGE/utils/utf8.hpp>
 
 #include <LLGL/ShaderFlags.h>
+#include <glm/packing.hpp>
 
 #include "shaders.hpp"
 
@@ -55,12 +57,12 @@ sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {
         .SetDepthTestEnabled(desc.enableDepth)
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_rotation", "I_Rotation")
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_uv_offset_scale", "I_UvOffsetScale")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_outline_color", "I_OutlineColor")
         .AddInstanceAttribute(sge::VertexFormat::Float32x3, "inp_i_position", "I_Position")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset")
         .AddInstanceAttribute(sge::VertexFormat::Float32, "inp_i_outline_thickness", "I_OutlineThickness")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32, "inp_i_color", "I_Color")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32, "inp_i_outline_color", "I_OutlineColor")
         .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
         .AddDynamicTexture(3, "Texture", LLGL::StageFlags::FragmentStage)
@@ -96,12 +98,12 @@ void sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, const
     m_instances.push_back(SpriteInstance {
         .rotation = glm::quat(sprite.rotation()),
         .uv_offset_scale = uv_offset_scale,
-        .color = sprite.color().to_vec4(),
-        .outline_color = sprite.outline_color().to_vec4(),
         .position = glm::vec3(sprite.position(), sprite.z()),
         .size = sprite.size(),
         .offset = sprite.anchor().to_vec2(),
         .outline_thickness = sprite.outline_thickness(),
+        .color_packed = glm::packUnorm4x8(sprite.color().to_vec4()),
+        .outline_color_packed = glm::packUnorm4x8(sprite.outline_color().to_vec4()),
         .flags = state.customFlags.value_or(GetFlags()).data()
     });
 }
@@ -150,13 +152,13 @@ sge::NinePatchBatch::NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc 
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_rotation", "I_Rotation")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color")
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_uv_offset_scale", "I_UvOffsetScale")
         .AddInstanceAttribute(sge::VertexFormat::Uint32x4,  "inp_i_margin", "I_Margin")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_source_size", "I_SourceSize")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_output_size", "I_OutputSize")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32, "inp_i_color", "I_Color")
         .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
         .AddDynamicTexture(3, "Texture", LLGL::StageFlags::FragmentStage)
@@ -197,13 +199,13 @@ void sge::NinePatchBatch::Add(const NinePatch& ninepatch, const DrawState& state
     });
     m_instances.push_back(NinePatchInstance {
         .rotation = glm::quat(ninepatch.rotation()),
-        .color = ninepatch.color().to_vec4(),
         .uv_offset_scale = uv_offset_scale,
         .margin = ninepatch.margin(),
         .position = ninepatch.position(),
         .offset = ninepatch.anchor().to_vec2(),
         .source_size = glm::vec2(ninepatch.texture().size()),
         .output_size = ninepatch.size(),
+        .color_packed = glm::packUnorm4x8(ninepatch.color().to_vec4()),
         .flags = state.customFlags.value_or(GetFlags()).data()
     });
 }
@@ -223,10 +225,10 @@ sge::LineBatch::LineBatch(sge::Renderer& renderer, LineBatchDesc desc) {
         .SetDepthTestEnabled(desc.enableDepth)
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_start", "I_Start")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_end", "I_End")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color")
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_corner_radii", "I_CornerRadii")
-        .AddInstanceAttribute(sge::VertexFormat::Float32, "inp_i_thickness", "I_Thickness")
-        .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
+        .AddInstanceAttribute(sge::VertexFormat::Float32,   "inp_i_thickness", "I_Thickness")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_color", "I_Color")
+        .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage);
 
     for (uint8_t i = 0; i < 4; ++i) {
@@ -260,9 +262,9 @@ void sge::LineBatch::Add(const LineDrawData& data, const DrawState& state) {
     m_instances.push_back(LineInstance {
         .start = data.start,
         .end = data.end,
-        .color = data.color.to_vec4(),
         .border_radius = radius,
         .thickness = data.thickness,
+        .color_packed = glm::packUnorm4x8(data.color.to_vec4()),
         .flags = state.customFlags.value_or(GetFlags()).data()
     });
 }
@@ -285,11 +287,11 @@ sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) 
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
-        .AddInstanceAttribute(sge::VertexFormat::Float32x3, "inp_i_color", "I_Color")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_tex_size", "I_TexSize")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_uv", "I_UV")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_color", "I_Color")
         .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
         .AddDynamicTexture(3, "Texture", LLGL::StageFlags::FragmentStage)
@@ -364,11 +366,11 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
                 },
             });
             m_instances.push_back(GlyphInstanceSDF {
-                .color = color,
                 .pos = pos,
                 .size = size,
                 .tex_size = ch.data.sdf.tex_size,
                 .uv = ch.data.sdf.texture_coords,
+                .color_packed = glm::packUnorm4x8(glm::vec4(color, 1.0)),
                 .flags = state.customFlags.value_or(GetFlags()).data()
             });
 
@@ -390,10 +392,10 @@ sge::TextVectorBatch::TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDe
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
-        .AddInstanceAttribute(sge::VertexFormat::Float32x3, "inp_i_color", "I_Color")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_em_size", "I_Em_Size")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_color", "I_Color")
         .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_partition_offset", "I_PartitionOffset")
         .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_partition_count", "I_PartitionCount")
         .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_flags", "I_Flags")
@@ -472,10 +474,10 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
                 .state = commandState,
             });
             m_instances.push_back(GlyphInstanceVector {
-                .color = color,
                 .pos = pos,
                 .size = size,
                 .em_size = ch.size,
+                .color_packed = glm::packUnorm4x8(glm::vec4(color, 1.0)),
                 .partition_offset = ch.data.vector.partition_offset,
                 .partition_count = ch.data.vector.partition_count,
                 .flags = state.customFlags.value_or(GetFlags()).data()
@@ -499,15 +501,15 @@ sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
-        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_color", "I_Color")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_border_color", "I_BorderColor")
         .AddInstanceAttribute(sge::VertexFormat::Float32x4, "inp_i_corner_radii", "I_CornerRadii")
         .AddInstanceAttribute(sge::VertexFormat::Float32x3, "inp_i_position", "I_Position")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size")
         .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_offset", "I_Offset")
-        .AddInstanceAttribute(sge::VertexFormat::Float32, "inp_i_border_thickness", "I_BorderThickness")
-        .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_shape", "I_Shape")
-        .AddInstanceAttribute(sge::VertexFormat::Uint8, "inp_i_flags", "I_Flags")
+        .AddInstanceAttribute(sge::VertexFormat::Float32,   "inp_i_border_thickness", "I_BorderThickness")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_color", "I_Color")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_border_color", "I_BorderColor")
+        .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_shape", "I_Shape")
+        .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_flags", "I_Flags")
         .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage);
 
     for (uint8_t i = 0; i < 4; ++i) {
@@ -539,13 +541,13 @@ void sge::ShapeBatch::Add(const sge::ShapeDrawData& data, const sge::DrawState& 
         .state = commandState
     });
     m_instances.push_back(ShapeInstance {
-        .color = data.color.to_vec4(),
-        .border_color = data.borderColor.to_vec4(),
         .border_radius = radius,
         .position = glm::vec3(data.position, 0.0f),
         .size = data.size,
         .offset = data.anchor.to_vec2(),
         .border_thickness = data.borderThickness,
+        .color_packed = glm::packUnorm4x8(data.color.to_vec4()),
+        .border_color_packed = glm::packUnorm4x8(data.borderColor.to_vec4()),
         .shape = data.type,
         .flags = state.customFlags.value_or(GetFlags()).data(),
     });

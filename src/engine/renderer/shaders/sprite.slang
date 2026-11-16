@@ -12,12 +12,12 @@ struct VSInput
 
     float4 i_rotation : I_Rotation;
     float4 i_uv_offset_scale : I_UvOffsetScale;
-    float4 i_color : I_Color;
-    float4 i_outline_color : I_OutlineColor;
     float3 i_position : I_Position;
     float2 i_size : I_Size;
     float2 i_offset : I_Offset;
     float i_outline_thickness : I_OutlineThickness;
+    uint i_color : I_Color;
+    uint i_outline_color : I_OutlineColor;
     uint i_flags : I_Flags;
 };
 
@@ -90,8 +90,8 @@ VSOutput VS(VSInput inp)
     outp.position = mul(mvp, float4(inp.position, 0.0, 1.0));
     outp.position.z = inp.i_position.z;
     outp.uv = inp.position * uv_offset_scale.zw + uv_offset_scale.xy;
-    outp.color = inp.i_color;
-    outp.outline_color = inp.i_outline_color;
+    outp.color = UnpackRGBA8Unorm(inp.i_color);
+    outp.outline_color = UnpackRGBA8Unorm(inp.i_outline_color);
     outp.outline_thickness = inp.i_outline_thickness;
 
 	return outp;
