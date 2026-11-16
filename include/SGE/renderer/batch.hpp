@@ -602,7 +602,11 @@ namespace Draw {
     }
 
     inline DrawCall<SdfTextDrawData> TextSdf(std::string_view text, float size, sge::LinearRgba color, glm::vec2 position, sge::TextAlignment alignment, const sge::Font& font) {
-        sge::RichTextSection section{ .text=text, .color=color, .size=size };
+        static sge::RichTextSection section;
+        section.text = text;
+        section.color = color;
+        section.size = size;
+
         return DrawCall(SdfTextDrawData {
             .sections = std::span(&section, 1),
             .font = font,
