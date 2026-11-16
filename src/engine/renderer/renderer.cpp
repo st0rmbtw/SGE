@@ -294,10 +294,13 @@ void sge::Renderer::BloomPass(sge::Framebuffer& framebuffer, const sge::BloomSet
     resolution.width /= 2;
     resolution.height /= 2;
 
+    sge::TemporaryFramebufferOptions tempFramebufferOpts;
+    tempFramebufferOpts.colorFormat = HDR_TEXTURE_FORMAT;
+
     for (uint8_t i = 0; i < settings.maxIterations; ++i) {
         if (resolution.width < 8 || resolution.height < 8) break;
 
-        m_bloom_framebuffers.emplace_back(m_context->GetTemporaryFramebuffer(resolution, HDR_TEXTURE_FORMAT));
+        m_bloom_framebuffers.emplace_back(m_context->GetTemporaryFramebuffer(resolution, tempFramebufferOpts));
 
         resolution.width /= 2;
         resolution.height /= 2;

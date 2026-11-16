@@ -93,7 +93,11 @@ void App::OnUpdate() {
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     m_renderer->Begin();
     {
-        auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), LLGL::Format::RG11B10Float, window->GetSamples(), LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled | LLGL::BindFlags::CopySrc | LLGL::BindFlags::CopyDst);
+        sge::TemporaryFramebufferOptions tempFramebufferOpts;
+        tempFramebufferOpts.colorFormat = LLGL::Format::RG11B10Float;
+        tempFramebufferOpts.samples = window->GetSamples();
+        tempFramebufferOpts.bindFlags = LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled | LLGL::BindFlags::CopySrc | LLGL::BindFlags::CopyDst;
+        auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), tempFramebufferOpts);
 
         m_renderer->BeginPass(*framebuffer.GetRenderTarget(), m_camera);
         {
@@ -121,4 +125,3 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
     }
     #endif
 }
-

@@ -10,21 +10,23 @@
 #include <SGE/types/framebuffer.hpp>
 #include <SGE/utils/hash.hpp>
 
-namespace sge {
+namespace sge::internal {
     struct TemporaryFramebufferKey {
         uint32_t width;
         uint32_t height;
         long bindFlags;
         LLGL::Format format;
+        LLGL::Format depthFormat;
         uint8_t samples;
     };
 
-    inline constexpr bool operator==(const sge::TemporaryFramebufferKey& a, const sge::TemporaryFramebufferKey& b) {
+    inline constexpr bool operator==(const sge::internal::TemporaryFramebufferKey& a, const sge::internal::TemporaryFramebufferKey& b) {
         return (
             a.width == b.width &&
             a.height == b.height &&
             a.bindFlags == b.bindFlags &&
             a.format == b.format &&
+            a.depthFormat == b.depthFormat &&
             a.samples == b.samples
         );
     }
@@ -32,14 +34,15 @@ namespace sge {
 
 
 template <>
-struct std::hash<sge::TemporaryFramebufferKey> {
-    size_t operator()(const sge::TemporaryFramebufferKey& key) const noexcept {
+struct std::hash<sge::internal::TemporaryFramebufferKey> {
+    size_t operator()(const sge::internal::TemporaryFramebufferKey& key) const noexcept {
         size_t hash = 255323;
         sge::hash_combine(hash, key.width);
         sge::hash_combine(hash, key.height);
         sge::hash_combine(hash, key.width);
         sge::hash_combine(hash, key.bindFlags);
         sge::hash_combine(hash, static_cast<int>(key.format));
+        sge::hash_combine(hash, static_cast<int>(key.depthFormat));
         sge::hash_combine(hash, key.samples);
         return hash;
     }
@@ -49,7 +52,7 @@ namespace sge {
 
 struct PoolEntry {
     std::shared_ptr<sge::Framebuffer> framebuffer;
-    TemporaryFramebufferKey key;
+    sge::internal::TemporaryFramebufferKey key;
     uint32_t last_used_frame = 0;
     bool occupied = false;
 };
@@ -141,7 +144,7 @@ private:
 
 class TemporaryFramebufferPool {
 public:
-    TemporaryFramebuffer Get(const TemporaryFramebufferKey& key) {
+    TemporaryFramebuffer Get(const sge::internal::TemporaryFramebufferKey& key) {
         SGE_ASSERT(key.width != 0 && key.height != 0);
 
         for (auto& entry : m_entries) {
@@ -155,7 +158,7 @@ public:
         return TemporaryFramebuffer();
     }
 
-    TemporaryFramebuffer Add(const TemporaryFramebufferKey& key, sge::Framebuffer framebuffer) {
+    TemporaryFramebuffer Add(const sge::internal::TemporaryFramebufferKey& key, sge::Framebuffer framebuffer) {
         auto entry = std::make_unique<PoolEntry>();
         entry->framebuffer = std::make_shared<sge::Framebuffer>(std::move(framebuffer));
         entry->key = key;

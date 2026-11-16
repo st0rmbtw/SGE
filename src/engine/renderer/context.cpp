@@ -669,7 +669,7 @@ sge::Framebuffer sge::RenderContext::CreateFramebuffer(const sge::FramebufferCon
     return sge::Framebuffer(CreateRenderTarget(targetDesc), textures, msTextures, depthStencilTexture, config.renderPass);
 }
 
-sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Extent2D resolution, LLGL::Format format, uint8_t samples, long bindFlags) {
+sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Extent2D resolution, const TemporaryFramebufferOptions& desc) {
 #if SGE_DEBUG
     if (resolution.width == 0 || resolution.height == 0) {
         SGE_LOG_ERROR("Requested temporary framebuffer resolution is invalid! Width and height must be greater than zero.");
@@ -677,24 +677,27 @@ sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Exte
     }
 #endif
 
-    auto key = TemporaryFramebufferKey {
+    auto key = internal::TemporaryFramebufferKey {
         .width = resolution.width,
         .height = resolution.height,
-        .bindFlags = bindFlags,
-        .format = format,
-        .samples = samples
+        .bindFlags = desc.bindFlags,
+        .format = desc.colorFormat,
+        .depthFormat = desc.depthFormat,
+        .samples = desc.samples
     };
 
     auto fb = m_temp_framebuffer_pool.Get(key);
 
     if (!fb.IsValid()) {
         sge::FramebufferConfig framebufferConfig;
-        framebufferConfig.colorAttachments[0].format = format;
-        framebufferConfig.colorAttachments[0].bindFlags = bindFlags;
-        framebufferConfig.depthStencilAttachment.format = LLGL::Format::D24UNormS8UInt;
-        framebufferConfig.depthStencilAttachment.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::DepthStencilAttachment;
+        framebufferConfig.colorAttachments[0].format = desc.colorFormat;
+        framebufferConfig.colorAttachments[0].bindFlags = desc.bindFlags;
+        if (desc.depthFormat != LLGL::Format::Undefined) {
+            framebufferConfig.depthStencilAttachment.format = desc.depthFormat;
+            framebufferConfig.depthStencilAttachment.bindFlags = LLGL::BindFlags::Sampled | LLGL::BindFlags::DepthStencilAttachment;
+        }
         framebufferConfig.resolution = resolution;
-        framebufferConfig.samples = samples;
+        framebufferConfig.samples = desc.samples;
         fb = m_temp_framebuffer_pool.Add(key, CreateFramebuffer(framebufferConfig));
         SGE_ASSERT(fb.IsValid());
     }

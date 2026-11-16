@@ -237,7 +237,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
             .WithCustomFlags(sge::BatchFlags::UI)
     );
 
-    auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(m_scene_resolution, LLGL::Format::RGBA8UNorm);
+    auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(m_scene_resolution);
 
     sge::TextureWithSampler framebufferTexture;
     framebufferTexture.texture = framebuffer.GetTexture();
