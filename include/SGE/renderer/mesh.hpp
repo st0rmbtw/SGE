@@ -155,15 +155,10 @@ public:
     }
 
     MeshDesc&& SetVertexData(const void* data, size_t byteSize) && {
-        if (m_vertex_data) {
-            free(m_vertex_data);
-            m_vertex_data = nullptr;
-        }
-
-        m_vertex_data = sge::checked_alloc<uint8_t>(byteSize);
+        m_vertex_data = std::make_unique<uint8_t[]>(byteSize);
         m_vertex_data_size = byteSize;
 
-        memcpy(m_vertex_data, data, byteSize);
+        memcpy(m_vertex_data.get(), data, byteSize);
 
         return std::move(*this);
     }
@@ -180,7 +175,7 @@ public:
 
     [[nodiscard]]
     const void* GetVertexData() const {
-        return m_vertex_data;
+        return m_vertex_data.get();
     }
 
     [[nodiscard]]
@@ -201,7 +196,7 @@ public:
 private:
     std::vector<MeshAttribute> m_attributes;
     Indices m_indices;
-    void* m_vertex_data = nullptr;
+    std::unique_ptr<uint8_t[]> m_vertex_data = nullptr;
     size_t m_vertex_data_size = 0;
 
     PrimitiveTopology m_topology = PrimitiveTopology::TriangleList;
