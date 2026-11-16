@@ -597,8 +597,6 @@ void sge::Renderer::UploadBatchBuffers() {
 
         if (vertexBufferDirty) {
             SGE_ASSERT(instanceData.instanceBufferPool.Get() != nullptr);
-            if (instanceData.vertexBufferArray)
-                m_context->Release(*instanceData.vertexBufferArray);
             instanceData.vertexBufferArray = m_context->CreateBufferArray({ instanceData.mesh->GetVertexBuffer().Get(), instanceData.instanceBufferPool.Get() });
         }
 

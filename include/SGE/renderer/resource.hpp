@@ -87,9 +87,9 @@ public:
     }
 
     LLGLResource& operator=(LLGLResource&& other) noexcept {
-        m_render_context = std::move(other.m_render_context);
-        m_data = other.m_data;
-        other.m_data = nullptr;
+        Destroy();
+        m_render_context = std::exchange(other.m_render_context, nullptr);
+        m_data = std::exchange(other.m_data, nullptr);
         return *this;
     }
 
