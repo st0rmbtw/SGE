@@ -22,11 +22,8 @@ namespace {
 
 inline constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 
-bool DrawCommandStateEqual(const sge::internal::DrawCommandState& a, const sge::internal::DrawCommandState& b, LLGL::Resource* const* dynamicResources) {
-    const auto resourcesA = std::span(dynamicResources + a.resources_offset, a.resources_count);
-    const auto resourcesB = std::span(dynamicResources + b.resources_offset, b.resources_count);
-
-    return std::ranges::equal(resourcesA, resourcesB)
+bool DrawCommandStateEqual(const sge::internal::DrawCommandState& a, const sge::internal::DrawCommandState& b) {
+    return std::ranges::equal(a.resources, b.resources)
         && a.scissor == b.scissor
         && a.order == b.order
         && a.blend_mode == b.blend_mode;
@@ -75,14 +72,8 @@ void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
         if (a_bm < b_bm) return true;
         if (a_bm > b_bm) return false;
 
-        size_t hash_a = sge::HASH_INIT;
-        sge::hash_fnv1a(hash_a, dynamicBindings + a.state.resources_offset, a.state.resources_count);
-
-        size_t hash_b = sge::HASH_INIT;
-        sge::hash_fnv1a(hash_b, dynamicBindings + b.state.resources_offset, b.state.resources_count);
-
-        if (hash_a < hash_b) return true;
-        if (hash_a > hash_b) return false;
+        if (a.state.resources_hash < b.state.resources_hash) return true;
+        if (a.state.resources_hash > b.state.resources_hash) return false;
 
         return false;
     });
@@ -150,7 +141,7 @@ void sge::Renderer2D::FlushBatches() {
     m_batch_data.clear();
     for (const auto& submission : m_submissions) {
         // Draw commands are sorted, so checking only first and last is enough
-        const bool allTheSame = DrawCommandStateEqual(submission.drawCommands.front().state, submission.drawCommands.back().state, submission.dynamicBindings);
+        const bool allTheSame = DrawCommandStateEqual(submission.drawCommands.front().state, submission.drawCommands.back().state);
         m_batch_data.push_back(BatchData {
             .state = submission.drawCommands[0].state,
             .offset = 0,
@@ -176,10 +167,9 @@ void sge::Renderer2D::FlushBatches() {
             // All draw commands are the same - flush the whole batch right away
             if (data.allTheSame && currentOrder == submission.drawCommands[0].state.order) {
                 submission.drawCommandsOffset = submission.drawCommands.size();
-                auto dynamicBindings = std::span<LLGL::Resource* const>(submission.dynamicBindings, data.state.resources_count);
                 const auto& mesh = submission.batch->GetMesh();
                 const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
-                SubmitManyRaw(mesh, material, dynamicBindings, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
+                SubmitManyRaw(mesh, material, data.state.resources, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
             } else {
                 size_t i = submission.drawCommandsOffset;
                 if (submission.drawCommands[i].state.order == currentOrder) {
@@ -188,7 +178,7 @@ void sge::Renderer2D::FlushBatches() {
                     for (; i < submission.drawCommands.size(); ++i) {
                         const DrawCommand& command = submission.drawCommands[i];
 
-                        if (!DrawCommandStateEqual(command.state, data.state, submission.dynamicBindings))
+                        if (!DrawCommandStateEqual(command.state, data.state))
                             break;
                     }
                 }
@@ -196,11 +186,10 @@ void sge::Renderer2D::FlushBatches() {
                 submission.drawCommandsOffset = i;
 
                 if (count > 0) {
-                    auto dynamicBindings = std::span<LLGL::Resource* const>(submission.dynamicBindings + data.state.resources_offset, data.state.resources_count);
                     const auto* instanceDataBytes = static_cast<const uint8_t*>(submission.instancesData);
                     const auto& mesh = submission.batch->GetMesh();
                     const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
-                    SubmitManyRaw(mesh, material, dynamicBindings, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
+                    SubmitManyRaw(mesh, material, data.state.resources, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
                     data.offset += count;
                 }
             }

@@ -3,19 +3,23 @@
 
 #include <cstddef>
 #include <functional>
+#include <span>
 
 namespace sge {
 
 inline constexpr uint64_t HASH_INIT = 1469598103934665603ULL;
 
-template <typename T> requires std::is_trivially_copyable_v<T>
-inline void hash_fnv1a(std::size_t& hash, const T* data, size_t count = 1) {
-    const auto* bytes = reinterpret_cast<const uint8_t*>(data);
-    const size_t size_bytes = sizeof(T) * count;
-    for (size_t i = 0; i < size_bytes; ++i) {
-        hash ^= bytes[i];
+inline void hash_fnv1a(std::size_t& hash, const void* data, size_t dataSize) {
+    auto dataBytes = static_cast<const uint8_t*>(data);
+    for (size_t i = 0; i < dataSize; ++i) {
+        hash ^= dataBytes[i];
         hash *= 1099511628211ULL;
     }
+}
+
+template <typename T> requires std::is_trivially_copyable_v<T>
+inline void hash_fnv1a(std::size_t& hash, std::span<const T> span) {
+    return hash_fnv1a(hash, span.data(), span.size_bytes());
 }
 
 template <class T>

@@ -476,10 +476,10 @@ void sge::Renderer::SubmitManyRaw(
         instanceData.mesh = mesh;
 
     uint64_t dynamicBindingsHash = sge::HASH_INIT;
-    sge::hash_fnv1a(dynamicBindingsHash, dynamicBindings.data(), dynamicBindings.size());
+    sge::hash_fnv1a(dynamicBindingsHash, dynamicBindings);
 
     uint64_t scissorHash = sge::HASH_INIT;
-    sge::hash_fnv1a(scissorHash, &scissorBounds);
+    sge::hash_fnv1a(scissorHash, &scissorBounds, 1);
 
     BatchKey batchKey {
         .mesh = std::move(mesh),

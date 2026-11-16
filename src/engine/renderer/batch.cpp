@@ -83,10 +83,15 @@ void sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, const
     }
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
+    auto resourcesSpan = std::span(m_dynamic_bindings).subspan(bindings_offset, bindings_count);
+
+    auto resourcesHash = sge::HASH_INIT;
+    sge::hash_fnv1a(resourcesHash, std::span<LLGL::Resource* const>(resourcesSpan));
+
     const auto commandState = internal::DrawCommandState {
         .scissor = state.scissor,
-        .resources_offset = bindings_offset,
-        .resources_count = bindings_count,
+        .resources_hash = resourcesHash,
+        .resources = resourcesSpan,
         .order = state.order,
         .blend_mode = state.blendMode
     };
@@ -183,10 +188,15 @@ void sge::NinePatchBatch::Add(const NinePatch& ninepatch, const DrawState& state
     }
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
+    auto resourcesSpan = std::span(m_dynamic_bindings).subspan(bindings_offset, bindings_count);
+
+    auto resourcesHash = sge::HASH_INIT;
+    sge::hash_fnv1a(resourcesHash, std::span<LLGL::Resource* const>(resourcesSpan));
+
     const auto commandState = internal::DrawCommandState {
         .scissor = state.scissor,
-        .resources_offset = bindings_offset,
-        .resources_count = bindings_count,
+        .resources_hash = resourcesHash,
+        .resources = resourcesSpan,
         .order = state.order,
         .blend_mode = state.blendMode
     };
@@ -249,8 +259,8 @@ void sge::LineBatch::Add(const LineDrawData& data, const DrawState& state) {
 
     const auto commandState = internal::DrawCommandState {
         .scissor = state.scissor,
-        .resources_offset = 0,
-        .resources_count = 0,
+        .resources_hash = 0,
+        .resources = {},
         .order = state.order,
         .blend_mode = state.blendMode
     };
@@ -312,6 +322,11 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
     m_dynamic_bindings.push_back(data.font.texture.sampler()->internal().Get());
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
+    auto resourcesSpan = std::span(m_dynamic_bindings).subspan(bindings_offset, bindings_count);
+
+    auto resourcesHash = sge::HASH_INIT;
+    sge::hash_fnv1a(resourcesHash, std::span<LLGL::Resource* const>(resourcesSpan));
+
     float x = data.position.x;
     float y = data.position.y;
 
@@ -359,8 +374,8 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
                 .instance_index = m_instances.size(),
                 .state = internal::DrawCommandState {
                     .scissor = state.scissor,
-                    .resources_offset = bindings_offset,
-                    .resources_count = bindings_count,
+                    .resources_hash = resourcesHash,
+                    .resources = resourcesSpan,
                     .order = state.order,
                     .blend_mode = state.blendMode
                 },
@@ -421,6 +436,11 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
     m_dynamic_bindings.push_back(data.font.partition_buffer.Get());
     const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
 
+    auto resourcesSpan = std::span(m_dynamic_bindings).subspan(bindings_offset, bindings_count);
+
+    auto resourcesHash = sge::HASH_INIT;
+    sge::hash_fnv1a(resourcesHash, std::span<LLGL::Resource* const>(resourcesSpan));
+
     for (size_t sectionIdx = 0; sectionIdx < data.sections.size(); ++sectionIdx) {
         const RichTextSection section = data.sections[sectionIdx];
         const char* str = section.text.data();
@@ -463,8 +483,8 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
 
             const auto commandState = internal::DrawCommandState {
                 .scissor = state.scissor,
-                .resources_offset = bindings_offset,
-                .resources_count = bindings_count,
+                .resources_hash = resourcesHash,
+                .resources = resourcesSpan,
                 .order = state.order,
                 .blend_mode = state.blendMode
             };
@@ -530,8 +550,8 @@ void sge::ShapeBatch::Add(const sge::ShapeDrawData& data, const sge::DrawState& 
 
     const auto commandState = internal::DrawCommandState {
         .scissor = state.scissor,
-        .resources_offset = 0,
-        .resources_count = 0,
+        .resources_hash = 0,
+        .resources = {},
         .order = state.order,
         .blend_mode = state.blendMode
     };

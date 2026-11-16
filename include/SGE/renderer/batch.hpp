@@ -44,8 +44,8 @@ struct BatchTypeIdentifier {
 
 struct DrawCommandState {
     sge::IRect scissor;
-    size_t resources_offset;
-    size_t resources_count;
+    uint64_t resources_hash;
+    std::span<LLGL::Resource*> resources;
     uint32_t order;
     sge::BlendMode blend_mode;
 };
