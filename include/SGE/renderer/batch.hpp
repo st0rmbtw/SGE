@@ -667,7 +667,7 @@ public:
         DrawState state;
         state.scissor = GetCurrentScissor().value_or(sge::IRect());
         state.order = GetOrder();
-        state.blendMode = m_blend_mode;
+        state.blendMode = GetCurrentBlendMode().value_or(sge::BlendMode::AlphaBlend);
         state.customFlags = std::nullopt;
         Batch<typename BatchFor<Item>::type>().Add(item, state);
         return state.order;
@@ -678,7 +678,7 @@ public:
         DrawState state;
         state.scissor = GetCurrentScissor().value_or(sge::IRect());
         state.order = GetOrder(call.GetCustomOrder());
-        state.blendMode = m_blend_mode;
+        state.blendMode = GetCurrentBlendMode().value_or(sge::BlendMode::AlphaBlend);
         state.customFlags = call.GetCustomFlags();
 
         using WithoutCvRef = std::remove_cvref_t<Item>;
@@ -727,17 +727,21 @@ public:
     }
 
     void BeginBlendMode(sge::BlendMode blendMode) {
-        m_prev_blend_mode = m_blend_mode;
-        m_blend_mode = blendMode;
+        m_blend_mode_stack.push_back(blendMode);
     }
 
     void EndBlendMode() {
-        m_blend_mode = m_prev_blend_mode;
+        m_blend_mode_stack.pop_back();
     }
 
     [[nodiscard]]
     inline std::optional<sge::IRect> GetCurrentScissor() const noexcept {
         return m_scissor_stack.empty() ? std::nullopt : std::optional(m_scissor_stack.back());
+    }
+
+    [[nodiscard]]
+    inline std::optional<sge::BlendMode> GetCurrentBlendMode() const noexcept {
+        return m_blend_mode_stack.empty() ? std::nullopt : std::optional(m_blend_mode_stack.back());
     }
 
 private:
@@ -773,10 +777,9 @@ private:
     LLGL::SmallVector<std::shared_ptr<IBatch>, 6> m_batches;
 
     std::vector<sge::IRect> m_scissor_stack;
+    std::vector<sge::BlendMode> m_blend_mode_stack;
     Order m_global_order;
     uint32_t m_order = 0;
-    sge::BlendMode m_blend_mode = sge::BlendMode::AlphaBlend;
-    sge::BlendMode m_prev_blend_mode = sge::BlendMode::AlphaBlend;
     bool m_order_mode = false;
 };
 
