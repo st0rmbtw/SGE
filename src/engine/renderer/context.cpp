@@ -746,7 +746,7 @@ sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
             size_t pos = 0;
             while ((pos = shader_source.find(shader_def.name, pos)) != std::string::npos) {
                 shader_source.replace(pos, shader_def.name.length(), shader_def.value);
-                pos += shader_def.name.length();
+                pos += shader_def.value.length();
             }
         }
 
