@@ -23,7 +23,7 @@ namespace {
 inline constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 
 bool DrawCommandStateEqual(const sge::internal::DrawCommandState& a, const sge::internal::DrawCommandState& b) {
-    return std::ranges::equal(a.resources, b.resources)
+    return a.resources_hash == b.resources_hash
         && a.scissor == b.scissor
         && a.order == b.order
         && a.blend_mode == b.blend_mode;
@@ -164,12 +164,14 @@ void sge::Renderer2D::FlushBatches() {
 
             const size_t instanceStride = submission.instanceStride;
 
+            auto resources = std::span(submission.dynamicBindings + data.state.resources_offset, data.state.resources_count);
+
             // All draw commands are the same - flush the whole batch right away
             if (data.allTheSame && currentOrder == submission.drawCommands[0].state.order) {
                 submission.drawCommandsOffset = submission.drawCommands.size();
                 const auto& mesh = submission.batch->GetMesh();
                 const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
-                SubmitManyRaw(mesh, material, data.state.resources, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
+                SubmitManyRaw(mesh, material, resources, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
             } else {
                 size_t i = submission.drawCommandsOffset;
                 if (submission.drawCommands[i].state.order == currentOrder) {
@@ -189,7 +191,7 @@ void sge::Renderer2D::FlushBatches() {
                     const auto* instanceDataBytes = static_cast<const uint8_t*>(submission.instancesData);
                     const auto& mesh = submission.batch->GetMesh();
                     const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
-                    SubmitManyRaw(mesh, material, data.state.resources, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
+                    SubmitManyRaw(mesh, material, resources, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
                     data.offset += count;
                 }
             }
