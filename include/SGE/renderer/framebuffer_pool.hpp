@@ -39,7 +39,6 @@ struct std::hash<sge::internal::TemporaryFramebufferKey> {
         size_t hash = 255323;
         sge::hash_combine(hash, key.width);
         sge::hash_combine(hash, key.height);
-        sge::hash_combine(hash, key.width);
         sge::hash_combine(hash, key.bindFlags);
         sge::hash_combine(hash, static_cast<int>(key.format));
         sge::hash_combine(hash, static_cast<int>(key.depthFormat));
