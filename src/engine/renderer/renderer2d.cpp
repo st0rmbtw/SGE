@@ -1,4 +1,4 @@
-#include <ranges>
+#include <algorithm>
 
 #include <LLGL/PipelineLayout.h>
 #include <LLGL/PipelineLayoutFlags.h>
@@ -20,15 +20,37 @@
 
 namespace {
 
+using namespace sge::internal;
+
 inline constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 
-bool DrawCommandStateEqual(const sge::internal::DrawCommandState& a, const sge::internal::DrawCommandState& b) {
-    return a.resources_hash == b.resources_hash
-        && a.scissor == b.scissor
-        && a.order == b.order
-        && a.blend_mode == b.blend_mode;
-}
+// Stable LSD radix sort on the 64-bit key. Passes where all keys share the byte are skipped, so
+// typically only 3-4 of the 8 passes run (order's low bytes + state id).
+void RadixSortStable(std::vector<SortItem>& a, std::vector<SortItem>& tmp) {
+    const size_t n = a.size();
+    tmp.resize(n);
 
+    std::array<std::array<uint32_t, 256>, 8> hist{};
+    for (const SortItem& it : a)
+        for (int p = 0; p < 8; ++p) ++hist[p][(it.key >> (p * 8)) & 0xFF];
+
+    SortItem* src = a.data();
+    SortItem* dst = tmp.data();
+    for (int p = 0; p < 8; ++p) {
+        if (hist[p][(src[0].key >> (p * 8)) & 0xFF] == n) continue;       // single bucket: nothing to do
+        std::array<uint32_t, 256> offs;
+        uint32_t sum = 0;
+        for (int i = 0; i < 256; ++i) {
+            offs[i] = sum;
+            sum += hist[p][i];
+        }
+        for (size_t i = 0; i < n; ++i)
+            dst[offs[(src[i].key >> (p * 8)) & 0xFF]++] = src[i];
+        std::swap(src, dst);
+    }
+    if (src != a.data())
+        std::memcpy(a.data(), src, n * sizeof(SortItem));
+}
 
 } // namespace
 
@@ -38,170 +60,98 @@ sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Ren
 void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
     ZoneScoped;
 
-    auto& drawCommands = batch->GetDrawCommands();
-    auto& material = batch->GetMaterial(sge::BlendMode::AlphaBlend);
-    auto* instanceData = batch->GetInstanceData();
-    auto* dynamicBindings = batch->GetDynamicBindings();
+    auto keys = batch->GetSortKeys();
+    if (keys.empty()) return;
 
-    if (drawCommands.empty())
-        return;
+    const auto& material = batch->GetMaterial(sge::BlendMode::AlphaBlend);
+    const size_t instanceStride = material->GetInstanceAttribs()[0].stride;
+    const auto* instancesData = static_cast<const uint8_t*>(batch->GetInstanceData());
 
-    m_sort_indices.clear();
-    m_sort_indices.reserve(drawCommands.size());
-    std::ranges::copy(std::views::iota(0u, drawCommands.size()), std::back_inserter(m_sort_indices));
+    BatchSubmission submission;
+    submission.states = &batch->GetStates();
+    submission.batch = std::move(batch);
+    submission.instanceStride = instanceStride;
 
-    std::ranges::sort(m_sort_indices, [&](const size_t ia, const size_t ib) {
-        const internal::DrawCommandState& a = drawCommands[ia];
-        const internal::DrawCommandState& b = drawCommands[ib];
+    if (std::ranges::is_sorted(keys)) {
+        // Painter-ordered input is already sorted: zero sorting, zero copying.
+        submission.keysSpan = keys;
+        submission.instancesBytes = instancesData;
+    } else {
+        const size_t n = keys.size();
+        m_sort_items.resize(n);
+        for (size_t i = 0; i < n; ++i)
+            m_sort_items[i] = { .key=keys[i], .index=static_cast<uint32_t>(i) };
+        RadixSortStable(m_sort_items, m_sort_tmp);
 
-        if (a.order < b.order) return true;
-        if (a.order > b.order) return false;
-
-        const int a_scissor_size = a.scissor.width() + a.scissor.height();
-        const int b_scissor_size = b.scissor.width() + b.scissor.height();
-
-        if (a_scissor_size < b_scissor_size)
-            return true;
-
-        if (a_scissor_size > b_scissor_size)
-            return false;
-
-        uint8_t a_bm = static_cast<uint8_t>(a.blend_mode);
-        uint8_t b_bm = static_cast<uint8_t>(b.blend_mode);
-
-        if (a_bm < b_bm) return true;
-        if (a_bm > b_bm) return false;
-
-        if (a.resources_hash < b.resources_hash) return true;
-        if (a.resources_hash > b.resources_hash) return false;
-
-        return false;
-    });
-
-    const auto& instanceAttribs = material->GetInstanceAttribs();
-    SGE_ASSERT(!instanceAttribs.empty());
-
-    auto* instancePtr = static_cast<uint8_t*>(instanceData);
-    const auto instanceStride = instanceAttribs[0].stride;
-
-    static constexpr size_t TEMP_BUFFER_SIZE = 256;
-    SGE_ASSERT(instanceStride <= TEMP_BUFFER_SIZE);
-    uint8_t tempBuf[TEMP_BUFFER_SIZE];
-
-    // Sort instances and draw commands
-    for (size_t i = 0; i < m_sort_indices.size(); ++i) {
-        size_t currentIdx = i;
-
-        while (m_sort_indices[currentIdx] != i) {
-            size_t nextIdx = m_sort_indices[currentIdx];
-
-            std::swap(drawCommands[currentIdx], drawCommands[nextIdx]);
-
-            auto* elemCurr = instancePtr + (currentIdx * instanceStride);
-            auto* elemNext = instancePtr + (nextIdx * instanceStride);
-
-            std::memcpy(tempBuf, elemCurr, instanceStride);
-            std::memcpy(elemCurr, elemNext, instanceStride);
-            std::memcpy(elemNext, tempBuf, instanceStride);
-
-            m_sort_indices[currentIdx] = currentIdx;
-            currentIdx = nextIdx;
+        if (m_submissions.size() >= m_scratch_pool.size()) {
+            m_scratch_pool.resize(m_submissions.size() + 1);
         }
-        m_sort_indices[currentIdx] = currentIdx;
+        SortScratch& scratch = m_scratch_pool[m_submissions.size()];
+        scratch.keys.resize(n);
+        scratch.instances.resize(n * instanceStride);
+
+        // Gather: sequential writes
+        for (size_t k = 0; k < n; ++k) {
+            scratch.keys[k] = m_sort_items[k].key;
+            std::memcpy(scratch.instances.data() + k * instanceStride, instancesData + size_t(m_sort_items[k].index) * instanceStride, instanceStride);
+        }
+        submission.keysSpan = scratch.keys;
+        submission.instancesBytes = scratch.instances.data();
     }
 
-    m_submissions.push_back(BatchSubmission {
-        .batch = std::move(batch),
-        .instancesData = instancePtr,
-        .instanceStride = instanceStride,
-        .dynamicBindings = dynamicBindings,
-        .drawCommands = drawCommands,
-        .drawCommandsOffset = 0,
-    });
+    m_submissions.push_back(std::move(submission));
 }
 
 void sge::Renderer2D::FlushBatches() {
     ZoneScoped;
 
-    auto GetNextOrder = [&]() -> std::optional<uint32_t> {
-        std::optional<uint32_t> min;
-        auto consider = [&](uint32_t order) {
-            if (!min || order < *min) min = order;
-        };
-
-        for (const auto& s : m_submissions) {
-            if (s.drawCommandsOffset < s.drawCommands.size()) {
-                consider(s.drawCommands[s.drawCommandsOffset].order);
-            }
-        }
-
-        return min;
-    };
-
-    m_batch_data.clear();
-    for (const auto& submission : m_submissions) {
-        // Draw commands are sorted, so checking only first and last is enough
-        const bool allTheSame = DrawCommandStateEqual(submission.drawCommands.front(), submission.drawCommands.back());
-        m_batch_data.push_back(BatchData {
-            .state = submission.drawCommands[0],
-            .offset = 0,
-            .allTheSame = allTheSame
-        });
-    }
-
     while (true) {
-        auto currentOrder = GetNextOrder();
-        if (!currentOrder)
-            break;
-
-        for (size_t submission_index = 0; submission_index < m_submissions.size(); ++submission_index) {
-            auto& submission = m_submissions[submission_index];
-
-            if (submission.drawCommandsOffset >= submission.drawCommands.size())
-                continue;
-
-            auto& data = m_batch_data[submission_index];
-
-            const size_t instanceStride = submission.instanceStride;
-
-            auto resources = std::span(submission.dynamicBindings + data.state.resources_offset, data.state.resources_count);
-
-            // All draw commands are the same - flush the whole batch right away
-            if (data.allTheSame && currentOrder == submission.drawCommands[0].order) {
-                submission.drawCommandsOffset = submission.drawCommands.size();
-                const auto& mesh = submission.batch->GetMesh();
-                const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
-                SubmitManyRaw(mesh, material, resources, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
-            } else {
-                size_t i = submission.drawCommandsOffset;
-                if (submission.drawCommands[i].order == currentOrder) {
-                    data.state = submission.drawCommands[i];
-
-                    for (; i < submission.drawCommands.size(); ++i) {
-                        const internal::DrawCommandState& state = submission.drawCommands[i];
-
-                        if (!DrawCommandStateEqual(state, data.state))
-                            break;
-                    }
-                }
-                const uint32_t count = i - submission.drawCommandsOffset;
-                submission.drawCommandsOffset = i;
-
-                if (count > 0) {
-                    const auto* instanceDataBytes = static_cast<const uint8_t*>(submission.instancesData);
-                    const auto& mesh = submission.batch->GetMesh();
-                    const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
-                    SubmitManyRaw(mesh, material, resources, data.state.scissor, instanceDataBytes + data.offset * instanceStride, instanceStride, count);
-                    data.offset += count;
-                }
+        // Get Submission whose next draw has the lowest order
+        BatchSubmission* cur = nullptr;
+        uint32_t curOrder = 0;
+        for (auto& s : m_submissions) {
+            if (s.cursor >= s.keysSpan.size()) continue;
+            const uint32_t o = internal::SortKeyOrder(s.keysSpan[s.cursor]);
+            if (!cur || o < curOrder) {
+                cur = &s;
+                curOrder = o;
             }
         }
+        if (!cur) break;
+
+        // Find how far may we run before another batch must draw
+        uint32_t limit = UINT32_MAX;
+        for (const auto& s : m_submissions)
+            if (&s != cur && s.cursor < s.keysSpan.size())
+                limit = std::min(limit, internal::SortKeyOrder(s.keysSpan[s.cursor]));
+
+        // Extend the run while the state is unchanged and the order stays within the limit
+        const uint32_t stateId = internal::SortKeyState(cur->keysSpan[cur->cursor]);
+        size_t end = cur->cursor + 1;
+        while (
+            end < cur->keysSpan.size()
+                && internal::SortKeyState(cur->keysSpan[end]) == stateId
+                && internal::SortKeyOrder(cur->keysSpan[end]) <= limit
+        ) {
+            ++end;
+        }
+
+        const internal::DrawCommandState& st = cur->states->Get(stateId);
+        SubmitManyRaw(
+            cur->batch->GetMesh(),
+            cur->batch->GetMaterial(st.blendMode),
+            st.Resources(),
+            st.scissor,
+            cur->instancesBytes + cur->cursor * cur->instanceStride,
+            cur->instanceStride,
+            end - cur->cursor
+        );
+        cur->cursor = end;
     }
 
-    for (const BatchSubmission& submission : m_submissions) {
-        submission.batch->Reset();
+    for (const BatchSubmission& s : m_submissions) {
+        s.batch->Reset();
     }
-
     m_submissions.clear();
 }
 

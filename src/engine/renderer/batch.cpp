@@ -76,25 +76,14 @@ sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {
 }
 
 void sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, const DrawState& state) {
-    const auto bindings_offset = m_dynamic_bindings.size();
-    if (texture.is_valid()) {
-        m_dynamic_bindings.push_back(texture.internal().Get());
-        m_dynamic_bindings.push_back(texture.sampler()->internal().Get());
-    }
-    const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 2;
+    commandState.resources[0] = texture.internal().Get();
+    commandState.resources[1] = texture.sampler()->internal().Get();
+    m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
 
-    auto resourcesHash = sge::HASH_INIT;
-    sge::hash_fnv1a(resourcesHash, std::span(std::as_const(m_dynamic_bindings)).subspan(bindings_offset, bindings_count));
-
-    m_commands.push_back(internal::DrawCommandState {
-        .scissor = state.scissor,
-        .instance_index = m_instances.size(),
-        .resources_hash = resourcesHash,
-        .resources_offset = bindings_offset,
-        .resources_count = bindings_count,
-        .order = state.order,
-        .blend_mode = state.blendMode
-    });
     m_instances.push_back(SpriteInstance {
         .rotation = glm::quat(sprite.rotation()),
         .uv_offset_scale = uv_offset_scale,
@@ -176,27 +165,15 @@ void sge::NinePatchBatch::Add(const NinePatch& ninepatch, const DrawState& state
 
     const auto& texture = ninepatch.texture();
 
-    const auto bindings_offset = m_dynamic_bindings.size();
-    if (texture.is_valid()) {
-        m_dynamic_bindings.push_back(texture.internal().Get());
-        m_dynamic_bindings.push_back(texture.sampler()->internal().Get());
-    }
-    const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
-
-    auto resourcesHash = sge::HASH_INIT;
-    sge::hash_fnv1a(resourcesHash, std::span(std::as_const(m_dynamic_bindings)).subspan(bindings_offset, bindings_count));
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 2;
+    commandState.resources[0] = texture.internal().Get();
+    commandState.resources[1] = texture.sampler()->internal().Get();
+    m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
 
     const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(ninepatch.flip_x(), ninepatch.flip_y());
-
-    m_commands.push_back(internal::DrawCommandState {
-        .scissor = state.scissor,
-        .instance_index = m_instances.size(),
-        .resources_hash = resourcesHash,
-        .resources_offset = bindings_offset,
-        .resources_count = bindings_count,
-        .order = state.order,
-        .blend_mode = state.blendMode
-    });
     m_instances.push_back(NinePatchInstance {
         .rotation = glm::quat(ninepatch.rotation()),
         .uv_offset_scale = uv_offset_scale,
@@ -247,15 +224,12 @@ void sge::LineBatch::Add(const LineDrawData& data, const DrawState& state) {
         radius = glm::vec4(data.borderRadius.values()) * length / 100.0f;
     }
 
-    m_commands.push_back(internal::DrawCommandState {
-        .scissor = state.scissor,
-        .instance_index = m_instances.size(),
-        .resources_hash = 0,
-        .resources_offset = 0,
-        .resources_count = 0,
-        .order = state.order,
-        .blend_mode = state.blendMode
-    });
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 0;
+    m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
+
     m_instances.push_back(LineInstance {
         .start = data.start,
         .end = data.end,
@@ -304,13 +278,13 @@ sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) 
 void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state) {
     ZoneScoped;
 
-    const auto bindings_offset = m_dynamic_bindings.size();
-    m_dynamic_bindings.push_back(data.font.texture.internal().Get());
-    m_dynamic_bindings.push_back(data.font.texture.sampler()->internal().Get());
-    const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
-
-    auto resourcesHash = sge::HASH_INIT;
-    sge::hash_fnv1a(resourcesHash, std::span(std::as_const(m_dynamic_bindings)).subspan(bindings_offset, bindings_count));
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 2;
+    commandState.resources[0] = data.font.texture.internal().Get();
+    commandState.resources[1] = data.font.texture.sampler()->internal().Get();
+    auto sortKey = internal::MakeSortKey(state.order, m_states.Intern(commandState));
 
     float x = data.position.x;
     float y = data.position.y;
@@ -355,15 +329,8 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            m_commands.push_back(internal::DrawCommandState {
-                .scissor = state.scissor,
-                .instance_index = m_instances.size(),
-                .resources_hash = resourcesHash,
-                .resources_offset = bindings_offset,
-                .resources_count = bindings_count,
-                .order = state.order,
-                .blend_mode = state.blendMode
-            });
+            m_keys.push_back(sortKey);
+
             m_instances.push_back(GlyphInstanceSDF {
                 .pos = pos,
                 .size = size,
@@ -415,15 +382,14 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
     float x = data.position.x;
     float y = data.position.y;
 
-    const auto bindings_offset = m_dynamic_bindings.size();
-    m_dynamic_bindings.push_back(data.font.curve_buffer.Get());
-    m_dynamic_bindings.push_back(data.font.partition_buffer.Get());
-    const auto bindings_count = m_dynamic_bindings.size() - bindings_offset;
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 2;
+    commandState.resources[0] = data.font.curve_buffer.Get();
+    commandState.resources[1] = data.font.partition_buffer.Get();
 
-    auto resourcesSpan = std::span(m_dynamic_bindings).subspan(bindings_offset, bindings_count);
-
-    auto resourcesHash = sge::HASH_INIT;
-    sge::hash_fnv1a(resourcesHash, std::span<LLGL::Resource* const>(resourcesSpan));
+    auto sortKey = internal::MakeSortKey(state.order, m_states.Intern(commandState));
 
     for (size_t sectionIdx = 0; sectionIdx < data.sections.size(); ++sectionIdx) {
         const RichTextSection section = data.sections[sectionIdx];
@@ -465,15 +431,7 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
             const glm::vec2 pos = glm::vec2(xpos - 1.0f, ypos - 1.0f);
             const glm::vec2 size = glm::vec2(ch.size + 1) * glm::vec2(sx, sy);
 
-            m_commands.push_back(internal::DrawCommandState {
-                .scissor = state.scissor,
-                .instance_index = m_instances.size(),
-                .resources_hash = resourcesHash,
-                .resources_offset = bindings_offset,
-                .resources_count = bindings_count,
-                .order = state.order,
-                .blend_mode = state.blendMode
-            });
+            m_keys.push_back(sortKey);
             m_instances.push_back(GlyphInstanceVector {
                 .pos = pos,
                 .size = size,
@@ -529,15 +487,12 @@ void sge::ShapeBatch::Add(const sge::ShapeDrawData& data, const sge::DrawState& 
         ? glm::vec4(data.borderRadius.values()) / 100.0f * length
         : glm::vec4(data.borderRadius.values());
 
-    m_commands.push_back(internal::DrawCommandState {
-        .scissor = state.scissor,
-        .instance_index = m_instances.size(),
-        .resources_hash = 0,
-        .resources_offset = 0,
-        .resources_count = 0,
-        .order = state.order,
-        .blend_mode = state.blendMode
-    });
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 0;
+    m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
+
     m_instances.push_back(ShapeInstance {
         .border_radius = radius,
         .position = glm::vec3(data.position, 0.0f),

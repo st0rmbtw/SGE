@@ -9,27 +9,33 @@
 
 #include <SGE/types/path.hpp>
 
+namespace sge::internal {
+    struct BufferPoolEntry {
+        BufferPool buffer;
+        bool occupied;
+    };
+
+    struct SortItem {
+        uint64_t key;
+        uint32_t index;
+    };
+
+    struct SortScratch {
+        std::vector<uint64_t> keys;
+        std::vector<uint8_t>  instances;
+    };
+
+    struct BatchSubmission {
+        std::shared_ptr<IBatch>   batch; // Needed to hold the reference to the batch so it doesn't get released
+        std::span<const uint64_t> keysSpan;
+        const uint8_t*            instancesBytes;
+        const DrawStateTable*     states;
+        size_t                    instanceStride;
+        size_t                    cursor = 0; // Next not processed draw
+    };
+}
+
 namespace sge {
-
-struct BatchSubmission {
-    std::shared_ptr<IBatch> batch; // Needed to hold the reference to the batch so it doesn't get released
-    const uint8_t* instancesData;
-    size_t instanceStride;
-    LLGL::Resource* const* dynamicBindings;
-    std::span<const internal::DrawCommandState> drawCommands;
-    size_t drawCommandsOffset = 0;
-};
-
-struct BufferPoolEntry {
-    BufferPool buffer;
-    bool occupied;
-};
-
-struct BatchData {
-    sge::internal::DrawCommandState state;
-    uint32_t offset;
-    bool allTheSame;
-};
 
 class Renderer2D : public Renderer {
 public:
@@ -58,9 +64,10 @@ private:
     Ref<LLGL::Buffer> m_vector_vertex_buffer;
     Ref<LLGL::Buffer> m_vector_path_data_buffer;
 
-    std::vector<size_t> m_sort_indices;
-    std::vector<BatchSubmission> m_submissions;
-    std::vector<BatchData> m_batch_data;
+    std::vector<sge::internal::SortItem>    m_sort_items;
+    std::vector<sge::internal::SortItem>    m_sort_tmp;
+    std::vector<sge::internal::SortScratch> m_scratch_pool;
+    std::vector<sge::internal::BatchSubmission> m_submissions;
 
     bool m_vector_pipeline_initialized = false;
 };

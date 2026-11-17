@@ -29,22 +29,69 @@
 #include <SGE/utils/bitflags.hpp>
 #include <SGE/utils/containers/heaparray.hpp>
 
-namespace sge {
+namespace sge::internal {
 
-class Renderer2D;
-class Renderer;
-
-namespace internal {
+inline constexpr size_t MAX_DYNAMIC_RESOURCES = 4;
 
 struct DrawCommandState {
-    sge::IRect scissor;
-    size_t instance_index;
-    uint64_t resources_hash;
-    size_t resources_offset;
-    size_t resources_count;
-    uint32_t order;
-    sge::BlendMode blend_mode;
+    sge::IRect scissor{};
+    sge::BlendMode blendMode{};
+    uint8_t resourceCount = 0;
+    std::array<LLGL::Resource*, MAX_DYNAMIC_RESOURCES> resources{};
+
+    bool operator==(const DrawCommandState&) const = default;
+
+    [[nodiscard]]
+    std::span<LLGL::Resource* const> Resources() const { return { resources.data(), resourceCount }; }
 };
+
+struct DrawCommandStateHash {
+    size_t operator()(const sge::internal::DrawCommandState& s) const {
+        size_t h = sge::HASH_INIT;
+        sge::hash_fnv1a(h, &s.scissor, sizeof(s.scissor));
+        sge::hash_fnv1a(h, &s.blendMode, sizeof(s.blendMode));
+        sge::hash_fnv1a(h, s.resources.data(), sizeof(s.resources));
+        return h;
+    }
+};
+
+// Interns DrawStates to small integer ids. Cleared every frame by the owning batch.
+class DrawStateTable {
+public:
+    static constexpr uint32_t INVALID = UINT32_MAX;
+
+    uint32_t Intern(const DrawCommandState& s) {
+        if (m_last != INVALID && m_states[m_last] == s)
+            return m_last; // common case: same as previous draw
+
+        const auto [it, inserted] = m_lookup.try_emplace(s, static_cast<uint32_t>(m_states.size()));
+        if (inserted)
+            m_states.push_back(s);
+
+        m_last = it->second;
+        return m_last;
+    }
+
+    [[nodiscard]]
+    const DrawCommandState& Get(uint32_t id) const {
+        return m_states[id];
+    }
+
+    void Clear() {
+        m_states.clear();
+        m_lookup.clear();
+        m_last = INVALID;
+    }
+
+private:
+    std::vector<DrawCommandState> m_states;
+    std::unordered_map<DrawCommandState, uint32_t, DrawCommandStateHash> m_lookup;
+    uint32_t m_last = INVALID;
+};
+
+constexpr uint64_t MakeSortKey(uint32_t order, uint32_t state_id) noexcept { return (static_cast<uint64_t>(order) << 32) | state_id; }
+constexpr uint32_t SortKeyOrder(uint64_t key) noexcept { return static_cast<uint32_t>(key >> 32); }
+constexpr uint32_t SortKeyState(uint64_t key) noexcept { return static_cast<uint32_t>(key); }
 
 inline std::atomic<size_t> g_batch_id_counter = 0;
 
@@ -69,7 +116,13 @@ inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
     return uv_offset_scale;
 }
 
-} // namespace internal
+} // namespace sge::internal
+
+
+namespace sge {
+
+class Renderer2D;
+class Renderer;
 
 enum class TextAlignment : uint8_t {
     Top = 0,
@@ -140,10 +193,10 @@ public:
     virtual size_t GetInstanceCount() const noexcept = 0;
 
     [[nodiscard]]
-    virtual std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept = 0;
+    virtual std::span<const uint64_t> GetSortKeys() const = 0;
 
     [[nodiscard]]
-    virtual LLGL::Resource* const* GetDynamicBindings() const noexcept = 0;
+    virtual const sge::internal::DrawStateTable& GetStates() const = 0;
 
     virtual ~IBatch() = default;
 
@@ -193,32 +246,32 @@ public:
         return m_instances.size();
     }
 
-    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
-        return m_commands;
+    std::span<const uint64_t> GetSortKeys() const noexcept override {
+        return m_keys;
     }
 
-    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
-        return m_dynamic_bindings.data();
+    const sge::internal::DrawStateTable& GetStates() const noexcept override {
+        return m_states;
     }
 
     ~SpriteBatch() override = default;
 
 protected:
     void Clear() override {
-        m_commands.clear();
+        m_keys.clear();
         m_instances.clear();
-        m_dynamic_bindings.clear();
+        m_states.Clear();
     }
 
 private:
     void AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, const DrawState& state);
 
 private:
-    std::vector<internal::DrawCommandState> m_commands;
+    sge::internal::DrawStateTable m_states;
+    std::vector<uint64_t> m_keys;
     std::vector<SpriteInstance> m_instances;
-    std::vector<LLGL::Resource*> m_dynamic_bindings;
-    sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
+    sge::Ref<sge::Mesh> m_mesh;
 };
 
 class NinePatchBatch final : public IBatch {
@@ -243,27 +296,27 @@ public:
         return m_instances.size();
     }
 
-    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
-        return m_commands;
+    std::span<const uint64_t> GetSortKeys() const noexcept override {
+        return m_keys;
     }
 
-    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
-        return m_dynamic_bindings.data();
+    const sge::internal::DrawStateTable& GetStates() const noexcept override {
+        return m_states;
     }
 
     ~NinePatchBatch() override = default;
 
 protected:
     void Clear() override {
-        m_commands.clear();
+        m_states.Clear();
+        m_keys.clear();
         m_instances.clear();
-        m_dynamic_bindings.clear();
     }
 
 private:
-    std::vector<internal::DrawCommandState> m_commands;
+    sge::internal::DrawStateTable m_states;
+    std::vector<uint64_t> m_keys;
     std::vector<NinePatchInstance> m_instances;
-    std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
 };
@@ -298,24 +351,26 @@ public:
         return m_instances.size();
     }
 
-    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
-        return m_commands;
+    std::span<const uint64_t> GetSortKeys() const noexcept override {
+        return m_keys;
     }
 
-    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
-        return nullptr;
+    const sge::internal::DrawStateTable& GetStates() const noexcept override {
+        return m_states;
     }
 
     ~LineBatch() override = default;
 
 protected:
     void Clear() override {
-        m_commands.clear();
+        m_states.Clear();
+        m_keys.clear();
         m_instances.clear();
     }
 
 private:
-    std::vector<internal::DrawCommandState> m_commands;
+    sge::internal::DrawStateTable m_states;
+    std::vector<uint64_t> m_keys;
     std::vector<LineInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
@@ -350,27 +405,27 @@ public:
         return m_instances.size();
     }
 
-    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
-        return m_commands;
+    std::span<const uint64_t> GetSortKeys() const noexcept override {
+        return m_keys;
     }
 
-    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
-        return m_dynamic_bindings.data();
+    const sge::internal::DrawStateTable& GetStates() const noexcept override {
+        return m_states;
     }
 
     ~TextSdfBatch() override = default;
 
 protected:
     void Clear() override {
-        m_commands.clear();
+        m_states.Clear();
+        m_keys.clear();
         m_instances.clear();
-        m_dynamic_bindings.clear();
     }
 
 private:
-    std::vector<internal::DrawCommandState> m_commands;
+    sge::internal::DrawStateTable m_states;
+    std::vector<uint64_t> m_keys;
     std::vector<GlyphInstanceSDF> m_instances;
-    std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
 };
@@ -404,27 +459,27 @@ public:
         return m_instances.size();
     }
 
-    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
-        return m_commands;
+    std::span<const uint64_t> GetSortKeys() const noexcept override {
+        return m_keys;
     }
 
-    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
-        return m_dynamic_bindings.data();
+    const sge::internal::DrawStateTable& GetStates() const noexcept override {
+        return m_states;
     }
 
     ~TextVectorBatch() override = default;
 
 protected:
     void Clear() override {
-        m_commands.clear();
+        m_states.Clear();
+        m_keys.clear();
         m_instances.clear();
-        m_dynamic_bindings.clear();
     }
 
 private:
-    std::vector<internal::DrawCommandState> m_commands;
+    sge::internal::DrawStateTable m_states;
+    std::vector<uint64_t> m_keys;
     std::vector<GlyphInstanceVector> m_instances;
-    std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
 };
@@ -462,24 +517,26 @@ public:
         return m_instances.size();
     }
 
-    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
-        return m_commands;
+    std::span<const uint64_t> GetSortKeys() const noexcept override {
+        return m_keys;
     }
 
-    LLGL::Resource* const* GetDynamicBindings() const noexcept override {
-        return nullptr;
+    const sge::internal::DrawStateTable& GetStates() const noexcept override {
+        return m_states;
     }
 
     ~ShapeBatch() override = default;
 
 protected:
     void Clear() override {
-        m_commands.clear();
+        m_states.Clear();
+        m_keys.clear();
         m_instances.clear();
     }
 
 private:
-    std::vector<internal::DrawCommandState> m_commands;
+    sge::internal::DrawStateTable m_states;
+    std::vector<uint64_t> m_keys;
     std::vector<ShapeInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
