@@ -581,7 +581,7 @@ void sge::Renderer::FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, s
 
     if (indexCount > 0) {
         m_command_buffer->SetIndexBuffer(*mesh.GetIndexBuffer());
-        m_command_buffer->DrawIndexedInstanced(indexCount, instanceCount, 0, 0, instanceCount);
+        m_command_buffer->DrawIndexedInstanced(indexCount, instanceCount, 0, 0, instanceOffset);
     } else {
         auto vertexCount = mesh.GetVertexCount();
         m_command_buffer->DrawInstanced(vertexCount, 0, instanceCount, instanceOffset);
