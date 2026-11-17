@@ -27,8 +27,9 @@
         std::terminate();                                                                 \
     } while (0)
 #else
-    #define SGE_ASSERT(expression) ((void)(expression))
-    #define SGE_ASSERT_M(expression, message) ((void)(expression))
+    // Silence unused warning with `sizeof(bool(expression)` trick
+    #define SGE_ASSERT(expression) ((void)sizeof(bool(expression)))
+    #define SGE_ASSERT_M(expression, message) ((void)sizeof(bool(expression)))
 
     #if defined(__GNUC__) || defined(__clang__)
         #define SGE_UNREACHABLE() __builtin_unreachable()
