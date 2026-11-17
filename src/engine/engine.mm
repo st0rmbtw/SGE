@@ -12,6 +12,7 @@
 #include <SGE/profile.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/font.hpp>
+#include <SGE/utils/frame_arena.hpp>
 #include <SGE/utils/random.hpp>
 #include <SGE/window_manager.hpp>
 
@@ -38,6 +39,9 @@ bool sge::IEngine::Init() {
 
     m_context = std::make_shared<RenderContext>();
 
+    // Allocate 0.5MB for arena
+    sge::FrameArena::Init(500'000);
+
     if (!OnInit())
         return false;
 
@@ -51,7 +55,7 @@ bool sge::IEngine::Init() {
     Random::Seed(rd());
 
     m_initialized = true;
-    
+
     return true;
 }
 
@@ -73,6 +77,8 @@ void sge::IEngine::Run() {
     m_running = true;
 
     while (m_running) {
+        FrameArena::Clear();
+
         glfwPollEvents();
 
         auto& window_map = WindowManager::GetWindowMap();

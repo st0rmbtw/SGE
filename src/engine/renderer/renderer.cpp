@@ -482,7 +482,7 @@ void sge::Renderer::SubmitManyRaw(
     sge::hash_fnv1a(dynamicBindingsHash, dynamicBindings);
 
     uint64_t scissorHash = sge::HASH_INIT;
-    sge::hash_fnv1a(scissorHash, &scissorBounds, 1);
+    sge::hash_fnv1a(scissorHash, std::span<const sge::IRect>{&scissorBounds, 1});
 
     BatchKey batchKey {
         .mesh = std::move(mesh),
@@ -573,7 +573,7 @@ void sge::Renderer::FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, s
             LLGL::Extent2D resolution = m_context->GetCurrentTarget()->GetResolution();
             m_command_buffer->SetScissor(LLGL::Scissor(0, 0, resolution.width, resolution.height));
         } else {
-            m_command_buffer->SetScissor(LLGL::Scissor(scissor.min.x, scissor.min.y, scissor.max.x, scissor.max.y));
+            m_command_buffer->SetScissor(LLGL::Scissor(scissor.min.x, scissor.min.y, scissor.width(), scissor.height()));
         }
     }
 

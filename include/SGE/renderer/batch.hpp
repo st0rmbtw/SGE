@@ -1,6 +1,7 @@
 #ifndef SGE_RENDERER_BATCH_HPP_
 #define SGE_RENDERER_BATCH_HPP_
 
+#include <SGE/utils/frame_arena.hpp>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -35,20 +36,21 @@ class Renderer;
 
 namespace internal {
 
-inline std::atomic<size_t> g_batch_id_counter = 0;
-
-template <class T>
-struct BatchTypeIdentifier {
-    inline static const size_t id = g_batch_id_counter++;
-};
-
 struct DrawCommandState {
     sge::IRect scissor;
+    size_t instance_index;
     uint64_t resources_hash;
     size_t resources_offset;
     size_t resources_count;
     uint32_t order;
     sge::BlendMode blend_mode;
+};
+
+inline std::atomic<size_t> g_batch_id_counter = 0;
+
+template <class T>
+struct BatchTypeIdentifier {
+    inline static const size_t id = g_batch_id_counter++;
 };
 
 inline static glm::vec4 get_uv_offset_scale(bool flip_x, bool flip_y) {
@@ -73,11 +75,6 @@ enum class TextAlignment : uint8_t {
     Top = 0,
     Center = 1,
     Bottom = 2
-};
-
-struct DrawCommand {
-    size_t instance_index;
-    internal::DrawCommandState state;
 };
 
 enum class BatchFlags : uint8_t {
@@ -143,7 +140,7 @@ public:
     virtual size_t GetInstanceCount() const noexcept = 0;
 
     [[nodiscard]]
-    virtual std::vector<DrawCommand>& GetDrawCommands() noexcept = 0;
+    virtual std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept = 0;
 
     [[nodiscard]]
     virtual LLGL::Resource* const* GetDynamicBindings() const noexcept = 0;
@@ -196,7 +193,7 @@ public:
         return m_instances.size();
     }
 
-    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
         return m_commands;
     }
 
@@ -217,7 +214,7 @@ private:
     void AddSpriteDrawCommand(const sge::BaseSprite& sprite, const glm::vec4& uv_offset_scale, const sge::Texture& texture, const DrawState& state);
 
 private:
-    std::vector<DrawCommand> m_commands;
+    std::vector<internal::DrawCommandState> m_commands;
     std::vector<SpriteInstance> m_instances;
     std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
@@ -246,7 +243,7 @@ public:
         return m_instances.size();
     }
 
-    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
         return m_commands;
     }
 
@@ -264,7 +261,7 @@ protected:
     }
 
 private:
-    std::vector<DrawCommand> m_commands;
+    std::vector<internal::DrawCommandState> m_commands;
     std::vector<NinePatchInstance> m_instances;
     std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
@@ -301,7 +298,7 @@ public:
         return m_instances.size();
     }
 
-    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
         return m_commands;
     }
 
@@ -318,7 +315,7 @@ protected:
     }
 
 private:
-    std::vector<DrawCommand> m_commands;
+    std::vector<internal::DrawCommandState> m_commands;
     std::vector<LineInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
@@ -353,7 +350,7 @@ public:
         return m_instances.size();
     }
 
-    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
         return m_commands;
     }
 
@@ -371,7 +368,7 @@ protected:
     }
 
 private:
-    std::vector<DrawCommand> m_commands;
+    std::vector<internal::DrawCommandState> m_commands;
     std::vector<GlyphInstanceSDF> m_instances;
     std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
@@ -407,7 +404,7 @@ public:
         return m_instances.size();
     }
 
-    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
         return m_commands;
     }
 
@@ -425,7 +422,7 @@ protected:
     }
 
 private:
-    std::vector<DrawCommand> m_commands;
+    std::vector<internal::DrawCommandState> m_commands;
     std::vector<GlyphInstanceVector> m_instances;
     std::vector<LLGL::Resource*> m_dynamic_bindings;
     sge::Ref<sge::Mesh> m_mesh;
@@ -465,7 +462,7 @@ public:
         return m_instances.size();
     }
 
-    std::vector<DrawCommand>& GetDrawCommands() noexcept override {
+    std::vector<internal::DrawCommandState>& GetDrawCommands() noexcept override {
         return m_commands;
     }
 
@@ -482,7 +479,7 @@ protected:
     }
 
 private:
-    std::vector<DrawCommand> m_commands;
+    std::vector<internal::DrawCommandState> m_commands;
     std::vector<ShapeInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
@@ -594,8 +591,9 @@ namespace Draw {
 
     template<size_t Size>
     inline DrawCall<SdfTextDrawData> TextSdf(sge::RichText<Size> text, glm::vec2 position, sge::TextAlignment alignment, const sge::Font& font) {
+        auto copied = sge::FrameArena::Copy(text);
         return DrawCall(SdfTextDrawData {
-            .sections = std::span(text.data(), text.size()),
+            .sections = std::span(copied->data(), copied->size()),
             .font = font,
             .position = position,
             .alignment = alignment
@@ -603,13 +601,13 @@ namespace Draw {
     }
 
     inline DrawCall<SdfTextDrawData> TextSdf(std::string_view text, float size, sge::LinearRgba color, glm::vec2 position, sge::TextAlignment alignment, const sge::Font& font) {
-        static sge::RichTextSection section;
-        section.text = text;
-        section.color = color;
-        section.size = size;
+        auto section = sge::FrameArena::Allocate<RichTextSection>();
+        section->text = text;
+        section->color = color;
+        section->size = size;
 
         return DrawCall(SdfTextDrawData {
-            .sections = std::span(&section, 1),
+            .sections = std::span(section, 1),
             .font = font,
             .position = position,
             .alignment = alignment
@@ -724,6 +722,7 @@ public:
     }
 
     void EndScissorMode() {
+        SGE_ASSERT_M(!m_scissor_stack.empty(), "EndScissorMode() called before BeginScissorMode()");
         m_scissor_stack.pop_back();
     }
 
@@ -732,6 +731,7 @@ public:
     }
 
     void EndBlendMode() {
+        SGE_ASSERT_M(!m_blend_mode_stack.empty(), "EndBlendMode() called before BeginBlendMode()");
         m_blend_mode_stack.pop_back();
     }
 

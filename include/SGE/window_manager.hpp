@@ -19,7 +19,7 @@ public:
     using pointer = value_type*;
     using reference = value_type&;
 
-    explicit WindowIterator(WindowMap::iterator it) : current(std::move(it)) {   
+    explicit WindowIterator(WindowMap::iterator it) : current(std::move(it)) {
     }
 
     reference operator*() const { return *current->second.get(); }

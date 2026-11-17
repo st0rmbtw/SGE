@@ -16,7 +16,7 @@ struct BatchSubmission {
     const uint8_t* instancesData;
     size_t instanceStride;
     LLGL::Resource* const* dynamicBindings;
-    std::span<const DrawCommand> drawCommands;
+    std::span<const internal::DrawCommandState> drawCommands;
     size_t drawCommandsOffset = 0;
 };
 

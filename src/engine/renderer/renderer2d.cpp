@@ -51,14 +51,14 @@ void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
     std::ranges::copy(std::views::iota(0u, drawCommands.size()), std::back_inserter(m_sort_indices));
 
     std::ranges::sort(m_sort_indices, [&](const size_t ia, const size_t ib) {
-        const DrawCommand& a = drawCommands[ia];
-        const DrawCommand& b = drawCommands[ib];
+        const internal::DrawCommandState& a = drawCommands[ia];
+        const internal::DrawCommandState& b = drawCommands[ib];
 
-        if (a.state.order < b.state.order) return true;
-        if (a.state.order > b.state.order) return false;
+        if (a.order < b.order) return true;
+        if (a.order > b.order) return false;
 
-        const int a_scissor_size = a.state.scissor.width() + a.state.scissor.height();
-        const int b_scissor_size = b.state.scissor.width() + b.state.scissor.height();
+        const int a_scissor_size = a.scissor.width() + a.scissor.height();
+        const int b_scissor_size = b.scissor.width() + b.scissor.height();
 
         if (a_scissor_size < b_scissor_size)
             return true;
@@ -66,14 +66,14 @@ void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
         if (a_scissor_size > b_scissor_size)
             return false;
 
-        uint8_t a_bm = static_cast<uint8_t>(a.state.blend_mode);
-        uint8_t b_bm = static_cast<uint8_t>(b.state.blend_mode);
+        uint8_t a_bm = static_cast<uint8_t>(a.blend_mode);
+        uint8_t b_bm = static_cast<uint8_t>(b.blend_mode);
 
         if (a_bm < b_bm) return true;
         if (a_bm > b_bm) return false;
 
-        if (a.state.resources_hash < b.state.resources_hash) return true;
-        if (a.state.resources_hash > b.state.resources_hash) return false;
+        if (a.resources_hash < b.resources_hash) return true;
+        if (a.resources_hash > b.resources_hash) return false;
 
         return false;
     });
@@ -131,7 +131,7 @@ void sge::Renderer2D::FlushBatches() {
 
         for (const auto& s : m_submissions) {
             if (s.drawCommandsOffset < s.drawCommands.size()) {
-                consider(s.drawCommands[s.drawCommandsOffset].state.order);
+                consider(s.drawCommands[s.drawCommandsOffset].order);
             }
         }
 
@@ -141,9 +141,9 @@ void sge::Renderer2D::FlushBatches() {
     m_batch_data.clear();
     for (const auto& submission : m_submissions) {
         // Draw commands are sorted, so checking only first and last is enough
-        const bool allTheSame = DrawCommandStateEqual(submission.drawCommands.front().state, submission.drawCommands.back().state);
+        const bool allTheSame = DrawCommandStateEqual(submission.drawCommands.front(), submission.drawCommands.back());
         m_batch_data.push_back(BatchData {
-            .state = submission.drawCommands[0].state,
+            .state = submission.drawCommands[0],
             .offset = 0,
             .allTheSame = allTheSame
         });
@@ -167,20 +167,20 @@ void sge::Renderer2D::FlushBatches() {
             auto resources = std::span(submission.dynamicBindings + data.state.resources_offset, data.state.resources_count);
 
             // All draw commands are the same - flush the whole batch right away
-            if (data.allTheSame && currentOrder == submission.drawCommands[0].state.order) {
+            if (data.allTheSame && currentOrder == submission.drawCommands[0].order) {
                 submission.drawCommandsOffset = submission.drawCommands.size();
                 const auto& mesh = submission.batch->GetMesh();
                 const auto& material = submission.batch->GetMaterial(data.state.blend_mode);
                 SubmitManyRaw(mesh, material, resources, data.state.scissor, submission.instancesData, instanceStride, submission.drawCommands.size());
             } else {
                 size_t i = submission.drawCommandsOffset;
-                if (submission.drawCommands[i].state.order == currentOrder) {
-                    data.state = submission.drawCommands[i].state;
+                if (submission.drawCommands[i].order == currentOrder) {
+                    data.state = submission.drawCommands[i];
 
                     for (; i < submission.drawCommands.size(); ++i) {
-                        const DrawCommand& command = submission.drawCommands[i];
+                        const internal::DrawCommandState& state = submission.drawCommands[i];
 
-                        if (!DrawCommandStateEqual(command.state, data.state))
+                        if (!DrawCommandStateEqual(state, data.state))
                             break;
                     }
                 }

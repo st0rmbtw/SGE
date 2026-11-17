@@ -78,6 +78,7 @@ set(SGE_SRC
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/text.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/random.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/frame_arena.cpp
 )
 
 if(NOT APPLE)
