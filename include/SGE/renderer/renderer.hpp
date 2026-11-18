@@ -99,6 +99,7 @@ public:
         SubmitRaw(std::move(mesh), std::move(material), dynamicResources, nullptr, 0);
     }
 
+    // @note instanceData must live until the end of the current pass (`Renderer::EndPass()`)
     void SubmitRaw(
         Ref<Mesh> mesh,
         Ref<Material> material,
@@ -109,6 +110,7 @@ public:
         SubmitManyRaw(std::move(mesh), std::move(material), dynamicBindings, sge::IRect(), instanceData, instanceByteSize, 1);
     }
 
+    // @note instanceData must live until the end of the current pass (`Renderer::EndPass()`)
     void SubmitManyRaw(
         Ref<Mesh> mesh,
         Ref<Material> material,
@@ -223,12 +225,17 @@ private:
         }
     };
 
+    struct PendingCopy {
+        const uint8_t* src;
+        size_t length;
+    };
+
     struct InstanceData {
         sge::BufferPool instanceBufferPool;
         sge::Unique<LLGL::BufferArray> vertexBufferArray;
-        std::vector<uint8_t> instanceBytes;
-        std::vector<uint8_t> prevInstanceBytes;
+        std::vector<PendingCopy> pendingCopies;
         sge::Ref<Mesh> mesh;
+        size_t pendingBytes;
         size_t totalInstanceCount;
     };
 

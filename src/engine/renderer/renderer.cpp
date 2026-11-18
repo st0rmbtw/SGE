@@ -503,20 +503,35 @@ void sge::Renderer::SubmitManyRaw(
         batch.dynamicBindings.insert(batch.dynamicBindings.end(), dynamicBindings.begin(), dynamicBindings.end());
     }
 
-    const size_t instanceByteSize = instanceCount * instanceStride;
+    const size_t instanceByteSize = static_cast<size_t>(instanceCount) * instanceStride;
 
     size_t instanceOffset = static_cast<size_t>(-1);
 
     if (instanceDataPtr != nullptr && instanceByteSize > 0) {
-        instanceOffset = instanceData.totalInstanceCount;
-        if (instanceData.instanceBufferPool.GetStride() == 0) {
-            LLGL::BufferDescriptor desc = LLGL::VertexBufferDesc(0, batch.material->GetInstanceAttribsStride());
-            instanceData.instanceBufferPool = BufferPool(*m_context, desc);
-        }
-        const auto* bytes = static_cast<const uint8_t*>(instanceDataPtr);
-        instanceData.instanceBytes.insert(instanceData.instanceBytes.end(), bytes, bytes + instanceByteSize);
+        auto& d = instanceData;
 
-        instanceData.totalInstanceCount += instanceCount;
+        instanceOffset = d.totalInstanceCount;
+        if (d.instanceBufferPool.GetStride() == 0) {
+            LLGL::BufferDescriptor desc;
+            {
+                desc.bindFlags = LLGL::BindFlags::VertexBuffer;
+                desc.size = 0;
+                desc.stride = batch.material->GetInstanceAttribsStride();
+                desc.miscFlags = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
+                desc.cpuAccessFlags = LLGL::CPUAccessFlags::Write;
+            }
+            d.instanceBufferPool = BufferPool(*m_context, desc);
+        }
+        d.totalInstanceCount += instanceCount;
+
+        if (!d.pendingCopies.empty() && d.pendingCopies.data() == instanceDataPtr)
+            d.pendingCopies.back().length += instanceByteSize; // adjacent in the batch's memory: one memcpy later
+        else
+            d.pendingCopies.push_back(PendingCopy{
+                .src=static_cast<const uint8_t*>(instanceDataPtr),
+                .length=instanceByteSize
+            });
+        d.pendingBytes += instanceByteSize;
     }
 
     if (!m_batch_submissions.empty()) {
@@ -591,33 +606,25 @@ void sge::Renderer::FlushBatchRawImpl(MeshBatch& batch, size_t instanceOffset, s
 void sge::Renderer::UploadBatchBuffers() {
     ZoneScoped;
 
-    for (auto& instanceData : m_instance_datas) {
-        if (instanceData.instanceBytes.empty())
+    for (auto& d : m_instance_datas) {
+        if (d.pendingCopies.empty())
             continue;
 
-        const size_t instanceDataSize = instanceData.instanceBytes.size();
-        const bool vertexBufferDirty = instanceData.instanceBufferPool.Reserve(*m_context, instanceDataSize);
-
-        if (vertexBufferDirty) {
-            SGE_ASSERT(instanceData.instanceBufferPool.Get() != nullptr);
-            instanceData.vertexBufferArray = m_context->CreateBufferArray({ instanceData.mesh->GetVertexBuffer().Get(), instanceData.instanceBufferPool.Get() });
+        if (d.instanceBufferPool.Reserve(*m_context, d.pendingBytes)) {
+            SGE_ASSERT(d.instanceBufferPool.Get() != nullptr);
+            d.vertexBufferArray = m_context->CreateBufferArray({ d.mesh->GetVertexBuffer().Get(), d.instanceBufferPool.Get() });
         }
 
-        bool instanceDataChanged = false;
-        if (instanceDataSize > instanceData.prevInstanceBytes.size())
-            instanceDataChanged = true;
-
-        if (!instanceDataChanged) {
-            // Only upload instances to the GPU if they have changed
-            instanceDataChanged = !std::equal(instanceData.instanceBytes.begin(), instanceData.instanceBytes.end(), instanceData.prevInstanceBytes.begin());
+        LLGL::Buffer& buffer = *d.instanceBufferPool.Get();
+        if (auto* dst = static_cast<uint8_t*>(m_context->GetLLGLContext()->MapBuffer(buffer, LLGL::CPUAccess::WriteDiscard))) {
+            for (const PendingCopy& c : d.pendingCopies) {
+                std::memcpy(dst, c.src, c.length);
+                dst += c.length;
+            }
+            m_context->GetLLGLContext()->UnmapBuffer(buffer);
         }
-
-        if (vertexBufferDirty || instanceDataChanged) {
-            m_command_buffer->UpdateBuffer(*instanceData.instanceBufferPool.Get(), 0, instanceData.instanceBytes.data(), instanceDataSize);
-            std::swap(instanceData.instanceBytes, instanceData.prevInstanceBytes);
-        }
-
-        instanceData.instanceBytes.clear();
+        d.pendingCopies.clear();
+        d.pendingBytes = 0;
     }
 }
 

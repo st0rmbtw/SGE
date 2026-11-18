@@ -18,18 +18,19 @@ public:
         }
     }
 
-    bool Reserve(sge::RenderContext& context, size_t size) {
+    bool Reserve(sge::RenderContext& context, const size_t size) {
         if (size <= m_capacity)
             return false;
 
         const auto stride = m_desc.stride;
 
-        if (stride > 0) {
-            size = ((size + stride - 1) / stride) * stride;
-        }
+        size_t new_capacity = size + size / 2;
+        if (stride > 0)
+            new_capacity = ((size + stride - 1) / stride) * stride;
 
-        m_buffer = context.CreateVertexBuffer(size, stride);
-        m_capacity = size;
+        m_capacity = new_capacity;
+        m_desc.size = new_capacity;
+        m_buffer = context.CreateUnique(context.GetLLGLContext()->CreateBuffer(m_desc));
 
         return true;
     }
