@@ -7,6 +7,7 @@
 #include <SGE/math/quaternion.hpp>
 #include <SGE/renderer/attributes.hpp>
 #include <SGE/renderer/camera.hpp>
+#include <SGE/renderer/framebuffer_pool.hpp>
 #include <SGE/renderer/material.hpp>
 #include <SGE/renderer/mesh.hpp>
 #include <SGE/renderer/renderer2d.hpp>
@@ -139,8 +140,8 @@ void App::InitPipeline() {
     ShaderSourceCode sourceCode = GetBasicShaderSourceCode(context->Backend());
 
     m_material = m_renderer->CreateMaterial(sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size))
-        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", sourceCode.fs_source, sourceCode.fs_size))
+        .SetVertexShader(context->GetOrCreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size))
+        .SetFragmentShader(context->GetOrCreateShader(sge::ShaderType::Fragment, "PS", sourceCode.fs_source, sourceCode.fs_size))
         .SetCullMode(sge::CullMode::Back)
         .BindConstantBuffer(2, "UniformConstantBuffer", m_uniform_buffer, LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage)
     );

@@ -15,6 +15,7 @@
 #include <SGE/types/shader_path.hpp>
 #include <SGE/types/texture.hpp>
 #include <SGE/utils/hash.hpp>
+#include <SGE/utils/containers/dense_storage.hpp>
 
 #include <LLGL/RenderSystemChild.h>
 #include <LLGL/ResourceFlags.h>
@@ -94,6 +95,21 @@ struct RenderPassKeyHash {
     }
 };
 
+struct ShaderKey {
+    uint64_t sourceHash;
+};
+
+inline bool operator==(const ShaderKey& a, const ShaderKey& b) {
+    return a.sourceHash == b.sourceHash;
+}
+
+struct ShaderKeyHash {
+    static constexpr size_t operator()(const ShaderKey& key) noexcept {
+        return key.sourceHash;
+    }
+};
+
+}
 
 namespace sge {
 
@@ -197,8 +213,12 @@ public:
         return Texture(IdGenerator::Next(), texture.size(), sampler, texture.internal());
     }
 
-    Raw<LLGL::Shader> LoadShaderFromFile(const sge::ShaderPath& shader_path, const std::vector<sge::ShaderDef>& shader_defs = {}, const sge::ShaderConfig& config = {});
-    Raw<LLGL::Shader> CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t dataSize, const sge::ShaderConfig& config = {});
+    sge::Ref<LLGL::Shader> GetOrLoadShaderFromFile(const sge::ShaderPath& shaderPath, const std::vector<sge::ShaderDef>& shaderDefs = {}, const sge::ShaderConfig& config = {});
+
+    /**
+     * @brief Creates a shader and caches it. If the shader is already in cache, returns a reference to it.
+     */
+    sge::Ref<LLGL::Shader> GetOrCreateShader(sge::ShaderType shader_type, const char* entryPoint, const void* data, size_t dataSize, const sge::ShaderConfig& config = {});
 
     LLGL::PipelineCache* ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::filesystem::path& dir, const std::string& name, LLGL::PipelineCache& pipelineCache);
@@ -394,12 +414,12 @@ public:
     }
 
     void PushRenderTarget(LLGL::RenderTarget* target) {
-        m_target_stack.push(target);
+        m_target_stack.push_back(target);
     }
 
     LLGL::RenderTarget* PopRenderTarget() {
-        LLGL::RenderTarget* target = m_target_stack.top();
-        m_target_stack.pop();
+        LLGL::RenderTarget* target = m_target_stack.back();
+        m_target_stack.pop_back();
         return target;
     }
 
@@ -460,7 +480,7 @@ public:
 
     [[nodiscard]]
     inline LLGL::RenderTarget* GetCurrentTarget() const noexcept {
-        return m_target_stack.top();
+        return m_target_stack.back();
     }
 
     [[nodiscard]]
@@ -490,7 +510,7 @@ private:
 
     TemporaryFramebufferPool m_temp_framebuffer_pool;
 
-    std::stack<LLGL::RenderTarget*, std::vector<LLGL::RenderTarget*>> m_target_stack;
+    std::vector<LLGL::RenderTarget*> m_target_stack;
 
     sge::ImGuiConfig m_imgui_config;
 

@@ -90,8 +90,8 @@ sge::Renderer::Renderer(const std::shared_ptr<RenderContext>& context) : m_conte
     );
 
     ShaderSourceCode shader = GetFullscreenTriangleShaderSourceCode(backend);
-    m_fullscreen_triangle_vertex_shader = context->CreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size);
-    m_blit_pixel_shader = context->CreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+    m_fullscreen_triangle_vertex_shader = context->GetOrCreateShader(ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size);
+    m_blit_pixel_shader = context->GetOrCreateShader(ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
 
     LLGL::PipelineLayoutDescriptor layoutDesc;
     layoutDesc.bindings = sge::BindingLayout({
@@ -176,7 +176,7 @@ void sge::Renderer::InitTonemapPipeline(sge::Tonemapping method) {
     pipelineDesc.pipelineLayout = m_tonemap_pipeline_layout;
     pipelineDesc.renderPass = m_tonemap_render_pass;
     pipelineDesc.vertexShader = FullscreenTriangleVertexShader();
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size);
+    pipelineDesc.fragmentShader = m_context->GetOrCreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size);
     pipelineDesc.depth.testEnabled = false;
     pipelineDesc.depth.writeEnabled = false;
 
@@ -243,12 +243,12 @@ void sge::Renderer::InitBloomPipelines() {
 
     // Prefilter Pipeline
     ShaderSourceCode shaderSource = GetBloomPrefilterShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
+    pipelineDesc.fragmentShader = m_context->GetOrCreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     m_bloom_prefilter_pipeline = m_context->CreatePipelineState(pipelineDesc);
 
     // Downsample Pipeline
     shaderSource = GetBloomDownsampleShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
+    pipelineDesc.fragmentShader = m_context->GetOrCreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     m_bloom_downsample_pipeline = m_context->CreatePipelineState(pipelineDesc);
 
     pipelineDesc.blend.targets[0] = LLGL::BlendTargetDescriptor {
@@ -261,12 +261,12 @@ void sge::Renderer::InitBloomPipelines() {
 
     // Upsample Pipeline
     shaderSource = GetBloomUpsampleShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
+    pipelineDesc.fragmentShader = m_context->GetOrCreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     m_bloom_upsample_pipeline = m_context->CreatePipelineState(pipelineDesc);
 
     // Composite Pipeline
     shaderSource = GetBloomCompositeShaderSourceCode(m_context->Backend());
-    pipelineDesc.fragmentShader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
+    pipelineDesc.fragmentShader = m_context->GetOrCreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fs_source, shaderSource.fs_size, shaderConfig);
     m_bloom_composite_pipeline = m_context->CreatePipelineState(pipelineDesc);
 }
 

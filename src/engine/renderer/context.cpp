@@ -683,20 +683,20 @@ sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Exte
     return fb;
 }
 
-sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shader_path, const std::vector<ShaderDef>& shader_defs, const sge::ShaderConfig& config) {
+sge::Ref<LLGL::Shader> sge::RenderContext::GetOrLoadShaderFromFile(const ShaderPath& shaderPath, const std::vector<ShaderDef>& shaderDefs, const sge::ShaderConfig& config) {
     ZoneScoped;
 
     const RenderBackend backend = m_backend;
-    const ShaderType shader_type = shader_path.shader_type;
-    const char* entry_point = shader_type.IsCompute() ? shader_path.func_name.c_str() : shader_type.EntryPoint(backend);
+    const ShaderType shaderType = shaderPath.shader_type;
+    const char* entryPoint = shaderType.IsCompute() ? shaderPath.func_name.c_str() : shaderType.EntryPoint(backend);
 
-    std::string filename = shader_type.IsCompute() ? shader_path.func_name : shader_path.name;
+    std::string filename = shaderType.IsCompute() ? shaderPath.func_name : shaderPath.name;
     if (backend.IsVulkan() || backend.IsOpenGL()) {
         filename += '.';
-        filename += shader_type.Stage();
+        filename += shaderType.Stage();
     }
 
-    filename += shader_type.FileExtension(backend);
+    filename += shaderType.FileExtension(backend);
 
     const fs::path path = fs::path(backend.AssetFolder()) / filename;
     const std::string path_str = path.string().c_str();
@@ -706,51 +706,54 @@ sge::Raw<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
         return sge::Raw<LLGL::Shader>::Create(shared_from_this(), nullptr);
     }
 
-    uint8_t* data = nullptr;
-    uintmax_t data_length = 0;
+    std::vector<uint8_t> sourceData;
 
     if (backend.IsVulkan()) {
-        std::ifstream shader_file(path, std::ios::binary);
-        data_length = fs::file_size(path);
-        data = new uint8_t[data_length];
-        shader_file.read(reinterpret_cast<char*>(data), data_length);
+        std::ifstream shaderFile(path, std::ios::binary);
+        auto sourceDataSize = fs::file_size(path);
+        shaderFile.read(reinterpret_cast<char*>(sourceData.data()), sourceDataSize);
     } else {
-        std::ifstream shader_file(path);
+        std::ifstream shaderFile(path);
         std::stringstream buffer;
-        buffer << shader_file.rdbuf();
-        std::string shader_source = buffer.str();
+        buffer << shaderFile.rdbuf();
 
-        for (const ShaderDef& shader_def : shader_defs) {
+        std::string shaderSource = buffer.str();
+        for (const ShaderDef& shader_def : shaderDefs) {
             size_t pos = 0;
-            while ((pos = shader_source.find(shader_def.name, pos)) != std::string::npos) {
-                shader_source.replace(pos, shader_def.name.length(), shader_def.value);
+            while ((pos = shaderSource.find(shader_def.name, pos)) != std::string::npos) {
+                shaderSource.replace(pos, shader_def.name.length(), shader_def.value);
                 pos += shader_def.value.length();
             }
         }
 
-        data_length = shader_source.size() + 1;
-        data = new uint8_t[data_length];
-        data[data_length - 1] = '\0';
-        memcpy(data, shader_source.data(), data_length - 1);
+        sourceData = std::vector<uint8_t>(shaderSource.c_str(), shaderSource.c_str() + shaderSource.size() + 1);
     }
 
-    LLGL::Shader* shader = CreateShader(shader_path.shader_type, entry_point, data, data_length, config);
-    delete[] data;
+    auto shader = GetOrCreateShader(shaderPath.shader_type, entryPoint, sourceData.data(), sourceData.size(), config);
 
     if (!shader) {
         std::println(stderr, "Shader file: {}", path_str);
     }
-    return sge::Raw<LLGL::Shader>::Create(shared_from_this(), shader);
+    return shader;
 }
 
-sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_type, const char* entry_point, const void* data, size_t dataSize, const sge::ShaderConfig& config) {
+sge::Ref<LLGL::Shader> sge::RenderContext::GetOrCreateShader(sge::ShaderType shaderType, const char* entryPoint, const void* data, size_t dataSize, const sge::ShaderConfig& config) {
     SGE_ASSERT_M(data != nullptr, "Data must not be null!");
     SGE_ASSERT_M(dataSize > 0, "Data size must be greater than zero!");
+
+    auto sourceHash = sge::HASH_INIT;
+    sge::hash_fnv1a(sourceHash, data, dataSize);
+
+    internal::ShaderKey key{ .sourceHash = sourceHash };
+    auto it = m_shaders.find(key);
+    if (it != m_shaders.end()) {
+        return it->second;
+    }
 
     const RenderBackend backend = m_backend;
 
     LLGL::ShaderDescriptor shader_desc;
-    shader_desc.type = shader_type.ToLLGLType();
+    shader_desc.type = shaderType.ToLLGLType();
     shader_desc.sourceType = LLGL::ShaderSourceType::CodeString;
     shader_desc.source = static_cast<const char*>(data);
     shader_desc.sourceSize = dataSize;
@@ -760,13 +763,13 @@ sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_t
     }
 
     if (!backend.IsVulkan() && !backend.IsOpenGL()) {
-        shader_desc.entryPoint = entry_point;
-        shader_desc.profile = shader_type.Profile(backend);
+        shader_desc.entryPoint = entryPoint;
+        shader_desc.profile = shaderType.Profile(backend);
     }
 
     shader_desc.fragment = config.fragment;
 
-    if (backend.IsOpenGL() && shader_type.IsFragment()) {
+    if (backend.IsOpenGL() && shaderType.IsFragment()) {
         shader_desc.fragment.outputAttribs = {
             { "fragColor", LLGL::Format::RGBA8UNorm, 0, LLGL::SystemValue::Color }
         };
@@ -791,7 +794,9 @@ sge::Raw<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shader_t
         }
     }
 
-    return sge::Raw<LLGL::Shader>::Create(shared_from_this(), shader);
+    auto shaderRef = CreateRef(shader);
+    m_shaders.emplace(key, shaderRef);
+    return shaderRef;
 }
 
 void sge::RenderContext::ReleaseUntyped(LLGL::RenderSystemChild& resource) {
