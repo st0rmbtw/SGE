@@ -27,6 +27,8 @@
 #include <stack>
 #include <ranges>
 
+namespace sge::internal {
+
 struct PipelineConfigKey {
     LLGL::RenderTarget* render_target;
     sge::PipelineId config_id;
@@ -36,9 +38,8 @@ inline bool operator==(const PipelineConfigKey& a, const PipelineConfigKey& b) {
     return a.config_id == b.config_id && a.render_target == b.render_target;
 }
 
-template <>
-struct std::hash<PipelineConfigKey> {
-    static size_t operator()(const PipelineConfigKey& key) noexcept {
+struct PipelineConfigKeyHash {
+    static constexpr size_t operator()(const PipelineConfigKey& key) noexcept {
         size_t seed = 0;
         sge::hash_combine(seed, key.config_id);
         sge::hash_combine(seed, key.render_target);
@@ -62,9 +63,8 @@ inline bool operator==(const RenderTargetKey& a, const RenderTargetKey& b) {
         && a.render_pass_id == b.render_pass_id;
 }
 
-template <>
-struct std::hash<RenderTargetKey> {
-    static size_t operator()(const RenderTargetKey& key) noexcept {
+struct RenderTargetKeyHash {
+    static constexpr size_t operator()(const RenderTargetKey& key) noexcept {
         size_t seed = 0;
         sge::hash_combine(seed, key.config_id);
         sge::hash_combine(seed, key.render_pass_id);
@@ -85,9 +85,8 @@ inline bool operator==(const RenderPassKey& a, const RenderPassKey& b) {
     return a.config_id == b.config_id && a.samples == b.samples;
 }
 
-template <>
-struct std::hash<RenderPassKey> {
-    static size_t operator()(const RenderPassKey& key) noexcept {
+struct RenderPassKeyHash {
+    static constexpr size_t operator()(const RenderPassKey& key) noexcept {
         size_t seed = 0;
         sge::hash_combine(seed, key.config_id);
         sge::hash_combine(seed, key.samples);
@@ -383,21 +382,15 @@ public:
     }
 
     inline PipelineId CreateGraphicsPipeline(const GraphicsPipelineConfig& config) {
-        auto id = PipelineId(++m_pipeline_counter);
-        m_pipeline_configs[id] = config;
-        return id;
+        return m_pipeline_configs.add(config);
     }
 
     inline RenderPassId CreateRenderPass(const RenderPassConfig& config) {
-        auto id = RenderPassId(++m_render_pass_counter);
-        m_render_pass_configs[id] = config;
-        return id;
+        return m_render_pass_configs.add(config);
     }
 
     inline RenderTargetId CreateRenderTarget(const RenderTargetConfig& config) {
-        auto id = RenderTargetId(++m_render_target_counter);
-        m_render_target_configs[id] = config;
-        return id;
+        return m_render_target_configs.add(config);
     }
 
     void PushRenderTarget(LLGL::RenderTarget* target) {
@@ -482,13 +475,14 @@ private:
     };
 
 private:
+    DenseStorage<PipelineId, GraphicsPipelineConfig> m_pipeline_configs;
+    DenseStorage<RenderTargetId, RenderTargetConfig> m_render_target_configs;
+    DenseStorage<RenderPassId, RenderPassConfig> m_render_pass_configs;
     std::unordered_map<uint32_t, LLGL::SwapChain*> m_swapchain_map;
-    std::unordered_map<PipelineId, GraphicsPipelineConfig> m_pipeline_configs;
-    std::unordered_map<RenderTargetId, RenderTargetConfig> m_render_target_configs;
-    std::unordered_map<RenderPassId, RenderPassConfig> m_render_pass_configs;
-    std::unordered_map<PipelineConfigKey, LLGL::PipelineState*> m_pipeline_states;
-    std::unordered_map<RenderTargetKey, CachedRenderTarget> m_render_targets;
-    std::unordered_map<RenderPassKey, LLGL::RenderPass*> m_render_passes;
+    std::unordered_map<internal::PipelineConfigKey, LLGL::PipelineState*, internal::PipelineConfigKeyHash> m_pipeline_states;
+    std::unordered_map<internal::RenderTargetKey, CachedRenderTarget, internal::RenderTargetKeyHash> m_render_targets;
+    std::unordered_map<internal::RenderPassKey, LLGL::RenderPass*, internal::RenderPassKeyHash> m_render_passes;
+    std::unordered_map<internal::ShaderKey, sge::Ref<LLGL::Shader>, internal::ShaderKeyHash> m_shaders;
 
     #if SGE_IMGUI_ENABLED
         std::unordered_map<uint32_t, ImGuiContext*> m_imgui_context_map;
@@ -507,10 +501,6 @@ private:
 
     LLGL::CommandBuffer* m_command_buffer = nullptr;
     LLGL::RenderingDebugger* m_debugger = nullptr;
-
-    uint32_t m_pipeline_counter = 0;
-    uint32_t m_render_pass_counter = 0;
-    uint32_t m_render_target_counter = 0;
 
     sge::RenderBackend m_backend;
 };

@@ -1,3 +1,4 @@
+#include <SGE/utils/hash.hpp>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -243,15 +244,13 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(sge::PipelineId id)
     ZoneScoped;
 
     SGE_ASSERT(GetCurrentTarget() != nullptr);
+    SGE_ASSERT(m_pipeline_configs.contains(id));
 
-    const auto it_config = m_pipeline_configs.find(id);
-    SGE_ASSERT(it_config != m_pipeline_configs.end());
-
-    const GraphicsPipelineConfig& config = it_config->second;
+    const GraphicsPipelineConfig& config = m_pipeline_configs.get(id);
 
     LLGL::PipelineState* pipeline = nullptr;
 
-    const PipelineConfigKey key = { .render_target=GetCurrentTarget(), .config_id=id };
+    const auto key = internal::PipelineConfigKey{ .render_target=GetCurrentTarget(), .config_id=id };
     const auto it_pipeline = m_pipeline_states.find(key);
     if (it_pipeline != m_pipeline_states.end()) {
         pipeline = it_pipeline->second;
@@ -291,14 +290,13 @@ LLGL::PipelineState& sge::RenderContext::GetOrCreatePipeline(sge::PipelineId id)
 LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(sge::RenderTargetId id, uint8_t samples) {
     ZoneScoped;
 
-    const auto it_config = m_render_target_configs.find(id);
-    SGE_ASSERT(it_config != m_render_target_configs.end());
+    SGE_ASSERT(m_render_target_configs.contains(id));
 
-    const RenderTargetConfig& config = it_config->second;
+    const RenderTargetConfig& config = m_render_target_configs.get(id);
 
     LLGL::RenderTarget* renderTarget = nullptr;
 
-    const RenderTargetKey key = {
+    const auto key = internal::RenderTargetKey{
         .resolution=config.resolution,
         .config_id=id,
         .render_pass_id=config.renderPass,
@@ -379,14 +377,13 @@ LLGL::RenderTarget& sge::RenderContext::GetOrCreateRenderTarget(sge::RenderTarge
 LLGL::RenderPass& sge::RenderContext::GetOrCreateRenderPass(sge::RenderPassId id, uint8_t samples) {
     ZoneScoped;
 
-    const auto it_config = m_render_pass_configs.find(id);
-    SGE_ASSERT(it_config != m_render_pass_configs.end());
+    SGE_ASSERT(m_render_pass_configs.contains(id));
 
-    const RenderPassConfig& config = it_config->second;
+    const RenderPassConfig& config = m_render_pass_configs.get(id);
 
     LLGL::RenderPass* renderPass = nullptr;
 
-    const RenderPassKey key = {
+    const auto key = internal::RenderPassKey{
         .config_id=id,
         .samples=samples,
     };
@@ -492,7 +489,7 @@ void sge::RenderContext::DeletePipeline(sge::PipelineId id) {
     if (!id.IsValid()) return;
 
     for (auto it = m_pipeline_states.begin(); it != m_pipeline_states.end();) {
-        PipelineConfigKey key = it->first;
+        internal::PipelineConfigKey key = it->first;
         LLGL::PipelineState* value = it->second;
 
         if (key.config_id == id) {
@@ -504,17 +501,7 @@ void sge::RenderContext::DeletePipeline(sge::PipelineId id) {
         ++it;
     }
 
-    for (auto it = m_pipeline_configs.begin(); it != m_pipeline_configs.end();) {
-        auto key = it->first;
-        auto value = it->second;
-
-        if (key == id) {
-            it = m_pipeline_configs.erase(it);
-            continue;
-        }
-
-        ++it;
-    }
+    m_pipeline_configs.remove(id);
 }
 
 void sge::RenderContext::DeleteRenderTarget(sge::RenderTargetId id) {
@@ -531,16 +518,7 @@ void sge::RenderContext::DeleteRenderTarget(sge::RenderTargetId id) {
         ++it;
     }
 
-    for (auto it = m_render_target_configs.begin(); it != m_render_target_configs.end();) {
-        auto key = it->first;
-
-        if (key == id) {
-            it = m_render_target_configs.erase(it);
-            continue;
-        }
-
-        ++it;
-    }
+    m_render_target_configs.remove(id);
 }
 
 sge::Raw<sge::Sampler> sge::RenderContext::CreateSampler(const LLGL::SamplerDescriptor& descriptor) {

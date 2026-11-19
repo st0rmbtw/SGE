@@ -18,6 +18,7 @@
 #include <SGE/renderer/resource.hpp>
 #include <SGE/types/sampler.hpp>
 #include <SGE/types/shader_def.hpp>
+#include <SGE/utils/containers/dense_storage.hpp>
 
 namespace sge {
 
@@ -101,36 +102,9 @@ struct PathData {
     glm::vec4 color;
 };
 
-namespace internal {
-
-template <typename Tag>
-class ResourceId {
-    static inline constexpr uint32_t INVALID = 0;
-public:
-    ResourceId() = default;
-    explicit ResourceId(uint32_t value) : m_value(value) {}
-
-    [[nodiscard]]
-    uint32_t Value() const noexcept {
-        return m_value;
-    }
-
-    [[nodiscard]]
-    bool IsValid() const noexcept {
-        return m_value != INVALID;
-    }
-
-    friend bool operator==(const ResourceId& a, const ResourceId& b) noexcept { return a.m_value == b.m_value; }
-    friend bool operator!=(const ResourceId& a, const ResourceId& b) noexcept { return a.m_value != b.m_value; }
-private:
-    uint32_t m_value = INVALID;
-};
-
-} // namespace internal
-
-using PipelineId = internal::ResourceId<LLGL::PipelineState>;
-using RenderPassId = internal::ResourceId<LLGL::RenderPass>;
-using RenderTargetId = internal::ResourceId<LLGL::RenderTarget>;
+using PipelineId = Handle<LLGL::PipelineState>;
+using RenderPassId = Handle<LLGL::RenderPass>;
+using RenderTargetId = Handle<LLGL::RenderTarget>;
 
 struct GraphicsPipelineConfig {
     LLGL::BlendDescriptor blend;
@@ -261,12 +235,5 @@ struct TextureWithSampler {
 };
 
 } // namespace sge
-
-template<typename Tag>
-struct std::hash<sge::internal::ResourceId<Tag>> {
-    size_t operator()(const sge::internal::ResourceId<Tag>& r) const noexcept {
-        return std::hash<uint32_t>{}(r.Value());
-    }
-};
 
 #endif
