@@ -125,6 +125,11 @@ struct LinearRgba {
     inline Srgba to_srgba() const;
 
     [[nodiscard]]
+    const glm::vec4& as_vec4() const noexcept {
+        return reinterpret_cast<const glm::vec4&>(*this);
+    }
+
+    [[nodiscard]]
     glm::vec4 to_vec4() const noexcept {
         return glm::vec4(r, g, b, a);
     }

@@ -24,8 +24,9 @@ public:
         size_t space = m_capacity - m_offset;
         void* aligned_ptr = m_buffer.get() + m_offset;
 
-        auto alignSuccess = std::align(alignment, size, aligned_ptr, space) != nullptr;
-        SGE_ASSERT_M(alignSuccess, "Bad alloc");
+        bool alignSuccess = std::align(alignment, size, aligned_ptr, space) != nullptr;
+        if (!alignSuccess)
+            SGE_PANIC("bad allocation. Arena overflow?");
 
         m_offset = static_cast<uint8_t*>(aligned_ptr) - m_buffer.get() + size;
 

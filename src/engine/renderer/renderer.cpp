@@ -518,14 +518,15 @@ void sge::Renderer::SubmitManyRaw(
                 desc.size = 0;
                 desc.stride = batch.material->GetInstanceAttribsStride();
                 desc.miscFlags = LLGL::MiscFlags::DynamicUsage | LLGL::MiscFlags::NoInitialData;
-                desc.cpuAccessFlags = LLGL::CPUAccessFlags::Write;
+                if (m_context->Backend() != sge::RenderBackend::D3D11)
+                    desc.cpuAccessFlags = LLGL::CPUAccessFlags::Write;
             }
             d.instanceBufferPool = BufferPool(*m_context, desc);
         }
         d.totalInstanceCount += instanceCount;
 
-        if (!d.pendingCopies.empty() && d.pendingCopies.data() == instanceDataPtr)
-            d.pendingCopies.back().length += instanceByteSize; // adjacent in the batch's memory: one memcpy later
+        if (!d.pendingCopies.empty() && (d.pendingCopies.back().src + d.pendingCopies.back().length) == instanceDataPtr)
+            d.pendingCopies.back().length += instanceByteSize;
         else
             d.pendingCopies.push_back(PendingCopy{
                 .src=static_cast<const uint8_t*>(instanceDataPtr),
@@ -610,19 +611,39 @@ void sge::Renderer::UploadBatchBuffers() {
         if (d.pendingCopies.empty())
             continue;
 
-        if (d.instanceBufferPool.Reserve(*m_context, d.pendingBytes)) {
+        bool instanceBufferDirty = false;
+        {
+            ZoneScopedN("Reserve");
+            instanceBufferDirty = d.instanceBufferPool.Reserve(*m_context, d.pendingBytes);
+        }
+
+        if (instanceBufferDirty) {
             SGE_ASSERT(d.instanceBufferPool.Get() != nullptr);
             d.vertexBufferArray = m_context->CreateBufferArray({ d.mesh->GetVertexBuffer().Get(), d.instanceBufferPool.Get() });
         }
 
         LLGL::Buffer& buffer = *d.instanceBufferPool.Get();
-        if (auto* dst = static_cast<uint8_t*>(m_context->GetLLGLContext()->MapBuffer(buffer, LLGL::CPUAccess::WriteDiscard))) {
-            for (const PendingCopy& c : d.pendingCopies) {
+
+        uint8_t* dst = nullptr;
+        {
+            ZoneScopedN("Map");
+            dst = static_cast<uint8_t*>(m_context->GetLLGLContext()->MapBuffer(buffer, LLGL::CPUAccess::WriteDiscard));
+        }
+        SGE_ASSERT_M(dst != nullptr, "buffer mapping has failed.");
+
+        for (const PendingCopy& c : d.pendingCopies) {
+            {
+                ZoneScopedN("Copy");
                 std::memcpy(dst, c.src, c.length);
-                dst += c.length;
             }
+            dst += c.length;
+        }
+
+        {
+            ZoneScopedN("Unmap");
             m_context->GetLLGLContext()->UnmapBuffer(buffer);
         }
+
         d.pendingCopies.clear();
         d.pendingBytes = 0;
     }
@@ -661,4 +682,6 @@ void sge::Renderer::EndPass() {
 
     m_context->PopRenderTarget();
     m_command_buffer->EndRenderPass();
+
+    OnPassEnded();
 }

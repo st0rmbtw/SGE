@@ -26,7 +26,7 @@ public:
 
         size_t new_capacity = size + size / 2;
         if (stride > 0)
-            new_capacity = ((size + stride - 1) / stride) * stride;
+            new_capacity = ((new_capacity + stride - 1) / stride) * stride;
 
         m_capacity = new_capacity;
         m_desc.size = new_capacity;

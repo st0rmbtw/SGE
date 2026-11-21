@@ -54,6 +54,13 @@ public:
 private:
     void InitVectorPipeline();
 
+    void OnPassEnded() override {
+        m_scratch_used = 0;
+        for (const internal::BatchSubmission& s : m_submissions) {
+            s.batch->Reset();
+        }
+    }
+
 private:
     Ref<LLGL::Shader> m_vector_vertex_shader;
     Ref<LLGL::Shader> m_vector_fragment_shader;
@@ -68,6 +75,8 @@ private:
     std::vector<sge::internal::SortItem>    m_sort_tmp;
     std::vector<sge::internal::SortScratch> m_scratch_pool;
     std::vector<sge::internal::BatchSubmission> m_submissions;
+
+    size_t m_scratch_used = 0;
 
     bool m_vector_pipeline_initialized = false;
 };

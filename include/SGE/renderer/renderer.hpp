@@ -181,6 +181,9 @@ public:
         return m_blit_pipeline;
     }
 
+protected:
+    virtual void OnPassEnded() {}
+
 private:
     struct PipelineKey {
         uint64_t meshHash = 0;
@@ -235,8 +238,8 @@ private:
         sge::Unique<LLGL::BufferArray> vertexBufferArray;
         std::vector<PendingCopy> pendingCopies;
         sge::Ref<Mesh> mesh;
-        size_t pendingBytes;
-        size_t totalInstanceCount;
+        size_t pendingBytes = 0;
+        size_t totalInstanceCount = 0;
     };
 
     struct MeshBatch {

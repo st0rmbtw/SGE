@@ -82,7 +82,8 @@ set(SGE_SRC
 )
 
 if(NOT APPLE)
-    set_source_files_properties(${SGE_SRC} PROPERTIES COMPILE_FLAGS "-x c++")
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/engine/engine.mm PROPERTIES COMPILE_FLAGS "-x c++")
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/engine/renderer/glfw_window.mm PROPERTIES COMPILE_FLAGS "-x c++")
 endif()
 
 if(SGE_BUILD_STATIC)
@@ -99,7 +100,7 @@ else()
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_METAL_BACKEND_ENABLED=0)
 endif()
 
-if(SGE_BACKEND_VULKAN)
+if(SGE_ENABLE_BACKEND_VULKAN)
     set(LLGL_BUILD_RENDERER_VULKAN ON CACHE BOOL "" FORCE)
     set(LLGL_VK_ENABLE_SPIRV_REFLECT ON CACHE BOOL "" FORCE)
     target_compile_definitions(${PROJECT_NAME} PUBLIC SGE_VULKAN_BACKEND_ENABLED=1)

@@ -42,7 +42,9 @@ struct DrawCommandState {
     bool operator==(const DrawCommandState&) const = default;
 
     [[nodiscard]]
-    std::span<LLGL::Resource* const> Resources() const { return { resources.data(), resourceCount }; }
+    std::span<LLGL::Resource* const> Resources() const {
+        return { resources.data(), resourceCount };
+    }
 };
 
 struct DrawCommandStateHash {
@@ -721,7 +723,10 @@ public:
     template<class Item>
     uint32_t Draw(const Item& item) {
         DrawState state;
-        state.scissor = GetCurrentScissor().value_or(sge::IRect());
+        if (auto* currentScissor = GetCurrentScissor())
+            state.scissor = *currentScissor;
+        else
+            state.scissor = {};
         state.order = GetOrder();
         state.blendMode = GetCurrentBlendMode().value_or(sge::BlendMode::AlphaBlend);
         state.customFlags = std::nullopt;
@@ -731,15 +736,23 @@ public:
 
     template<class Item>
     uint32_t Draw(const DrawCall<Item>& call) {
+        const auto& item = call.GetItem();
+        auto order = call.GetCustomOrder();
+        auto flags = call.GetCustomFlags();
+
         DrawState state;
-        state.scissor = GetCurrentScissor().value_or(sge::IRect());
-        state.order = GetOrder(call.GetCustomOrder());
+        if (auto* currentScissor = GetCurrentScissor())
+            state.scissor = *currentScissor;
+        else
+            state.scissor = {};
+
+        state.order = GetOrder(order);
         state.blendMode = GetCurrentBlendMode().value_or(sge::BlendMode::AlphaBlend);
-        state.customFlags = call.GetCustomFlags();
+        state.customFlags = flags;
 
         using WithoutCvRef = std::remove_cvref_t<Item>;
         using PureType = std::remove_pointer_t<WithoutCvRef>;
-        Batch<typename BatchFor<PureType>::type>().Add(call.GetItem(), state);
+        Batch<typename BatchFor<PureType>::type>().Add(item, state);
         return state.order;
     }
 
@@ -793,8 +806,8 @@ public:
     }
 
     [[nodiscard]]
-    inline std::optional<sge::IRect> GetCurrentScissor() const noexcept {
-        return m_scissor_stack.empty() ? std::nullopt : std::optional(m_scissor_stack.back());
+    inline const sge::IRect* GetCurrentScissor() const noexcept {
+        return m_scissor_stack.empty() ? nullptr : &m_scissor_stack.back();
     }
 
     [[nodiscard]]

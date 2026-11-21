@@ -216,8 +216,6 @@ sge::LineBatch::LineBatch(sge::Renderer& renderer, LineBatchDesc desc) {
 }
 
 void sge::LineBatch::Add(const LineDrawData& data, const DrawState& state) {
-    ZoneScoped;
-
     glm::vec4 radius = glm::vec4(data.borderRadius.values());
     if (data.borderRadius.is_relative()) {
         const float length = glm::min(glm::distance(data.start, data.end), data.thickness);
@@ -225,19 +223,17 @@ void sge::LineBatch::Add(const LineDrawData& data, const DrawState& state) {
     }
 
     internal::DrawCommandState commandState{};
-    commandState.scissor     = state.scissor;
-    commandState.blendMode   = state.blendMode;
-    commandState.resourceCount = 0;
+    commandState.scissor   = state.scissor;
+    commandState.blendMode = state.blendMode;
     m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
 
-    m_instances.push_back(LineInstance {
-        .start = data.start,
-        .end = data.end,
-        .border_radius = radius,
-        .thickness = data.thickness,
-        .color_packed = glm::packUnorm4x8(data.color.to_vec4()),
-        .flags = state.customFlags.value_or(GetFlags()).data()
-    });
+    auto& created = m_instances.emplace_back();
+    created.start = data.start;
+    created.end = data.end;
+    created.border_radius = radius;
+    created.thickness = data.thickness;
+    created.color_packed = glm::packUnorm4x8(data.color.as_vec4());
+    created.flags = state.customFlags.value_or(GetFlags()).data();
 }
 
 sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) {

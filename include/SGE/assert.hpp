@@ -3,9 +3,10 @@
 
 #pragma once
 
+#include <print>
+
 #if SGE_DEBUG
     #include <cstdlib>
-    #include <print>
     #include <exception>
 
     #define SGE_ASSERT(expression) do {                                                                 \

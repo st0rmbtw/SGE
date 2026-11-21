@@ -42,6 +42,9 @@ bool sge::IEngine::Init() {
     // Allocate 0.5MB for arena
     sge::FrameArena::Init(500'000);
 
+    std::random_device rd;
+    Random::Seed(rd());
+
     if (!OnInit())
         return false;
 
@@ -50,9 +53,6 @@ bool sge::IEngine::Init() {
         sge::internal::InitDefaultFont(*m_context);
     }
     #endif
-
-    std::random_device rd;
-    Random::Seed(rd());
 
     m_initialized = true;
 

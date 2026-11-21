@@ -28,6 +28,31 @@ inline constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 // typically only 3-4 of the 8 passes run (order's low bytes + state id).
 void RadixSortStable(std::vector<SortItem>& a, std::vector<SortItem>& tmp) {
     const size_t n = a.size();
+
+    // For a small array use insertion sort
+    if (n <= 64) {
+        size_t min_idx = 0;
+        for (size_t i = 1; i < n; i++) {
+            if (a[i].key < a[min_idx].key) {
+                min_idx = i;
+            }
+        }
+        auto min_val = a[min_idx].key;
+        a[min_idx] = a[0];
+        a[0].key = min_val;
+
+        for (size_t i = 2; i < n; i++) {
+            auto k = a[i].key;
+            auto j = i;
+            while (k < a[j - 1].key) {
+                a[j] = a[j - 1];
+                j--;
+            }
+            a[j].key = k;
+        }
+        return;
+    }
+
     tmp.resize(n);
 
     std::array<std::array<uint32_t, 256>, 8> hist{};
@@ -81,12 +106,16 @@ void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
         m_sort_items.resize(n);
         for (size_t i = 0; i < n; ++i)
             m_sort_items[i] = { .key=keys[i], .index=static_cast<uint32_t>(i) };
-        RadixSortStable(m_sort_items, m_sort_tmp);
 
-        if (m_submissions.size() >= m_scratch_pool.size()) {
-            m_scratch_pool.resize(m_submissions.size() + 1);
+        {
+            ZoneScopedN("BatchSort");
+            RadixSortStable(m_sort_items, m_sort_tmp);
         }
-        SortScratch& scratch = m_scratch_pool[m_submissions.size()];
+
+        if (m_scratch_used >= m_scratch_pool.size())
+            m_scratch_pool.resize(m_scratch_used + 1);
+
+        SortScratch& scratch = m_scratch_pool[m_scratch_used++];
         scratch.keys.resize(n);
         scratch.instances.resize(n * instanceStride);
 
@@ -106,7 +135,7 @@ void sge::Renderer2D::FlushBatches() {
     ZoneScoped;
 
     while (true) {
-        // Get Submission whose next draw has the lowest order
+        // Get the submission whose next draw has the lowest order
         BatchSubmission* cur = nullptr;
         uint32_t curOrder = 0;
         for (auto& s : m_submissions) {
@@ -149,9 +178,6 @@ void sge::Renderer2D::FlushBatches() {
         cur->cursor = end;
     }
 
-    for (const BatchSubmission& s : m_submissions) {
-        s.batch->Reset();
-    }
     m_submissions.clear();
 }
 

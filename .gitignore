@@ -11,3 +11,4 @@ cache/
 glslang.exe
 glslang
 *.bat
+__cmake_systeminformation/
