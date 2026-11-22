@@ -21,13 +21,13 @@ namespace sge::internal {
     };
 
     struct SortScratch {
-        std::vector<uint64_t> keys;
+        std::vector<BatchRun> runs;
         std::vector<uint8_t>  instances;
     };
 
     struct BatchSubmission {
         std::shared_ptr<IBatch>   batch; // Needed to hold the reference to the batch so it doesn't get released
-        std::span<const uint64_t> keysSpan;
+        std::span<const BatchRun> runsSpan;
         const uint8_t*            instancesBytes;
         const DrawStateTable*     states;
         size_t                    instanceStride;

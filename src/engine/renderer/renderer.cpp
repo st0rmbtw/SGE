@@ -535,14 +535,6 @@ void sge::Renderer::SubmitManyRaw(
         d.pendingBytes += instanceByteSize;
     }
 
-    if (!m_batch_submissions.empty()) {
-        MeshBatchSubmission& submission = m_batch_submissions.back();
-        if (submission.batch == &batch) {
-            submission.instanceCount += instanceCount;
-            return;
-        }
-    }
-
     m_batch_submissions.push_back(MeshBatchSubmission {
         .batch = &batch,
         .instanceOffset = instanceOffset,

@@ -82,7 +82,14 @@ void sge::SpriteBatch::AddSpriteDrawCommand(const sge::BaseSprite& sprite, const
     commandState.resourceCount = 2;
     commandState.resources[0] = texture.internal().Get();
     commandState.resources[1] = texture.sampler()->internal().Get();
-    m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
+
+    const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
+
+    if (!m_runs.empty() && m_runs.back().key == key) {
+        m_runs.back().count += 1;
+    } else {
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=1 });
+    }
 
     m_instances.push_back(SpriteInstance {
         .rotation = glm::quat(sprite.rotation()),
@@ -171,7 +178,14 @@ void sge::NinePatchBatch::Add(const NinePatch& ninepatch, const DrawState& state
     commandState.resourceCount = 2;
     commandState.resources[0] = texture.internal().Get();
     commandState.resources[1] = texture.sampler()->internal().Get();
-    m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
+
+    const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
+
+    if (!m_runs.empty() && m_runs.back().key == key) {
+        m_runs.back().count += 1;
+    } else {
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=1 });
+    }
 
     const glm::vec4 uv_offset_scale = internal::get_uv_offset_scale(ninepatch.flip_x(), ninepatch.flip_y());
     m_instances.push_back(NinePatchInstance {
@@ -225,7 +239,14 @@ void sge::LineBatch::Add(const LineDrawData& data, const DrawState& state) {
     internal::DrawCommandState commandState{};
     commandState.scissor   = state.scissor;
     commandState.blendMode = state.blendMode;
-    m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
+
+    const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
+
+    if (!m_runs.empty() && m_runs.back().key == key) {
+        m_runs.back().count += 1;
+    } else {
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=1 });
+    }
 
     auto& created = m_instances.emplace_back();
     created.start = data.start;
@@ -274,16 +295,10 @@ sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) 
 void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state) {
     ZoneScoped;
 
-    internal::DrawCommandState commandState{};
-    commandState.scissor     = state.scissor;
-    commandState.blendMode   = state.blendMode;
-    commandState.resourceCount = 2;
-    commandState.resources[0] = data.font.texture.internal().Get();
-    commandState.resources[1] = data.font.texture.sampler()->internal().Get();
-    auto sortKey = internal::MakeSortKey(state.order, m_states.Intern(commandState));
-
     float x = data.position.x;
     float y = data.position.y;
+
+    size_t instancesStart = m_instances.size();
 
     for (size_t sectionIdx = 0; sectionIdx < data.sections.size(); ++sectionIdx) {
         const RichTextSection section = data.sections[sectionIdx];
@@ -325,8 +340,6 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
             const glm::vec2 pos = glm::vec2(xpos, ypos);
             const glm::vec2 size = glm::vec2(ch.size) * scale;
 
-            m_keys.push_back(sortKey);
-
             m_instances.push_back(GlyphInstanceSDF {
                 .pos = pos,
                 .size = size,
@@ -338,6 +351,23 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
 
             x += ch.advance * scale * data.font.base_scale;
         }
+    }
+
+    const uint32_t totalInstances = m_instances.size() - instancesStart;
+
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 2;
+    commandState.resources[0] = data.font.texture.internal().Get();
+    commandState.resources[1] = data.font.texture.sampler()->internal().Get();
+
+    const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
+
+    if (!m_runs.empty() && m_runs.back().key == key) {
+        m_runs.back().count += totalInstances;
+    } else {
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=totalInstances });
     }
 }
 
@@ -378,14 +408,7 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
     float x = data.position.x;
     float y = data.position.y;
 
-    internal::DrawCommandState commandState{};
-    commandState.scissor     = state.scissor;
-    commandState.blendMode   = state.blendMode;
-    commandState.resourceCount = 2;
-    commandState.resources[0] = data.font.curve_buffer.Get();
-    commandState.resources[1] = data.font.partition_buffer.Get();
-
-    auto sortKey = internal::MakeSortKey(state.order, m_states.Intern(commandState));
+    size_t instancesStart = m_instances.size();
 
     for (size_t sectionIdx = 0; sectionIdx < data.sections.size(); ++sectionIdx) {
         const RichTextSection section = data.sections[sectionIdx];
@@ -427,7 +450,6 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
             const glm::vec2 pos = glm::vec2(xpos - 1.0f, ypos - 1.0f);
             const glm::vec2 size = glm::vec2(ch.size + 1) * glm::vec2(sx, sy);
 
-            m_keys.push_back(sortKey);
             m_instances.push_back(GlyphInstanceVector {
                 .pos = pos,
                 .size = size,
@@ -440,6 +462,23 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
 
             x += ch.advance * sx;
         }
+    }
+
+    uint32_t totalInstances = m_instances.size() - instancesStart;
+
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 2;
+    commandState.resources[0] = data.font.curve_buffer.Get();
+    commandState.resources[1] = data.font.partition_buffer.Get();
+
+    const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
+
+    if (!m_runs.empty() && m_runs.back().key == key) {
+        m_runs.back().count += totalInstances;
+    } else {
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=totalInstances });
     }
 }
 
@@ -487,7 +526,14 @@ void sge::ShapeBatch::Add(const sge::ShapeDrawData& data, const sge::DrawState& 
     commandState.scissor     = state.scissor;
     commandState.blendMode   = state.blendMode;
     commandState.resourceCount = 0;
-    m_keys.push_back(internal::MakeSortKey(state.order, m_states.Intern(commandState)));
+
+    const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
+
+    if (!m_runs.empty() && m_runs.back().key == key) {
+        m_runs.back().count += 1;
+    } else {
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=1 });
+    }
 
     m_instances.push_back(ShapeInstance {
         .border_radius = radius,

@@ -105,9 +105,9 @@ public:
         Ref<Material> material,
         std::span<LLGL::Resource* const> dynamicBindings,
         const void* instanceData,
-        size_t instanceByteSize
+        size_t instanceStride
     ) {
-        SubmitManyRaw(std::move(mesh), std::move(material), dynamicBindings, sge::IRect(), instanceData, instanceByteSize, 1);
+        SubmitManyRaw(std::move(mesh), std::move(material), dynamicBindings, sge::IRect(), instanceData, instanceStride, 1);
     }
 
     // @note instanceData must live until the end of the current pass (`Renderer::EndPass()`)
@@ -117,7 +117,7 @@ public:
         std::span<LLGL::Resource* const> dynamicResources,
         sge::IRect scissorBounds,
         const void* instanceData,
-        size_t instanceDataSize,
+        size_t instanceStride,
         uint32_t instanceCount
     );
 

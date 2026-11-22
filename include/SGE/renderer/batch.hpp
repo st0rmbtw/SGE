@@ -33,6 +33,12 @@ namespace sge::internal {
 
 inline constexpr size_t MAX_DYNAMIC_RESOURCES = 4;
 
+struct BatchRun {
+    uint64_t key;
+    uint32_t first;
+    uint32_t count;
+};
+
 struct DrawCommandState {
     sge::IRect scissor{};
     sge::BlendMode blendMode{};
@@ -195,7 +201,7 @@ public:
     virtual size_t GetInstanceCount() const noexcept = 0;
 
     [[nodiscard]]
-    virtual std::span<const uint64_t> GetSortKeys() const = 0;
+    virtual std::span<const internal::BatchRun> GetRuns() const = 0;
 
     [[nodiscard]]
     virtual const sge::internal::DrawStateTable& GetStates() const = 0;
@@ -248,8 +254,8 @@ public:
         return m_instances.size();
     }
 
-    std::span<const uint64_t> GetSortKeys() const noexcept override {
-        return m_keys;
+    std::span<const internal::BatchRun> GetRuns() const noexcept override {
+        return m_runs;
     }
 
     const sge::internal::DrawStateTable& GetStates() const noexcept override {
@@ -260,7 +266,7 @@ public:
 
 protected:
     void Clear() override {
-        m_keys.clear();
+        m_runs.clear();
         m_instances.clear();
         m_states.Clear();
     }
@@ -270,7 +276,7 @@ private:
 
 private:
     sge::internal::DrawStateTable m_states;
-    std::vector<uint64_t> m_keys;
+    std::vector<internal::BatchRun> m_runs;
     std::vector<SpriteInstance> m_instances;
     sge::Ref<sge::Material> m_materials[4];
     sge::Ref<sge::Mesh> m_mesh;
@@ -298,8 +304,8 @@ public:
         return m_instances.size();
     }
 
-    std::span<const uint64_t> GetSortKeys() const noexcept override {
-        return m_keys;
+    std::span<const internal::BatchRun> GetRuns() const noexcept override {
+        return m_runs;
     }
 
     const sge::internal::DrawStateTable& GetStates() const noexcept override {
@@ -311,13 +317,13 @@ public:
 protected:
     void Clear() override {
         m_states.Clear();
-        m_keys.clear();
+        m_runs.clear();
         m_instances.clear();
     }
 
 private:
     sge::internal::DrawStateTable m_states;
-    std::vector<uint64_t> m_keys;
+    std::vector<internal::BatchRun> m_runs;
     std::vector<NinePatchInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
@@ -353,8 +359,8 @@ public:
         return m_instances.size();
     }
 
-    std::span<const uint64_t> GetSortKeys() const noexcept override {
-        return m_keys;
+    std::span<const internal::BatchRun> GetRuns() const noexcept override {
+        return m_runs;
     }
 
     const sge::internal::DrawStateTable& GetStates() const noexcept override {
@@ -366,13 +372,13 @@ public:
 protected:
     void Clear() override {
         m_states.Clear();
-        m_keys.clear();
+        m_runs.clear();
         m_instances.clear();
     }
 
 private:
     sge::internal::DrawStateTable m_states;
-    std::vector<uint64_t> m_keys;
+    std::vector<internal::BatchRun> m_runs;
     std::vector<LineInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
@@ -407,8 +413,8 @@ public:
         return m_instances.size();
     }
 
-    std::span<const uint64_t> GetSortKeys() const noexcept override {
-        return m_keys;
+    std::span<const internal::BatchRun> GetRuns() const noexcept override {
+        return m_runs;
     }
 
     const sge::internal::DrawStateTable& GetStates() const noexcept override {
@@ -420,13 +426,13 @@ public:
 protected:
     void Clear() override {
         m_states.Clear();
-        m_keys.clear();
+        m_runs.clear();
         m_instances.clear();
     }
 
 private:
     sge::internal::DrawStateTable m_states;
-    std::vector<uint64_t> m_keys;
+    std::vector<internal::BatchRun> m_runs;
     std::vector<GlyphInstanceSDF> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
@@ -461,8 +467,8 @@ public:
         return m_instances.size();
     }
 
-    std::span<const uint64_t> GetSortKeys() const noexcept override {
-        return m_keys;
+    std::span<const internal::BatchRun> GetRuns() const noexcept override {
+        return m_runs;
     }
 
     const sge::internal::DrawStateTable& GetStates() const noexcept override {
@@ -474,13 +480,13 @@ public:
 protected:
     void Clear() override {
         m_states.Clear();
-        m_keys.clear();
+        m_runs.clear();
         m_instances.clear();
     }
 
 private:
     sge::internal::DrawStateTable m_states;
-    std::vector<uint64_t> m_keys;
+    std::vector<internal::BatchRun> m_runs;
     std::vector<GlyphInstanceVector> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
@@ -519,8 +525,8 @@ public:
         return m_instances.size();
     }
 
-    std::span<const uint64_t> GetSortKeys() const noexcept override {
-        return m_keys;
+    std::span<const internal::BatchRun> GetRuns() const noexcept override {
+        return m_runs;
     }
 
     const sge::internal::DrawStateTable& GetStates() const noexcept override {
@@ -532,13 +538,13 @@ public:
 protected:
     void Clear() override {
         m_states.Clear();
-        m_keys.clear();
+        m_runs.clear();
         m_instances.clear();
     }
 
 private:
     sge::internal::DrawStateTable m_states;
-    std::vector<uint64_t> m_keys;
+    std::vector<internal::BatchRun> m_runs;
     std::vector<ShapeInstance> m_instances;
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];

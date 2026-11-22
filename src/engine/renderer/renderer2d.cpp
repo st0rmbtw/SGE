@@ -20,7 +20,7 @@
 
 namespace {
 
-using namespace sge::internal;
+using sge::internal::SortItem;
 
 inline constexpr uint32_t VECTOR_VERTEX_BUFFER_SIZE = 10000;
 
@@ -85,27 +85,31 @@ sge::Renderer2D::Renderer2D(const std::shared_ptr<RenderContext>& context) : Ren
 void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
     ZoneScoped;
 
-    auto keys = batch->GetSortKeys();
-    if (keys.empty()) return;
+    auto runs = batch->GetRuns();
+    if (runs.empty()) return;
 
     const auto& material = batch->GetMaterial(sge::BlendMode::AlphaBlend);
     const size_t instanceStride = material->GetInstanceAttribs()[0].stride;
     const auto* instancesData = static_cast<const uint8_t*>(batch->GetInstanceData());
 
-    BatchSubmission submission;
+    internal::BatchSubmission submission;
     submission.states = &batch->GetStates();
     submission.batch = std::move(batch);
     submission.instanceStride = instanceStride;
 
-    if (std::ranges::is_sorted(keys)) {
+    auto sortPredicate = [](const internal::BatchRun& a, const internal::BatchRun& b) {
+        return a.key < b.key;
+    };
+
+    if (std::ranges::is_sorted(runs, sortPredicate)) {
         // Painter-ordered input is already sorted: zero sorting, zero copying.
-        submission.keysSpan = keys;
+        submission.runsSpan = runs;
         submission.instancesBytes = instancesData;
     } else {
-        const size_t n = keys.size();
+        const size_t n = runs.size();
         m_sort_items.resize(n);
         for (size_t i = 0; i < n; ++i)
-            m_sort_items[i] = { .key=keys[i], .index=static_cast<uint32_t>(i) };
+            m_sort_items[i] = { .key=runs[i].key, .index=static_cast<uint32_t>(i) };
 
         {
             ZoneScopedN("BatchSort");
@@ -115,16 +119,21 @@ void sge::Renderer2D::SubmitBatch(std::shared_ptr<IBatch> batch) {
         if (m_scratch_used >= m_scratch_pool.size())
             m_scratch_pool.resize(m_scratch_used + 1);
 
-        SortScratch& scratch = m_scratch_pool[m_scratch_used++];
-        scratch.keys.resize(n);
+        internal::SortScratch& scratch = m_scratch_pool[m_scratch_used++];
+        scratch.runs.resize(n);
         scratch.instances.resize(n * instanceStride);
 
         // Gather: sequential writes
+        uint8_t* dst = scratch.instances.data();
         for (size_t k = 0; k < n; ++k) {
-            scratch.keys[k] = m_sort_items[k].key;
-            std::memcpy(scratch.instances.data() + k * instanceStride, instancesData + size_t(m_sort_items[k].index) * instanceStride, instanceStride);
+            const auto& run = runs[m_sort_items[k].index];
+            scratch.runs[k].key = run.key;
+            scratch.runs[k].first = run.first;
+            scratch.runs[k].count = run.count;
+            std::memcpy(dst, instancesData + run.first * instanceStride, run.count * instanceStride);
+            dst += run.count * instanceStride;
         }
-        submission.keysSpan = scratch.keys;
+        submission.runsSpan = scratch.runs;
         submission.instancesBytes = scratch.instances.data();
     }
 
@@ -136,11 +145,11 @@ void sge::Renderer2D::FlushBatches() {
 
     while (true) {
         // Get the submission whose next draw has the lowest order
-        BatchSubmission* cur = nullptr;
+        internal::BatchSubmission* cur = nullptr;
         uint32_t curOrder = 0;
         for (auto& s : m_submissions) {
-            if (s.cursor >= s.keysSpan.size()) continue;
-            const uint32_t o = internal::SortKeyOrder(s.keysSpan[s.cursor]);
+            if (s.cursor >= s.runsSpan.size()) continue;
+            const uint32_t o = internal::SortKeyOrder(s.runsSpan[s.cursor].key);
             if (!cur || o < curOrder) {
                 cur = &s;
                 curOrder = o;
@@ -148,34 +157,21 @@ void sge::Renderer2D::FlushBatches() {
         }
         if (!cur) break;
 
-        // Find how far may we run before another batch must draw
-        uint32_t limit = UINT32_MAX;
-        for (const auto& s : m_submissions)
-            if (&s != cur && s.cursor < s.keysSpan.size())
-                limit = std::min(limit, internal::SortKeyOrder(s.keysSpan[s.cursor]));
+        const uint32_t stateId = internal::SortKeyState(cur->runsSpan[cur->cursor].key);
+        const auto& st = cur->states->Get(stateId);
 
-        // Extend the run while the state is unchanged and the order stays within the limit
-        const uint32_t stateId = internal::SortKeyState(cur->keysSpan[cur->cursor]);
-        size_t end = cur->cursor + 1;
-        while (
-            end < cur->keysSpan.size()
-                && internal::SortKeyState(cur->keysSpan[end]) == stateId
-                && internal::SortKeyOrder(cur->keysSpan[end]) <= limit
-        ) {
-            ++end;
+        for (const internal::BatchRun& run : cur->runsSpan) {
+            SubmitManyRaw(
+                cur->batch->GetMesh(),
+                cur->batch->GetMaterial(st.blendMode),
+                st.Resources(),
+                st.scissor,
+                cur->instancesBytes + run.first * cur->instanceStride,
+                cur->instanceStride,
+                run.count
+            );
+            cur->cursor += 1;
         }
-
-        const internal::DrawCommandState& st = cur->states->Get(stateId);
-        SubmitManyRaw(
-            cur->batch->GetMesh(),
-            cur->batch->GetMaterial(st.blendMode),
-            st.Resources(),
-            st.scissor,
-            cur->instancesBytes + cur->cursor * cur->instanceStride,
-            cur->instanceStride,
-            end - cur->cursor
-        );
-        cur->cursor = end;
     }
 
     m_submissions.clear();
