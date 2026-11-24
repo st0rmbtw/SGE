@@ -5,6 +5,7 @@
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/renderer2d.hpp>
+#include <SGE/renderer/draw.hpp>
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
 #include <SGE/types/color.hpp>

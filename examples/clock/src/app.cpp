@@ -5,6 +5,7 @@
 #include <SGE/renderer/batch.hpp>
 #include <SGE/renderer/camera.hpp>
 #include <SGE/renderer/context.hpp>
+#include <SGE/renderer/draw.hpp>
 #include <SGE/renderer/glfw_window.hpp>
 #include <SGE/renderer/renderer.hpp>
 #include <SGE/time/stopwatch.hpp>
