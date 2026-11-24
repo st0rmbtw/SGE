@@ -10,8 +10,12 @@
 
 #include <SGE/input.hpp>
 #include <SGE/renderer/camera.hpp>
+#include <SGE/renderer/context.hpp>
 #include <SGE/time/time.hpp>
+#include <SGE/time/stopwatch.hpp>
 #include <SGE/types/backend.hpp>
+
+#include <imgui.h>
 
 inline constexpr sge::RenderBackend GetDefaultBackend() {
 #if SGE_PLATFORM_WINDOWS
@@ -177,5 +181,39 @@ inline void ControlCamera2D(sge::Camera& camera) {
         camera.set_position(position);
     }
 }
+
+
+#ifdef SGE_IMGUI_ENABLED
+inline void DisplayFrameStatistics(sge::RenderContext& context, LLGL::FrameProfile& profile) {
+    bool statisticHeaderOpened = ImGui::CollapsingHeader("Frame Statistics");
+    #if SGE_DEBUG_LAYER_ENABLED
+    context.Debugger()->SetTimeRecording(statisticHeaderOpened);
+    #endif
+    if (statisticHeaderOpened) {
+        ImGui::Text("Frame time: %.3f ms (%.0f FPS)", sge::Duration::GetAs<float, std::milli>(sge::Time::Delta()), 1.0 / sge::Time::DeltaSeconds());
+
+        #if SGE_DEBUG_LAYER_ENABLED
+        context.GetFrameProfile(&profile);
+
+        uint64_t cpuTimeSum = 0;
+        uint64_t gpuTimeSum = 0;
+
+        for (const auto& record : profile.timeRecords) {
+            cpuTimeSum += (record.cpuTicksEnd - record.cpuTicksStart);
+            gpuTimeSum += record.elapsedTime;
+        }
+
+        float cpuTimeSec = static_cast<float>(cpuTimeSum) / LLGL::Timer::Frequency();
+        float gpuTimeSec = static_cast<float>(gpuTimeSum) / std::nano::den;
+
+        ImGui::Text("CPU time: %.3f ms", cpuTimeSec * 1000.f);
+        ImGui::Text("GPU time: %.3f ms", gpuTimeSec * 1000.f);
+
+        ImGui::Text("Draw commands: %d", profile.commandBufferRecord.drawCommands);
+        #endif
+    }
+}
+#endif // SGE_IMGUI_ENABLED
+
 
 #endif

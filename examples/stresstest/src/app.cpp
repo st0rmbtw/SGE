@@ -224,15 +224,15 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
 
     m_renderer->Begin();
     {
+        m_draw_ctx->Submit();
+        m_renderer->FlushBatches();
+
         m_renderer->BeginPass(window, m_camera);
         {
             static constexpr float red = ((float)0xC5) / 255.0f;
             static constexpr float green = ((float)0xC8) / 255.0f;
             static constexpr float blue = ((float)0xD3) / 255.0f;
             m_renderer->Clear(LLGL::ClearValue(red, green, blue, 1.0f));
-
-            m_draw_ctx->Submit();
-            m_renderer->FlushBatches();
 
             #if SGE_IMGUI_ENABLED
             namespace Duration = sge::Duration;
@@ -308,33 +308,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                             }
                         }
 
-                        bool statisticHeaderOpened = ImGui::CollapsingHeader("Statistics");
-                        #if SGE_DEBUG_LAYER_ENABLED
-                        GetRenderContext()->Debugger()->SetTimeRecording(statisticHeaderOpened);
-                        #endif
-                        if (statisticHeaderOpened) {
-                            ImGui::Text("Frame time: %.3f ms (%.0f FPS)", Duration::GetAs<float, std::milli>(Time::Delta()), 1.0 / sge::Time::DeltaSeconds());
-
-                            #if SGE_DEBUG_LAYER_ENABLED
-                            GetRenderContext()->GetFrameProfile(&m_profile);
-
-                            uint64_t cpuTimeSum = 0;
-                            uint64_t gpuTimeSum = 0;
-
-                            for (const auto& record : m_profile.timeRecords) {
-                                cpuTimeSum += (record.cpuTicksEnd - record.cpuTicksStart);
-                                gpuTimeSum += record.elapsedTime;
-                            }
-
-                            float cpuTimeSec = static_cast<float>(cpuTimeSum) / LLGL::Timer::Frequency();
-                            float gpuTimeSec = static_cast<float>(gpuTimeSum) / std::nano::den;
-
-                            ImGui::Text("CPU time: %.3f ms", cpuTimeSec * 1000.f);
-                            ImGui::Text("GPU time: %.3f ms", gpuTimeSec * 1000.f);
-
-                            ImGui::Text("Draw commands: %d", m_profile.commandBufferRecord.drawCommands);
-                            #endif
-                        }
+                        DisplayFrameStatistics(*GetRenderContext(), m_profile);
                     }
                     ImGui::End();
                 }
