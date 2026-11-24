@@ -16,9 +16,9 @@
         }                                                                                               \
     } while (0)
 
-    #define SGE_ASSERT_M(expression, message) do {                                                                     \
+    #define SGE_ASSERT_M(expression, message, ...) do {                                                                \
         if (!(expression)) {                                                                                           \
-            std::println(stderr, "Assertion failed at {}:{}: " message, __FILE__, __LINE__);                           \
+            std::println(stderr, "Assertion failed at {}:{}: " message, __FILE__, __LINE__, ##__VA_ARGS__);            \
             std::terminate();                                                                                          \
         }                                                                                                              \
     } while (0)
