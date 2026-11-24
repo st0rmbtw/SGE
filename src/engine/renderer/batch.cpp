@@ -367,7 +367,7 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
     if (!m_runs.empty() && m_runs.back().key == key) {
         m_runs.back().count += totalInstances;
     } else {
-        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=totalInstances });
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(instancesStart), .count=totalInstances });
     }
 }
 
@@ -478,7 +478,7 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
     if (!m_runs.empty() && m_runs.back().key == key) {
         m_runs.back().count += totalInstances;
     } else {
-        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=totalInstances });
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(instancesStart), .count=totalInstances });
     }
 }
 
