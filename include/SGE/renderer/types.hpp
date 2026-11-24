@@ -74,6 +74,17 @@ struct GlyphInstanceVector {
     uint8_t flags;
 };
 
+struct VectorShapeInstance {
+    glm::vec2 pos;
+    glm::vec2 world_size;
+    glm::vec2 shape_size;
+    float band_height;
+    uint32_t color_packed;
+    uint32_t partition_offset;
+    uint32_t partition_count;
+    uint8_t flags;
+};
+
 struct GlyphInstanceSDF {
     glm::vec2 pos;
     glm::vec2 size;

@@ -2,12 +2,10 @@
 #define SGE_RENDERER_RENDERER_2D_HPP_
 
 #include <SGE/renderer/buffer_pool.hpp>
+#include <SGE/renderer/renderer.hpp>
 #include <SGE/types/transform.hpp>
-
-#include "SGE/renderer/batch.hpp"
-#include "renderer.hpp"
-
 #include <SGE/types/path.hpp>
+
 
 namespace sge::internal {
     struct BufferPoolEntry {
@@ -37,6 +35,8 @@ namespace sge::internal {
 
 namespace sge {
 
+class IBatch;
+
 class Renderer2D : public Renderer {
 public:
     explicit Renderer2D(const std::shared_ptr<RenderContext>& context);
@@ -49,7 +49,7 @@ public:
         (SubmitBatch(batches), ...);
     }
 
-    void DrawPath(const sge::Path& path, const sge::LinearRgba& color = sge::color::WHITE, const sge::Transform& transform = sge::Transform());
+    // void DrawPath(const sge::vector::VectorShape& path, const sge::LinearRgba& color = sge::color::WHITE, const sge::Transform& transform = sge::Transform());
 
 private:
     void InitVectorPipeline();

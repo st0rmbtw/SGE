@@ -73,12 +73,14 @@ set(SGE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/time/timer.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/font.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/path.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/path_builder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/types/texture_atlas.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/text.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/random.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/utils/frame_arena.cpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine/vector/convert.cpp
 )
 
 if(NOT APPLE)

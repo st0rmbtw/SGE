@@ -270,41 +270,41 @@ void sge::Renderer2D::InitVectorPipeline() {
     m_vector_pipeline_initialized = true;
 }
 
-void sge::Renderer2D::DrawPath(const sge::Path& path, const sge::LinearRgba& color, const sge::Transform& transform) {
-    if (!m_vector_pipeline_initialized)
-        InitVectorPipeline();
-
-    PathData pathData = {
-        .transformMatrix = transform.ComputeMatrix(),
-        .color = color.to_vec4()
-    };
-
-    m_command_buffer->UpdateBuffer(*m_vector_path_data_buffer, 0, &pathData, sizeof(PathData));
-
-    const auto& vertices = path.GetTriangleVertices();
-    SGE_ASSERT(vertices.size() < VECTOR_VERTEX_BUFFER_SIZE);
-    UpdateBufferChunked(*m_command_buffer, *m_vector_vertex_buffer, 0, vertices.data(), vertices.size() * sizeof(glm::vec2));
-
-    m_command_buffer->SetPipelineState(*m_vector_stencil_pipeline);
-    m_command_buffer->SetVertexBuffer(*m_vector_vertex_buffer);
-    m_command_buffer->SetResource(0, *GlobalUniformBuffer());
-    m_command_buffer->SetResource(1, *m_vector_path_data_buffer);
-    m_command_buffer->Draw(vertices.size(), 0);
-
-    const auto bounds = path.GetBounds();
-
-    float quad[] = {
-        bounds.min.x, bounds.min.y,
-        bounds.max.x, bounds.min.y,
-        bounds.max.x, bounds.max.y,
-        bounds.min.x, bounds.min.y,
-        bounds.max.x, bounds.max.y,
-        bounds.min.x, bounds.max.y,
-    };
-    m_command_buffer->UpdateBuffer(*m_vector_vertex_buffer, 0, &quad, sizeof(quad));
-
-    m_command_buffer->SetPipelineState(*m_vector_cover_pipeline);
-    m_command_buffer->SetVertexBuffer(*m_vector_vertex_buffer);
-    m_command_buffer->SetResource(0, *m_vector_path_data_buffer);
-    m_command_buffer->Draw(6, 0);
-}
+// void sge::Renderer2D::DrawPath(const sge::Path& path, const sge::LinearRgba& color, const sge::Transform& transform) {
+//     if (!m_vector_pipeline_initialized)
+//         InitVectorPipeline();
+//
+//     PathData pathData = {
+//         .transformMatrix = transform.ComputeMatrix(),
+//         .color = color.to_vec4()
+//     };
+//
+//     m_command_buffer->UpdateBuffer(*m_vector_path_data_buffer, 0, &pathData, sizeof(PathData));
+//
+//     const auto& vertices = path.GetTriangleVertices();
+//     SGE_ASSERT(vertices.size() < VECTOR_VERTEX_BUFFER_SIZE);
+//     UpdateBufferChunked(*m_command_buffer, *m_vector_vertex_buffer, 0, vertices.data(), vertices.size() * sizeof(glm::vec2));
+//
+//     m_command_buffer->SetPipelineState(*m_vector_stencil_pipeline);
+//     m_command_buffer->SetVertexBuffer(*m_vector_vertex_buffer);
+//     m_command_buffer->SetResource(0, *GlobalUniformBuffer());
+//     m_command_buffer->SetResource(1, *m_vector_path_data_buffer);
+//     m_command_buffer->Draw(vertices.size(), 0);
+//
+//     const auto bounds = path.GetBounds();
+//
+//     float quad[] = {
+//         bounds.min.x, bounds.min.y,
+//         bounds.max.x, bounds.min.y,
+//         bounds.max.x, bounds.max.y,
+//         bounds.min.x, bounds.min.y,
+//         bounds.max.x, bounds.max.y,
+//         bounds.min.x, bounds.max.y,
+//     };
+//     m_command_buffer->UpdateBuffer(*m_vector_vertex_buffer, 0, &quad, sizeof(quad));
+//
+//     m_command_buffer->SetPipelineState(*m_vector_cover_pipeline);
+//     m_command_buffer->SetVertexBuffer(*m_vector_vertex_buffer);
+//     m_command_buffer->SetResource(0, *m_vector_path_data_buffer);
+//     m_command_buffer->Draw(6, 0);
+// }

@@ -131,6 +131,7 @@ namespace sge {
 
 class Renderer2D;
 class Renderer;
+class VectorShape;
 
 enum class TextAlignment : uint8_t {
     Top = 0,
@@ -550,6 +551,57 @@ private:
     sge::Ref<sge::Material> m_materials[4];
 };
 
+struct VectorShapeDrawData {
+    std::shared_ptr<sge::VectorShape> shape;
+};
+
+class VectorShapeBatch final : public IBatch {
+public:
+    explicit VectorShapeBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {});
+
+    void Add(const VectorShapeDrawData& data, const DrawState& state);
+
+    const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
+        return m_mesh;
+    }
+
+    const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept override {
+        return m_materials[static_cast<uint8_t>(blendMode)];
+    }
+
+    void* GetInstanceData() noexcept override {
+        return m_instances.data();
+    }
+
+    size_t GetInstanceCount() const noexcept override {
+        return m_instances.size();
+    }
+
+    std::span<const internal::BatchRun> GetRuns() const noexcept override {
+        return m_runs;
+    }
+
+    const sge::internal::DrawStateTable& GetStates() const noexcept override {
+        return m_states;
+    }
+
+    ~VectorShapeBatch() override = default;
+
+protected:
+    void Clear() override {
+        m_states.Clear();
+        m_runs.clear();
+        m_instances.clear();
+    }
+
+private:
+    sge::internal::DrawStateTable m_states;
+    std::vector<internal::BatchRun> m_runs;
+    std::vector<VectorShapeInstance> m_instances;
+    sge::Ref<sge::Mesh> m_mesh;
+    sge::Ref<sge::Material> m_materials[4];
+};
+
 template<typename Item>
 class DrawCall {
 public:
@@ -604,6 +656,7 @@ template<> struct BatchFor<ShapeDrawData> { using type = ShapeBatch; };
 template<> struct BatchFor<LineDrawData> { using type = LineBatch; };
 template<> struct BatchFor<VectorTextDrawData> { using type = TextVectorBatch; };
 template<> struct BatchFor<SdfTextDrawData> { using type = TextSdfBatch; };
+template<> struct BatchFor<VectorShapeDrawData> { using type = VectorShapeBatch; };
 
 /*
  * A helper class for dispatching different types of draw commands to corresponding Batch instances.

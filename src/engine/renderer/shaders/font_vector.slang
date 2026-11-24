@@ -89,6 +89,10 @@ float ScanlineSweep(float2 size, float2 offset, float2 p0, float2 p1, float2 p2)
         return 0.h;
     }
 
+    if (p0.y == p2.y) {
+        return 0.h; // horizontal: no area, and it would divide by zero later
+    }
+
     float2 delta = p2 - p0;
 
     p0 -= offset;

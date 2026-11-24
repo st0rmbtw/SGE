@@ -14,6 +14,8 @@
 #include <SGE/renderer/utils.hpp>
 #include <SGE/types/binding_layout.hpp>
 #include <SGE/types/framebuffer.hpp>
+#include <SGE/types/path.hpp>
+#include <SGE/types/vector_shape.hpp>
 #include <SGE/utils/alloc.hpp>
 #include <SGE/utils/hash.hpp>
 
@@ -39,6 +41,8 @@
 
 #include "shaders.hpp"
 #include "utils.hpp"
+
+#include "../vector/convert.hpp"
 
 #if SGE_IMGUI_ENABLED
     #include <imgui.h>
@@ -676,4 +680,13 @@ void sge::Renderer::EndPass() {
     m_command_buffer->EndRenderPass();
 
     OnPassEnded();
+}
+
+std::shared_ptr<sge::VectorShape> sge::Renderer::CreateVectorShape(const sge::Path& path, std::optional<glm::vec2> customSize) {
+    sge::vector::ShapeData sd = sge::vector::BuildFromPath(path, {});
+
+    auto curveBuffer = m_context->CreateStructuredBuffer<sge::vector::Curve>(sd.curves.size(), sd.curves.data());
+    auto partitionBuffer = m_context->CreateStructuredBuffer<sge::vector::Partition>(sd.partitions.size(), sd.partitions.data());
+
+    return std::make_shared<sge::VectorShape>(curveBuffer, partitionBuffer, customSize.value_or(sd.size), sd.bandHeight, sd.partitions.size());
 }

@@ -10,6 +10,8 @@
 #include <SGE/renderer/utils.hpp>
 #include <SGE/renderer/vertex_format.hpp>
 #include <SGE/types/binding_layout.hpp>
+#include <SGE/types/color.hpp>
+#include <SGE/types/vector_shape.hpp>
 #include <SGE/utils/hash.hpp>
 #include <SGE/utils/utf8.hpp>
 
@@ -480,6 +482,68 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
     } else {
         m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(instancesStart), .count=totalInstances });
     }
+}
+
+sge::VectorShapeBatch::VectorShapeBatch(sge::Renderer& renderer, TextVectorBatchDesc desc) {
+    const auto& context = renderer.GetRenderContext();
+
+    m_mesh = renderer.GetDefaultBatch2dMesh();
+
+    ShaderSourceCode shaderCode = GetVectorShapeShaderSourceCode(context->Backend());
+
+    auto materialDesc = sge::MaterialDesc()
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
+        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size))
+        .SetBlendMode(sge::BlendMode::AlphaBlend)
+        .SetScissorTestEnabled(desc.enableScissor)
+        .SetDepthTestEnabled(desc.enableDepth)
+        .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position")
+        .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size")
+        .AddInstanceAttribute(sge::VertexFormat::Float32x2, "i_shape_size", "I_ShapeSize")
+        .AddInstanceAttribute(sge::VertexFormat::Float32,   "i_band_height", "I_BandHeight")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_color", "I_Color")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_partition_offset", "I_PartitionOffset")
+        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_partition_count", "I_PartitionCount")
+        .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_flags", "I_Flags")
+        .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
+        .AddDynamicBuffer(3, "CurveBuffer", LLGL::StageFlags::FragmentStage)
+        .AddDynamicBuffer(4, "PartitionBuffer", LLGL::StageFlags::FragmentStage);
+
+    for (uint8_t i = 0; i < 4; ++i) {
+        m_materials[i] = renderer.CreateMaterial(
+            materialDesc.SetBlendMode(static_cast<sge::BlendMode>(i))
+        );
+    }
+}
+
+void sge::VectorShapeBatch::Add(const VectorShapeDrawData& data, const DrawState& state) {
+    ZoneScoped;
+
+    internal::DrawCommandState commandState{};
+    commandState.scissor     = state.scissor;
+    commandState.blendMode   = state.blendMode;
+    commandState.resourceCount = 2;
+    commandState.resources[0] = data.shape->GetCurvesBuffer();
+    commandState.resources[1] = data.shape->GetPartitionsBuffer();
+
+    const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
+
+    if (!m_runs.empty() && m_runs.back().key == key) {
+        m_runs.back().count += 1;
+    } else {
+        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=1 });
+    }
+
+    m_instances.push_back(VectorShapeInstance {
+        .pos = glm::vec2(400.f),
+        .world_size = glm::vec2(200.0f),
+        .shape_size = data.shape->GetSize(),
+        .band_height = data.shape->GetBandHeight(),
+        .color_packed = glm::packUnorm4x8(glm::vec4(sge::color::WHITE.to_vec3(), 1.0)),
+        .partition_offset = 0,
+        .partition_count = data.shape->GetPartitionCount(),
+        .flags = state.customFlags.value_or(GetFlags()).data()
+    });
 }
 
 sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {
