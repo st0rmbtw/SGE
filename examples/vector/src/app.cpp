@@ -191,6 +191,8 @@ void App::OnInputEvent(const sge::InputEvent& event) {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
+    bool pathChanged = false;
+
     m_camera.set_viewport(m_imgui_state.scene_resolution);
 
     m_batch_group->Reset();
@@ -307,7 +309,7 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                         if (ImGui::Button("Generate path")) {
                             m_path_builder.Reset();
                             ParseSvg(inputBuffer, m_path_builder);
-                            m_vector_shape = m_renderer->CreateVectorShape(m_path_builder.Build());
+                            pathChanged = true;
                         }
                         ImGui::EndDisabled();
 
@@ -331,6 +333,13 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         m_renderer->EndPass();
     }
     m_renderer->End();
+
+    if (pathChanged) {
+        std::optional<glm::vec2> customSize;
+        if (shapeSizeX > 0.0 && shapeSizeY > 0.0)
+            customSize = glm::vec2(shapeSizeX, shapeSizeY);
+        m_vector_shape = m_renderer->CreateVectorShape(m_path_builder.Build(), customSize);
+    }
 
     #if SGE_DEBUG_LAYER_ENABLED
     if (Input::Pressed(Key::C)) {
