@@ -683,7 +683,7 @@ sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Exte
     return fb;
 }
 
-sge::Ref<LLGL::Shader> sge::RenderContext::GetOrLoadShaderFromFile(const ShaderPath& shaderPath, const std::vector<ShaderDef>& shaderDefs, const sge::ShaderConfig& config) {
+sge::Ref<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shaderPath, const std::vector<ShaderDef>& shaderDefs, const sge::ShaderConfig& config) {
     ZoneScoped;
 
     const RenderBackend backend = m_backend;
@@ -729,7 +729,7 @@ sge::Ref<LLGL::Shader> sge::RenderContext::GetOrLoadShaderFromFile(const ShaderP
         sourceData = std::vector<uint8_t>(shaderSource.c_str(), shaderSource.c_str() + shaderSource.size() + 1);
     }
 
-    auto shader = GetOrCreateShader(shaderPath.shader_type, entryPoint, sourceData.data(), sourceData.size(), config);
+    auto shader = CreateShader(shaderPath.shader_type, entryPoint, sourceData.data(), sourceData.size(), config);
 
     if (!shader) {
         std::println(stderr, "Shader file: {}", path_str);
@@ -737,7 +737,7 @@ sge::Ref<LLGL::Shader> sge::RenderContext::GetOrLoadShaderFromFile(const ShaderP
     return shader;
 }
 
-sge::Ref<LLGL::Shader> sge::RenderContext::GetOrCreateShader(sge::ShaderType shaderType, const char* entryPoint, const void* data, size_t dataSize, const sge::ShaderConfig& config) {
+sge::Ref<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shaderType, const char* entryPoint, const void* data, size_t dataSize, const sge::ShaderConfig& config) {
     SGE_ASSERT_M(data != nullptr, "Data must not be null!");
     SGE_ASSERT_M(dataSize > 0, "Data size must be greater than zero!");
 

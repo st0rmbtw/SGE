@@ -213,12 +213,12 @@ public:
         return Texture(IdGenerator::Next(), texture.size(), sampler, texture.internal());
     }
 
-    sge::Ref<LLGL::Shader> GetOrLoadShaderFromFile(const sge::ShaderPath& shaderPath, const std::vector<sge::ShaderDef>& shaderDefs = {}, const sge::ShaderConfig& config = {});
+    sge::Ref<LLGL::Shader> LoadShaderFromFile(const sge::ShaderPath& shaderPath, const std::vector<sge::ShaderDef>& shaderDefs = {}, const sge::ShaderConfig& config = {});
 
     /**
      * @brief Creates a shader and caches it. If the shader is already in cache, returns a reference to it.
      */
-    sge::Ref<LLGL::Shader> GetOrCreateShader(sge::ShaderType shader_type, const char* entryPoint, const void* data, size_t dataSize, const sge::ShaderConfig& config = {});
+    sge::Ref<LLGL::Shader> CreateShader(sge::ShaderType shader_type, const char* entryPoint, const void* data, size_t dataSize, const sge::ShaderConfig& config = {});
 
     LLGL::PipelineCache* ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::filesystem::path& dir, const std::string& name, LLGL::PipelineCache& pipelineCache);
