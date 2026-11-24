@@ -12,8 +12,10 @@
 #include <SGE/time/time.hpp>
 #include <SGE/types/anchor.hpp>
 #include <SGE/types/color.hpp>
+#include <SGE/types/font.hpp>
 #include <SGE/types/shape.hpp>
 #include <SGE/types/window_settings.hpp>
+#include <SGE/utils/string.hpp>
 
 #include <chrono>
 #include <glm/trigonometric.hpp>
@@ -266,49 +268,22 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         }
     }
 
+    m_draw_ctx->Draw(
+        sge::Draw::TextSdf(sge::TempFormat("{:.2f} ms", Time::DeltaSeconds() * 1000.0f), 18.0f, sge::LinearRgba(1.0f, 0.0f, 0.0f), glm::vec2(10, window->GetHeight() - 30), sge::TextAlignment::Bottom, sge::GetDefaultFont())
+            .WithCustomFlags(sge::BatchFlags::UI)
+    );
+
+    m_draw_ctx->Submit();
+    m_renderer->FlushBatches();
+
     m_renderer->BeginPass(window, camera);
     {
         float red = ((float)0xC5) / 255.0f;
         float green = ((float)0xC8) / 255.0f;
         float blue = ((float)0xD3) / 255.0f;
         m_renderer->Clear(LLGL::ClearValue(red, green, blue, 1.0f));
-
-        m_draw_ctx->Submit();
-        m_renderer->FlushBatches();
-
-        #if SGE_IMGUI_ENABLED
-        GetRenderContext()->BeginImGuiFrame(*window);
-        {
-            ImGui::NewFrame();
-            {
-                ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
-                ImGui::ShowDemoWindow();
-            }
-            ImGui::Render();
-        }
-        #endif
     }
     m_renderer->EndPass();
-
-    #if SGE_IMGUI_ENABLED
-    ImGuiIO& io = ImGui::GetIO();
-    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
-
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        GLFWwindow* saved_context = glfwGetCurrentContext();
-        ImGui::UpdatePlatformWindows();
-        for (int i = 1; i < platform_io.Viewports.Size; i++)
-        {
-            ImGuiViewport* viewport = platform_io.Viewports[i];
-            if (viewport->Flags & ImGuiViewportFlags_IsMinimized)
-                continue;
-            if (platform_io.Platform_RenderWindow) platform_io.Platform_RenderWindow(viewport, nullptr);
-            if (platform_io.Renderer_RenderWindow) platform_io.Renderer_RenderWindow(viewport, nullptr);
-        }
-        glfwMakeContextCurrent(saved_context);
-    }
-    #endif
 
     m_renderer->End();
 
