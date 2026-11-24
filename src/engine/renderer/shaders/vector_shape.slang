@@ -24,7 +24,7 @@ struct VSOutput
 {
     float4 position : SV_Position;
 
-    float2 uv : UV;
+    float2 p : UV;
     nointerpolation float3 color : Color;
     nointerpolation float band_height : BandHeight;
     nointerpolation uint partition_offset : PartitionOffset;
@@ -53,7 +53,7 @@ VSOutput VS(VSInput inp)
     VSOutput outp;
     outp.position = mul(mvp, float4(world, 0.0, 1.0));
     outp.position.z = 1.0f;
-    outp.uv = lerp(-shape_pad, inp.i_shape_size + shape_pad, inp.position);
+    outp.p = lerp(-shape_pad, inp.i_shape_size + shape_pad, inp.position);
     outp.color = UnpackRGBA8Unorm(inp.i_color).rgb;
     outp.band_height = inp.i_band_height;
     outp.partition_offset = inp.i_partition_offset;
@@ -230,16 +230,16 @@ float4 PS(VSOutput inp) : SV_Target
     __target_switch
     {
         case metal:
-            pixel_size = float2(fwidth(inp.uv.x), fwidth(inp.uv.y));
+            pixel_size = float2(fwidth(inp.p.x), fwidth(inp.p.y));
             break;
         default:
-            pixel_size = fwidth(inp.uv);
+            pixel_size = fwidth(inp.p);
             break;
     }
 
     float2 half_px = pixel_size * 0.5;
-    float y_lo = inp.uv.y - half_px.y;
-    float y_hi = inp.uv.y + half_px.y;
+    float y_lo = inp.p.y - half_px.y - 1e-5;
+    float y_hi = inp.p.y + half_px.y + 1e-5;
 
 
     int last = int(inp.partition_count) - 1;
@@ -254,10 +254,10 @@ float4 PS(VSOutput inp) : SV_Target
         for (uint i = 0; i < partition.curve_count; ++i) {
             BezierCurve curve = CurveBuffer[partition.curve_offset + i];
 
-            int first = clamp((int)floor(min(curve.p0.y, curve.p2.y) / inp.band_height), 0, last);
+            int first = clamp((int)((min(curve.p0.y, curve.p2.y) + 1e-4) / inp.band_height), 0, last);
             if (partition_index != max(first, p_lo)) continue;
 
-            coverage += ScanlineSweep(pixel_size, inp.uv - half_px, curve.p0, curve.p1, curve.p2);
+            coverage += ScanlineSweep(pixel_size, inp.p - half_px, curve.p0, curve.p1, curve.p2);
         }
     }
 

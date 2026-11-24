@@ -11,10 +11,8 @@
 
 namespace {
 
-using point_t = glm::vec2;
-
 struct CubicBezier {
-    point_t p0, p1, p2, p3;
+    glm::vec2 p0, p1, p2, p3;
 
     glm::vec2 Sample(float t) const {
         float mt = 1.f - t;
@@ -26,7 +24,7 @@ struct CubicBezier {
 };
 
 struct QuadraticBezier {
-    point_t p0, p1, p2;
+    glm::vec2 p0, p1, p2;
 };
 
 float SolveMonotonicBezierY(const QuadraticBezier& c, float target) {
@@ -80,7 +78,7 @@ void SplitAtBandBoundaries(QuadraticBezier q, float height, std::vector<Quadrati
             bounds.push_back(y);
     }
 
-    if (q.p2.y < q.p0.y) std::reverse(bounds.begin(), bounds.end());
+    if (q.p2.y < q.p0.y) std::ranges::reverse(bounds);
 
     for (float y : bounds) {
         const float t = std::clamp(SolveMonotonicBezierY(q, y), 0.f, 1.f);
@@ -101,8 +99,16 @@ void ApproximateCubicAsQuads(const CubicBezier& c, float tolerance, std::vector<
     CubicBezier rest = c;
     for (int i = 0; i < n; ++i) {
         CubicBezier piece = rest;
-        if (i < n - 1) { auto [a, b] = SplitCubic(rest, 1.0f / float(n - i)); piece = a; rest = b; }
-        out.push_back({piece.p0, (3.0f * (piece.p1 + piece.p2) - piece.p0 - piece.p3) * 0.25f, piece.p3});
+        if (i < n - 1) {
+            auto [a, b] = SplitCubic(rest, 1.0f / float(n - i));
+            piece = a;
+            rest = b;
+        }
+        out.push_back({
+            .p0=piece.p0,
+            .p1=(3.0f * (piece.p1 + piece.p2) - piece.p0 - piece.p3) * 0.25f,
+            .p2=piece.p3
+        });
     }
 }
 
