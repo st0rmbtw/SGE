@@ -161,6 +161,8 @@ void sge::Renderer2D::FlushBatches() {
         const auto& st = cur->states->Get(stateId);
 
         for (const internal::BatchRun& run : cur->runsSpan) {
+            SGE_ASSERT(run.first < run.count);
+
             SubmitManyRaw(
                 cur->batch->GetMesh(),
                 cur->batch->GetMaterial(st.blendMode),
