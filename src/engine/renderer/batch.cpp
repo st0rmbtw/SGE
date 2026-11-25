@@ -539,7 +539,7 @@ void sge::VectorShapeBatch::Add(const VectorShapeDrawData& data, const DrawState
         .world_size = glm::vec2(200.0f),
         .shape_size = data.shape->GetSize(),
         .band_height = data.shape->GetBandHeight(),
-        .color_packed = glm::packUnorm4x8(glm::vec4(sge::color::WHITE.to_vec3(), 1.0)),
+        .color_packed = glm::packUnorm4x8(data.color.as_vec4()),
         .partition_offset = 0,
         .partition_count = data.shape->GetPartitionCount(),
         .flags = state.customFlags.value_or(GetFlags()).data()

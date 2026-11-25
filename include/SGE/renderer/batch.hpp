@@ -496,6 +496,7 @@ private:
 
 struct VectorShapeDrawData {
     std::shared_ptr<sge::VectorShape> shape;
+    sge::LinearRgba color = sge::color::WHITE;
 };
 
 class VectorShapeBatch final : public IBatch {
