@@ -400,49 +400,6 @@ private:
     std::vector<GlyphInstanceSDF> m_instances;
 };
 
-struct VectorTextDrawData {
-    std::span<const sge::RichTextSection> sections;
-    const sge::FontVector& font;
-    glm::vec2 position;
-    sge::TextAlignment alignment;
-};
-
-class TextVectorBatch final : public IBatch {
-public:
-    explicit TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {});
-
-    void Add(const VectorTextDrawData& data, const DrawState& state);
-
-    const sge::Ref<sge::Mesh>& GetMesh() const noexcept override {
-        return m_mesh;
-    }
-
-    const sge::Ref<sge::Material>& GetMaterial(sge::BlendMode blendMode) const noexcept override {
-        return m_materials[static_cast<uint8_t>(blendMode)];
-    }
-
-    void* GetInstanceData() noexcept override {
-        return m_instances.data();
-    }
-
-    size_t GetInstanceCount() const noexcept override {
-        return m_instances.size();
-    }
-
-    ~TextVectorBatch() override = default;
-
-protected:
-    void Clear() override {
-        IBatch::Clear();
-        m_instances.clear();
-    }
-
-private:
-    sge::Ref<sge::Mesh> m_mesh;
-    sge::Ref<sge::Material> m_materials[4];
-    std::vector<GlyphInstanceVector> m_instances;
-};
-
 struct ShapeDrawData {
     glm::vec2 position;
     glm::vec2 size;
@@ -498,7 +455,7 @@ struct VectorShapeDrawData {
     glm::vec2 size{ 0.f, 0.f };
 };
 
-class VectorShapeBatch final : public IBatch {
+class VectorShapeBatch : public IBatch {
 public:
     explicit VectorShapeBatch(sge::Renderer& renderer, TextVectorBatchDesc desc = {});
 
@@ -528,10 +485,26 @@ protected:
         m_instances.clear();
     }
 
-private:
+protected:
     sge::Ref<sge::Mesh> m_mesh;
     sge::Ref<sge::Material> m_materials[4];
     std::vector<VectorShapeInstance> m_instances;
+};
+
+struct VectorTextDrawData {
+    std::span<const sge::RichTextSection> sections;
+    const sge::FontVector& font;
+    glm::vec2 position;
+    sge::TextAlignment alignment;
+};
+
+// TODO: This class wraps `VectorShapeBatch` just to layout the text. Layouting should be a separate mechanism. Same for `TextSdfBatch`.
+class TextVectorBatch final : public VectorShapeBatch {
+public:
+    using VectorShapeBatch::VectorShapeBatch;
+    void Add(const VectorTextDrawData& data, const DrawState& state);
+private:
+    using VectorShapeBatch::Add;
 };
 
 template<typename Item>

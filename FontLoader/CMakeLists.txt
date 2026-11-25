@@ -18,7 +18,6 @@ target_sources(SGE_FontLoader PRIVATE ${SGE_SRC})
 target_compile_definitions(SGE_FontLoader PUBLIC "$<$<CONFIG:Debug>:SGE_DEBUG>")
 target_include_directories(SGE_FontLoader PUBLIC "${PROJECT_SOURCE_DIR}/include")
 
-target_include_directories(SGE_FontLoader PRIVATE "${PROJECT_SOURCE_DIR}/../thirdparty/freetype-2.13.2/include")
-target_link_libraries(SGE_FontLoader PRIVATE freetype)
+target_link_libraries(SGE_FontLoader PRIVATE freetype SGE)
 
 target_link_libraries(SGE_FontLoader PUBLIC glm)

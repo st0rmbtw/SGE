@@ -218,6 +218,8 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         .size = glm::vec2{ 200.f },
     });
 
+    m_batch_group->Draw(sge::Draw::TextVector("asd", 24.f, sge::color::YELLOW, glm::vec2{ 400.f, 600.f }, sge::TextAlignment::Center, sge::GetDefaultFontVector()));
+
     m_renderer->Begin();
     {
         sge::TemporaryFramebufferOptions tempFramebufferOpts;

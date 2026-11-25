@@ -30,7 +30,7 @@ namespace {
     using spaces_type = rectpack2D::empty_spaces<false>;
     using rect_type = rectpack2D::output_rect_t<spaces_type>;
 
-    struct rect {
+    struct rect_t {
         rect_type xywh;
         size_t index = 0;
 
@@ -99,7 +99,7 @@ sge::font_loader::FontDataSDF sge::font_loader::LoadSdfFontDataFromBytes(
         character = FT_Get_Next_Char(face, character, &index);
     }
 
-    std::vector<rect> rectangles;
+    std::vector<rect_t> rectangles;
     for (size_t i = 0; i < glyph_infos.size(); ++i) {
         const GlyphInfo& g = glyph_infos[i];
         rectangles.emplace_back(rectpack2D::rect_xywh(0, 0, g.width + SDF_PADDING*2, g.height + SDF_PADDING*2), i);

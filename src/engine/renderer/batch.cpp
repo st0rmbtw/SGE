@@ -373,37 +373,6 @@ void sge::TextSdfBatch::Add(const SdfTextDrawData& data, const DrawState& state)
     }
 }
 
-sge::TextVectorBatch::TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDesc desc) {
-    const auto& context = renderer.GetRenderContext();
-
-    m_mesh = renderer.GetDefaultBatch2dMesh();
-
-    EmbeddedShaderSource shaderCode = GetFontVectorShaderSourceCode(context->Backend());
-
-    auto materialDesc = sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vertex))
-        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fragment))
-        .SetBlendMode(sge::BlendMode::AlphaBlend)
-        .SetScissorTestEnabled(desc.enableScissor)
-        .SetDepthTestEnabled(desc.enableDepth)
-        .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_position", "I_Position")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_size", "I_Size")
-        .AddInstanceAttribute(sge::VertexFormat::Float32x2, "inp_i_em_size", "I_Em_Size")
-        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_color", "I_Color")
-        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_partition_offset", "I_PartitionOffset")
-        .AddInstanceAttribute(sge::VertexFormat::Uint32,    "inp_i_partition_count", "I_PartitionCount")
-        .AddInstanceAttribute(sge::VertexFormat::Uint8,     "inp_i_flags", "I_Flags")
-        .BindConstantBuffer(2, "GlobalUniformBuffer_std140", renderer.GlobalUniformBuffer(), LLGL::StageFlags::VertexStage)
-        .AddDynamicBuffer(3, "CurveBuffer", LLGL::StageFlags::FragmentStage)
-        .AddDynamicBuffer(4, "PartitionBuffer", LLGL::StageFlags::FragmentStage);
-
-    for (uint8_t i = 0; i < 4; ++i) {
-        m_materials[i] = renderer.CreateMaterial(
-            materialDesc.SetBlendMode(static_cast<sge::BlendMode>(i))
-        );
-    }
-}
-
 void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& state) {
     ZoneScoped;
 
@@ -452,13 +421,16 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
             const glm::vec2 pos = glm::vec2(xpos - 1.0f, ypos - 1.0f);
             const glm::vec2 size = glm::vec2(ch.size + 1) * glm::vec2(sx, sy);
 
-            m_instances.push_back(GlyphInstanceVector {
+            const auto& layer = data.font.vectorShape->GetLayer(ch.data.vector.layerId);
+
+            m_instances.push_back(VectorShapeInstance {
                 .pos = pos,
-                .size = size,
-                .em_size = ch.size,
+                .world_size = size,
+                .shape_size = ch.size,
+                .band_height = layer.bandHeight,
                 .color_packed = glm::packUnorm4x8(glm::vec4(color, 1.0)),
-                .partition_offset = ch.data.vector.partition_offset,
-                .partition_count = ch.data.vector.partition_count,
+                .partition_offset = layer.partitionOffset,
+                .partition_count = layer.partitionCount,
                 .flags = state.customFlags.value_or(GetFlags()).data()
             });
 
@@ -472,8 +444,8 @@ void sge::TextVectorBatch::Add(const VectorTextDrawData& data, const DrawState& 
     commandState.scissor     = state.scissor;
     commandState.blendMode   = state.blendMode;
     commandState.resourceCount = 2;
-    commandState.resources[0] = data.font.curve_buffer.Get();
-    commandState.resources[1] = data.font.partition_buffer.Get();
+    commandState.resources[0] = &data.font.vectorShape->GetCurvesBuffer();
+    commandState.resources[1] = &data.font.vectorShape->GetPartitionsBuffer();
 
     const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
 

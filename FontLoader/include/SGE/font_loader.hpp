@@ -9,6 +9,8 @@
 
 #include <glm/vec2.hpp>
 
+#include <SGE/types/vector_shape.hpp>
+
 namespace sge::font_loader {
 
 struct GlyphInfoSdf {
@@ -35,20 +37,14 @@ struct FontDataSDF {
 struct GlyphInfoVector {
     glm::ivec2 size;
     glm::ivec2 bearing;
-    uint32_t partition_offset;
-    uint32_t partition_count;
     uint32_t character;
+    VectorShapeLayerId layerId;
     float advance;
 };
 
 struct FontDataVector {
     std::vector<GlyphInfoVector> glyphs;
-    std::unique_ptr<uint8_t[]> curves_data;
-    size_t curves_data_size;
-    size_t curves_data_stride;
-    std::unique_ptr<uint8_t[]> partitions_data;
-    size_t partitions_data_size;
-    size_t partitions_data_stride;
+    std::vector<VectorShapeLayer> layers;
     uint16_t units_per_em;
     int16_t ascender;
     int16_t descender;

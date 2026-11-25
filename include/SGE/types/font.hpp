@@ -3,27 +3,27 @@
 #ifndef SGE_TYPES_FONT_HPP_
 #define SGE_TYPES_FONT_HPP_
 
-#include <cstdlib>
 #include <unordered_map>
 
 #include <SGE/font_loader.hpp>
+#include <SGE/types/vector_shape.hpp>
 #include <SGE/log.hpp>
 
 #include "texture.hpp"
 
 namespace sge {
+class RenderContext;
 
 #if SGE_DEFAULT_FONT_ENABLED
 namespace internal {
 
-void InitDefaultFont(class sge::RenderContext& context);
+void InitDefaultFont(sge::RenderContext& context);
 
 } // namespace internal
 #endif
 
 struct GlyphDataVector {
-    uint32_t partition_offset;
-    uint32_t partition_count;
+    VectorShapeLayerId layerId;
 };
 
 struct GlyphDataSDF {
@@ -43,8 +43,7 @@ struct Glyph {
 
 struct FontVector {
     std::unordered_map<uint32_t, Glyph> glyphs;
-    sge::Ref<LLGL::Buffer> curve_buffer;
-    sge::Ref<LLGL::Buffer> partition_buffer;
+    std::shared_ptr<sge::GpuVectorShape> vectorShape;
     uint16_t units_per_em;
     int16_t ascender;
     int16_t descender;
@@ -93,14 +92,14 @@ inline const Font& GetDefaultFont() {
 #endif // #if SGE_DEFAULT_FONT_ENABLED
 
 // ================== Vector ==================
-FontVector LoadVectorFontFromData(const sge::font_loader::FontDataVector& data, class sge::RenderContext& context);
-FontVector LoadVectorFontFromBytes(std::span<const uint8_t> buffer, class sge::RenderContext& context);
-FontVector LoadVectorFontFromFile(const std::string& path, class sge::RenderContext& context);
+FontVector LoadVectorFontFromData(const sge::font_loader::FontDataVector& data, sge::RenderContext& renderer);
+FontVector LoadVectorFontFromBytes(std::span<const uint8_t> buffer, sge::RenderContext& renderer);
+FontVector LoadVectorFontFromFile(const std::string& path, sge::RenderContext& renderer);
 
 // ================== SDF ==================
-Font LoadFontFromData(const sge::font_loader::FontDataSDF& data, class sge::RenderContext& context);
-Font LoadFontFromBytes(std::span<const uint8_t> buffer, class sge::RenderContext& context);
-Font LoadFontFromFile(const std::string& path, class sge::RenderContext& context);
+Font LoadFontFromData(const sge::font_loader::FontDataSDF& data, sge::RenderContext& context);
+Font LoadFontFromBytes(std::span<const uint8_t> buffer, sge::RenderContext& context);
+Font LoadFontFromFile(const std::string& path, sge::RenderContext& context);
 
 } // namespace sge
 
