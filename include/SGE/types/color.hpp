@@ -1,5 +1,5 @@
-#ifndef _SGE_TYPES_COLOR_HPP_
-#define _SGE_TYPES_COLOR_HPP_
+#ifndef SGE_TYPES_COLOR_HPP_
+#define SGE_TYPES_COLOR_HPP_
 
 #pragma once
 
@@ -456,15 +456,15 @@ inline Srgba detail::linear_rgba_to_srgba(const LinearRgba& rgba) {
 }
 
 namespace color {
-    inline constexpr sge::LinearRgba WHITE       = LinearRgba(1.f, 1.f, 1.f, 1.f);
-    inline constexpr sge::LinearRgba BLACK       = LinearRgba(0.f, 0.f, 0.f, 1.f);
-    inline constexpr sge::LinearRgba TRANSPARENT = LinearRgba(0.f, 0.f, 0.f, 0.f);
-    inline constexpr sge::LinearRgba RED         = LinearRgba(1.f, 0.f, 0.f, 1.f);
-    inline constexpr sge::LinearRgba GREEN       = LinearRgba(0.f, 1.f, 0.f, 1.f);
-    inline constexpr sge::LinearRgba BLUE        = LinearRgba(0.f, 0.f, 1.f, 1.f);
-    inline constexpr sge::LinearRgba YELLOW      = LinearRgba(1.f, 1.f, 0.f, 1.f);
-    inline constexpr sge::LinearRgba PURPLE      = LinearRgba(1.f, 0.f, 1.f, 1.f);
-    inline constexpr sge::LinearRgba CYAN        = LinearRgba(0.f, 1.f, 1.f, 1.f);
+    inline constexpr sge::LinearRgba (WHITE)       = LinearRgba(1.f, 1.f, 1.f, 1.f);
+    inline constexpr sge::LinearRgba (BLACK)       = LinearRgba(0.f, 0.f, 0.f, 1.f);
+    inline constexpr sge::LinearRgba (TRANSPARENT) = LinearRgba(0.f, 0.f, 0.f, 0.f);
+    inline constexpr sge::LinearRgba (RED)         = LinearRgba(1.f, 0.f, 0.f, 1.f);
+    inline constexpr sge::LinearRgba (GREEN)       = LinearRgba(0.f, 1.f, 0.f, 1.f);
+    inline constexpr sge::LinearRgba (BLUE)        = LinearRgba(0.f, 0.f, 1.f, 1.f);
+    inline constexpr sge::LinearRgba (YELLOW)      = LinearRgba(1.f, 1.f, 0.f, 1.f);
+    inline constexpr sge::LinearRgba (PURPLE)      = LinearRgba(1.f, 0.f, 1.f, 1.f);
+    inline constexpr sge::LinearRgba (CYAN)        = LinearRgba(0.f, 1.f, 1.f, 1.f);
 } // namespace color
 
 } // namespace sge
