@@ -4,10 +4,10 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock, Thread
-from typing import Callable
 
 COMMENT_PATTERN = re.compile(
     r'//.*?$|/\*.*?\*/|\'(?:\\.|[^\\\'])*\'|"(?:\\.|[^\\"])*"',
@@ -107,9 +107,9 @@ SHADER_SOURCE_STRUCTURE_CODE = f"""struct {SHADER_SOURCE_STRUCTURE_NAME} {{
 }};
 """
 
-def compile_vulkan_shader(basename: str, path: str, flags: tuple[str]) -> tuple[str, ShaderStages]:
+def compile_vulkan_shader(basename: str, path: str, base_flags: tuple[str]) -> tuple[str, ShaderStages]:
     var_name = f"VULKAN_{basename.upper()}"
-    flags = ("-target", "spirv") + flags
+    flags = ("-target", "spirv") + base_flags
 
     result = ""
     stages = ShaderStages()
@@ -205,9 +205,9 @@ def compile_d3d_shader(basename: str, path: str, base_flags: tuple[str]) -> tupl
 
     return result, stages
 
-def compile_metal_shader(basename: str, path: str, flags: tuple[str]) -> tuple[str, ShaderStages]:
+def compile_metal_shader(basename: str, path: str, base_flags: tuple[str]) -> tuple[str, ShaderStages]:
     var_name = f"METAL_{basename.upper()}"
-    flags = ("-target", "metal") + flags
+    flags = ("-target", "metal") + base_flags
 
     result = ""
     stages = ShaderStages()
@@ -249,9 +249,9 @@ def compile_metal_shader(basename: str, path: str, flags: tuple[str]) -> tuple[s
 
     return result, stages
 
-def compile_gl_shader(basename: str, path: str, flags: tuple[str]) -> tuple[str, ShaderStages]:
+def compile_gl_shader(basename: str, path: str, base_flags: tuple[str]) -> tuple[str, ShaderStages]:
     var_name = f"GL_{basename.upper()}"
-    flags = ("-target", "spirv") + flags
+    flags = ("-target", "spirv") + base_flags
 
     result = ""
     stages = ShaderStages()
