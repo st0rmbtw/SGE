@@ -13,6 +13,7 @@
 #include <SGE/types/sampler.hpp>
 #include <SGE/types/shader_def.hpp>
 #include <SGE/types/shader_path.hpp>
+#include <SGE/types/shader_source.hpp>
 #include <SGE/types/texture.hpp>
 #include <SGE/utils/hash.hpp>
 #include <SGE/utils/containers/dense_storage.hpp>
@@ -202,7 +203,7 @@ public:
     }
 
     template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
-    inline void Release(T& resource) {
+    void Release(T& resource) {
         m_context->Release(resource);
     }
 
@@ -224,21 +225,24 @@ public:
         return Raw<LLGL::Texture>::Create(shared_from_this(), m_context->CreateTexture(desc, initialImage));
     }
 
-    inline sge::Texture CopyTextureWithSampler(const sge::Texture& texture, const Ref<sge::Sampler>& sampler) {
+    sge::Texture CopyTextureWithSampler(const sge::Texture& texture, const Ref<sge::Sampler>& sampler) {
         return Texture(IdGenerator::Next(), texture.size(), sampler, texture.internal());
     }
 
+    /**
+     * @brief Loads a shader from file and caches it. If the shader is already in cache, returns a reference to it.
+     */
     sge::Ref<LLGL::Shader> LoadShaderFromFile(const sge::ShaderPath& shaderPath, const std::vector<sge::ShaderDef>& shaderDefs = {}, const sge::ShaderConfig& config = {});
 
     /**
      * @brief Creates a shader and caches it. If the shader is already in cache, returns a reference to it.
      */
-    sge::Ref<LLGL::Shader> CreateShader(sge::ShaderType shader_type, const char* entryPoint, const void* data, size_t dataSize, const sge::ShaderConfig& config = {});
+    sge::Ref<LLGL::Shader> CreateShader(sge::ShaderType shaderType, const char* entryPoint, sge::ShaderSource source, const sge::ShaderConfig& config = {});
 
     LLGL::PipelineCache* ReadPipelineCache(const std::filesystem::path& dir, const std::string& name, bool& hasInitialCache);
     void SavePipelineCache(const std::filesystem::path& dir, const std::string& name, LLGL::PipelineCache& pipelineCache);
 
-    inline Raw<LLGL::RenderTarget> CreateRenderTarget(const LLGL::RenderTargetDescriptor& desc) {
+    Raw<LLGL::RenderTarget> CreateRenderTarget(const LLGL::RenderTargetDescriptor& desc) {
         return Raw<LLGL::RenderTarget>::Create(shared_from_this(), m_context->CreateRenderTarget(desc));
     }
 
@@ -253,15 +257,15 @@ public:
         return CreateRenderTarget(targetDesc);
     }
 
-    inline Raw<LLGL::Buffer> CreateBuffer(const LLGL::BufferDescriptor& desc, const void* initialData = nullptr) {
+    Raw<LLGL::Buffer> CreateBuffer(const LLGL::BufferDescriptor& desc, const void* initialData = nullptr) {
         return Raw<LLGL::Buffer>::Create(shared_from_this(), m_context->CreateBuffer(desc, initialData));
     }
 
-    inline Raw<LLGL::BufferArray> CreateBufferArray(std::initializer_list<LLGL::VertexBufferView> buffers) {
+    Raw<LLGL::BufferArray> CreateBufferArray(std::initializer_list<LLGL::VertexBufferView> buffers) {
         return Raw<LLGL::BufferArray>::Create(shared_from_this(), m_context->CreateBufferArray(buffers));
     }
 
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(const void* data, size_t size, size_t stride, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateVertexBuffer(const void* data, size_t size, size_t stride, const char* debugName = nullptr) {
         SGE_ASSERT((size % stride) == 0);
 
         LLGL::BufferDescriptor bufferDesc;
@@ -275,31 +279,31 @@ public:
         return CreateBuffer(bufferDesc, data);
     }
 
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t size, size_t stride, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateVertexBuffer(size_t size, size_t stride, const char* debugName = nullptr) {
         return CreateVertexBuffer(nullptr, size, stride, debugName);
     }
 
     template <typename T>
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t count, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateVertexBuffer(size_t count, const char* debugName = nullptr) {
         const size_t byteSize = count * sizeof(T);
         return CreateVertexBuffer(nullptr, byteSize, sizeof(T), debugName);
     }
 
     template <typename T>
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(size_t count, const void* data, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateVertexBuffer(size_t count, const void* data, const char* debugName = nullptr) {
         const size_t byteSize = count * sizeof(T);
         return CreateVertexBuffer(data, byteSize, sizeof(T), debugName);
     }
 
     template <std::ranges::contiguous_range R>
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(R&& vertices, size_t stride, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateVertexBuffer(R&& vertices, size_t stride, const char* debugName = nullptr) {
         auto span = std::span(std::forward<R>(vertices));
         auto sizeBytes = span.size_bytes();
         return CreateVertexBuffer(span.data(), sizeBytes, stride, debugName);
     }
 
     template <std::ranges::contiguous_range R>
-    inline Raw<LLGL::Buffer> CreateVertexBuffer(R&& vertices, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateVertexBuffer(R&& vertices, const char* debugName = nullptr) {
         auto span = std::span(std::forward<R>(vertices));
         auto sizeBytes = span.size_bytes();
         auto stride = sizeBytes / span.size();
@@ -307,7 +311,7 @@ public:
     }
 
     template <typename Container>
-    inline Raw<LLGL::Buffer> CreateIndexBuffer(const Container& indices, const LLGL::Format format, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateIndexBuffer(const Container& indices, const LLGL::Format format, const char* debugName = nullptr) {
         LLGL::BufferDescriptor bufferDesc;
         bufferDesc.size           = GetArraySize(indices);
         bufferDesc.bindFlags      = LLGL::BindFlags::IndexBuffer;
@@ -316,7 +320,7 @@ public:
         return CreateBuffer(bufferDesc, &indices[0]);
     }
 
-    inline Raw<LLGL::Buffer> CreateIndexBuffer(const void* data, size_t size, const LLGL::Format format, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateIndexBuffer(const void* data, size_t size, const LLGL::Format format, const char* debugName = nullptr) {
         LLGL::BufferDescriptor bufferDesc;
         bufferDesc.size           = size;
         bufferDesc.bindFlags      = LLGL::BindFlags::IndexBuffer;
@@ -325,7 +329,7 @@ public:
         return CreateBuffer(bufferDesc, data);
     }
 
-    inline Raw<LLGL::Buffer> CreateConstantBuffer(size_t size, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateConstantBuffer(size_t size, const char* debugName = nullptr) {
         LLGL::BufferDescriptor bufferDesc;
         bufferDesc.size           = size;
         bufferDesc.bindFlags      = LLGL::BindFlags::ConstantBuffer;
@@ -335,7 +339,7 @@ public:
     }
 
     template <std::ranges::contiguous_range R>
-    inline Raw<LLGL::Buffer> CreateConstantBuffer(R&& data, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateConstantBuffer(R&& data, const char* debugName = nullptr) {
         auto span = std::span(std::forward<R>(data));
 
         LLGL::BufferDescriptor bufferDesc;
@@ -346,7 +350,7 @@ public:
         return CreateBuffer(bufferDesc, span.data());
     }
 
-    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, LLGL::Format format, const void* initialData, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, LLGL::Format format, const void* initialData, const char* debugName = nullptr) {
         SGE_ASSERT(stride > 0);
         SGE_ASSERT((size % stride) == 0);
 
@@ -363,52 +367,52 @@ public:
         return CreateBuffer(bufferDesc, initialData);
     }
 
-    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, const void* initialData, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateStructuredBuffer(size_t size, size_t stride, const void* initialData, const char* debugName = nullptr) {
         return CreateStructuredBuffer(size, stride, LLGL::Format::Undefined, initialData, debugName);
     }
 
     template <typename T>
-    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, const void* initialData, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, const void* initialData, const char* debugName = nullptr) {
         return CreateStructuredBuffer(count * sizeof(T), sizeof(T), initialData, debugName);
     }
 
     template <typename T>
-    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, const char* debugName = nullptr) {
         return CreateStructuredBuffer(count * sizeof(T), sizeof(T), nullptr, debugName);
     }
 
     template <typename T>
-    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, LLGL::Format format, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, LLGL::Format format, const char* debugName = nullptr) {
         return CreateStructuredBuffer(count * sizeof(T), sizeof(T), format, debugName);
     }
 
     template <typename T>
-    inline Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, LLGL::Format format, const void* initialData, const char* debugName = nullptr) {
+    Raw<LLGL::Buffer> CreateStructuredBuffer(size_t count, LLGL::Format format, const void* initialData, const char* debugName = nullptr) {
         return CreateStructuredBuffer(count * sizeof(T), sizeof(T), format, initialData, debugName);
     }
 
-    inline Raw<LLGL::CommandBuffer> CreateCommandBuffer(const LLGL::CommandBufferDescriptor& desc = {}) {
+    Raw<LLGL::CommandBuffer> CreateCommandBuffer(const LLGL::CommandBufferDescriptor& desc = {}) {
         return Raw<LLGL::CommandBuffer>::Create(shared_from_this(), m_context->CreateCommandBuffer(desc));
     }
 
-    inline Raw<LLGL::PipelineLayout> CreatePipelineLayout(const LLGL::PipelineLayoutDescriptor& desc) {
+    Raw<LLGL::PipelineLayout> CreatePipelineLayout(const LLGL::PipelineLayoutDescriptor& desc) {
         return Raw<LLGL::PipelineLayout>::Create(shared_from_this(), m_context->CreatePipelineLayout(desc));
     }
 
     Raw<LLGL::PipelineState> CreatePipelineState(const LLGL::GraphicsPipelineDescriptor& desc);
 
-    inline Raw<LLGL::RenderPass> CreateRenderPass(const LLGL::RenderPassDescriptor& desc) {
+    Raw<LLGL::RenderPass> CreateRenderPass(const LLGL::RenderPassDescriptor& desc) {
         return Raw<LLGL::RenderPass>::Create(shared_from_this(), m_context->CreateRenderPass(desc));
     }
 
-    inline Raw<LLGL::ResourceHeap> CreateResourceHeap(LLGL::PipelineLayout* pipelineLayout, LLGL::ArrayView<LLGL::ResourceViewDescriptor> resource_views) {
+    Raw<LLGL::ResourceHeap> CreateResourceHeap(LLGL::PipelineLayout* pipelineLayout, LLGL::ArrayView<LLGL::ResourceViewDescriptor> resource_views) {
         LLGL::ResourceHeapDescriptor desc;
         desc.pipelineLayout = pipelineLayout;
         desc.numResourceViews = resource_views.size();
         return Raw<LLGL::ResourceHeap>::Create(shared_from_this(), m_context->CreateResourceHeap(desc, resource_views));
     }
 
-    inline Raw<LLGL::PipelineState> CreateComputePipelineState(const ComputePipelineConfig& config) {
+    Raw<LLGL::PipelineState> CreateComputePipelineState(const ComputePipelineConfig& config) {
         LLGL::ComputePipelineDescriptor desc;
         desc.debugName = config.debugName;
         desc.pipelineLayout = config.pipelineLayout;
@@ -416,15 +420,15 @@ public:
         return Raw<LLGL::PipelineState>::Create(shared_from_this(), m_context->CreatePipelineState(desc));
     }
 
-    inline PipelineId CreateGraphicsPipeline(const GraphicsPipelineConfig& config) {
+    PipelineId CreateGraphicsPipeline(const GraphicsPipelineConfig& config) {
         return m_pipeline_configs.add(config);
     }
 
-    inline RenderPassId CreateRenderPass(const RenderPassConfig& config) {
+    RenderPassId CreateRenderPass(const RenderPassConfig& config) {
         return m_render_pass_configs.add(config);
     }
 
-    inline RenderTargetId CreateRenderTarget(const RenderTargetConfig& config) {
+    RenderTargetId CreateRenderTarget(const RenderTargetConfig& config) {
         return m_render_target_configs.add(config);
     }
 

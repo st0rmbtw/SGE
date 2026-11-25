@@ -1,3 +1,5 @@
+#include <LLGL/ShaderFlags.h>
+#include <SGE/types/shader_source.hpp>
 #include <SGE/utils/hash.hpp>
 #include <filesystem>
 #include <fstream>
@@ -709,11 +711,13 @@ sge::Ref<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
     }
 
     std::vector<uint8_t> sourceData;
+    LLGL::ShaderSourceType sourceType = LLGL::ShaderSourceType::CodeString;
 
     if (backend.IsVulkan()) {
         std::ifstream shaderFile(path, std::ios::binary);
         auto sourceDataSize = fs::file_size(path);
         shaderFile.read(reinterpret_cast<char*>(sourceData.data()), sourceDataSize);
+        sourceType = LLGL::ShaderSourceType::BinaryBuffer;
     } else {
         std::ifstream shaderFile(path);
         std::stringstream buffer;
@@ -731,7 +735,10 @@ sge::Ref<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
         sourceData = std::vector<uint8_t>(shaderSource.c_str(), shaderSource.c_str() + shaderSource.size() + 1);
     }
 
-    auto shader = CreateShader(shaderPath.shader_type, entryPoint, sourceData.data(), sourceData.size(), config);
+    sge::ShaderSource shaderSource;
+    shaderSource.data = std::as_bytes(std::span(sourceData));
+    shaderSource.type = sourceType;
+    auto shader = CreateShader(shaderPath.shader_type, entryPoint, shaderSource, config);
 
     if (!shader) {
         std::println(stderr, "Shader file: {}", path_str);
@@ -739,12 +746,12 @@ sge::Ref<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& 
     return shader;
 }
 
-sge::Ref<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shaderType, const char* entryPoint, const void* data, size_t dataSize, const sge::ShaderConfig& config) {
-    SGE_ASSERT_M(data != nullptr, "Data must not be null!");
-    SGE_ASSERT_M(dataSize > 0, "Data size must be greater than zero!");
+sge::Ref<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shaderType, const char* entryPoint, sge::ShaderSource source, const sge::ShaderConfig& config) {
+    SGE_ASSERT_M(source.data.data() != nullptr, "Data must not be null!");
+    SGE_ASSERT_M(source.data.size() > 0, "Data size must be greater than zero!");
 
     auto sourceHash = sge::HASH_INIT;
-    sge::hash_fnv1a(sourceHash, data, dataSize);
+    sge::hash_fnv1a(sourceHash, source.data);
 
     internal::ShaderKey key{ .sourceHash = sourceHash };
     auto it = m_shaders.find(key);
@@ -754,36 +761,32 @@ sge::Ref<LLGL::Shader> sge::RenderContext::CreateShader(sge::ShaderType shaderTy
 
     const RenderBackend backend = m_backend;
 
-    LLGL::ShaderDescriptor shader_desc;
-    shader_desc.type = shaderType.ToLLGLType();
-    shader_desc.sourceType = LLGL::ShaderSourceType::CodeString;
-    shader_desc.source = static_cast<const char*>(data);
-    shader_desc.sourceSize = dataSize;
-
-    if (backend.IsVulkan()) {
-        shader_desc.sourceType = LLGL::ShaderSourceType::BinaryBuffer;
-    }
+    LLGL::ShaderDescriptor shaderDesc;
+    shaderDesc.type = shaderType.ToLLGLType();
+    shaderDesc.source = reinterpret_cast<const char*>(source.data.data());
+    shaderDesc.sourceSize = source.data.size();
+    shaderDesc.sourceType = source.type;
 
     if (!backend.IsVulkan() && !backend.IsOpenGL()) {
-        shader_desc.entryPoint = entryPoint;
-        shader_desc.profile = shaderType.Profile(backend);
+        shaderDesc.entryPoint = entryPoint;
+        shaderDesc.profile = shaderType.Profile(backend);
     }
 
-    shader_desc.fragment = config.fragment;
+    shaderDesc.fragment = config.fragment;
 
     if (backend.IsOpenGL() && shaderType.IsFragment()) {
-        shader_desc.fragment.outputAttribs = {
+        shaderDesc.fragment.outputAttribs = {
             { "fragColor", LLGL::Format::RGBA8UNorm, 0, LLGL::SystemValue::Color }
         };
     }
 
 #if SGE_DEBUG
-    shader_desc.flags |= LLGL::ShaderCompileFlags::NoOptimization;
+    shaderDesc.flags |= LLGL::ShaderCompileFlags::NoOptimization;
 #else
-    shader_desc.flags |= LLGL::ShaderCompileFlags::OptimizationLevel3;
+    shaderDesc.flags |= LLGL::ShaderCompileFlags::OptimizationLevel3;
 #endif
 
-    LLGL::Shader* shader = m_context->CreateShader(shader_desc);
+    LLGL::Shader* shader = m_context->CreateShader(shaderDesc);
     if (const LLGL::Report* report = shader->GetReport()) {
         if (*report->GetText() != '\0') {
             if (report->HasErrors()) {

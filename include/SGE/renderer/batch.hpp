@@ -1,12 +1,9 @@
 #ifndef SGE_RENDERER_BATCH_HPP_
 #define SGE_RENDERER_BATCH_HPP_
 
-#include <SGE/utils/frame_arena.hpp>
 #include <optional>
 #include <utility>
 #include <vector>
-
-#include <LLGL/RenderSystem.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -15,7 +12,6 @@
 #include <SGE/math/rect.hpp>
 #include <SGE/renderer/buffer_pool.hpp>
 #include <SGE/renderer/macros.hpp>
-#include <SGE/renderer/material.hpp>
 #include <SGE/renderer/resource.hpp>
 #include <SGE/renderer/types.hpp>
 #include <SGE/types/color.hpp>
@@ -25,9 +21,7 @@
 #include <SGE/types/rich_text.hpp>
 #include <SGE/types/shape.hpp>
 #include <SGE/types/sprite.hpp>
-#include <SGE/types/texture.hpp>
 #include <SGE/utils/bitflags.hpp>
-#include <SGE/utils/containers/heaparray.hpp>
 
 namespace sge::internal {
 
@@ -132,6 +126,7 @@ namespace sge {
 class Renderer2D;
 class Renderer;
 class VectorShape;
+class Material;
 
 enum class TextAlignment : uint8_t {
     Top = 0,

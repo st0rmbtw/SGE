@@ -185,9 +185,9 @@ void sge::Renderer2D::InitVectorPipeline() {
     });
     m_vector_vertex_buffer = m_context->CreateVertexBuffer(VECTOR_VERTEX_BUFFER_SIZE * sizeof(glm::vec2), vertexFormat.GetStride(), "Vector Vertex Buffer");
 
-    ShaderSourceCode shader = GetVectorShaderSourceCode(m_context->Backend());
-    m_vector_vertex_shader = m_context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size);
-    m_vector_fragment_shader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+    EmbeddedShaderSource shader = GetVectorShaderSourceCode(m_context->Backend());
+    m_vector_vertex_shader = m_context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vertex);
+    m_vector_fragment_shader = m_context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fragment);
 
     {
         LLGL::PipelineLayoutDescriptor layoutDesc;

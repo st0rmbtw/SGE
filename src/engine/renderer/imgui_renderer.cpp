@@ -263,10 +263,10 @@ bool CreatePipelineObjects() {
 
     bd->VerticesStride = vertexFormat.GetStride();
 
-    ShaderSourceCode shader = GetImguiShaderSourceCode(bd->Context->Backend());
+    EmbeddedShaderSource shader = GetImguiShaderSourceCode(bd->Context->Backend());
 
-    sge::Ref<LLGL::Shader> vertexShader = bd->Context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vs_source, shader.vs_size);
-    sge::Ref<LLGL::Shader> pixelShader = bd->Context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fs_source, shader.fs_size);
+    sge::Ref<LLGL::Shader> vertexShader = bd->Context->CreateShader(sge::ShaderType::Vertex, "VS", shader.vertex);
+    sge::Ref<LLGL::Shader> pixelShader = bd->Context->CreateShader(sge::ShaderType::Fragment, "PS", shader.fragment);
 
     sge::GraphicsPipelineConfig config;
     {

@@ -2,6 +2,7 @@
 #define SGE_RENDERER_DRAW_HPP_
 
 #include <SGE/renderer/batch.hpp>
+#include <SGE/utils/frame_arena.hpp>
 
 namespace sge {
 

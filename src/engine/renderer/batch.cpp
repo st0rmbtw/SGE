@@ -45,15 +45,15 @@ sge::SpriteBatch::SpriteBatch(sge::Renderer& renderer, SpriteBatchDesc desc) {
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
 
-    ShaderSourceCode shaderCode = GetSpriteShaderSourceCode(context->Backend());
+    EmbeddedShaderSource shaderCode = GetSpriteShaderSourceCode(context->Backend());
 
     sge::Ref<LLGL::Shader> pixelShader = std::move(desc.customPixelShader);
     if (!pixelShader.IsValid()) {
-        pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size);
+        pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fragment);
     }
 
     auto materialDesc = sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vertex))
         .SetFragmentShader(std::move(pixelShader))
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
@@ -136,15 +136,15 @@ sge::NinePatchBatch::NinePatchBatch(sge::Renderer& renderer, NinePatchBatchDesc 
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
 
-    ShaderSourceCode shaderCode = GetNinepatchShaderSourceCode(context->Backend());
+    EmbeddedShaderSource shaderCode = GetNinepatchShaderSourceCode(context->Backend());
 
     sge::Ref<LLGL::Shader> pixelShader = std::move(desc.customPixelShader);
     if (!pixelShader.IsValid()) {
-        pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size);
+        pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fragment);
     }
 
     auto materialDesc = sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vertex))
         .SetFragmentShader(std::move(pixelShader))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
@@ -208,11 +208,11 @@ sge::LineBatch::LineBatch(sge::Renderer& renderer, LineBatchDesc desc) {
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
 
-    ShaderSourceCode shaderCode = GetLineShaderSourceCode(context->Backend());
+    EmbeddedShaderSource shaderCode = GetLineShaderSourceCode(context->Backend());
 
     auto materialDesc = sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
-        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size))
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vertex))
+        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fragment))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
@@ -264,15 +264,15 @@ sge::TextSdfBatch::TextSdfBatch(sge::Renderer& renderer, TextSdfBatchDesc desc) 
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
 
-    ShaderSourceCode shaderCode = GetFontSdfShaderSourceCode(context->Backend());
+    EmbeddedShaderSource shaderCode = GetFontSdfShaderSourceCode(context->Backend());
 
     sge::Ref<LLGL::Shader> pixelShader = std::move(desc.customPixelShader);
     if (!pixelShader.IsValid()) {
-        pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size);
+        pixelShader = context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fragment);
     }
 
     auto materialDesc = sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vertex))
         .SetFragmentShader(std::move(pixelShader))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
@@ -378,11 +378,11 @@ sge::TextVectorBatch::TextVectorBatch(sge::Renderer& renderer, TextVectorBatchDe
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
 
-    ShaderSourceCode shaderCode = GetFontVectorShaderSourceCode(context->Backend());
+    EmbeddedShaderSource shaderCode = GetFontVectorShaderSourceCode(context->Backend());
 
     auto materialDesc = sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
-        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size))
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vertex))
+        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fragment))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
@@ -489,11 +489,11 @@ sge::VectorShapeBatch::VectorShapeBatch(sge::Renderer& renderer, TextVectorBatch
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
 
-    ShaderSourceCode shaderCode = GetVectorShapeShaderSourceCode(context->Backend());
+    EmbeddedShaderSource shaderCode = GetVectorShapeShaderSourceCode(context->Backend());
 
     auto materialDesc = sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
-        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size))
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vertex))
+        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fragment))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)
@@ -551,11 +551,11 @@ sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {
 
     m_mesh = renderer.GetDefaultBatch2dMesh();
 
-    ShaderSourceCode shaderCode = GetShapeShaderSourceCode(context->Backend());
+    EmbeddedShaderSource shaderCode = GetShapeShaderSourceCode(context->Backend());
 
     auto materialDesc = sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vs_source, shaderCode.vs_size))
-        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fs_source, shaderCode.fs_size))
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderCode.vertex))
+        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderCode.fragment))
         .SetBlendMode(sge::BlendMode::AlphaBlend)
         .SetScissorTestEnabled(desc.enableScissor)
         .SetDepthTestEnabled(desc.enableDepth)

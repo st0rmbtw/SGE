@@ -254,7 +254,7 @@ float4 PS(VSOutput inp) : SV_Target
         for (uint i = 0; i < partition.curve_count; ++i) {
             BezierCurve curve = CurveBuffer[partition.curve_offset + i];
 
-            int first = clamp((int)((min(curve.p0.y, curve.p2.y) + 1e-4) / inp.band_height), 0, last);
+            int first = clamp((int)(min(curve.p0.y, curve.p2.y) / (inp.band_height - 1e-4)), 0, last);
             if (partition_index != max(first, p_lo)) continue;
 
             coverage += ScanlineSweep(pixel_size, inp.p - half_px, curve.p0, curve.p1, curve.p2);

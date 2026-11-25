@@ -40,6 +40,7 @@ else()
     set(DISABLE_FORCE_DEBUG_POSTFIX OFF)
     set(LLGL_ENABLE_EXCEPTIONS ON CACHE BOOL "" FORCE)
     set(SGE_DEBUG_LAYER ON CACHE BOOL "" FORCE)
+    add_compile_options(-O0)
 endif()
 
 if(DEBUG_INFO)

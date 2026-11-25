@@ -137,11 +137,11 @@ void App::InitPipeline() {
         .SetVertices(vertices)
     );
 
-    ShaderSourceCode sourceCode = GetBasicShaderSourceCode(context->Backend());
+    EmbeddedShaderSource shaderSource = GetBasicShaderSourceCode(context->Backend());
 
     m_material = m_renderer->CreateMaterial(sge::MaterialDesc()
-        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", sourceCode.vs_source, sourceCode.vs_size))
-        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", sourceCode.fs_source, sourceCode.fs_size))
+        .SetVertexShader(context->CreateShader(sge::ShaderType::Vertex, "VS", shaderSource.vertex))
+        .SetFragmentShader(context->CreateShader(sge::ShaderType::Fragment, "PS", shaderSource.fragment))
         .SetCullMode(sge::CullMode::Back)
         .BindConstantBuffer(2, "UniformConstantBuffer", m_uniform_buffer, LLGL::StageFlags::VertexStage | LLGL::StageFlags::FragmentStage)
     );
