@@ -41,9 +41,9 @@
     #endif
 #endif
 
-#define SGE_PANIC(message) do {                                           \
-    std::println(stderr, "panic at {}:{}: " message, __FILE__, __LINE__); \
-    std::terminate();                                                     \
+#define SGE_PANIC(message, ...) do {                                                     \
+    std::println(stderr, "panic at {}:{}: " message, __FILE__, __LINE__, ##__VA_ARGS__); \
+    std::terminate();                                                                    \
 } while (0)
 
 #endif
