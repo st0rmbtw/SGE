@@ -523,27 +523,46 @@ void sge::VectorShapeBatch::Add(const VectorShapeDrawData& data, const DrawState
     commandState.scissor     = state.scissor;
     commandState.blendMode   = state.blendMode;
     commandState.resourceCount = 2;
-    commandState.resources[0] = data.shape->GetCurvesBuffer();
-    commandState.resources[1] = data.shape->GetPartitionsBuffer();
-
+    commandState.resources[0] = &data.shape->GetCurvesBuffer();
+    commandState.resources[1] = &data.shape->GetPartitionsBuffer();
     const uint64_t key = internal::MakeSortKey(state.order, m_states.Intern(commandState));
 
-    if (!m_runs.empty() && m_runs.back().key == key) {
-        m_runs.back().count += 1;
+    const uint32_t instancesOffset = m_instances.size();
+
+    if (data.layer == VectorShapeLayerId::ALL) {
+        for (const auto& l : data.shape->GetLayers()) {
+            m_instances.push_back(VectorShapeInstance {
+                .pos = data.position,
+                .world_size = data.size,
+                .shape_size = l.size,
+                .band_height = l.bandHeight,
+                .color_packed = glm::packUnorm4x8(data.tint.as_vec4()),
+                .partition_offset = l.partitionOffset,
+                .partition_count = l.partitionCount,
+                .flags = state.customFlags.value_or(GetFlags()).data()
+            });
+        }
     } else {
-        m_runs.push_back({ .key=key, .first=static_cast<uint32_t>(m_instances.size()), .count=1 });
+        const GpuVectorShapeLayer& l = data.shape->GetLayer(data.layer);
+        m_instances.push_back(VectorShapeInstance {
+            .pos = data.position,
+            .world_size = data.size,
+            .shape_size = l.size,
+            .band_height = l.bandHeight,
+            .color_packed = glm::packUnorm4x8(data.tint.as_vec4()),
+            .partition_offset = l.partitionOffset,
+            .partition_count = l.partitionCount,
+            .flags = state.customFlags.value_or(GetFlags()).data()
+        });
     }
 
-    m_instances.push_back(VectorShapeInstance {
-        .pos = glm::vec2(400.f),
-        .world_size = glm::vec2(200.0f),
-        .shape_size = data.shape->GetSize(),
-        .band_height = data.shape->GetBandHeight(),
-        .color_packed = glm::packUnorm4x8(data.color.as_vec4()),
-        .partition_offset = 0,
-        .partition_count = data.shape->GetPartitionCount(),
-        .flags = state.customFlags.value_or(GetFlags()).data()
-    });
+    const uint32_t nInstances = m_instances.size() - instancesOffset;
+
+    if (!m_runs.empty() && m_runs.back().key == key) {
+        m_runs.back().count += nInstances;
+    } else {
+        m_runs.push_back({ .key=key, .first=instancesOffset, .count=nInstances });
+    }
 }
 
 sge::ShapeBatch::ShapeBatch(sge::Renderer& renderer, ShapeBatchDesc desc) {

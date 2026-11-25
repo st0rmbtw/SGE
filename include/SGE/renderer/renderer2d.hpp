@@ -49,11 +49,7 @@ public:
         (SubmitBatch(batches), ...);
     }
 
-    // void DrawPath(const sge::vector::VectorShape& path, const sge::LinearRgba& color = sge::color::WHITE, const sge::Transform& transform = sge::Transform());
-
 private:
-    void InitVectorPipeline();
-
     void OnPassEnded() override {
         m_scratch_used = 0;
         for (const internal::BatchSubmission& s : m_submissions) {
@@ -62,23 +58,12 @@ private:
     }
 
 private:
-    Ref<LLGL::Shader> m_vector_vertex_shader;
-    Ref<LLGL::Shader> m_vector_fragment_shader;
-    Ref<LLGL::PipelineLayout> m_vector_stencil_pipeline_layout;
-    Ref<LLGL::PipelineState> m_vector_stencil_pipeline;
-    Ref<LLGL::PipelineLayout> m_vector_cover_pipeline_layout;
-    Ref<LLGL::PipelineState> m_vector_cover_pipeline;
-    Ref<LLGL::Buffer> m_vector_vertex_buffer;
-    Ref<LLGL::Buffer> m_vector_path_data_buffer;
-
-    std::vector<sge::internal::SortItem>    m_sort_items;
-    std::vector<sge::internal::SortItem>    m_sort_tmp;
-    std::vector<sge::internal::SortScratch> m_scratch_pool;
+    std::vector<sge::internal::SortItem>        m_sort_items;
+    std::vector<sge::internal::SortItem>        m_sort_tmp;
+    std::vector<sge::internal::SortScratch>     m_scratch_pool;
     std::vector<sge::internal::BatchSubmission> m_submissions;
 
     size_t m_scratch_used = 0;
-
-    bool m_vector_pipeline_initialized = false;
 };
 
 } // namespace sge

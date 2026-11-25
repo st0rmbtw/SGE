@@ -114,11 +114,14 @@ struct ShaderKeyHash {
 
 namespace sge {
 
+class GpuVectorShape;
+struct VectorShapeDesc;
+
 struct TemporaryFramebufferOptions {
     LLGL::Format colorFormat = LLGL::Format::RGBA8UNorm;
     LLGL::Format depthFormat = LLGL::Format::Undefined;
+    int32_t bindFlags = (LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled);
     uint8_t samples = 1;
-    long bindFlags = (LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled);
 };
 
 class IdGenerator {
@@ -220,6 +223,8 @@ public:
     Texture CreateTexture(const sge::TextureConfig& config, const LLGL::ImageView* initialData = nullptr);
 
     Framebuffer CreateFramebuffer(const sge::FramebufferConfig& config);
+
+    std::shared_ptr<sge::GpuVectorShape> CreateVectorShape(const VectorShapeDesc& desc);
 
     Raw<LLGL::Texture> CreateTexture(const LLGL::TextureDescriptor& desc, const LLGL::ImageView* initialImage = nullptr) {
         return Raw<LLGL::Texture>::Create(shared_from_this(), m_context->CreateTexture(desc, initialImage));

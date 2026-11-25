@@ -219,7 +219,7 @@ sge::vector::ShapeData sge::vector::BuildFromPath(const sge::Path& path, const B
         return sd;
 
     auto ToShape = [&](glm::vec2 p) {
-        return glm::vec2(p.x - lo.x, p.y - lo.y);
+        return glm::vec2(p.x - lo.x, opts.flipY ? hi.y - p.y : p.y - lo.y);
     };
     for (QuadraticBezier& q : mono) {
         q = {.p0=ToShape(q.p0), .p1=ToShape(q.p1), .p2=ToShape(q.p2)};
@@ -244,8 +244,8 @@ sge::vector::ShapeData sge::vector::BuildFromPath(const sge::Path& path, const B
     }
     for (uint32_t b = 0; b < nb; ++b) {
         sd.partitions.push_back({
-            .curve_offset=uint32_t(sd.curves.size()),
-            .curve_count=uint32_t(bands[b].size())
+            .curveOffset=uint32_t(sd.curves.size()),
+            .curveCount=uint32_t(bands[b].size())
         });
         for (const QuadraticBezier& p : bands[b]) {
             sd.curves.push_back({

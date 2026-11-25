@@ -108,11 +108,6 @@ struct ShapeInstance {
 
 // #pragma pack(pop)
 
-struct PathData {
-    glm::mat4 transformMatrix;
-    glm::vec4 color;
-};
-
 using PipelineId = Handle<LLGL::PipelineState>;
 using RenderPassId = Handle<LLGL::RenderPass>;
 using RenderTargetId = Handle<LLGL::RenderTarget>;

@@ -37,7 +37,8 @@
 namespace sge {
 
 class Path;
-class VectorShape;
+class GpuVectorShape;
+struct VectorShapeDesc;
 
 struct alignas(16) GlobalUniforms {
     glm::mat4 screen_projection_matrix;
@@ -136,8 +137,6 @@ public:
         const Material& material,
         const Mesh& mesh
     );
-
-    std::shared_ptr<sge::VectorShape> CreateVectorShape(const sge::Path& path, std::optional<glm::vec2> customSize = {});
 
     sge::Ref<sge::Mesh> GetDefaultBatch2dMesh();
 

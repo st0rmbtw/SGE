@@ -14,7 +14,7 @@ struct Curve {
 };
 
 struct Partition {
-    uint32_t curve_offset = 0, curve_count = 0;
+    uint32_t curveOffset = 0, curveCount = 0;
 };
 
 struct ShapeData {
@@ -29,6 +29,7 @@ struct BuildOptions {
     float tolerance{ 0.01f };
     uint32_t curvesPerBand{ 4 };
     uint32_t maxBands{ 64 };
+    bool flipY{ false };
 };
 
 ShapeData BuildFromPath(const sge::Path& path, const BuildOptions& opts);

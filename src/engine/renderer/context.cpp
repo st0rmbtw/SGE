@@ -1,22 +1,23 @@
-#include <LLGL/ShaderFlags.h>
-#include <SGE/types/shader_source.hpp>
-#include <SGE/utils/hash.hpp>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-
-#include <LLGL/Constants.h>
-#include <LLGL/Format.h>
-#include <LLGL/Platform/NativeHandle.h>
-#include <LLGL/ResourceFlags.h>
-#include <LLGL/TextureFlags.h>
 
 #include <SGE/assert.hpp>
 #include <SGE/defines.hpp>
 #include <SGE/profile.hpp>
 #include <SGE/renderer/context.hpp>
-#include <SGE/renderer/types.hpp>
 #include <SGE/renderer/framebuffer_pool.hpp>
+#include <SGE/renderer/types.hpp>
+#include <SGE/types/shader_source.hpp>
+#include <SGE/types/vector_shape.hpp>
+#include <SGE/utils/hash.hpp>
+
+#include <LLGL/Constants.h>
+#include <LLGL/Format.h>
+#include <LLGL/Platform/NativeHandle.h>
+#include <LLGL/ResourceFlags.h>
+#include <LLGL/ShaderFlags.h>
+#include <LLGL/TextureFlags.h>
 
 #if SGE_IMGUI_ENABLED
     #include <imgui.h>
@@ -25,6 +26,7 @@
 #endif
 
 #include "utils.hpp"
+#include "../vector/convert.hpp"
 
 namespace fs = std::filesystem;
 
@@ -685,6 +687,45 @@ sge::TemporaryFramebuffer sge::RenderContext::GetTemporaryFramebuffer(LLGL::Exte
     }
 
     return fb;
+}
+
+std::shared_ptr<sge::GpuVectorShape> sge::RenderContext::CreateVectorShape(const VectorShapeDesc& shapeDesc) {
+    GpuVectorShapeDesc gpuDesc;
+
+    std::vector<sge::vector::Curve> totalCurves;
+    std::vector<sge::vector::Partition> totalPartitions;
+
+    sge::vector::BuildOptions buildOpts{
+        .tolerance = shapeDesc.tolerance,
+        .curvesPerBand = shapeDesc.curvesPerBand,
+        .maxBands = shapeDesc.maxBands,
+        .flipY = shapeDesc.flipY
+    };
+
+    for (const auto& layer : shapeDesc.layers) {
+        size_t partitionOffset = totalPartitions.size();
+
+        sge::vector::ShapeData sd = sge::vector::BuildFromPath(layer.path, buildOpts);
+        gpuDesc.layers.push_back(GpuVectorShapeLayer {
+            .size = layer.customSize.value_or(sd.size),
+            .partitionOffset = static_cast<uint32_t>(partitionOffset),
+            .partitionCount = static_cast<uint32_t>(sd.partitions.size()),
+            .bandHeight = sd.bandHeight,
+        });
+
+        size_t curveOffset = totalCurves.size();
+        for (auto& p : sd.partitions) {
+            p.curveOffset += curveOffset;
+        }
+
+        totalCurves.append_range(sd.curves);
+        totalPartitions.append_range(sd.partitions);
+    }
+
+    gpuDesc.curvesBuffer     = CreateStructuredBuffer<sge::vector::Curve>(totalCurves.size(), totalCurves.data());
+    gpuDesc.partitionsBuffer = CreateStructuredBuffer<sge::vector::Partition>(totalPartitions.size(), totalPartitions.data());
+
+    return std::make_shared<sge::GpuVectorShape>(std::move(gpuDesc));
 }
 
 sge::Ref<LLGL::Shader> sge::RenderContext::LoadShaderFromFile(const ShaderPath& shaderPath, const std::vector<ShaderDef>& shaderDefs, const sge::ShaderConfig& config) {

@@ -681,12 +681,3 @@ void sge::Renderer::EndPass() {
 
     OnPassEnded();
 }
-
-std::shared_ptr<sge::VectorShape> sge::Renderer::CreateVectorShape(const sge::Path& path, std::optional<glm::vec2> customSize) {
-    sge::vector::ShapeData sd = sge::vector::BuildFromPath(path, {});
-
-    auto curveBuffer = m_context->CreateStructuredBuffer<sge::vector::Curve>(sd.curves.size(), sd.curves.data());
-    auto partitionBuffer = m_context->CreateStructuredBuffer<sge::vector::Partition>(sd.partitions.size(), sd.partitions.data());
-
-    return std::make_shared<sge::VectorShape>(curveBuffer, partitionBuffer, customSize.value_or(sd.size), sd.bandHeight, sd.partitions.size());
-}

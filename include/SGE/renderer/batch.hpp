@@ -21,6 +21,7 @@
 #include <SGE/types/rich_text.hpp>
 #include <SGE/types/shape.hpp>
 #include <SGE/types/sprite.hpp>
+#include <SGE/types/vector_shape.hpp>
 #include <SGE/utils/bitflags.hpp>
 
 namespace sge::internal {
@@ -125,7 +126,7 @@ namespace sge {
 
 class Renderer2D;
 class Renderer;
-class VectorShape;
+class GpuVectorShape;
 class Material;
 
 enum class TextAlignment : uint8_t {
@@ -490,8 +491,11 @@ private:
 };
 
 struct VectorShapeDrawData {
-    std::shared_ptr<sge::VectorShape> shape;
-    sge::LinearRgba color = sge::color::WHITE;
+    std::shared_ptr<sge::GpuVectorShape> shape;
+    VectorShapeLayerId layer = VectorShapeLayerId::ALL;
+    sge::LinearRgba tint = sge::color::WHITE;
+    glm::vec2 position{ 0.f, 0.f };
+    glm::vec2 size{ 0.f, 0.f };
 };
 
 class VectorShapeBatch final : public IBatch {

@@ -1,59 +1,90 @@
-#ifndef SGE_TYPES_VECTOR_SHAPES_HPP_
-#define SGE_TYPES_VECTOR_SHAPES_HPP_
+#ifndef SGE_TYPES_VECTOR_SHAPE_HPP_
+#define SGE_TYPES_VECTOR_SHAPE_HPP_
 
+#include <utility>
+#include <span>
+
+#include <SGE/assert.hpp>
 #include <SGE/renderer/resource.hpp>
+#include <SGE/types/color.hpp>
 #include <SGE/types/path.hpp>
-#include <LLGL/Buffer.h>
+
 #include <glm/vec2.hpp>
+
+#include <LLGL/Buffer.h>
 
 namespace sge {
 
-class VectorShape {
+struct VectorShapeLayer {
+    sge::Path path;
+    sge::LinearRgba color{ sge::color::WHITE };
+    std::optional<glm::vec2> customSize{};
+};
+
+enum class VectorShapeLayerId : uint32_t {
+    INVALID = static_cast<uint32_t>(-1),
+    ALL = static_cast<uint32_t>(-2),
+};
+
+struct VectorShapeDesc {
+    std::span<const VectorShapeLayer> layers;
+    float tolerance{ 0.01f };
+    uint32_t curvesPerBand{ 4 };
+    uint32_t maxBands{ 64 };
+    bool flipY{ false };
+};
+
+struct GpuVectorShapeLayer {
+    glm::vec2 size;
+    uint32_t partitionOffset;
+    uint32_t partitionCount;
+    float bandHeight;
+};
+
+struct GpuVectorShapeDesc {
+    sge::Unique<LLGL::Buffer> curvesBuffer;
+    sge::Unique<LLGL::Buffer> partitionsBuffer;
+    std::vector<GpuVectorShapeLayer> layers;
+};
+
+// Owns layers metadata and GPU buffers with shape data
+class GpuVectorShape {
 public:
-    explicit VectorShape(
-        sge::Ref<LLGL::Buffer> curvesBuffer,
-        sge::Ref<LLGL::Buffer> partitionsBuffer,
-        glm::vec2 size,
-        float bandHeight,
-        uint32_t partitionCount
-    ) : m_curves_buffer{ std::move(curvesBuffer) },
-        m_partitions_buffer{ std::move(partitionsBuffer) },
-        m_size{ size },
-        m_band_height{ bandHeight },
-        m_partition_count{ partitionCount }
+    explicit GpuVectorShape(GpuVectorShapeDesc desc) :
+        m_curves_buffer{ std::move(desc.curvesBuffer) },
+        m_partitions_buffer{ std::move(desc.partitionsBuffer) },
+        m_layers { std::move(desc.layers) }
     {}
 
     [[nodiscard]]
-    const sge::Ref<LLGL::Buffer>& GetCurvesBuffer() const {
-        return m_curves_buffer;
+    LLGL::Buffer& GetCurvesBuffer() const {
+        return *m_curves_buffer;
     }
 
     [[nodiscard]]
-    const sge::Ref<LLGL::Buffer>& GetPartitionsBuffer() const {
-        return m_partitions_buffer;
+    LLGL::Buffer& GetPartitionsBuffer() const {
+        return *m_partitions_buffer;
     }
 
     [[nodiscard]]
-    glm::vec2 GetSize() const {
-        return m_size;
+    std::span<const GpuVectorShapeLayer> GetLayers() const {
+        return m_layers;
     }
 
     [[nodiscard]]
-    float GetBandHeight() const {
-        return m_band_height;
-    }
+    const GpuVectorShapeLayer& GetLayer(VectorShapeLayerId id) const {
+        SGE_ASSERT_M(id != VectorShapeLayerId::INVALID, "id is not valid!");
+        SGE_ASSERT_M(id != VectorShapeLayerId::ALL, "id is not valid!");
 
-    [[nodiscard]]
-    uint32_t GetPartitionCount() const {
-        return m_partition_count;
+        const auto index = std::to_underlying(id);
+        SGE_ASSERT_M(index < m_layers.size(), "no layer with id `{}`.", index);
+        return m_layers[index];
     }
 
 private:
-    sge::Ref<LLGL::Buffer> m_curves_buffer;
-    sge::Ref<LLGL::Buffer> m_partitions_buffer;
-    glm::vec2 m_size{ 0.f };
-    float m_band_height{ 0.f };
-    uint32_t m_partition_count{ 0 };
+    sge::Unique<LLGL::Buffer> m_curves_buffer;
+    sge::Unique<LLGL::Buffer> m_partitions_buffer;
+    std::vector<GpuVectorShapeLayer> m_layers;
 };
 
 }

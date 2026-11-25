@@ -1,5 +1,5 @@
-#ifndef _SGE_TYPES_NINE_PATCH_HPP_
-#define _SGE_TYPES_NINE_PATCH_HPP_
+#ifndef SGE_TYPES_NINE_PATCH_HPP_
+#define SGE_TYPES_NINE_PATCH_HPP_
 
 #pragma once
 
