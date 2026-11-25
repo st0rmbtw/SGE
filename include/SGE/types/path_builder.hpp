@@ -56,6 +56,11 @@ public:
 
     sge::Path Build();
 
+    [[nodiscard]]
+    bool IsEmpty() const {
+        return m_commands.empty();
+    }
+
     void Reset() {
         m_commands.clear();
         m_points.clear();
