@@ -1,6 +1,11 @@
-#ifndef _SGE_MACROS_HPP_
-#define _SGE_MACROS_HPP_
+#ifndef SGE_MACROS_HPP_
+#define SGE_MACROS_HPP_
 
-#define SGE_UNUSED(expression) ((void)expression)
+namespace sge::internal {
+    template <typename... Args>
+    inline constexpr void SuppressUnused(Args&&...) noexcept {}
+}
+
+#define SGE_UNUSED(...) sge::internal::SuppressUnused(__VA_ARGS__)
 
 #endif

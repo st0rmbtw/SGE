@@ -1,43 +1,45 @@
-#ifndef _SGE_PROFILE_HPP_
-#define _SGE_PROFILE_HPP_
+#ifndef SGE_PROFILE_HPP_
+#define SGE_PROFILE_HPP_
 
 #if SGE_PROFILE_ENABLED
     #include <tracy/Tracy.hpp>
 #else
-    #define ZoneNamed(x,y)
-    #define ZoneNamedN(x,y,z)
-    #define ZoneNamedC(x,y,z)
-    #define ZoneNamedNC(x,y,z,w)
+    #include "macros.hpp"
 
-    #define ZoneTransient(x,y)
-    #define ZoneTransientN(x,y,z)
+    #define ZoneNamed(x,y) SGE_UNUSED(x,y)
+    #define ZoneNamedN(x,y,z) SGE_UNUSED(x,y,z)
+    #define ZoneNamedC(x,y,z) SGE_UNUSED(x,y,z)
+    #define ZoneNamedNC(x,y,z,w) SGE_UNUSED(x,y,z,w)
 
-    #define ZoneScoped
-    #define ZoneScopedN(x)
-    #define ZoneScopedC(x)
-    #define ZoneScopedNC(x,y)
+    #define ZoneTransient(x,y) SGE_UNUSED(x,y)
+    #define ZoneTransientN(x,y,z) SGE_UNUSED(x,y,z)
 
-    #define ZoneText(x,y)
-    #define ZoneTextV(x,y,z)
-    #define ZoneTextF(x,...)
-    #define ZoneTextVF(x,y,...)
-    #define ZoneName(x,y)
-    #define ZoneNameV(x,y,z)
-    #define ZoneNameF(x,...)
-    #define ZoneNameVF(x,y,...)
-    #define ZoneColor(x)
-    #define ZoneColorV(x,y)
-    #define ZoneValue(x)
-    #define ZoneValueV(x,y)
-    #define ZoneIsActive false
-    #define ZoneIsActiveV(x) false
+    #define ZoneScoped SGE_UNUSED()
+    #define ZoneScopedN(x) SGE_UNUSED(x)
+    #define ZoneScopedC(x) SGE_UNUSED(x)
+    #define ZoneScopedNC(x,y) SGE_UNUSED(x,y)
 
-    #define FrameMark
-    #define FrameMarkNamed(x)
-    #define FrameMarkStart(x)
-    #define FrameMarkEnd(x)
+    #define ZoneText(x,y) SGE_UNUSED(x,y)
+    #define ZoneTextV(x,y,z) SGE_UNUSED(x,y,z)
+    #define ZoneTextF(x,...) SGE_UNUSED(x,__VA_ARGS__)
+    #define ZoneTextVF(x,y,...) SGE_UNUSED(x,y,__VA_ARGS__)
+    #define ZoneName(x,y) SGE_UNUSED(x,y)
+    #define ZoneNameV(x,y,z) SGE_UNUSED(x,y,z)
+    #define ZoneNameF(x,...) SGE_UNUSED(x,__VA_ARGS__)
+    #define ZoneNameVF(x,y,...) SGE_UNUSED(x,y,__VA_ARGS__)
+    #define ZoneColor(x) SGE_UNUSED(x)
+    #define ZoneColorV(x,y) SGE_UNUSED(x,y)
+    #define ZoneValue(x) SGE_UNUSED(x)
+    #define ZoneValueV(x,y) SGE_UNUSED(x,y)
+    #define ZoneIsActive (false)
+    #define ZoneIsActiveV(x) (false)
 
-    #define FrameImage(x,y,z,w,a)
+    #define FrameMark SGE_UNUSED()
+    #define FrameMarkNamed(x) SGE_UNUSED(x)
+    #define FrameMarkStart(x) SGE_UNUSED(x)
+    #define FrameMarkEnd(x) SGE_UNUSED(x)
+
+    #define FrameImage(x,y,z,w,a) SGE_UNUSED(x,y,z, w, a)
 
     #define TracyLockable( type, varname ) type varname
     #define TracyLockableN( type, varname, desc ) type varname
@@ -45,66 +47,66 @@
     #define TracySharedLockableN( type, varname, desc ) type varname
     #define LockableBase( type ) type
     #define SharedLockableBase( type ) type
-    #define LockMark(x) (void)x
-    #define LockableName(x,y,z)
+    #define LockMark(x) SGE_UNUSED(x)
+    #define LockableName(x,y,z) SGE_UNUSED(x,y,z)
 
-    #define TracyPlot(x,y)
-    #define TracyPlotConfig(x,y,z,w,a)
+    #define TracyPlot(x,y) SGE_UNUSED(x,y)
+    #define TracyPlotConfig(x,y,z,w,a) SGE_UNUSED(x,y,z,w,a)
 
-    #define TracyMessage(x,y)
-    #define TracyMessageL(x)
-    #define TracyMessageC(x,y,z)
-    #define TracyMessageLC(x,y)
-    #define TracyAppInfo(x,y)
+    #define TracyMessage(x,y) SGE_UNUSED(x,y)
+    #define TracyMessageL(x) SGE_UNUSED(x)
+    #define TracyMessageC(x,y,z) SGE_UNUSED(x,y,z)
+    #define TracyMessageLC(x,y) SGE_UNUSED(x,y)
+    #define TracyAppInfo(x,y) SGE_UNUSED(x,y)
 
-    #define TracyAlloc(x,y)
-    #define TracyFree(x)
-    #define TracySecureAlloc(x,y)
-    #define TracySecureFree(x)
+    #define TracyAlloc(x,y) SGE_UNUSED(x,y)
+    #define TracyFree(x) SGE_UNUSED(x)
+    #define TracySecureAlloc(x,y) SGE_UNUSED(x,y)
+    #define TracySecureFree(x) SGE_UNUSED(x)
 
-    #define TracyAllocN(x,y,z)
-    #define TracyFreeN(x,y)
-    #define TracySecureAllocN(x,y,z)
-    #define TracySecureFreeN(x,y)
+    #define TracyAllocN(x,y,z) SGE_UNUSED(x,y,z)
+    #define TracyFreeN(x,y) SGE_UNUSED(x,y)
+    #define TracySecureAllocN(x,y,z) SGE_UNUSED(x,y,z)
+    #define TracySecureFreeN(x,y) SGE_UNUSED(x,y)
 
-    #define ZoneNamedS(x,y,z)
-    #define ZoneNamedNS(x,y,z,w)
-    #define ZoneNamedCS(x,y,z,w)
-    #define ZoneNamedNCS(x,y,z,w,a)
+    #define ZoneNamedS(x,y,z) SGE_UNUSED(x,y,z)
+    #define ZoneNamedNS(x,y,z,w) SGE_UNUSED(x,y,z,w)
+    #define ZoneNamedCS(x,y,z,w) SGE_UNUSED(x,y,z,w)
+    #define ZoneNamedNCS(x,y,z,w,a) SGE_UNUSED(x,y,z,w)
 
-    #define ZoneTransientS(x,y,z)
-    #define ZoneTransientNS(x,y,z,w)
+    #define ZoneTransientS(x,y,z) SGE_UNUSED(x,y,z)
+    #define ZoneTransientNS(x,y,z,w) SGE_UNUSED(x,y,z,w)
 
-    #define ZoneScopedS(x)
-    #define ZoneScopedNS(x,y)
-    #define ZoneScopedCS(x,y)
-    #define ZoneScopedNCS(x,y,z)
+    #define ZoneScopedS(x) SGE_UNUSED(x)
+    #define ZoneScopedNS(x,y) SGE_UNUSED(x,y)
+    #define ZoneScopedCS(x,y) SGE_UNUSED(x,y)
+    #define ZoneScopedNCS(x,y,z) SGE_UNUSED(x,y,z)
 
-    #define TracyAllocS(x,y,z)
-    #define TracyFreeS(x,y)
-    #define TracySecureAllocS(x,y,z)
-    #define TracySecureFreeS(x,y)
+    #define TracyAllocS(x,y,z) SGE_UNUSED(x,y,z)
+    #define TracyFreeS(x,y) SGE_UNUSED(x,y)
+    #define TracySecureAllocS(x,y,z) SGE_UNUSED(x,y,z)
+    #define TracySecureFreeS(x,y) SGE_UNUSED(x,y)
 
-    #define TracyAllocNS(x,y,z,w)
-    #define TracyFreeNS(x,y,z)
-    #define TracySecureAllocNS(x,y,z,w)
-    #define TracySecureFreeNS(x,y,z)
+    #define TracyAllocNS(x,y,z,w) SGE_UNUSED(x,y,z,w)
+    #define TracyFreeNS(x,y,z) SGE_UNUSED(x,y,z)
+    #define TracySecureAllocNS(x,y,z,w) SGE_UNUSED(x,y,z,w)
+    #define TracySecureFreeNS(x,y,z) SGE_UNUSED(x,y,z)
 
-    #define TracyMessageS(x,y,z)
-    #define TracyMessageLS(x,y)
-    #define TracyMessageCS(x,y,z,w)
-    #define TracyMessageLCS(x,y,z)
+    #define TracyMessageS(x,y,z) SGE_UNUSED(x,y,z)
+    #define TracyMessageLS(x,y) SGE_UNUSED(x,y)
+    #define TracyMessageCS(x,y,z,w) SGE_UNUSED(x,y,z,w)
+    #define TracyMessageLCS(x,y,z) SGE_UNUSED(x,y,z)
 
-    #define TracySourceCallbackRegister(x,y)
-    #define TracyParameterRegister(x,y)
-    #define TracyParameterSetup(x,y,z,w)
-    #define TracyIsConnected false
-    #define TracyIsStarted false
-    #define TracySetProgramName(x)
+    #define TracySourceCallbackRegister(x,y) SGE_UNUSED(x,y)
+    #define TracyParameterRegister(x,y) SGE_UNUSED(x,y)
+    #define TracyParameterSetup(x,y,z,w) SGE_UNUSED(x,y,z,w)
+    #define TracyIsConnected (false)
+    #define TracyIsStarted (false)
+    #define TracySetProgramName(x) SGE_UNUSED(x)
 
-    #define TracyFiberEnter(x)
-    #define TracyFiberEnterHint(x,y)
-    #define TracyFiberLeave
+    #define TracyFiberEnter(x) SGE_UNUSED(x)
+    #define TracyFiberEnterHint(x,y) SGE_UNUSED(x,y)
+    #define TracyFiberLeave SGE_UNUSED()
 #endif
 
 #endif
