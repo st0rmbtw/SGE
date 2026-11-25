@@ -25,8 +25,8 @@
 
 #include <concepts>
 #include <filesystem>
-#include <stack>
 #include <ranges>
+#include <unordered_set>
 
 namespace sge::internal {
 
@@ -185,6 +185,21 @@ public:
     void Present(const GlfwWindow& window);
 
     void ReleaseUntyped(LLGL::RenderSystemChild& resource);
+
+    void QueueRelease(LLGL::RenderSystemChild* resource) {
+        if (!resource) return;
+        if (m_deletion_queue_seen.insert(resource).second) {
+            m_deletion_queue.push_back(resource);
+        }
+    }
+
+    void ReleaseQueued() {
+        for (LLGL::RenderSystemChild* child : m_deletion_queue) {
+            ReleaseUntyped(*child);
+        }
+        m_deletion_queue.clear();
+        m_deletion_queue_seen.clear();
+    }
 
     template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
     inline void Release(T& resource) {
@@ -511,6 +526,9 @@ private:
     TemporaryFramebufferPool m_temp_framebuffer_pool;
 
     std::vector<LLGL::RenderTarget*> m_target_stack;
+
+    std::vector<LLGL::RenderSystemChild*> m_deletion_queue;
+    std::unordered_set<LLGL::RenderSystemChild*> m_deletion_queue_seen;
 
     sge::ImGuiConfig m_imgui_config;
 

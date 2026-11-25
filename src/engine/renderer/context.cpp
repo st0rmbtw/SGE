@@ -104,6 +104,8 @@ bool sge::RenderContext::Init(sge::RenderBackend backend, ImGuiConfig imguiConfi
 void sge::RenderContext::Destroy() {
     m_context->GetCommandQueue()->WaitIdle();
 
+    ReleaseQueued();
+
 #if SGE_IMGUI_ENABLED
     for (auto& [key, imguiContext] : m_imgui_context_map) {
         ImGui::SetCurrentContext(imguiContext);

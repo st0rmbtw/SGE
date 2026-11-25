@@ -183,4 +183,6 @@ void sge::IEngine::Render(const std::shared_ptr<sge::GlfwWindow>& window) {
         }
         #endif
     }
+
+    m_context->ReleaseQueued();
 }
