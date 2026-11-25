@@ -52,7 +52,7 @@ struct DrawCommandStateHash {
         size_t h = sge::HASH_INIT;
         sge::hash_fnv1a(h, &s.scissor, sizeof(s.scissor));
         sge::hash_fnv1a(h, &s.blendMode, sizeof(s.blendMode));
-        sge::hash_fnv1a(h, s.resources.data(), sizeof(s.resources));
+        sge::hash_fnv1a(h, s.resources);
         return h;
     }
 };

@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <ranges>
 #include <span>
 
 namespace sge {
@@ -17,8 +18,10 @@ inline void hash_fnv1a(std::size_t& hash, const void* data, size_t dataSize) {
     }
 }
 
-template <typename T> requires std::is_trivially_copyable_v<T>
-inline void hash_fnv1a(std::size_t& hash, std::span<const T> span) {
+template <std::ranges::contiguous_range R>
+    requires std::is_trivially_copyable_v<std::ranges::range_value_t<R>>
+inline void hash_fnv1a(std::size_t& hash, const R& range) {
+    auto span = std::as_bytes(std::span{range});
     return hash_fnv1a(hash, span.data(), span.size_bytes());
 }
 
