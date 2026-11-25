@@ -9,9 +9,12 @@
     #include <cstdlib>
     #include <exception>
 
+    #include "defines.hpp"
+
     #define SGE_ASSERT(expression) do {                                                                 \
         if (!(expression)) {                                                                            \
             std::println(stderr, "Assertion `" #expression "` failed at {}:{}", __FILE__, __LINE__);    \
+            SGE_DEBUG_BREAK();                                                                          \
             std::terminate();                                                                           \
         }                                                                                               \
     } while (0)
@@ -19,6 +22,7 @@
     #define SGE_ASSERT_M(expression, message, ...) do {                                                                \
         if (!(expression)) {                                                                                           \
             std::println(stderr, "Assertion failed at {}:{}: " message, __FILE__, __LINE__, ##__VA_ARGS__);            \
+            SGE_DEBUG_BREAK();                                                                                         \
             std::terminate();                                                                                          \
         }                                                                                                              \
     } while (0)
