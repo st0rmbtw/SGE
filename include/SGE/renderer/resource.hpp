@@ -9,6 +9,8 @@
 
 #include <LLGL/RenderSystemChild.h>
 
+#include <SGE/assert.hpp>
+
 namespace sge {
 
 namespace internal {
@@ -290,79 +292,108 @@ protected:
     TData m_data;
 };
 
+struct ResourceDeleter {
+    std::shared_ptr<sge::RenderContext> ctx;
+
+    ResourceDeleter() = default;
+
+    explicit ResourceDeleter(std::shared_ptr<sge::RenderContext> context) :
+        ctx{ std::move(context) }
+    {}
+
+    void operator()(LLGL::RenderSystemChild* child) const noexcept;
+};
+
 template <typename T>
 class Unique;
 
 template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
-class Unique<T> : public UniqueBaseImpl<LLGLResource> {
+class Unique<T> final : std::unique_ptr<T, ResourceDeleter> {
+    using base_t = std::unique_ptr<T, ResourceDeleter>;
 public:
-    using UniqueBaseImpl<LLGLResource>::UniqueBaseImpl;
+    Unique() : base_t(nullptr, ResourceDeleter{}) {}
+    Unique(std::nullptr_t) : base_t(nullptr, ResourceDeleter{}) {}
 
-    template <typename... TArgs>
-    static Unique<T> Create(TArgs&&... args) {
-        return Unique(LLGLResource(std::forward<TArgs>(args)...));
+    template <typename... Args>
+    static Unique Create(std::shared_ptr<sge::RenderContext> context, Args&&... args) {
+        return Unique(std::move(context), new T(std::forward<Args>(args)...));
     }
 
-    T* Get() const noexcept {
-        return static_cast<T*>(m_data.Get());
+    explicit Unique(std::shared_ptr<sge::RenderContext> context, T* ptr) : base_t(ptr, ResourceDeleter(std::move(context)))
+    {}
+
+    base_t::pointer Get() const {
+        return base_t::get();
+    }
+
+    T& operator*() const {
+        SGE_ASSERT_M(base_t::get() != nullptr, "null pointer dereference!");
+        return *base_t::get();
+    }
+
+    explicit operator bool() const noexcept {
+        return base_t::operator bool();
+    }
+
+    base_t::pointer Release() noexcept {
+        return base_t::release();
+    }
+
+    void Swap(base_t& other) noexcept {
+        base_t::swap(other);
+    }
+
+    base_t::pointer operator->() const noexcept {
+        return base_t::get();
     }
 
     operator T*() const noexcept {
         return Get();
-    }
-
-    [[nodiscard]]
-    inline bool IsValid() const noexcept {
-        return m_data.IsValid();
-    }
-
-    operator bool() const noexcept {
-        return IsValid();
-    }
-
-    T* operator->() const noexcept {
-        return Get();
-    }
-
-    T& operator*() const noexcept {
-        return *Get();
     }
 };
 
 template <typename T> requires (!std::derived_from<T, LLGL::RenderSystemChild>)
-                            && (!internal::is_derived_array<T, LLGL::RenderSystemChild>)
-class Unique<T> : public UniqueBaseImpl<T*> {
+class Unique<T> final : std::unique_ptr<T> {
+    using base_t = std::unique_ptr<T>;
 public:
-    using UniqueBaseImpl<T*>::UniqueBaseImpl;
+    Unique() : base_t() {}
+    Unique(std::nullptr_t) : base_t(nullptr) {}
 
-    template <typename... TArgs>
-    static Unique<T> Create(TArgs&&... args) {
-        return Unique(new T(std::forward<TArgs>(args)...));
+    template <typename... Args>
+    static Unique Create(Args&&... args) {
+        return Unique(new T(std::forward<Args>(args)...));
     }
 
-    T* Get() const noexcept {
-        return this->m_data;
+    explicit Unique(T* ptr) : base_t(ptr)
+    {}
+
+    base_t::pointer Get() const {
+        return base_t::get();
+    }
+
+    T& operator*() const {
+        SGE_ASSERT_M(base_t::get() != nullptr, "null pointer dereference!");
+        return *base_t::get();
+    }
+
+    explicit operator bool() const noexcept {
+        return base_t::operator bool();
+    }
+
+    base_t::pointer Release() noexcept {
+        return base_t::release();
+    }
+
+    void Swap(base_t& other) noexcept {
+        base_t::swap(other);
+    }
+
+    base_t::pointer operator->() const noexcept {
+        return base_t::get();
     }
 
     operator T*() const noexcept {
         return Get();
-    }
-
-    [[nodiscard]]
-    inline bool IsValid() const noexcept {
-        return this->m_data != nullptr;
-    }
-
-    operator bool() const noexcept {
-        return IsValid();
-    }
-
-    T* operator->() const noexcept {
-        return Get();
-    }
-
-    T& operator*() const noexcept {
-        return *Get();
     }
 };
 
@@ -392,7 +423,7 @@ public:
 
     [[nodiscard]]
     Unique<T> AsUnique() const noexcept {
-        return Unique<T>::Create(m_context, m_ptr);
+        return Unique<T>(m_context, m_ptr);
     }
 
     [[nodiscard]]

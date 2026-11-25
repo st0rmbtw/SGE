@@ -14,3 +14,10 @@ void sge::LLGLResource::Destroy() {
     }
     m_data = nullptr;
 }
+
+void sge::ResourceDeleter::operator()(LLGL::RenderSystemChild* child) const noexcept {
+    SGE_ASSERT_M(ctx, "deleter is uninitialized!");
+    if (child) {
+        ctx->ReleaseUntyped(*child);
+    }
+}

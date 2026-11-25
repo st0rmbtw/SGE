@@ -430,7 +430,7 @@ public:
 
     template <typename T> requires std::derived_from<T, LLGL::RenderSystemChild>
     Unique<T> CreateUnique(T* resource) {
-        return Unique<T>::Create(shared_from_this(), resource);
+        return Unique<T>(shared_from_this(), resource);
     }
 
     sge::TemporaryFramebuffer GetTemporaryFramebuffer(LLGL::Extent2D resolution, const TemporaryFramebufferOptions& opts = {});
