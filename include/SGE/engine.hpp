@@ -264,6 +264,9 @@ protected:
     }
 
     void OnWindowRefreshEvent(GLFWwindow* handle) override {
+        if (!m_initialized)
+            return;
+
         auto window = WindowManager::FindByHandle(handle);
         SGE_ASSERT(window != nullptr);
 
