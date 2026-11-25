@@ -25,8 +25,6 @@
 #include "imgui_internal.h"
 #include <misc/cpp/imgui_stdlib.h>
 
-static constexpr double FIXED_UPDATE_INTERVAL = 1.0 / 60.0;
-
 namespace Input = sge::Input;
 namespace Time = sge::Time;
 using Key = sge::Key;
@@ -34,53 +32,85 @@ using MouseButton = sge::MouseButton;
 
 namespace {
 
-bool ParseSvg(std::string_view svg, sge::PathBuilder& builder) {
+bool ParseSvgPath(sge::PathBuilder& builder, std::string_view svg) {
     size_t cursor = 0;
 
     std::vector<float> argumentStack;
     char currentMode = 0;
 
     do {
-        if (currentMode == 'M' && argumentStack.size() == 2) {
-            auto y = argumentStack.back(); argumentStack.pop_back();
-            auto x = argumentStack.back(); argumentStack.pop_back();
-            builder.MoveTo(glm::vec2(x, y));
-            currentMode = 0;
+        switch (currentMode) {
+        case 'M': {
+            if (argumentStack.size() == 2) {
+                auto y = argumentStack.back(); argumentStack.pop_back();
+                auto x = argumentStack.back(); argumentStack.pop_back();
+                builder.MoveTo(glm::vec2(x, y));
+            }
+            break;
         }
-
-        if (currentMode == 'h' && argumentStack.size() == 1) {
-            auto dx = argumentStack.back(); argumentStack.pop_back();
-            builder.HorizontalToRel(dx);
-            currentMode = 0;
+        case 'L': {
+            if (argumentStack.size() == 2) {
+                auto dy = argumentStack.back(); argumentStack.pop_back();
+                auto dx = argumentStack.back(); argumentStack.pop_back();
+                builder.LineTo(glm::vec2(dx, dy));
+            }
+            break;
         }
-
-        if (currentMode == 'v' && argumentStack.size() == 1) {
-            auto dy = argumentStack.back(); argumentStack.pop_back();
-            builder.VerticalToRel(dy);
-            currentMode = 0;
+        case 'C': {
+            if (argumentStack.size() == 6) {
+                auto dy3 = argumentStack.back(); argumentStack.pop_back();
+                auto dx3 = argumentStack.back(); argumentStack.pop_back();
+                auto dy2 = argumentStack.back(); argumentStack.pop_back();
+                auto dx2 = argumentStack.back(); argumentStack.pop_back();
+                auto dy1 = argumentStack.back(); argumentStack.pop_back();
+                auto dx1 = argumentStack.back(); argumentStack.pop_back();
+                builder.CubicBezierTo({dx1, dy1}, {dx2, dy2}, {dx3, dy3});
+            }
+            break;
         }
-
-        if (currentMode == 'l' && argumentStack.size() == 2) {
-            auto dy = argumentStack.back(); argumentStack.pop_back();
-            auto dx = argumentStack.back(); argumentStack.pop_back();
-            builder.LineToRel(glm::vec2(dx, dy));
-            currentMode = 0;
+        case 'h': {
+            if (argumentStack.size() == 1) {
+                auto dx = argumentStack.back(); argumentStack.pop_back();
+                builder.HorizontalToRel(dx);
+            }
+            break;
         }
-
-        if (currentMode == 'c' && argumentStack.size() == 6) {
-            auto dy3 = argumentStack.back(); argumentStack.pop_back();
-            auto dx3 = argumentStack.back(); argumentStack.pop_back();
-            auto dy2 = argumentStack.back(); argumentStack.pop_back();
-            auto dx2 = argumentStack.back(); argumentStack.pop_back();
-            auto dy1 = argumentStack.back(); argumentStack.pop_back();
-            auto dx1 = argumentStack.back(); argumentStack.pop_back();
-            builder.CubicBezierToRel({dx1, dy1}, {dx2, dy2}, {dx3, dy3});
-            currentMode = 0;
+        case 'v': {
+            if (argumentStack.size() == 1) {
+                auto dy = argumentStack.back(); argumentStack.pop_back();
+                builder.VerticalToRel(dy);
+            }
+            break;
         }
-
-        if (currentMode == 'Z' || currentMode == 'z') {
+        case 'l': {
+            if (argumentStack.size() == 2) {
+                auto dy = argumentStack.back(); argumentStack.pop_back();
+                auto dx = argumentStack.back(); argumentStack.pop_back();
+                builder.LineToRel(glm::vec2(dx, dy));
+            }
+            break;
+        }
+        case 'c': {
+            if (argumentStack.size() == 6) {
+                auto dy3 = argumentStack.back(); argumentStack.pop_back();
+                auto dx3 = argumentStack.back(); argumentStack.pop_back();
+                auto dy2 = argumentStack.back(); argumentStack.pop_back();
+                auto dx2 = argumentStack.back(); argumentStack.pop_back();
+                auto dy1 = argumentStack.back(); argumentStack.pop_back();
+                auto dx1 = argumentStack.back(); argumentStack.pop_back();
+                builder.CubicBezierToRel({dx1, dy1}, {dx2, dy2}, {dx3, dy3});
+            }
+            break;
+        }
+        case 'z':
+        case 'Z': {
             builder.Close();
             currentMode = 0;
+            break;
+        }
+        case 0: break;
+        default:
+            SGE_PANIC("unknown command: '{}'", currentMode);
         }
 
         if (cursor >= svg.size()) break;
@@ -93,8 +123,7 @@ bool ParseSvg(std::string_view svg, sge::PathBuilder& builder) {
         default:
         }
 
-        if (currentMode == 0) {
-            SGE_ASSERT(std::isalpha(svg[cursor]));
+        if (std::isalpha(svg[cursor])) {
             currentMode = svg[cursor];
             ++cursor;
         }
@@ -149,26 +178,8 @@ bool App::OnInit() {
     m_renderer = std::make_shared<sge::Renderer2D>(GetRenderContext());
     m_batch_group = std::make_unique<sge::BatchGroup>(m_renderer);
 
-    m_path = m_path_builder
-        .MoveTo(glm::vec2(1.24264, 8.24264))
-        .LineTo(glm::vec2(8, 15))
-        .LineTo(glm::vec2(14.7574, 8.24264))
-        .CubicBezierTo(glm::vec2(15.553, 7.44699), glm::vec2(16, 6.36786), glm::vec2(16, 5.24264))
-        .VerticalTo(5.05234)
-        .CubicBezierTo(glm::vec2(16, 2.8143), glm::vec2(14.1857, 1) , glm::vec2(11.9477, 1))
-        .CubicBezierTo(glm::vec2(10.7166, 1), glm::vec2(9.55233, 1.55959), glm::vec2(8.78331, 2.52086))
-        .LineTo(glm::vec2(8, 3.5))
-        .LineTo(glm::vec2(7.21669, 2.52086))
-        .CubicBezierTo(glm::vec2(6.44767, 1.55959) , glm::vec2(5.28338, 1), glm::vec2(4.05234, 1))
-        .CubicBezierTo(glm::vec2(1.8143, 1), glm::vec2(0, 2.8143), glm::vec2(0, 5.05234))
-        .VerticalTo(5.24264)
-        .CubicBezierTo(glm::vec2(0, 6.36786), glm::vec2(0.44699, 7.44699), glm::vec2(1.24264, 8.24264))
-        .Close()
-        .Build();
-
-    m_vector_shape = m_renderer->CreateVectorShape(m_path);
-
-    Time::SetFixedTimestepSeconds(FIXED_UPDATE_INTERVAL);
+    ParseSvgPath(m_path_builder, "M59,52c-2,0,0,1,2,1l2-1h-4M67,50l2-4l-1,3c-3,2,0-1,0-2c-3,4-1,2-1,3M70,42c1-3,0-2,0-1v1M53,3l2,1c1,0,1-1-2-1M55,4h-1zM81,43c0,3-1,4-2,6l-1,1l-1,3l-6,5c-1,0,0-1,1-1c-3,1-2,2-6,3c-9,4-21-4-21-15c-1-5,2-11,8-13c5-3,11-2,14,1c-2-2-6-5-10-5c-5,0-9,3-11,7c-2,1-2,5-3,6c-2,10,2,15,9,20c1,1,0,1,0,1l-6-4l4,3c-3,0-5-5-6-5c3,7,15,12,21,9c-3,0-7,0-10-1c-1-1-3-2-2-2c8,3,16,2,23-4l4-3c-1,1,0,0,0,1c1-2-1-1,1-4l1,1c0-3,3-5,3-9c1-1,1,1,0,4c1-3,0-4,1-6c0,1,0,2,1,2c-1-2,0-4,1-6c-1,0-1,1-2-2c0-1,1-1,1-1l-2-3c1-1,1,1,2,1l-1-4c-1-3-1,0-2-2c-1-4,2-1,2-3l4,10l-2-7c0,1-1-5,1-1c-2-8-9-14-15-18c1,1,2,2,1,2c-3-2-2-2-3-3c-2-1-2,1-4,0c-4-2-5-2-9-3v1c-3-1-4,0-7,0c0-1,1-1,2-1c-3,0-3-1-6,0l3-1c-3,0-6,1-5,0c-4,2-11,4-15,8v-1c-2,2-8,6-8,9h-1c-1,2-1,4-2,5c-1,2-2,1-2,1l-4,13c1,1,0,6,0,11c-1,21,15,42,33,47c3,1,7,1,10,1l-8-2c-3-1-3-3-5-4v1c-3-1-2-2-5-3l1-1c-1,0-3-2-4-3h-1l-3-4c-1-1-6-7-3-6c-1,0-2,0-2-2l-2-5c0,1,1,1,2,1c-4-9-4,0-7-9h1c-1,0-1-1-1-2v-2c-3-3-1-12,0-18c0-2,2-4,3-7h-1c2-3,10-12,13-11c2-3,0,0-1-1c4-4,5-3,8-3c3-2-2,0-1-1c5-1,3-3,9-3c1,0-1,0-2,1c4-2,13-2,18,1c7,3,14,12,14,20h1c0,3,0,7-1,11zM42,54v2l3,4l-3-6M44,54l-1-2c0,2,1,3,2,4zM87,45v1c0,3-1,5-3,8c2-3,3-6,3-9M53,3c1-1,3-1,4-1h-4zM16,22c0,3-2,4,0,2c2-3,0-1,0-2M13,33l1-3c-1,1,0,2-1,3");
+    m_vector_shape = m_renderer->CreateVectorShape(m_path_builder.Build(), glm::vec2(100.f, 100.f));
 
     window->ShowWindow();
 
@@ -191,8 +202,6 @@ void App::OnInputEvent(const sge::InputEvent& event) {
 }
 
 void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
-    bool pathChanged = false;
-
     m_camera.set_viewport(m_imgui_state.scene_resolution);
 
     m_batch_group->Reset();
@@ -208,12 +217,16 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         tempFramebufferOpts.bindFlags = LLGL::BindFlags::ColorAttachment | LLGL::BindFlags::Sampled | LLGL::BindFlags::CopySrc | LLGL::BindFlags::CopyDst;
         auto framebuffer = GetRenderContext()->GetTemporaryFramebuffer(window->GetSize(), tempFramebufferOpts);
 
+        sge::TextureWithSampler framebufferTexture;
+        framebufferTexture.texture = framebuffer.GetTexture();
+        framebufferTexture.sampler = GetRenderContext()->GetLinearSampler()->internal().Get();
+
         m_batch_group->Submit();
         m_renderer->FlushBatches();
 
         m_renderer->BeginPass(*framebuffer.GetRenderTarget(), m_camera);
         {
-            m_renderer->Clear(LLGL::ClearValue(0.6f, 0.3f, 0.3f, 1.0f));
+            m_renderer->Clear(LLGL::ClearValue(0.1f, 0.1f, 0.1f, 1.0f));
         }
         m_renderer->EndPass();
 
@@ -288,9 +301,6 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                             if (avail.y > 0.0f)
                                 m_imgui_state.scene_resolution.height = static_cast<uint32_t>(avail.y);
 
-                            sge::TextureWithSampler framebufferTexture;
-                            framebufferTexture.texture = framebuffer.GetTexture();
-                            framebufferTexture.sampler = GetRenderContext()->GetLinearSampler()->internal().Get();
                             ImGui::Image((ImTextureID)&framebufferTexture, avail);
                         }
                         ImGui::End();
@@ -301,18 +311,29 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
                     ImGui::Begin("Settings");
                     {
                         ImGui::PushItemWidth(-1);
-
                         static std::string inputBuffer = {};
                         ImGui::InputText("##PathInput", &inputBuffer);
+                        ImGui::PopItemWidth();
 
+                        static float shapeSizeX = 0.0f;
+                        static float shapeSizeY = 0.0f;
+                        ImGui::InputFloat("##SizeX", &shapeSizeX);
+                        ImGui::SameLine();
+                        ImGui::InputFloat("##SizeY", &shapeSizeY);
+
+                        ImGui::PushItemWidth(-1);
                         ImGui::BeginDisabled(inputBuffer.empty());
                         if (ImGui::Button("Generate path")) {
                             m_path_builder.Reset();
-                            ParseSvg(inputBuffer, m_path_builder);
-                            pathChanged = true;
+                            ParseSvgPath(m_path_builder, inputBuffer);
+
+                            std::optional<glm::vec2> customSize;
+                            if (shapeSizeX > 0.0 && shapeSizeY > 0.0)
+                                customSize = glm::vec2(shapeSizeX, shapeSizeY);
+
+                            m_vector_shape = m_renderer->CreateVectorShape(m_path_builder.Build(), customSize);
                         }
                         ImGui::EndDisabled();
-
                         ImGui::PopItemWidth();
 
                         ImGui::SeparatorText("Current Shape Info");
@@ -333,13 +354,6 @@ void App::OnRender(const std::shared_ptr<sge::GlfwWindow>& window) {
         m_renderer->EndPass();
     }
     m_renderer->End();
-
-    if (pathChanged) {
-        std::optional<glm::vec2> customSize;
-        if (shapeSizeX > 0.0 && shapeSizeY > 0.0)
-            customSize = glm::vec2(shapeSizeX, shapeSizeY);
-        m_vector_shape = m_renderer->CreateVectorShape(m_path_builder.Build(), customSize);
-    }
 
     #if SGE_DEBUG_LAYER_ENABLED
     if (Input::Pressed(Key::C)) {

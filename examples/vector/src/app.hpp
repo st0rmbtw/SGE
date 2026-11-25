@@ -27,7 +27,6 @@ private:
     sge::Camera m_camera;
     LLGL::FrameProfile m_profile;
     sge::PathBuilder m_path_builder;
-    sge::Path m_path;
     std::shared_ptr<sge::VectorShape> m_vector_shape;
     std::shared_ptr<sge::Renderer2D> m_renderer;
     std::unique_ptr<sge::BatchGroup> m_batch_group;
